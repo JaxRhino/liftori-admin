@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-navy-900 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-navy-800;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-navy-600 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-navy-500;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-brand-blue text-white font-semibold rounded-lg
+           hover:bg-brand-blue/90 transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-brand-blue/50;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-navy-600 text-white font-medium rounded-lg
+           border border-navy-500 hover:bg-navy-500 transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-navy-500/50;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 text-gray-400 font-medium rounded-lg
+           hover:text-white hover:bg-navy-700 transition-colors duration-150;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 bg-red-600/20 text-red-400 font-medium rounded-lg
+           border border-red-600/30 hover:bg-red-600/30 transition-colors duration-150;
+  }
+
+  .card {
+    @apply bg-navy-800 border border-navy-600/50 rounded-xl p-6;
+  }
+
+  .stat-card {
+    @apply bg-navy-800/50 border border-navy-600/30 rounded-xl p-5;
+  }
+
+  .input {
+    @apply w-full px-4 py-2.5 bg-navy-800 border border-navy-600/50 rounded-lg
+           text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue
+           focus:ring-1 focus:ring-brand-blue/30 transition-colors;
+  }
+
+  .select {
+    @apply w-full px-4 py-2.5 bg-navy-800 border border-navy-600/50 rounded-lg
+           text-white focus:outline-none focus:border-brand-blue
+           focus:ring-1 focus:ring-brand-blue/30 transition-colors appearance-none;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-400 mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .table-row {
+    @apply border-b border-navy-700/50 hover:bg-navy-800/50 transition-colors;
+  }
+}
