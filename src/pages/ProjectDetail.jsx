@@ -15,6 +15,9 @@ const STATUS_COLORS = {
   'Cancelled': 'bg-red-500/20 text-red-400'
 }
 
+const PROJECT_TYPES = ['Web App', 'Mobile App', 'Business Platform']
+const TIERS = ['Starter', 'Growth', 'Scale']
+
 export default function ProjectDetail() {
   const { id } = useParams()
   const { user } = useAuth()
@@ -28,6 +31,9 @@ export default function ProjectDetail() {
   const [sendingMessage, setSendingMessage] = useState(false)
   const [newMilestone, setNewMilestone] = useState('')
   const [addingMilestone, setAddingMilestone] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState({})
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetchAll()
@@ -46,7 +52,6 @@ export default function ProjectDetail() {
         supabase.from('messages').select('*, profiles!messages_sender_id_fkey(full_name, email)').eq('project_id', id).order('created_at', { ascending: true }),
         supabase.from('project_updates').select('*').eq('project_id', id).order('created_at', { ascending: false })
       ])
-
       setProject(proj)
       setMilestones(ms || [])
       setMessages(msgs || [])
@@ -62,7 +67,6 @@ export default function ProjectDetail() {
     const updates = { status: newStatus }
     if (newStatus === 'Launched') updates.launched_at = new Date().toISOString()
     if (newStatus === 'Design Approval') updates.approved_at = new Date().toISOString()
-
     const { error } = await supabase.from('projects').update(updates).eq('id', id)
     if (!error) setProject(p => ({ ...p, ...updates }))
   }
@@ -70,6 +74,47 @@ export default function ProjectDetail() {
   async function updateProgress(newProgress) {
     const { error } = await supabase.from('projects').update({ progress: newProgress }).eq('id', id)
     if (!error) setProject(p => ({ ...p, progress: newProgress }))
+  }
+
+  function startEditing() {
+    setEditForm({
+      name: project.name || '',
+      project_type: project.project_type || '',
+      tier: project.tier || '',
+      brief: project.brief || '',
+      budget_range: project.budget_range || '',
+      timeline_pref: project.timeline_pref || '',
+      vibe: project.vibe || '',
+      features: (project.features || []).join(', ')
+    })
+    setEditing(true)
+  }
+
+  async function saveEditing() {
+    setSaving(true)
+    try {
+      const featuresArray = editForm.features
+        ? editForm.features.split(',').map(f => f.trim()).filter(Boolean)
+        : []
+      const payload = {
+        name: editForm.name,
+        project_type: editForm.project_type,
+        tier: editForm.tier,
+        brief: editForm.brief || null,
+        budget_range: editForm.budget_range || null,
+        timeline_pref: editForm.timeline_pref || null,
+        vibe: editForm.vibe || null,
+        features: featuresArray.length > 0 ? featuresArray : null
+      }
+      const { error } = await supabase.from('projects').update(payload).eq('id', id)
+      if (error) throw error
+      setProject(p => ({ ...p, ...payload }))
+      setEditing(false)
+    } catch (err) {
+      console.error('Save error:', err)
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function sendMessage() {
@@ -82,7 +127,6 @@ export default function ProjectDetail() {
         sender_type: 'admin',
         body: newMessage.trim()
       }).select('*, profiles!messages_sender_id_fkey(full_name, email)').single()
-
       if (error) throw error
       setMessages(prev => [...prev, data])
       setNewMessage('')
@@ -102,7 +146,6 @@ export default function ProjectDetail() {
         name: newMilestone.trim(),
         sort_order: milestones.length + 1
       }).select().single()
-
       if (error) throw error
       setMilestones(prev => [...prev, data])
       setNewMilestone('')
@@ -117,7 +160,6 @@ export default function ProjectDetail() {
     const updates = { completed: !completed }
     if (!completed) updates.completed_at = new Date().toISOString()
     else updates.completed_at = null
-
     const { error } = await supabase.from('milestones').update(updates).eq('id', msId)
     if (!error) {
       setMilestones(prev => prev.map(m => m.id === msId ? { ...m, ...updates } : m))
@@ -164,7 +206,6 @@ export default function ProjectDetail() {
             </p>
           </div>
         </div>
-
         <div className="flex items-center gap-3">
           <select
             value={project.status}
@@ -182,7 +223,10 @@ export default function ProjectDetail() {
           <span className="text-sm font-bold text-brand-blue">{project.progress}%</span>
         </div>
         <div className="w-full h-2 bg-navy-700 rounded-full overflow-hidden mb-3">
-          <div className="h-full bg-gradient-to-r from-brand-blue to-brand-cyan rounded-full transition-all duration-300" style={{ width: `${project.progress}%` }} />
+          <div
+            className="h-full bg-gradient-to-r from-brand-blue to-brand-cyan rounded-full transition-all duration-300"
+            style={{ width: `${project.progress}%` }}
+          />
         </div>
         <input
           type="range"
@@ -220,33 +264,118 @@ export default function ProjectDetail() {
       {activeTab === 'overview' && (
         <div className="grid lg:grid-cols-2 gap-6">
           <div className="card">
-            <h3 className="text-sm font-medium text-gray-400 mb-3">Project Details</h3>
-            <div className="space-y-3">
-              <DetailRow label="Type" value={project.project_type} />
-              <DetailRow label="Tier" value={project.tier} />
-              <DetailRow label="Budget" value={project.budget_range} />
-              <DetailRow label="Timeline" value={project.timeline_pref} />
-              <DetailRow label="Design Vibe" value={project.vibe} />
-              <DetailRow label="Created" value={new Date(project.created_at).toLocaleString()} />
-              {project.launched_at && <DetailRow label="Launched" value={new Date(project.launched_at).toLocaleString()} />}
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-400">Project Details</h3>
+              {!editing ? (
+                <button
+                  onClick={startEditing}
+                  className="text-xs text-brand-blue hover:text-brand-blue/80 transition-colors flex items-center gap-1"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                  </svg>
+                  Edit
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditing(false)}
+                    className="text-xs text-gray-500 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveEditing}
+                    disabled={saving}
+                    className="text-xs bg-brand-blue hover:bg-brand-blue/80 text-white px-3 py-1 rounded-md transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              )}
             </div>
+            {editing ? (
+              <div className="space-y-3">
+                <EditField label="Project Name" value={editForm.name} onChange={v => setEditForm(f => ({ ...f, name: v }))} />
+                <div className="flex justify-between items-center py-1.5 border-b border-navy-700/30">
+                  <span className="text-xs text-gray-500">Type</span>
+                  <select
+                    value={editForm.project_type}
+                    onChange={e => setEditForm(f => ({ ...f, project_type: e.target.value }))}
+                    className="bg-navy-900 border border-navy-700/50 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-brand-blue/50"
+                  >
+                    {PROJECT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-navy-700/30">
+                  <span className="text-xs text-gray-500">Tier</span>
+                  <select
+                    value={editForm.tier}
+                    onChange={e => setEditForm(f => ({ ...f, tier: e.target.value }))}
+                    className="bg-navy-900 border border-navy-700/50 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-brand-blue/50"
+                  >
+                    {TIERS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <EditField label="Budget" value={editForm.budget_range} onChange={v => setEditForm(f => ({ ...f, budget_range: v }))} />
+                <EditField label="Timeline" value={editForm.timeline_pref} onChange={v => setEditForm(f => ({ ...f, timeline_pref: v }))} />
+                <EditField label="Design Vibe" value={editForm.vibe} onChange={v => setEditForm(f => ({ ...f, vibe: v }))} />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <DetailRow label="Type" value={project.project_type} />
+                <DetailRow label="Tier" value={project.tier} />
+                <DetailRow label="Budget" value={project.budget_range} />
+                <DetailRow label="Timeline" value={project.timeline_pref} />
+                <DetailRow label="Design Vibe" value={project.vibe} />
+                <DetailRow label="Created" value={new Date(project.created_at).toLocaleString()} />
+                {project.launched_at && <DetailRow label="Launched" value={new Date(project.launched_at).toLocaleString()} />}
+              </div>
+            )}
           </div>
 
           <div className="card">
-            <h3 className="text-sm font-medium text-gray-400 mb-3">Brief</h3>
-            <p className="text-sm text-white whitespace-pre-wrap">{project.brief || 'No brief yet'}</p>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-400">Brief</h3>
+              {editing && <span className="text-xs text-gray-600">Editing</span>}
+            </div>
+            {editing ? (
+              <textarea
+                className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue/50 min-h-[120px] resize-y"
+                value={editForm.brief}
+                onChange={e => setEditForm(f => ({ ...f, brief: e.target.value }))}
+                placeholder="Project brief..."
+              />
+            ) : (
+              <p className="text-sm text-white whitespace-pre-wrap">{project.brief || 'No brief yet'}</p>
+            )}
           </div>
 
-          {project.features && project.features.length > 0 && (
-            <div className="card lg:col-span-2">
-              <h3 className="text-sm font-medium text-gray-400 mb-3">Features</h3>
-              <div className="flex flex-wrap gap-2">
-                {project.features.map((f, i) => (
-                  <span key={i} className="badge bg-navy-700 text-gray-300">{f}</span>
-                ))}
-              </div>
+          <div className="card lg:col-span-2">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-400">Features</h3>
+              {editing && <span className="text-xs text-gray-600">Comma-separated</span>}
             </div>
-          )}
+            {editing ? (
+              <input
+                type="text"
+                className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue/50"
+                value={editForm.features}
+                onChange={e => setEditForm(f => ({ ...f, features: e.target.value }))}
+                placeholder="Feature 1, Feature 2, Feature 3..."
+              />
+            ) : (
+              project.features && project.features.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {project.features.map((f, i) => (
+                    <span key={i} className="badge bg-navy-700 text-gray-300">{f}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No features defined</p>
+              )
+            )}
+          </div>
         </div>
       )}
 
@@ -284,7 +413,6 @@ export default function ProjectDetail() {
               <p className="text-gray-500 text-sm py-4 text-center">No milestones yet</p>
             )}
           </div>
-
           <div className="flex gap-2 pt-3 border-t border-navy-700/50">
             <input
               type="text"
@@ -328,7 +456,6 @@ export default function ProjectDetail() {
               <p className="text-gray-500 text-sm text-center py-8">No messages yet. Start the conversation.</p>
             )}
           </div>
-
           <div className="flex gap-2 pt-3 border-t border-navy-700/50">
             <input
               type="text"
@@ -383,7 +510,21 @@ function DetailRow({ label, value }) {
   return (
     <div className="flex justify-between items-center py-1.5 border-b border-navy-700/30 last:border-0">
       <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-sm text-white">{value || '—'}</span>
+      <span className="text-sm text-white">{value || '\u2014'}</span>
+    </div>
+  )
+}
+
+function EditField({ label, value, onChange }) {
+  return (
+    <div className="flex justify-between items-center py-1.5 border-b border-navy-700/30">
+      <span className="text-xs text-gray-500">{label}</span>
+      <input
+        type="text"
+        className="bg-navy-900 border border-navy-700/50 rounded px-2 py-1 text-sm text-white text-right focus:outline-none focus:border-brand-blue/50 w-48"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      />
     </div>
   )
 }
