@@ -1,0 +1,132 @@
+import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../lib/AuthContext'
+import { useState } from 'react'
+
+const navItems = [
+  {
+    label: 'Dashboard',
+    path: '/',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Projects',
+    path: '/projects',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Waitlist',
+    path: '/waitlist',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Affiliates',
+    path: '/affiliates',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-3.061a4.5 4.5 0 00-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757" />
+      </svg>
+    )
+  },
+  {
+    label: 'Customers',
+    path: '/customers',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+      </svg>
+    )
+  }
+]
+
+export default function AdminLayout() {
+  const { user, profile, signOut } = useAuth()
+  const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/login', { replace: true })
+  }
+
+  return (
+    <div className="min-h-screen flex">
+      {/* Sidebar */}
+      <aside className={`${sidebarOpen ? 'w-60' : 'w-16'} bg-navy-800 border-r border-navy-700/50 flex flex-col transition-all duration-200`}>
+        {/* Logo */}
+        <div className="h-16 flex items-center px-4 border-b border-navy-700/50">
+          <span className="font-display text-2xl tracking-wider text-white">
+            {sidebarOpen ? 'LIFTORI' : 'L'}
+          </span>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="ml-auto text-gray-500 hover:text-white transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d={sidebarOpen ? "M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" : "M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5"} />
+            </svg>
+          </button>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 py-4 space-y-1 px-2">
+          {navItems.map(item => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.path === '/'}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-brand-blue/10 text-brand-blue'
+                    : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
+                }`
+              }
+            >
+              {item.icon}
+              {sidebarOpen && <span>{item.label}</span>}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* User */}
+        <div className="p-3 border-t border-navy-700/50">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blue text-sm font-bold flex-shrink-0">
+              {(profile?.full_name || user?.email || '?')[0].toUpperCase()}
+            </div>
+            {sidebarOpen && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {profile?.full_name || user?.email}
+                </p>
+                <button
+                  onClick={handleSignOut}
+                  className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-auto">
+        <Outlet />
+      </main>
+    </div>
+  )
+}
