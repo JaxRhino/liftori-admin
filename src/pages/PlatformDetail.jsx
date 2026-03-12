@@ -34,7 +34,7 @@ export default function PlatformDetail() {
       .eq('id', id)
       .single()
     if (error || !data) {
-      navigate('/platforms')
+      navigate('/admin/platforms')
       return
     }
     setPlatform(data)
@@ -76,7 +76,7 @@ export default function PlatformDetail() {
 
   async function handleDelete() {
     const { error } = await supabase.from('platforms').delete().eq('id', id)
-    if (!error) navigate('/platforms')
+    if (!error) navigate('/admin/platforms')
   }
 
   function addFeature() {
@@ -106,7 +106,7 @@ export default function PlatformDetail() {
       <div className="min-h-screen bg-navy-900 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-white mb-2">Platform not found</h2>
-          <Link to="/platforms" className="text-brand-blue hover:underline">Back to Platforms</Link>
+          <Link to="/admin/platforms" className="text-brand-blue hover:underline">Back to Platforms</Link>
         </div>
       </div>
     )
@@ -119,7 +119,7 @@ export default function PlatformDetail() {
     <div className="min-h-screen bg-navy-900 p-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm mb-6">
-        <Link to="/platforms" className="text-gray-500 hover:text-brand-blue transition-colors">Platforms</Link>
+        <Link to="/admin/platforms" className="text-gray-500 hover:text-brand-blue transition-colors">Platforms</Link>
         <svg className="w-3 h-3 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
         </svg>
