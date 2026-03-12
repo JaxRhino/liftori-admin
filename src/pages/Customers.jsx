@@ -50,7 +50,7 @@ export default function Customers() {
           <h1 className="text-2xl font-bold text-white">Customers</h1>
           <p className="text-gray-400 text-sm mt-1">{customers.length} total customers</p>
         </div>
-        <Link to="/waitlist" className="btn-primary">Convert from Waitlist</Link>
+        <Link to="/admin/waitlist" className="btn-primary">Convert from Waitlist</Link>
       </div>
 
       {loading ? (
@@ -61,7 +61,7 @@ export default function Customers() {
         <div className="card text-center py-16">
           <h3 className="text-lg font-semibold text-white mb-2">No customers yet</h3>
           <p className="text-gray-400 text-sm mb-6">Convert waitlist signups to create customer accounts.</p>
-          <Link to="/waitlist" className="btn-primary inline-flex">Go to Waitlist</Link>
+          <Link to="/admin/waitlist" className="btn-primary inline-flex">Go to Waitlist</Link>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
