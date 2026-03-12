@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { supabase } from '../lib/supabase'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -16,8 +17,20 @@ export default function Login() {
     setLoading(true)
 
     try {
-      await signIn(email, password)
-      navigate('/', { replace: true })
+      const { data } = await signIn(email, password)
+      // Fetch profile to determine role
+      if (data?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single()
+
+        const isAdmin = profile?.role === 'admin' || profile?.role === 'dev'
+        navigate(isAdmin ? '/admin' : '/portal', { replace: true })
+      } else {
+        navigate('/', { replace: true })
+      }
     } catch (err) {
       setError(err.message || 'Invalid credentials')
     } finally {
@@ -30,7 +43,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="font-display text-4xl tracking-wider text-white mb-1">LIFTORI</h1>
-          <p className="text-gray-500 text-sm">Admin Dashboard</p>
+          <p className="text-gray-500 text-sm">Sign in to your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-5">
@@ -45,7 +58,7 @@ export default function Login() {
             <input
               type="email"
               className="input"
-              placeholder="you@liftori.ai"
+              placeholder="you@example.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
@@ -79,7 +92,7 @@ export default function Login() {
         </form>
 
         <p className="text-center text-gray-600 text-xs mt-6">
-          Access restricted to admin accounts
+          Powered by Liftori
         </p>
       </div>
     </div>
