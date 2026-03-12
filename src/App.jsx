@@ -9,6 +9,8 @@ import Waitlist from './pages/Waitlist'
 import ConvertSignup from './pages/ConvertSignup'
 import Affiliates from './pages/Affiliates'
 import Customers from './pages/Customers'
+import Platforms from './pages/Platforms'
+import PlatformDetail from './pages/PlatformDetail'
 
 function ProtectedRoute({ children }) {
   const { user, profile, loading } = useAuth()
@@ -58,6 +60,8 @@ export default function App() {
             <Route path="waitlist/convert/:id" element={<ConvertSignup />} />
             <Route path="affiliates" element={<Affiliates />} />
             <Route path="customers" element={<Customers />} />
+            <Route path="platforms" element={<Platforms />} />
+            <Route path="platforms/:id" element={<PlatformDetail />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
