@@ -83,7 +83,7 @@ export default function Projects() {
               List
             </button>
           </div>
-          <Link to="/waitlist" className="btn-primary flex items-center gap-2">
+          <Link to="/admin/waitlist" className="btn-primary flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
@@ -101,7 +101,7 @@ export default function Projects() {
           </div>
           <h3 className="text-lg font-semibold text-white mb-2">No projects yet</h3>
           <p className="text-gray-400 text-sm mb-6">Convert a waitlist signup to create your first project.</p>
-          <Link to="/waitlist" className="btn-primary inline-flex items-center gap-2">
+          <Link to="/admin/waitlist" className="btn-primary inline-flex items-center gap-2">
             Go to Waitlist
           </Link>
         </div>
@@ -122,7 +122,7 @@ export default function Projects() {
                   {statusProjects.map(project => (
                     <Link
                       key={project.id}
-                      to={`/projects/${project.id}`}
+                      to={`/admin/projects/${project.id}`}
                       className="card p-4 block hover:border-navy-500 transition-colors"
                     >
                       <p className="text-sm font-semibold text-white mb-1 truncate">{project.name}</p>
@@ -189,7 +189,7 @@ export default function Projects() {
                 return (
                   <tr key={project.id} className="table-row">
                     <td className="px-4 py-3">
-                      <Link to={`/projects/${project.id}`} className="text-sm font-medium text-white hover:text-brand-blue transition-colors">
+                      <Link to={`/admin/projects/${project.id}`} className="text-sm font-medium text-white hover:text-brand-blue transition-colors">
                         {project.name}
                       </Link>
                     </td>
