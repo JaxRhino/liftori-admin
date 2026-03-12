@@ -19,6 +19,9 @@ export default function Chat() {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
+  const internalChannels = channels.filter(c => c.channel_type !== 'client_dm')
+  const clientDmChannels = channels.filter(c => c.channel_type === 'client_dm')
+
   useEffect(() => {
     fetchChannels()
   }, [])
@@ -94,7 +97,8 @@ export default function Chat() {
 
     setChannels(data || [])
     if (data && data.length > 0 && !activeChannel) {
-      setActiveChannel(data[0])
+      const defaultCh = data.find(c => c.is_default) || data[0]
+      setActiveChannel(defaultCh)
     }
     setLoading(false)
   }
@@ -137,6 +141,7 @@ export default function Chat() {
         .insert({
           name: newChannelName.trim().toLowerCase().replace(/\s+/g, '-'),
           description: newChannelDesc.trim() || null,
+          channel_type: 'internal',
           created_by: user.id
         })
         .select()
@@ -208,6 +213,8 @@ export default function Chat() {
     return diff > 5 * 60 * 1000
   }
 
+  const isClientDm = activeChannel?.channel_type === 'client_dm'
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -221,7 +228,7 @@ export default function Chat() {
       {/* Channel Sidebar */}
       <div className="w-56 bg-navy-800/50 border-r border-navy-700/50 flex flex-col">
         <div className="p-3 border-b border-navy-700/50 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">Channels</h2>
+          <h2 className="text-sm font-semibold text-white">Chat</h2>
           <button
             onClick={() => setShowNewChannel(true)}
             className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-brand-blue hover:bg-navy-700/50 rounded transition-colors"
@@ -234,17 +241,21 @@ export default function Chat() {
         </div>
 
         <div className="flex-1 overflow-y-auto py-1">
-          {channels.map(ch => (
+          {/* Internal Channels */}
+          <div className="px-3 pt-3 pb-1">
+            <span className="text-[10px] uppercase tracking-wider text-gray-600 font-semibold">Channels</span>
+          </div>
+          {internalChannels.map(ch => (
             <button
               key={ch.id}
               onClick={() => setActiveChannel(ch)}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors group ${
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors group ${
                 activeChannel?.id === ch.id
                   ? 'bg-brand-blue/10 text-brand-blue'
                   : 'text-gray-400 hover:text-white hover:bg-navy-700/30'
               }`}
             >
-              <span className="text-gray-600">#</span>
+              <span className="text-gray-600 text-xs">#</span>
               <span className="flex-1 text-left truncate">{ch.name}</span>
               {!ch.is_default && (
                 <span
@@ -258,6 +269,31 @@ export default function Chat() {
               )}
             </button>
           ))}
+
+          {/* Client DM Channels */}
+          {clientDmChannels.length > 0 && (
+            <>
+              <div className="px-3 pt-4 pb-1">
+                <span className="text-[10px] uppercase tracking-wider text-gray-600 font-semibold">Client DMs</span>
+              </div>
+              {clientDmChannels.map(ch => (
+                <button
+                  key={ch.id}
+                  onClick={() => setActiveChannel(ch)}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors group ${
+                    activeChannel?.id === ch.id
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : 'text-gray-400 hover:text-white hover:bg-navy-700/30'
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
+                  <span className="flex-1 text-left truncate">{ch.name}</span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
@@ -266,11 +302,20 @@ export default function Chat() {
         {/* Channel Header */}
         {activeChannel && (
           <div className="h-14 border-b border-navy-700/50 flex items-center px-5 gap-3">
-            <span className="text-lg text-gray-500">#</span>
+            {isClientDm ? (
+              <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+            ) : (
+              <span className="text-lg text-gray-500">#</span>
+            )}
             <div>
               <h3 className="text-sm font-semibold text-white">{activeChannel.name}</h3>
               {activeChannel.description && (
                 <p className="text-xs text-gray-500">{activeChannel.description}</p>
+              )}
+              {isClientDm && !activeChannel.description && (
+                <p className="text-xs text-emerald-500/60">Client direct message</p>
               )}
             </div>
           </div>
@@ -281,12 +326,24 @@ export default function Chat() {
           {messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
-                <div className="w-12 h-12 rounded-xl bg-navy-700/50 flex items-center justify-center mx-auto mb-3">
-                  <span className="text-2xl text-gray-600">#</span>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 ${
+                  isClientDm ? 'bg-emerald-500/10' : 'bg-navy-700/50'
+                }`}>
+                  {isClientDm ? (
+                    <svg className="w-6 h-6 text-emerald-500/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                    </svg>
+                  ) : (
+                    <span className="text-2xl text-gray-600">#</span>
+                  )}
                 </div>
-                <p className="text-white font-medium">Welcome to #{activeChannel?.name}</p>
+                <p className="text-white font-medium">
+                  {isClientDm ? `Chat with ${activeChannel?.name}` : `Welcome to #${activeChannel?.name}`}
+                </p>
                 <p className="text-gray-500 text-sm mt-1">
-                  {activeChannel?.description || 'Start the conversation'}
+                  {isClientDm
+                    ? 'Messages from the client will appear here'
+                    : activeChannel?.description || 'Start the conversation'}
                 </p>
               </div>
             </div>
@@ -372,7 +429,7 @@ export default function Chat() {
                 ref={inputRef}
                 type="text"
                 className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none"
-                placeholder={`Message #${activeChannel.name}`}
+                placeholder={isClientDm ? `Message ${activeChannel.name}` : `Message #${activeChannel.name}`}
                 value={newMessage}
                 onChange={e => setNewMessage(e.target.value)}
                 onKeyDown={e => {
