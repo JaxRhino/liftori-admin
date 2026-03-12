@@ -178,7 +178,7 @@ export default function ProjectDetail() {
     return (
       <div className="p-8">
         <p className="text-red-400">Project not found</p>
-        <Link to="/projects" className="text-brand-blue hover:underline mt-2 inline-block">Back to projects</Link>
+        <Link to="/admin/projects" className="text-brand-blue hover:underline mt-2 inline-block">Back to projects</Link>
       </div>
     )
   }
@@ -194,7 +194,7 @@ export default function ProjectDetail() {
     <div className="p-8">
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Link to="/projects" className="text-gray-400 hover:text-white transition-colors">
+          <Link to="/admin/projects" className="text-gray-400 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
@@ -510,7 +510,7 @@ function DetailRow({ label, value }) {
   return (
     <div className="flex justify-between items-center py-1.5 border-b border-navy-700/30 last:border-0">
       <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-sm text-white">{value || '\u2014'}</span>
+      <span className="text-sm text-white">{value || '—'}</span>
     </div>
   )
 }
