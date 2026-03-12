@@ -90,7 +90,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Recent Signups</h2>
-            <Link to="/waitlist" className="text-brand-blue text-sm hover:underline">View all</Link>
+            <Link to="/admin/waitlist" className="text-brand-blue text-sm hover:underline">View all</Link>
           </div>
           {recentSignups.length === 0 ? (
             <p className="text-gray-500 text-sm">No signups yet</p>
@@ -118,14 +118,14 @@ export default function Dashboard() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Recent Projects</h2>
-            <Link to="/projects" className="text-brand-blue text-sm hover:underline">View all</Link>
+            <Link to="/admin/projects" className="text-brand-blue text-sm hover:underline">View all</Link>
           </div>
           {recentProjects.length === 0 ? (
-            <p className="text-gray-500 text-sm">No projects yet. <Link to="/waitlist" className="text-brand-blue hover:underline">Convert a waitlist signup</Link> to get started.</p>
+            <p className="text-gray-500 text-sm">No projects yet. <Link to="/admin/waitlist" className="text-brand-blue hover:underline">Convert a waitlist signup</Link> to get started.</p>
           ) : (
             <div className="space-y-3">
               {recentProjects.map(p => (
-                <Link key={p.id} to={`/projects/${p.id}`} className="flex items-center justify-between py-2 border-b border-navy-700/30 last:border-0 hover:bg-navy-700/20 -mx-2 px-2 rounded-lg transition-colors">
+                <Link key={p.id} to={`/admin/projects/${p.id}`} className="flex items-center justify-between py-2 border-b border-navy-700/30 last:border-0 hover:bg-navy-700/20 -mx-2 px-2 rounded-lg transition-colors">
                   <div>
                     <p className="text-sm font-medium text-white">{p.name}</p>
                     <p className="text-xs text-gray-500">{p.profiles?.full_name || 'Unassigned'}</p>
