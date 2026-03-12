@@ -151,7 +151,7 @@ export default function ConvertSignup() {
         sort_order: 1
       })
 
-      navigate(`/projects/${project.id}`, { replace: true })
+      navigate(`/admin/projects/${project.id}`, { replace: true })
 
     } catch (err) {
       console.error('Conversion error:', err)
@@ -173,7 +173,7 @@ export default function ConvertSignup() {
     return (
       <div className="p-8">
         <p className="text-red-400">Signup not found</p>
-        <Link to="/waitlist" className="text-brand-blue hover:underline mt-2 inline-block">Back to waitlist</Link>
+        <Link to="/admin/waitlist" className="text-brand-blue hover:underline mt-2 inline-block">Back to waitlist</Link>
       </div>
     )
   }
@@ -181,7 +181,7 @@ export default function ConvertSignup() {
   return (
     <div className="p-8 max-w-4xl">
       <div className="flex items-center gap-4 mb-8">
-        <Link to="/waitlist" className="text-gray-400 hover:text-white transition-colors">
+        <Link to="/admin/waitlist" className="text-gray-400 hover:text-white transition-colors">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>
