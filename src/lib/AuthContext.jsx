@@ -9,17 +9,25 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
+
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return
       setUser(session?.user ?? null)
       if (session?.user) {
         fetchProfile(session.user.id)
       } else {
         setLoading(false)
       }
+    }).catch((err) => {
+      console.error('Session error:', err)
+      if (mounted) setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!mounted) return
         setUser(session?.user ?? null)
         if (session?.user) {
           await fetchProfile(session.user.id)
@@ -30,7 +38,10 @@ export function AuthProvider({ children }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function fetchProfile(userId) {
@@ -53,8 +64,7 @@ export function AuthProvider({ children }) {
 
   async function signIn(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
+      email, password
     })
     if (error) throw error
     return data
@@ -70,14 +80,7 @@ export function AuthProvider({ children }) {
   const isAdmin = profile?.role === 'admin' || profile?.role === 'dev'
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      profile,
-      loading,
-      isAdmin,
-      signIn,
-      signOut
-    }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )
