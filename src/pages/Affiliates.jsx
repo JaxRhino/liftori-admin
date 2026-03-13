@@ -5,13 +5,14 @@ export default function Affiliates() {
   const [affiliates, setAffiliates] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', commission_rate: '5', commission_type: 'per_signup' })
+  const [editingId, setEditingId] = useState(null)
+  const [form, setForm] = useState({
+    name: '', email: '', commission_rate: '5', commission_type: 'per_signup'
+  })
   const [saving, setSaving] = useState(false)
   const [referralCounts, setReferralCounts] = useState({})
 
-  useEffect(() => {
-    fetchData()
-  }, [])
+  useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
     try {
@@ -19,9 +20,7 @@ export default function Affiliates() {
         supabase.from('affiliates').select('*').order('created_at', { ascending: false }),
         supabase.from('waitlist_signups').select('referral_code').not('referral_code', 'is', null)
       ])
-
       setAffiliates(affs || [])
-
       const counts = {}
       ;(signups || []).forEach(s => {
         counts[s.referral_code] = (counts[s.referral_code] || 0) + 1
@@ -34,20 +33,48 @@ export default function Affiliates() {
     }
   }
 
+  function openEdit(affiliate) {
+    setEditingId(affiliate.id)
+    setForm({
+      name: affiliate.name || '',
+      email: affiliate.email || '',
+      commission_rate: String(affiliate.commission_rate || '0'),
+      commission_type: affiliate.commission_type || 'per_signup'
+    })
+    setShowForm(true)
+  }
+
+  function openNew() {
+    setEditingId(null)
+    setForm({ name: '', email: '', commission_rate: '5', commission_type: 'per_signup' })
+    setShowForm(true)
+  }
+
   async function handleSave() {
     setSaving(true)
     try {
-      const code = form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-      const { error } = await supabase.from('affiliates').insert({
-        name: form.name,
-        email: form.email || null,
-        referral_code: code,
-        commission_rate: parseFloat(form.commission_rate) || 0,
-        commission_type: form.commission_type,
-        is_active: true
-      })
-      if (error) throw error
+      if (editingId) {
+        const { error } = await supabase.from('affiliates').update({
+          name: form.name,
+          email: form.email || null,
+          commission_rate: parseFloat(form.commission_rate) || 0,
+          commission_type: form.commission_type
+        }).eq('id', editingId)
+        if (error) throw error
+      } else {
+        const code = form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+        const { error } = await supabase.from('affiliates').insert({
+          name: form.name,
+          email: form.email || null,
+          referral_code: code,
+          commission_rate: parseFloat(form.commission_rate) || 0,
+          commission_type: form.commission_type,
+          is_active: true
+        })
+        if (error) throw error
+      }
       setShowForm(false)
+      setEditingId(null)
       setForm({ name: '', email: '', commission_rate: '5', commission_type: 'per_signup' })
       fetchData()
     } catch (err) {
@@ -69,14 +96,21 @@ export default function Affiliates() {
           <h1 className="text-2xl font-bold text-white">Affiliates</h1>
           <p className="text-gray-400 text-sm mt-1">{affiliates.length} total affiliates</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-          {showForm ? 'Cancel' : '+ Add Affiliate'}
+        <button onClick={() => { if (showForm && !editingId) { setShowForm(false) } else { openNew() } }} className="btn-primary">
+          {showForm && !editingId ? 'Cancel' : '+ Add Affiliate'}
         </button>
       </div>
 
       {showForm && (
         <div className="card mb-6 space-y-4">
-          <h3 className="font-semibold">New Affiliate</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">{editingId ? 'Edit Affiliate' : 'New Affiliate'}</h3>
+            {editingId && (
+              <button onClick={() => { setShowForm(false); setEditingId(null) }} className="text-xs text-gray-400 hover:text-white transition-colors">
+                Cancel
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Name *</label>
@@ -99,7 +133,7 @@ export default function Affiliates() {
             </div>
           </div>
           <button onClick={handleSave} disabled={saving || !form.name} className="btn-primary disabled:opacity-50">
-            {saving ? 'Saving...' : 'Create Affiliate'}
+            {saving ? 'Saving...' : editingId ? 'Update Affiliate' : 'Create Affiliate'}
           </button>
         </div>
       )}
@@ -140,7 +174,36 @@ export default function Affiliates() {
                       {a.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right space-x-3">
+                    <button
+                      onClick={() => openEdit(a)}
+                      className="text-xs text-brand-blue hover:text-brand-light transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => toggleActive(a.id, a.is_active)}
+                      className="text-xs text-gray-400 hover:text-white transition-colors"
+                    >
+                      {a.is_active ? 'Deactivate' : 'Activate'}
+                    </button>-xs bg-navy-700 px-2 py-1 rounded font-mono text-brand-light">{a.referral_code}</code>
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-white">{referralCounts[a.referral_code] || 0}</td>
+                  <td className="px-4 py-3 text-sm text-gray-400">
+                    {a.commission_type === 'per_signup' ? `$${a.commission_rate}` : `${a.commission_rate}%`} / {a.commission_type === 'per_signup' ? 'signup' : 'sale'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`badge ${a.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-500'}`}>
+                      {a.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-3">
+                    <button
+                      onClick={() => openEdit(a)}
+                      className="text-xs text-brand-blue hover:text-brand-light transition-colors"
+                    >
+                      Edit
+                    </button>
                     <button
                       onClick={() => toggleActive(a.id, a.is_active)}
                       className="text-xs text-gray-400 hover:text-white transition-colors"
