@@ -11,17 +11,32 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true
 
-    // Safety timeout — if auth takes longer than 4 seconds, force loading off.
-    // This prevents infinite spinner when getSession() hangs due to
-    // Web Locks API deadlock (common on page refresh / tab competition).
+    // FAST PATH: Read cached session from localStorage immediately.
+    // This bypasses getSession() which can deadlock via Web Locks API.
+    try {
+      const storageKey = 'sb-qlerfkdyslndjbaltkwo-auth-token'
+      const cached = localStorage.getItem(storageKey)
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        const cachedUser = parsed?.user || parsed?.currentSession?.user
+        if (cachedUser && mounted) {
+          setUser(cachedUser)
+          fetchProfile(cachedUser.id)
+        }
+      }
+    } catch (e) {
+      console.warn('Could not read cached session:', e)
+    }
+
+    // Safety timeout — if auth hasn't resolved in 2 seconds, force loading off.
     const safetyTimeout = setTimeout(() => {
       if (mounted && loading) {
-        console.warn('Auth safety timeout — forcing load complete')
+        console.warn('Auth safety timeout \u2014 forcing load complete')
         setLoading(false)
       }
-    }, 4000)
+    }, 2000)
 
-    // Get initial session
+    // Validate session in background (may hang due to Web Locks \u2014 that is OK now)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return
       setUser(session?.user ?? null)
