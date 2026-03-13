@@ -1,10 +1,22 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
+// DB uses Title Case status values
+const STATUS_COLORS = {
+  'Wizard Complete':  { bg: 'bg-gray-500/20',    text: 'text-gray-400' },
+  'Brief Review':     { bg: 'bg-yellow-500/20',  text: 'text-yellow-400' },
+  'Design Approval':  { bg: 'bg-purple-500/20',  text: 'text-purple-400' },
+  'In Build':         { bg: 'bg-brand-blue/20',  text: 'text-brand-blue' },
+  'QA':               { bg: 'bg-orange-500/20',  text: 'text-orange-400' },
+  'Launched':         { bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
+  'On Hold':          { bg: 'bg-gray-500/20',    text: 'text-gray-500' },
+  'Cancelled':        { bg: 'bg-red-500/20',     text: 'text-red-400' },
+}
+
 const TIER_COLORS = {
-  starter: 'bg-gray-100 text-gray-700',
-  growth: 'bg-blue-100 text-blue-700',
-  scale: 'bg-purple-100 text-purple-700',
+  starter: { bg: 'bg-gray-500/20',   text: 'text-gray-400' },
+  growth:  { bg: 'bg-blue-500/20',   text: 'text-blue-400' },
+  scale:   { bg: 'bg-purple-500/20', text: 'text-purple-400' },
 }
 
 const TIER_LABELS = {
@@ -13,22 +25,35 @@ const TIER_LABELS = {
   scale: 'Scale',
 }
 
-const STATUS_COLORS = {
-  wizard_complete: 'bg-yellow-100 text-yellow-700',
-  brief_review: 'bg-orange-100 text-orange-700',
-  design_approval: 'bg-blue-100 text-blue-700',
-  in_build: 'bg-indigo-100 text-indigo-700',
-  qa: 'bg-violet-100 text-violet-700',
-  launched: 'bg-green-100 text-green-700',
+// All pipeline statuses for filter dropdown
+const STATUS_PIPELINE = [
+  'Wizard Complete',
+  'Brief Review',
+  'Design Approval',
+  'In Build',
+  'QA',
+  'Launched',
+]
+
+function StatusBadge({ status }) {
+  if (!status) return <span className="text-xs text-gray-600">—</span>
+  const colors = STATUS_COLORS[status] || { bg: 'bg-gray-500/20', text: 'text-gray-400' }
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${colors.bg} ${colors.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${colors.text.replace('text-', 'bg-')}`} />
+      {status}
+    </span>
+  )
 }
 
-const STATUS_LABELS = {
-  wizard_complete: 'Wizard Complete',
-  brief_review: 'Brief Review',
-  design_approval: 'Design Approval',
-  in_build: 'In Build',
-  qa: 'QA',
-  launched: 'Launched',
+function TierBadge({ tier }) {
+  if (!tier) return <span className="text-xs text-gray-600">—</span>
+  const colors = TIER_COLORS[tier] || { bg: 'bg-gray-500/20', text: 'text-gray-400' }
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors.bg} ${colors.text}`}>
+      {TIER_LABELS[tier] || tier}
+    </span>
+  )
 }
 
 export default function Customers() {
@@ -36,6 +61,7 @@ export default function Customers() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [tierFilter, setTierFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [expandedId, setExpandedId] = useState(null)
 
   useEffect(() => {
@@ -65,14 +91,19 @@ export default function Customers() {
 
   function getCustomerStats(customer) {
     const projects = customer.projects || []
-    const activeProjects = projects.filter(
-      p => p.status && p.status !== 'launched'
-    )
+    // 'Launched' uses Title Case to match DB
+    const activeProjects = projects.filter(p => p.status && p.status !== 'Launched')
+    const launchedProjects = projects.filter(p => p.status === 'Launched')
     const totalMRR = projects.reduce((sum, p) => sum + (p.mrr || 0), 0)
+    // Primary tier from active project first, fallback to first project
     const primaryTier = projects.length > 0
-      ? (projects.find(p => p.status !== 'launched')?.tier || projects[0]?.tier)
+      ? (projects.find(p => p.status !== 'Launched')?.tier || projects[0]?.tier)
       : null
-    return { projects, activeProjects, totalMRR, primaryTier }
+    // Primary status: first active project's status, or Launched if all done
+    const primaryStatus = activeProjects.length > 0
+      ? activeProjects[0].status
+      : (launchedProjects.length > 0 ? 'Launched' : null)
+    return { projects, activeProjects, launchedProjects, totalMRR, primaryTier, primaryStatus }
   }
 
   const filtered = customers.filter(c => {
@@ -80,17 +111,24 @@ export default function Customers() {
       !search ||
       c.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       c.email?.toLowerCase().includes(search.toLowerCase())
-    const { primaryTier } = getCustomerStats(c)
+    const { primaryTier, primaryStatus } = getCustomerStats(c)
     const matchesTier = tierFilter === 'all' || primaryTier === tierFilter
-    return matchesSearch && matchesTier
+    const matchesStatus = statusFilter === 'all' || primaryStatus === statusFilter
+    return matchesSearch && matchesTier && matchesStatus
   })
 
+  // Aggregate stats across all customers
   const totalMRR = customers.reduce((sum, c) => {
     return sum + (c.projects || []).reduce((s, p) => s + (p.mrr || 0), 0)
   }, 0)
 
+  // 'In Build' uses Title Case
   const activeProjectCount = customers.reduce((sum, c) => {
-    return sum + (c.projects || []).filter(p => p.status === 'in_build').length
+    return sum + (c.projects || []).filter(p => p.status === 'In Build').length
+  }, 0)
+
+  const launchedCount = customers.reduce((sum, c) => {
+    return sum + (c.projects || []).filter(p => p.status === 'Launched').length
   }, 0)
 
   function formatDate(dateStr) {
@@ -105,15 +143,28 @@ export default function Customers() {
   function formatMRR(amount) {
     if (!amount) return <span className="text-gray-500">—</span>
     return (
-      <span className="text-green-400 font-medium">
+      <span className="text-emerald-400 font-medium">
         ${amount.toLocaleString()}<span className="text-xs text-gray-500 font-normal">/mo</span>
       </span>
     )
   }
 
-  function getInitial(customer) {
-    return (customer.full_name || customer.email || '?')[0].toUpperCase()
+  function getInitials(customer) {
+    const name = customer.full_name || ''
+    if (name.includes(' ')) {
+      const parts = name.trim().split(' ')
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    }
+    return (name || customer.email || '?')[0].toUpperCase()
   }
+
+  function clearFilters() {
+    setSearch('')
+    setTierFilter('all')
+    setStatusFilter('all')
+  }
+
+  const hasFilters = search || tierFilter !== 'all' || statusFilter !== 'all'
 
   return (
     <div className="p-6 space-y-6">
@@ -137,7 +188,7 @@ export default function Customers() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
           <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Total Customers</p>
           <p className="text-3xl font-bold text-white mt-2">{customers.length}</p>
@@ -145,6 +196,10 @@ export default function Customers() {
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
           <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">In Build</p>
           <p className="text-3xl font-bold text-white mt-2">{activeProjectCount}</p>
+        </div>
+        <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Launched</p>
+          <p className="text-3xl font-bold text-emerald-400 mt-2">{launchedCount}</p>
         </div>
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
           <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Total MRR</p>
@@ -175,9 +230,19 @@ export default function Customers() {
           />
         </div>
         <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40 min-w-[160px]"
+        >
+          <option value="all">All Statuses</option>
+          {STATUS_PIPELINE.map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <select
           value={tierFilter}
           onChange={e => setTierFilter(e.target.value)}
-          className="bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40 min-w-[140px]"
+          className="bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40 min-w-[130px]"
         >
           <option value="all">All Tiers</option>
           <option value="starter">Starter</option>
@@ -198,11 +263,11 @@ export default function Customers() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             <p className="text-sm">
-              {search || tierFilter !== 'all' ? 'No customers match your filters' : 'No customers yet'}
+              {hasFilters ? 'No customers match your filters' : 'No customers yet'}
             </p>
-            {(search || tierFilter !== 'all') && (
+            {hasFilters && (
               <button
-                onClick={() => { setSearch(''); setTierFilter('all') }}
+                onClick={clearFilters}
                 className="mt-2 text-xs text-brand-blue hover:underline"
               >
                 Clear filters
@@ -216,6 +281,7 @@ export default function Customers() {
                 <tr className="border-b border-navy-700/50 bg-navy-900/30">
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Customer</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Tier</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Projects</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">MRR</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Joined</th>
@@ -224,7 +290,7 @@ export default function Customers() {
               </thead>
               <tbody className="divide-y divide-navy-700/30">
                 {filtered.map(customer => {
-                  const { projects, activeProjects, totalMRR: cMRR, primaryTier } = getCustomerStats(customer)
+                  const { projects, activeProjects, totalMRR: cMRR, primaryTier, primaryStatus } = getCustomerStats(customer)
                   const isExpanded = expandedId === customer.id
 
                   return (
@@ -238,7 +304,7 @@ export default function Customers() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-brand-blue/20 flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs font-bold text-brand-blue">{getInitial(customer)}</span>
+                              <span className="text-xs font-bold text-brand-blue">{getInitials(customer)}</span>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-white leading-tight">
@@ -251,13 +317,12 @@ export default function Customers() {
 
                         {/* Tier */}
                         <td className="px-4 py-3">
-                          {primaryTier ? (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${TIER_COLORS[primaryTier] || 'bg-gray-100 text-gray-700'}`}>
-                              {TIER_LABELS[primaryTier] || primaryTier}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-600">—</span>
-                          )}
+                          <TierBadge tier={primaryTier} />
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-4 py-3">
+                          <StatusBadge status={primaryStatus} />
                         </td>
 
                         {/* Projects */}
@@ -294,38 +359,46 @@ export default function Customers() {
                       {/* Expanded project rows */}
                       {isExpanded && projects.length > 0 && (
                         <tr key={`${customer.id}-projects`} className="bg-navy-900/40">
-                          <td colSpan={6} className="px-4 py-3">
-                            <div className="ml-11 space-y-2">
-                              <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Projects</p>
-                              {projects.map(project => (
-                                <div key={project.id} className="flex items-center gap-3 text-sm">
-                                  <span className="text-white font-medium min-w-0 flex-1 truncate">
-                                    {project.name || <span className="text-gray-500 italic">Untitled project</span>}
-                                  </span>
-                                  {project.status && (
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${STATUS_COLORS[project.status] || 'bg-gray-100 text-gray-700'}`}>
-                                      {STATUS_LABELS[project.status] || project.status}
+                          <td colSpan={7} className="px-4 py-4">
+                            <div className="ml-11 space-y-2.5">
+                              <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-3">Projects</p>
+                              {projects.map(project => {
+                                const sc = STATUS_COLORS[project.status] || { bg: 'bg-gray-500/20', text: 'text-gray-400' }
+                                const tc = TIER_COLORS[project.tier] || { bg: 'bg-gray-500/20', text: 'text-gray-400' }
+                                return (
+                                  <div key={project.id} className="flex items-center gap-3 text-sm">
+                                    <span className="text-white font-medium min-w-0 flex-1 truncate">
+                                      {project.name || <span className="text-gray-500 italic">Untitled project</span>}
                                     </span>
-                                  )}
-                                  {project.tier && (
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${TIER_COLORS[project.tier] || 'bg-gray-100 text-gray-700'}`}>
-                                      {TIER_LABELS[project.tier] || project.tier}
+                                    {project.status && (
+                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${sc.bg} ${sc.text}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${sc.text.replace('text-', 'bg-')}`} />
+                                        {project.status}
+                                      </span>
+                                    )}
+                                    {project.tier && (
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${tc.bg} ${tc.text}`}>
+                                        {TIER_LABELS[project.tier] || project.tier}
+                                      </span>
+                                    )}
+                                    {project.mrr > 0 && (
+                                      <span className="text-xs text-emerald-400 flex-shrink-0">
+                                        ${project.mrr.toLocaleString()}/mo
+                                      </span>
+                                    )}
+                                    <span className="text-xs text-gray-600 flex-shrink-0">
+                                      {formatDate(project.created_at)}
                                     </span>
-                                  )}
-                                  {project.mrr > 0 && (
-                                    <span className="text-xs text-green-400 flex-shrink-0">
-                                      ${project.mrr.toLocaleString()}/mo
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
+                                  </div>
+                                )
+                              })}
                             </div>
                           </td>
                         </tr>
                       )}
                       {isExpanded && projects.length === 0 && (
                         <tr key={`${customer.id}-empty`} className="bg-navy-900/40">
-                          <td colSpan={6} className="px-4 py-3">
+                          <td colSpan={7} className="px-4 py-3">
                             <p className="ml-11 text-xs text-gray-500 italic">No projects yet</p>
                           </td>
                         </tr>
