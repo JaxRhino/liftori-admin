@@ -186,29 +186,6 @@ export default function Affiliates() {
                       className="text-xs text-gray-400 hover:text-white transition-colors"
                     >
                       {a.is_active ? 'Deactivate' : 'Activate'}
-                    </button>-xs bg-navy-700 px-2 py-1 rounded font-mono text-brand-light">{a.referral_code}</code>
-                  </td>
-                  <td className="px-4 py-3 text-sm font-medium text-white">{referralCounts[a.referral_code] || 0}</td>
-                  <td className="px-4 py-3 text-sm text-gray-400">
-                    {a.commission_type === 'per_signup' ? `$${a.commission_rate}` : `${a.commission_rate}%`} / {a.commission_type === 'per_signup' ? 'signup' : 'sale'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`badge ${a.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-500'}`}>
-                      {a.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right space-x-3">
-                    <button
-                      onClick={() => openEdit(a)}
-                      className="text-xs text-brand-blue hover:text-brand-light transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => toggleActive(a.id, a.is_active)}
-                      className="text-xs text-gray-400 hover:text-white transition-colors"
-                    >
-                      {a.is_active ? 'Deactivate' : 'Activate'}
                     </button>
                   </td>
                 </tr>
