@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabase'
 
@@ -10,6 +10,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirectTo = searchParams.get('redirectTo') || null
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -27,7 +29,7 @@ export default function Login() {
           .single()
 
         const isAdmin = profile?.role === 'admin' || profile?.role === 'dev'
-        navigate(isAdmin ? '/admin' : '/portal', { replace: true })
+        navigate(redirectTo || (isAdmin ? '/admin' : '/portal'), { replace: true })
       } else {
         navigate('/', { replace: true })
       }
@@ -91,6 +93,11 @@ export default function Login() {
           </button>
         </form>
 
+
+        <p className="text-center text-slate-400 text-sm mt-4">
+          Don't have an account?{' '}
+          <Link to={`/signup${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`} className="text-sky-400 hover:text-sky-300 transition">Create one</Link>
+        </p>
         <p className="text-center text-gray-600 text-xs mt-6">
           Powered by Liftori
         </p>
