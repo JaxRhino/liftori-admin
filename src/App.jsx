@@ -1,8 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import AdminLayout from './components/AdminLayout'
 import ClientLayout from './components/ClientLayout'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
@@ -27,7 +28,11 @@ function ProtectedRoute({ children }) {
       <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
     </div>
   )
-  if (!user) return <Navigate to="/login" replace />
+  const location = useLocation()
+  if (!user) {
+    const redirectTo = location.pathname + location.search
+    return <Navigate to={`/login?redirectTo=${encodeURIComponent(redirectTo)}`} replace />
+  }
   return children
 }
 
@@ -61,6 +66,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
           {/* Root redirect based on role */}
           <Route path="/" element={
