@@ -20,6 +20,7 @@ import PortalMessages from './pages/portal/PortalMessages'
 import PortalDocuments from './pages/portal/PortalDocuments'
 import PortalInvoices from './pages/portal/PortalInvoices'
 import PortalWizard from './pages/portal/PortalWizard'
+// signup flow: v2
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
