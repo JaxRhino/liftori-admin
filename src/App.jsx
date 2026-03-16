@@ -18,6 +18,7 @@ import DiscountCodes from './pages/DiscountCodes'
 import Pipeline from './pages/Pipeline'
 import Marketing from './pages/Marketing'
 import WizardBuilder from './pages/WizardBuilder'
+import CustomerComms from './pages/CustomerComms'
 import PortalDashboard from './pages/portal/PortalDashboard'
 import PortalProject from './pages/portal/PortalProject'
 import PortalMessages from './pages/portal/PortalMessages'
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="pipeline" element={<Pipeline />} />
             <Route path="marketing" element={<Marketing />} />
               <Route path="wizard" element={<WizardBuilder />} />
+              <Route path="comms" element={<CustomerComms />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="waitlist" element={<Waitlist />} />
             <Route path="affiliates" element={<Affiliates />} />
