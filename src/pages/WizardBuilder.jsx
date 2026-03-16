@@ -1,6 +1,32 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
+const FLOW_TYPES = [
+  { value: 'standard', label: 'Standard', desc: 'Web App, Mobile, E-Commerce, Dashboard…', color: 'blue', steps: 9 },
+  { value: 'book', label: 'Book', desc: 'Book Writing App', color: 'amber', steps: 11 },
+  { value: 'crm', label: 'CRM', desc: 'CRM Builder', color: 'violet', steps: 9 },
+  { value: 'website', label: 'Website', desc: 'Website Builder', color: 'emerald', steps: 9 },
+]
+
+const FLOW_COLOR = {
+  standard: { pill: 'bg-blue-500/10 text-blue-400 border-blue-500/20', active: 'bg-blue-600 text-white', badge: 'bg-blue-600/20 border-blue-500/30 text-blue-400' },
+  book:     { pill: 'bg-amber-500/10 text-amber-400 border-amber-500/20', active: 'bg-amber-600 text-white', badge: 'bg-amber-600/20 border-amber-500/30 text-amber-400' },
+  crm:      { pill: 'bg-violet-500/10 text-violet-400 border-violet-500/20', active: 'bg-violet-600 text-white', badge: 'bg-violet-600/20 border-violet-500/30 text-violet-400' },
+  website:  { pill: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', active: 'bg-emerald-600 text-white', badge: 'bg-emerald-600/20 border-emerald-500/30 text-emerald-400' },
+}
+
+const FIELD_TYPES = [
+  { value: 'composite',   label: 'Composite (multiple fields)' },
+  { value: 'multiselect', label: 'Multi-select' },
+  { value: 'radio',       label: 'Radio / Single Select' },
+  { value: 'text',        label: 'Short Text' },
+  { value: 'textarea',    label: 'Long Text' },
+  { value: 'select',      label: 'Dropdown' },
+  { value: 'review',      label: 'Review / Summary' },
+  { value: 'email',       label: 'Email' },
+  { value: 'tel',         label: 'Phone' },
+]
+
 export default function WizardBuilder() {
   const [activeTab, setActiveTab] = useState('submissions')
 
@@ -11,13 +37,16 @@ export default function WizardBuilder() {
   const [subSearch, setSubSearch] = useState('')
 
   // Flow Editor state
+  const [selectedFlow, setSelectedFlow] = useState('standard')
   const [steps, setSteps] = useState([])
   const [stepsLoading, setStepsLoading] = useState(false)
   const [editingStep, setEditingStep] = useState(null)
   const [stepForm, setStepForm] = useState({
+    flow_type: 'standard',
     step_number: 1,
     question: '',
-    field_type: 'text',
+    subtitle: '',
+    field_type: 'composite',
     options: '',
     required: true,
     placeholder: '',
@@ -29,6 +58,10 @@ export default function WizardBuilder() {
     if (activeTab === 'submissions') fetchSubmissions()
     if (activeTab === 'flow') fetchSteps()
   }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab === 'flow') fetchSteps()
+  }, [selectedFlow])
 
   async function fetchSubmissions() {
     setSubLoading(true)
@@ -52,6 +85,7 @@ export default function WizardBuilder() {
       const { data, error } = await supabase
         .from('wizard_steps')
         .select('*')
+        .eq('flow_type', selectedFlow)
         .order('step_number', { ascending: true })
       if (error) throw error
       setSteps(data || [])
@@ -67,11 +101,13 @@ export default function WizardBuilder() {
     setStepSaving(true)
     try {
       const payload = {
+        flow_type: stepForm.flow_type || selectedFlow,
         step_number: parseInt(stepForm.step_number) || 1,
         question: stepForm.question.trim(),
+        subtitle: stepForm.subtitle.trim() || null,
         field_type: stepForm.field_type,
-        options: ['select', 'radio'].includes(stepForm.field_type) && stepForm.options
-          ? stepForm.options.split(',').map(o => o.trim()).filter(Boolean)
+        options: stepForm.options
+          ? stepForm.options.split('\n').map(o => o.trim()).filter(Boolean)
           : null,
         required: stepForm.required,
         placeholder: stepForm.placeholder.trim() || null,
@@ -103,9 +139,11 @@ export default function WizardBuilder() {
     setStepMode('create')
     setEditingStep(null)
     setStepForm({
+      flow_type: selectedFlow,
       step_number: steps.length + 1,
       question: '',
-      field_type: 'text',
+      subtitle: '',
+      field_type: 'composite',
       options: '',
       required: true,
       placeholder: '',
@@ -116,10 +154,12 @@ export default function WizardBuilder() {
     setStepMode('edit')
     setEditingStep(step)
     setStepForm({
+      flow_type: step.flow_type,
       step_number: step.step_number,
       question: step.question,
+      subtitle: step.subtitle || '',
       field_type: step.field_type,
-      options: (step.options || []).join(', '),
+      options: (step.options || []).join('\n'),
       required: step.required ?? true,
       placeholder: step.placeholder || '',
     })
@@ -136,14 +176,8 @@ export default function WizardBuilder() {
     )
   })
 
-  const FIELD_TYPES = [
-    { value: 'text', label: 'Short Text' },
-    { value: 'textarea', label: 'Long Text' },
-    { value: 'select', label: 'Dropdown' },
-    { value: 'radio', label: 'Radio Buttons' },
-    { value: 'email', label: 'Email' },
-    { value: 'tel', label: 'Phone' },
-  ]
+  const flowInfo = FLOW_TYPES.find(f => f.value === selectedFlow)
+  const colors = FLOW_COLOR[selectedFlow]
 
   return (
     <div className="p-6 max-w-6xl">
@@ -267,14 +301,47 @@ export default function WizardBuilder() {
       {/* ── FLOW EDITOR TAB ── */}
       {activeTab === 'flow' && (
         <div className="space-y-4">
+
+          {/* Flow Type Selector */}
+          <div className="bg-[#0D1424] border border-white/10 rounded-xl p-4">
+            <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">Select flow to view / edit</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {FLOW_TYPES.map(flow => {
+                const fc = FLOW_COLOR[flow.value]
+                const isActive = selectedFlow === flow.value
+                return (
+                  <button
+                    key={flow.value}
+                    onClick={() => { setSelectedFlow(flow.value); setStepMode('list'); setEditingStep(null) }}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      isActive
+                        ? `${fc.active} border-transparent`
+                        : `${fc.pill} border hover:opacity-80`
+                    }`}
+                  >
+                    <div className="font-semibold text-sm">{flow.label}</div>
+                    <div className={`text-xs mt-0.5 ${isActive ? 'text-white/70' : 'text-slate-500'}`}>{flow.desc}</div>
+                    <div className={`text-xs mt-1 font-medium ${isActive ? 'text-white/80' : ''}`}>{flow.steps} steps</div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Flow Editor Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-white">Wizard Steps</h2>
-              <p className="text-slate-400 text-sm">Configure the questions shown during the signup wizard</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-white">{flowInfo?.label} Flow</h2>
+                <span className={`text-xs px-2 py-0.5 rounded-full border ${colors.pill}`}>
+                  {steps.length} steps
+                </span>
+              </div>
+              <p className="text-slate-400 text-sm mt-0.5">{flowInfo?.desc} — {flowInfo?.steps}-step wizard</p>
             </div>
             <button
               onClick={openCreateStep}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+              className={`${colors.active} px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors`}
             >
               + Add Step
             </button>
@@ -284,6 +351,7 @@ export default function WizardBuilder() {
           {stepMode !== 'list' && (
             <div className="bg-[#0D1424] border border-white/10 rounded-xl p-6 space-y-4">
               <h3 className="text-white font-semibold">{stepMode === 'create' ? 'New Step' : 'Edit Step'}</h3>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-slate-400 text-xs mb-1 block">Step Number</label>
@@ -310,11 +378,21 @@ export default function WizardBuilder() {
               </div>
 
               <div>
-                <label className="text-slate-400 text-xs mb-1 block">Question</label>
+                <label className="text-slate-400 text-xs mb-1 block">Title / Question</label>
                 <input
                   value={stepForm.question}
                   onChange={e => setStepForm(f => ({ ...f, question: e.target.value }))}
-                  placeholder="e.g. What's your business idea?"
+                  placeholder="e.g. Your Vision"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">Subtitle (optional)</label>
+                <input
+                  value={stepForm.subtitle}
+                  onChange={e => setStepForm(f => ({ ...f, subtitle: e.target.value }))}
+                  placeholder="e.g. What do you want to build?"
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -329,17 +407,26 @@ export default function WizardBuilder() {
                 />
               </div>
 
-              {['select', 'radio'].includes(stepForm.field_type) && (
-                <div>
-                  <label className="text-slate-400 text-xs mb-1 block">Options (comma-separated)</label>
-                  <input
-                    value={stepForm.options}
-                    onChange={e => setStepForm(f => ({ ...f, options: e.target.value }))}
-                    placeholder="E-commerce, SaaS, Service Business, Other"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              )}
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">
+                  {['composite', 'multiselect', 'review'].includes(stepForm.field_type)
+                    ? 'Fields / Options (one per line)'
+                    : 'Options (one per line — for radio / select)'}
+                </label>
+                <textarea
+                  value={stepForm.options}
+                  onChange={e => setStepForm(f => ({ ...f, options: e.target.value }))}
+                  placeholder={
+                    stepForm.field_type === 'composite'
+                      ? 'Project Name (text, required)\nElevator Pitch (textarea, required)\nProblem solved? (textarea, optional)'
+                      : stepForm.field_type === 'review'
+                      ? 'Summary card\nEdit button\nSubmit button'
+                      : 'Option A\nOption B\nOption C'
+                  }
+                  rows={6}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 resize-y font-mono"
+                />
+              </div>
 
               <div className="flex items-center gap-2">
                 <input
@@ -381,12 +468,17 @@ export default function WizardBuilder() {
             <div className="space-y-2">
               {steps.map(step => (
                 <div key={step.id} className="bg-[#0D1424] border border-white/10 rounded-xl p-4 flex items-start gap-4">
-                  <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-sm shrink-0 mt-0.5">
+                  <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold text-sm shrink-0 mt-0.5 ${colors.badge}`}>
                     {step.step_number}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-white font-medium">{step.question}</div>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-white font-semibold">{step.question}</span>
+                      {step.subtitle && (
+                        <span className="text-slate-400 text-sm">— {step.subtitle}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span className="text-xs text-slate-500 font-mono bg-white/5 px-2 py-0.5 rounded">
                         {FIELD_TYPES.find(ft => ft.value === step.field_type)?.label || step.field_type}
                       </span>
@@ -398,11 +490,11 @@ export default function WizardBuilder() {
                       )}
                     </div>
                     {step.options?.length > 0 && (
-                      <div className="flex gap-1 mt-2 flex-wrap">
-                        {step.options.map(o => (
-                          <span key={o} className="text-xs bg-white/5 text-slate-400 border border-white/10 px-2 py-0.5 rounded">
+                      <div className="mt-2 space-y-1">
+                        {step.options.map((o, i) => (
+                          <div key={i} className="text-xs text-slate-400 bg-white/3 border border-white/5 rounded px-2 py-1">
                             {o}
-                          </span>
+                          </div>
                         ))}
                       </div>
                     )}
