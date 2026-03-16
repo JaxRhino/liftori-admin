@@ -321,6 +321,12 @@ export default function Projects() {
   const [saving, setSaving] = useState({}) // { [projectId]: true }
   const [toast, setToast] = useState(null)
   const [newProjectOpen, setNewProjectOpen] = useState(false)
+  const [selectedProject, setSelectedProject] = useState(null)
+  const [adminNotes, setAdminNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [emailSubject, setEmailSubject] = useState('')
+  const [emailBody, setEmailBody] = useState('')
 
   useEffect(() => {
     fetchProjects()
@@ -351,7 +357,39 @@ export default function Projects() {
     showToast(`"${project.name}" created`)
   }
 
-  async function updateStatus(projectId, newStatus) {
+  function openProject(proj) {
+    setSelectedProject(proj)
+    setAdminNotes(proj.admin_notes || '')
+    setEmailOpen(false)
+  }
+
+  function closeProject() {
+    setSelectedProject(null)
+    setAdminNotes('')
+    setEmailOpen(false)
+  }
+
+  async function saveNotes() {
+    if (!selectedProject) return
+    setSavingNotes(true)
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ admin_notes: adminNotes })
+        .eq('id', selectedProject.id)
+      if (error) throw error
+      setProjects(prev => prev.map(p =>
+        p.id === selectedProject.id ? { ...p, admin_notes: adminNotes } : p
+      ))
+      setSelectedProject(prev => prev ? { ...prev, admin_notes: adminNotes } : null)
+    } catch (err) {
+      console.error('saveNotes:', err)
+    } finally {
+      setSavingNotes(false)
+    }
+  }
+
+    async function updateStatus(projectId, newStatus) {
     const prev = projects.find(p => p.id === projectId)
     if (!prev || prev.status === newStatus) return
 
@@ -548,7 +586,7 @@ export default function Projects() {
                 </div>
                 <div className="space-y-2">
                   {colProjects.map(project => (
-                    <div key={project.id} className="bg-navy-800 border border-navy-700/50 rounded-xl p-4 hover:border-navy-500 transition-colors group">
+                    <div key={project.id} onClick={() => openProject(project)} style={{cursor:"pointer"}} className="bg-navy-800 border border-navy-700/50 rounded-xl p-4 hover:border-navy-500 transition-colors group">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <Link
                           to={`/admin/projects/${project.id}`}
@@ -624,7 +662,7 @@ export default function Projects() {
                 </div>
                 <div className="space-y-2">
                   {projects.filter(p => p.status === status).map(project => (
-                    <div key={project.id} className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
+                    <div key={project.id} onClick={() => openProject(project)} style={{cursor:"pointer"}} className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
                       <Link
                         to={`/admin/projects/${project.id}`}
                         className="text-sm font-medium text-gray-400 hover:text-white truncate block"
@@ -773,5 +811,233 @@ export default function Projects() {
         </p>
       )}
     </div>
+      {/* ── Project Detail Slide-out Panel ── */}
+      {selectedProject && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={closeProject} />
+
+          {/* Panel */}
+          <div className="fixed top-0 right-0 h-full w-[420px] bg-[#0D1424] border-l border-white/10 z-50 flex flex-col shadow-2xl">
+
+            {/* Panel Header */}
+            <div className="flex items-start justify-between p-5 border-b border-white/10 shrink-0">
+              <div className="flex-1 min-w-0 pr-3">
+                <p className="text-xs text-slate-500 font-mono mb-1">{selectedProject.id?.slice(0,8)}…</p>
+                <h2 className="text-base font-bold text-white leading-tight">{selectedProject.name || 'Untitled Project'}</h2>
+                {selectedProject.customer_email && (
+                  <p className="text-xs text-slate-400 mt-1">{selectedProject.customer_email}</p>
+                )}
+              </div>
+              <button onClick={closeProject} className="text-slate-400 hover:text-white shrink-0 mt-0.5">
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Status + Tier row */}
+            <div className="px-5 py-3 border-b border-white/10 flex items-center gap-2 flex-wrap shrink-0">
+              {(() => {
+                const sc = STATUS_COLORS[selectedProject.status] || { bg:'bg-slate-500/20', text:'text-slate-400', dot:'bg-slate-400' }
+                return (
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                    {selectedProject.status || 'Unknown'}
+                  </span>
+                )
+              })()}
+              {selectedProject.tier && (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{selectedProject.tier}</span>
+              )}
+              {selectedProject.app_type && (
+                <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded">{selectedProject.app_type}</span>
+              )}
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+              {/* ── Status Actions ── */}
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Status Actions</p>
+                <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const idx = STATUS_PIPELINE.indexOf(selectedProject.status)
+                    const next = idx >= 0 && idx < STATUS_PIPELINE.length - 1 ? STATUS_PIPELINE[idx + 1] : null
+                    const prev = idx > 0 ? STATUS_PIPELINE[idx - 1] : null
+                    return (
+                      <>
+                        {next && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              await updateStatus(selectedProject.id, next)
+                              setSelectedProject(p => p ? { ...p, status: next } : null)
+                            }}
+                            disabled={saving[selectedProject.id]}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+                          >
+                            → {next}
+                          </button>
+                        )}
+                        {prev && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              await updateStatus(selectedProject.id, prev)
+                              setSelectedProject(p => p ? { ...p, status: prev } : null)
+                            }}
+                            disabled={saving[selectedProject.id]}
+                            className="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+                          >
+                            ← {prev}
+                          </button>
+                        )}
+                        {selectedProject.status !== 'On Hold' && selectedProject.status !== 'Cancelled' && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              await updateStatus(selectedProject.id, 'On Hold')
+                              setSelectedProject(p => p ? { ...p, status: 'On Hold' } : null)
+                            }}
+                            className="px-3 py-1.5 text-xs border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 rounded-lg transition-colors"
+                          >
+                            Hold
+                          </button>
+                        )}
+                        {selectedProject.status !== 'Cancelled' && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              if (!window.confirm('Cancel this project?')) return
+                              await updateStatus(selectedProject.id, 'Cancelled')
+                              setSelectedProject(p => p ? { ...p, status: 'Cancelled' } : null)
+                            }}
+                            className="px-3 py-1.5 text-xs border border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {/* ── Project Details ── */}
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Details</p>
+                <div className="bg-slate-800/50 rounded-lg divide-y divide-white/5 text-sm">
+                  {[
+                    ['Client', selectedProject.customer_email],
+                    ['Tier', selectedProject.tier],
+                    ['App Type', selectedProject.app_type],
+                    ['Budget', selectedProject.budget ? ('$' + Number(selectedProject.budget).toLocaleString()) : null],
+                    ['Deadline', selectedProject.deadline ? new Date(selectedProject.deadline).toLocaleDateString() : null],
+                    ['Created', selectedProject.created_at ? new Date(selectedProject.created_at).toLocaleDateString() : null],
+                  ].filter(([, v]) => v).map(([label, value]) => (
+                    <div key={label} className="flex justify-between px-3 py-2">
+                      <span className="text-slate-400">{label}</span>
+                      <span className="text-white font-mono text-xs">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Admin Notes ── */}
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Admin Notes</p>
+                <textarea
+                  value={adminNotes}
+                  onChange={e => setAdminNotes(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                  rows={5}
+                  placeholder="Internal notes — visible only to Liftori team…"
+                  className="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
+                />
+                <div className="flex justify-end mt-2">
+                  <button
+                    onClick={e => { e.stopPropagation(); saveNotes(); }}
+                    disabled={savingNotes}
+                    className="px-4 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+                  >
+                    {savingNotes ? 'Saving…' : 'Save Notes'}
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Email Client ── */}
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Communication</p>
+                <button
+                  onClick={e => { e.stopPropagation(); setEmailOpen(true); setEmailSubject('Re: Your Liftori Project'); setEmailBody(''); }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-300 hover:text-white rounded-lg text-sm transition-colors"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                  </svg>
+                  Email Client
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Email Modal ── */}
+          {emailOpen && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60" onClick={e => { if (e.target === e.currentTarget) setEmailOpen(false) }}>
+              <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold text-white">Email Client</h3>
+                  <button onClick={() => setEmailOpen(false)} className="text-slate-400 hover:text-white text-lg leading-none">✕</button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">To</label>
+                    <input readOnly value={selectedProject.customer_email || ''} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-400 select-all" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Subject</label>
+                    <input
+                      value={emailSubject}
+                      onChange={e => setEmailSubject(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Message</label>
+                    <textarea
+                      value={emailBody}
+                      onChange={e => setEmailBody(e.target.value)}
+                      rows={6}
+                      placeholder={"Hi [Client],\n\n"}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
+                    />
+                  </div>
+                  <div className="flex justify-between items-center pt-1">
+                    <p className="text-xs text-slate-500">Opens mailto: in default mail client</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => setEmailOpen(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancel</button>
+                      <button
+                        onClick={() => {
+                          const url = 'mailto:' + (selectedProject.customer_email||'') + '?subject=' + encodeURIComponent(emailSubject) + '&body=' + encodeURIComponent(emailBody)
+                          window.open(url)
+                          setEmailOpen(false)
+                        }}
+                        disabled={!emailSubject.trim() || !emailBody.trim()}
+                        className="px-4 py-2 text-sm bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg transition-colors"
+                      >
+                        Open Draft
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
   )
 }
