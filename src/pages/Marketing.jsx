@@ -101,7 +101,13 @@ export default function Marketing() {
 
   useEffect(() => {
     if (activeTab === 'traffic') {
-      fetchTrafficData()
+
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [blogLoading, setBlogLoading] = useState(false);
+  const [blogMode, setBlogMode] = useState('list');
+  const [blogForm, setBlogForm] = useState({ title:'', slug:'', excerpt:'', content:'', tags:'', status:'draft' });
+  const [blogSaving, setBlogSaving] = useState(false);
+  const [blogEditId, setBlogEditId] = useState(null);      fetchTrafficData()
     }
   }, [activeTab])
 
@@ -218,7 +224,8 @@ export default function Marketing() {
           { id: 'composer', label: 'Content Composer' },
           { id: 'queue', label: 'Post Queue' },
           { id: 'traffic', label: 'Web Traffic' },
-        ].map(tab => (
+        
+        { id: 'blog', label: 'Blog' },].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -458,6 +465,58 @@ export default function Marketing() {
                   <div className="divide-y divide-slate-700/50">
                     {topPages.map((row, i) => {
                       const pct = totalViews > 0 ? Math.round((row.count / totalViews) * 100) : 0
+
+  // ── BLOG MANAGEMENT ──
+  const fetchBlogPosts = async () => {
+    setBlogLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('blog_posts')
+        .select('id,title,slug,excerpt,author,author_role,tags,status,published_at,content')
+        .order('created_at', { ascending: false });
+      if (!error) setBlogPosts(data || []);
+    } catch(e) { console.error('fetchBlogPosts:', e); }
+    setBlogLoading(false);
+  };
+
+  const saveBlogPost = async () => {
+    if (!blogForm.title || !blogForm.slug) return;
+    setBlogSaving(true);
+    const tags = blogForm.tags.split(',').map(t => t.trim()).filter(Boolean);
+    const payload = {
+      title: blogForm.title, slug: blogForm.slug,
+      excerpt: blogForm.excerpt, content: blogForm.content, tags,
+      status: blogForm.status,
+      published_at: blogForm.status === 'published' ? new Date().toISOString() : null,
+    };
+    try {
+      if (blogMode === 'create') {
+        await supabase.from('blog_posts').insert([payload]);
+      } else {
+        await supabase.from('blog_posts').update(payload).eq('id', blogEditId);
+      }
+      await fetchBlogPosts();
+      setBlogMode('list');
+    } catch(e) { console.error('saveBlogPost:', e); }
+    setBlogSaving(false);
+  };
+
+  const deleteBlogPost = async (id) => {
+    if (!window.confirm('Delete this post? This cannot be undone.')) return;
+    await supabase.from('blog_posts').delete().eq('id', id);
+    await fetchBlogPosts();
+  };
+
+  const toggleBlogStatus = async (post) => {
+    const newStatus = post.status === 'published' ? 'draft' : 'published';
+    await supabase.from('blog_posts').update({
+      status: newStatus,
+      published_at: newStatus === 'published' ? new Date().toISOString() : null,
+    }).eq('id', post.id);
+    await fetchBlogPosts();
+  };
+
+  React.useEffect(() => { if (activeTab === 'blog') fetchBlogPosts(); }, [activeTab]);
                       return (
                         <div key={i} className="px-4 py-3 flex items-center gap-4">
                           <span className="text-xs text-slate-500 w-5 text-right">{i + 1}</span>
@@ -474,6 +533,96 @@ export default function Marketing() {
                     })}
                   </div>
                 )}
+      {activeTab === 'blog' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white">Blog Posts</h2>
+              <p className="text-slate-400 text-sm mt-1">Manage posts published to liftori.ai/blog</p>
+            </div>
+            <button
+              onClick={() => { setBlogMode('create'); setBlogForm({ title:'', slug:'', excerpt:'', content:'', tags:'', status:'draft' }); }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+            >+ New Post</button>
+          </div>
+
+          {blogMode !== 'list' && (
+            <div className="bg-[#0D1424] border border-white/10 rounded-xl p-6 space-y-4">
+              <h3 className="text-white font-semibold">{blogMode === 'create' ? 'New Post' : 'Edit Post'}</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-400 text-xs mb-1 block">Title</label>
+                  <input value={blogForm.title} onChange={e => { const v = e.target.value; setBlogForm(f => ({ ...f, title: v, slug: blogMode === 'create' ? v.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') : f.slug })); }} placeholder="Post title" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                  <label className="text-slate-400 text-xs mb-1 block">Slug</label>
+                  <input value={blogForm.slug} onChange={e => setBlogForm(f => ({ ...f, slug: e.target.value }))} placeholder="post-url-slug" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+                </div>
+              </div>
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">Excerpt</label>
+                <input value={blogForm.excerpt} onChange={e => setBlogForm(f => ({ ...f, excerpt: e.target.value }))} placeholder="Short description for post cards" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">Content (HTML)</label>
+                <textarea value={blogForm.content} onChange={e => setBlogForm(f => ({ ...f, content: e.target.value }))} rows={10} placeholder="<p>Write your post content here...</p>" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 font-mono" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-400 text-xs mb-1 block">Tags (comma-separated)</label>
+                  <input value={blogForm.tags} onChange={e => setBlogForm(f => ({ ...f, tags: e.target.value }))} placeholder="mission, product, update" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                  <label className="text-slate-400 text-xs mb-1 block">Status</label>
+                  <select value={blogForm.status} onChange={e => setBlogForm(f => ({ ...f, status: e.target.value }))} className="w-full bg-[#0D1424] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={saveBlogPost} disabled={blogSaving} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
+                  {blogSaving ? 'Saving...' : blogMode === 'create' ? 'Create Post' : 'Save Changes'}
+                </button>
+                <button onClick={() => setBlogMode('list')} className="text-slate-400 hover:text-white px-4 py-2 text-sm transition-colors">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {blogMode === 'list' && (
+            <div className="space-y-3">
+              {blogLoading ? (
+                <div className="text-center py-12 text-slate-400">Loading posts...</div>
+              ) : blogPosts.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">No posts yet — click <strong className="text-white">+ New Post</strong> to get started.</div>
+              ) : blogPosts.map(post => (
+                <div key={post.id} className="bg-[#0D1424] border border-white/10 rounded-xl p-5 flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${post.status === 'published' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-500/20 text-slate-400'}`}>{post.status}</span>
+                      <span className="text-slate-500 text-xs font-mono">{post.published_at ? new Date(post.published_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : 'Draft'}</span>
+                    </div>
+                    <div className="text-white font-semibold truncate">{post.title}</div>
+                    <div className="text-slate-400 text-sm mt-0.5 truncate">{post.excerpt}</div>
+                    {post.tags?.length > 0 && (
+                      <div className="flex gap-1 mt-2 flex-wrap">
+                        {post.tags.map(t => <span key={t} className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">{t}</span>)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 mt-1">
+                    <button onClick={() => toggleBlogStatus(post)} className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${post.status === 'published' ? 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10' : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'}`}>
+                      {post.status === 'published' ? 'Unpublish' : 'Publish'}
+                    </button>
+                    <button onClick={() => { setBlogMode('edit'); setBlogEditId(post.id); setBlogForm({ title:post.title, slug:post.slug, excerpt:post.excerpt||'', content:post.content||'', tags:(post.tags||[]).join(', '), status:post.status }); }} className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 hover:text-white transition-colors">Edit</button>
+                    <button onClick={() => deleteBlogPost(post.id)} className="text-xs px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors">Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
               </div>
 
               {/* Recent Activity */}
