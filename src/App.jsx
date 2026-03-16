@@ -40,15 +40,15 @@ function ProtectedRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { isAdmin, loading } = useAuth()
-  if (loading) return null
+  const { isAdmin, loading, user, profile } = useAuth()
+  if (loading || (user && !profile)) return null
   if (!isAdmin) return <Navigate to="/portal" replace />
   return children
 }
 
 function ClientRoute({ children }) {
-  const { isAdmin, loading } = useAuth()
-  if (loading) return null
+  const { isAdmin, loading, user, profile } = useAuth()
+  if (loading || (user && !profile)) return null
   if (isAdmin) return <Navigate to="/" replace />
   return children
 }
