@@ -14,13 +14,13 @@ import ConvertSignup from './pages/ConvertSignup'
 import Platforms from './pages/Platforms'
 import PlatformDetail from './pages/PlatformDetail'
 import Chat from './pages/Chat'
+import DiscountCodes from './pages/DiscountCodes'
 import PortalDashboard from './pages/portal/PortalDashboard'
 import PortalProject from './pages/portal/PortalProject'
 import PortalMessages from './pages/portal/PortalMessages'
 import PortalDocuments from './pages/portal/PortalDocuments'
 import PortalInvoices from './pages/portal/PortalInvoices'
 import PortalWizard from './pages/portal/PortalWizard'
-// signup flow: v2
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -71,9 +71,7 @@ export default function App() {
 
           {/* Root redirect based on role */}
           <Route path="/" element={
-            <ProtectedRoute>
-              <RootRedirect />
-            </ProtectedRoute>
+            <ProtectedRoute><RootRedirect /></ProtectedRoute>
           } />
 
           {/* Admin routes */}
@@ -93,6 +91,7 @@ export default function App() {
             <Route path="customers/convert/:signupId" element={<ConvertSignup />} />
             <Route path="platforms" element={<Platforms />} />
             <Route path="platforms/:id" element={<PlatformDetail />} />
+            <Route path="discount-codes" element={<DiscountCodes />} />
             <Route path="chat" element={<Chat />} />
           </Route>
 
