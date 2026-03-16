@@ -27,7 +27,40 @@ const BOOK_STEP_OVERRIDES = {
   9: { title: 'Your Estimate', subtitle: 'Review and approve your project estimate' },
   10: { title: 'Timeline & Budget', subtitle: 'When and how much?' },
   11: { title: 'Review & Submit', subtitle: 'Confirm your book project details' },
-}: '✨', desc: 'Professional website — designed, launched & maintained', accent: 'emerald' },
+}
+
+const CRM_STEP_OVERRIDES = {
+  4: { title: 'CRM Features', subtitle: 'What does your CRM need to do?' },
+  5: { title: 'Pipeline Setup', subtitle: 'How do your deals or contacts flow?' },
+  6: { title: 'Data & Import', subtitle: 'What data do you already have?' },
+  7: { title: 'Branding & Domain', subtitle: 'How should your CRM look and where will it live?' },
+}
+
+const WEB_STEP_OVERRIDES = {
+  4: { title: 'Website Type', subtitle: 'What kind of website do you need?' },
+  5: { title: 'Pages & Content', subtitle: "What pages and content are you working with?" },
+  6: { title: 'Branding & Assets', subtitle: 'What brand materials do you have?' },
+  7: { title: 'Delivery & Maintenance', subtitle: 'How do you want this delivered and supported?' },
+}
+
+function getStepInfo(step, appType) {
+  if (appType === 'Book Writing App' && BOOK_STEP_OVERRIDES[step]) return BOOK_STEP_OVERRIDES[step]
+  if (appType === 'CRM Builder' && CRM_STEP_OVERRIDES[step]) return CRM_STEP_OVERRIDES[step]
+  if (appType === 'Website Builder' && WEB_STEP_OVERRIDES[step]) return WEB_STEP_OVERRIDES[step]
+  return STEPS[step - 1] || STEPS[STEPS.length - 1]
+}
+
+// ─── APP TYPES ────────────────────────────────────────────────────────────────
+const APP_TYPES = [
+  { value: 'Web App', icon: '🌐', desc: 'Browser-based application' },
+  { value: 'Mobile App', icon: '📱', desc: 'iOS and/or Android app' },
+  { value: 'Business Platform', icon: '🏢', desc: 'Full business operating system' },
+  { value: 'E-Commerce', icon: '🛒', desc: 'Online store with payments' },
+  { value: 'Dashboard', icon: '📊', desc: 'Data visualization & analytics' },
+  { value: 'Marketplace', icon: '🤝', desc: 'Multi-vendor platform' },
+  { value: 'Book Writing App', icon: '📚', desc: 'AI-guided book creation & publishing', accent: 'amber' },
+  { value: 'CRM Builder', icon: '🗂️', desc: 'Custom CRM built for your industry', accent: 'violet' },
+  { value: 'Website Builder', icon: '✨', desc: 'Professional website — designed, launched & maintained', accent: 'emerald' },
 ]
 
 // ─── BOOK CONSTANTS ───────────────────────────────────────────────────────────
