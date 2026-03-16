@@ -97,7 +97,13 @@ export function AuthProvider({ children }) {
   }
 
     async function signUp(email, password, fullName) {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: 'https://admin.liftori.ai/login'
+      }
+    })
     if (error) throw error
     if (data.user) {
       await supabase.from('profiles').insert({
