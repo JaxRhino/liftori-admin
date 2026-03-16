@@ -16,6 +16,7 @@ import PlatformDetail from './pages/PlatformDetail'
 import Chat from './pages/Chat'
 import DiscountCodes from './pages/DiscountCodes'
 import Pipeline from './pages/Pipeline'
+import Marketing from './pages/Marketing'
 import PortalDashboard from './pages/portal/PortalDashboard'
 import PortalProject from './pages/portal/PortalProject'
 import PortalMessages from './pages/portal/PortalMessages'
@@ -86,6 +87,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="projects" element={<Projects />} />
               <Route path="pipeline" element={<Pipeline />} />
+            <Route path="marketing" element={<Marketing />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="waitlist" element={<Waitlist />} />
             <Route path="affiliates" element={<Affiliates />} />
