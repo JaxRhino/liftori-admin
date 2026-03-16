@@ -18,10 +18,24 @@ function formatDate(ts) {
   })
 }
 
+// Parse "Name <email@>" → "Name", or return raw address
+function parseEmailName(from) {
+  if (!from) return 'Customer'
+  const match = from.match(/^(.+?)\s*<.+>$/)
+  return match ? match[1].trim() : from
+}
+
+function parseEmailAddress(from) {
+  if (!from) return ''
+  const match = from.match(/<(.+)>$/)
+  return match ? match[1].trim() : from
+}
+
 function senderLabel(msg) {
   if (msg.sender_type === 'admin') return 'You (Admin)'
   if (msg.sender_type === 'ai') return 'Liftori AI'
   if (msg.sender_type === 'system') return 'System'
+  if (msg.email_from) return parseEmailName(msg.email_from)
   return msg.profiles?.full_name || msg.profiles?.email || 'Customer'
 }
 
@@ -35,7 +49,7 @@ function senderColor(type) {
 export default function CustomerComms() {
   const [activeTab, setActiveTab] = useState('Inbox')
 
-  // ─ Inbox state ───────────────────────────────────────────────
+  // ── Inbox state ───────────────────────────────────────────────
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedMsg, setSelectedMsg] = useState(null)
@@ -45,7 +59,7 @@ export default function CustomerComms() {
   const [filterUnread, setFilterUnread] = useState(false)
   const threadEndRef = useRef(null)
 
-  // ─ Compose state ─────────────────────────────────────────────
+  // ── Compose state ─────────────────────────────────────────────
   const [recipients, setRecipients] = useState([])
   const [composeForm, setComposeForm] = useState({ to: '', toName: '', subject: '', body: '' })
   const [sending, setSending] = useState(false)
@@ -128,10 +142,14 @@ export default function CustomerComms() {
       const { error } = await supabase
         .from('messages')
         .insert({
-          project_id: selectedMsg.project_id,
+          project_id: selectedMsg.project_id ?? null,
           sender_type: 'admin',
           body: replyBody.trim(),
           read: true,
+          source: 'platform',
+          // For email threads, tag the reply with the sender's address so it stays in thread
+          email_from: selectedMsg.source === 'email' ? selectedMsg.email_from : null,
+          email_subject: selectedMsg.source === 'email' ? `Re: ${selectedMsg.email_subject ?? ''}` : null,
         })
       if (error) throw error
       setReplyBody('')
@@ -171,7 +189,7 @@ export default function CustomerComms() {
     }
   }
 
-  // ─ Derived data ───────────────────────────────────────────────
+  // ── Derived data ───────────────────────────────────────────────
   const unreadCount = messages.filter(m => !m.read && m.sender_type === 'customer').length
 
   const filteredMessages = messages.filter(m => {
@@ -182,15 +200,25 @@ export default function CustomerComms() {
         m.body?.toLowerCase().includes(q) ||
         m.projects?.name?.toLowerCase().includes(q) ||
         m.profiles?.full_name?.toLowerCase().includes(q) ||
-        m.profiles?.email?.toLowerCase().includes(q)
+        m.profiles?.email?.toLowerCase().includes(q) ||
+        m.email_from?.toLowerCase().includes(q) ||
+        m.email_subject?.toLowerCase().includes(q)
       )
     }
     return true
   })
 
+  // Thread grouping: email messages thread by sender address; platform messages by project_id
   const threadMessages = selectedMsg
     ? messages
-        .filter(m => m.project_id === selectedMsg.project_id)
+        .filter(m => {
+          if (selectedMsg.source === 'email' || selectedMsg.email_from) {
+            const selAddr = parseEmailAddress(selectedMsg.email_from)
+            const mAddr = parseEmailAddress(m.email_from)
+            return selAddr && (mAddr === selAddr || (m.sender_type === 'admin' && m.email_from && parseEmailAddress(m.email_from) === selAddr))
+          }
+          return m.project_id === selectedMsg.project_id
+        })
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
     : []
 
@@ -202,7 +230,7 @@ export default function CustomerComms() {
     )
   }).slice(0, 8)
 
-  // ─ Render ─────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -252,9 +280,10 @@ export default function CustomerComms() {
         ))}
       </div>
 
-      {/* INBOX TAB */}
+      {/* ── INBOX TAB ─────────────────────────────────────────── */}
       {activeTab === 'Inbox' && (
-        <div className="flex gap-4 min-h-[600px]">          {/* Message list */}
+        <div className="flex gap-4 min-h-[600px]">
+          {/* Message list */}
           <div className="w-80 flex-shrink-0 flex flex-col gap-3">
             {/* Filters */}
             <div className="flex gap-2">
@@ -309,14 +338,22 @@ export default function CustomerComms() {
                     } ${!msg.read && msg.sender_type === 'customer' ? 'bg-white shadow-sm' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <span className={`text-xs font-medium truncate ${!msg.read && msg.sender_type === 'customer' ? 'text-slate-900' : 'text-slate-600'}`}>
-                        {senderLabel(msg)}
-                      </span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={`text-xs font-medium truncate ${!msg.read && msg.sender_type === 'customer' ? 'text-slate-900' : 'text-slate-600'}`}>
+                          {senderLabel(msg)}
+                        </span>
+                        {msg.source === 'email' && (
+                          <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 font-medium">Email</span>
+                        )}
+                      </div>
                       <span className="text-xs text-slate-400 flex-shrink-0">{timeAgo(msg.created_at)}</span>
                     </div>
-                    {msg.projects?.name && (
+                    {/* Subject line for emails, project name for platform messages */}
+                    {msg.email_subject ? (
+                      <p className="text-xs text-violet-600 mb-1 truncate font-medium">{msg.email_subject}</p>
+                    ) : msg.projects?.name ? (
                       <p className="text-xs text-sky-600 mb-1 truncate">{msg.projects.name}</p>
-                    )}
+                    ) : null}
                     <p className={`text-xs truncate leading-relaxed ${!msg.read && msg.sender_type === 'customer' ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>
                       {msg.body}
                     </p>
@@ -342,28 +379,41 @@ export default function CustomerComms() {
             ) : (
               <>
                 {/* Thread header */}
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-slate-900 text-sm">{selectedMsg.projects?.name || 'Direct message'}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {threadMessages.length} message{threadMessages.length !== 1 ? 's' : ''} · started {formatDate(threadMessages[0]?.created_at)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => markRead(selectedMsg.id, !selectedMsg.read)}
-                      className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
-                    >
-                      Mark {selectedMsg.read ? 'unread' : 'read'}
-                    </button>
-                    <button
-                      onClick={() => setSelectedMsg(null)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                <div className="px-5 py-4 border-b border-slate-100">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      {/* Subject or project name */}
+                      {selectedMsg.email_subject ? (
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 font-medium flex-shrink-0">Email</span>
+                          <p className="font-semibold text-slate-900 text-sm truncate">{selectedMsg.email_subject}</p>
+                        </div>
+                      ) : (
+                        <p className="font-semibold text-slate-900 text-sm">{selectedMsg.projects?.name || 'Direct message'}</p>
+                      )}
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {selectedMsg.email_from && (
+                          <span className="mr-2 text-slate-500">{parseEmailAddress(selectedMsg.email_from)}</span>
+                        )}
+                        {threadMessages.length} message{threadMessages.length !== 1 ? 's' : ''} · started {formatDate(threadMessages[0]?.created_at)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => markRead(selectedMsg.id, !selectedMsg.read)}
+                        className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        Mark {selectedMsg.read ? 'unread' : 'read'}
+                      </button>
+                      <button
+                        onClick={() => setSelectedMsg(null)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -378,6 +428,9 @@ export default function CustomerComms() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-medium text-slate-600">{senderLabel(msg)}</span>
                           <span className="text-xs text-slate-400">{formatDate(msg.created_at)}</span>
+                          {msg.source === 'email' && (
+                            <span className="text-[10px] px-1 py-0.5 rounded bg-violet-100 text-violet-500">email</span>
+                          )}
                         </div>
                         <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                           msg.sender_type === 'admin'
@@ -394,6 +447,11 @@ export default function CustomerComms() {
 
                 {/* Reply box */}
                 <div className="px-5 py-4 border-t border-slate-100 bg-slate-50">
+                  {selectedMsg.source === 'email' && (
+                    <p className="text-xs text-slate-400 mb-2">
+                      📬 Reply logs internally. To send via email, reply directly in your Gmail.
+                    </p>
+                  )}
                   <div className="flex gap-3">
                     <textarea
                       value={replyBody}
@@ -420,7 +478,7 @@ export default function CustomerComms() {
         </div>
       )}
 
-      {/* COMPOSE TAB */}
+      {/* ── COMPOSE TAB ───────────────────────────────────────── */}
       {activeTab === 'Compose' && (
         <div className="max-w-2xl space-y-5">
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
