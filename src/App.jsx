@@ -43,14 +43,22 @@ function ProtectedRoute({ children }) {
 
 function AdminRoute({ children }) {
   const { isAdmin, loading, user, profile } = useAuth()
-  if (loading || (user && !profile)) return null
+  if (loading || (user && !profile)) return (
+    <div className="min-h-screen bg-navy-950 flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
   if (!isAdmin) return <Navigate to="/portal" replace />
   return children
 }
 
 function ClientRoute({ children }) {
   const { isAdmin, loading, user, profile } = useAuth()
-  if (loading || (user && !profile)) return null
+  if (loading || (user && !profile)) return (
+    <div className="min-h-screen bg-navy-950 flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
   if (isAdmin) return <Navigate to="/" replace />
   return children
 }
