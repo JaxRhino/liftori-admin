@@ -456,6 +456,7 @@ export default function Projects() {
   }
 
   return (
+  <>
     <div className="p-6 space-y-6">
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
@@ -1039,5 +1040,6 @@ export default function Projects() {
         </>
       )}
 
+  </>
   )
 }
