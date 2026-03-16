@@ -1,0 +1,432 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+
+export default function WizardBuilder() {
+  const [activeTab, setActiveTab] = useState('submissions')
+
+  // Submissions state
+  const [submissions, setSubmissions] = useState([])
+  const [subLoading, setSubLoading] = useState(false)
+  const [selectedSub, setSelectedSub] = useState(null)
+  const [subSearch, setSubSearch] = useState('')
+
+  // Flow Editor state
+  const [steps, setSteps] = useState([])
+  const [stepsLoading, setStepsLoading] = useState(false)
+  const [editingStep, setEditingStep] = useState(null)
+  const [stepForm, setStepForm] = useState({
+    step_number: 1,
+    question: '',
+    field_type: 'text',
+    options: '',
+    required: true,
+    placeholder: '',
+  })
+  const [stepMode, setStepMode] = useState('list')
+  const [stepSaving, setStepSaving] = useState(false)
+
+  useEffect(() => {
+    if (activeTab === 'submissions') fetchSubmissions()
+    if (activeTab === 'flow') fetchSteps()
+  }, [activeTab])
+
+  async function fetchSubmissions() {
+    setSubLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('wizard_submissions')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setSubmissions(data || [])
+    } catch (err) {
+      console.error('fetchSubmissions:', err)
+    } finally {
+      setSubLoading(false)
+    }
+  }
+
+  async function fetchSteps() {
+    setStepsLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('wizard_steps')
+        .select('*')
+        .order('step_number', { ascending: true })
+      if (error) throw error
+      setSteps(data || [])
+    } catch (err) {
+      console.error('fetchSteps:', err)
+    } finally {
+      setStepsLoading(false)
+    }
+  }
+
+  async function saveStep() {
+    if (!stepForm.question.trim()) return
+    setStepSaving(true)
+    try {
+      const payload = {
+        step_number: parseInt(stepForm.step_number) || 1,
+        question: stepForm.question.trim(),
+        field_type: stepForm.field_type,
+        options: ['select', 'radio'].includes(stepForm.field_type) && stepForm.options
+          ? stepForm.options.split(',').map(o => o.trim()).filter(Boolean)
+          : null,
+        required: stepForm.required,
+        placeholder: stepForm.placeholder.trim() || null,
+      }
+      if (stepMode === 'edit' && editingStep) {
+        const { error } = await supabase.from('wizard_steps').update(payload).eq('id', editingStep.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('wizard_steps').insert([payload])
+        if (error) throw error
+      }
+      await fetchSteps()
+      setStepMode('list')
+      setEditingStep(null)
+    } catch (err) {
+      console.error('saveStep:', err)
+    } finally {
+      setStepSaving(false)
+    }
+  }
+
+  async function deleteStep(id) {
+    if (!confirm('Delete this wizard step?')) return
+    const { error } = await supabase.from('wizard_steps').delete().eq('id', id)
+    if (!error) fetchSteps()
+  }
+
+  function openCreateStep() {
+    setStepMode('create')
+    setEditingStep(null)
+    setStepForm({
+      step_number: steps.length + 1,
+      question: '',
+      field_type: 'text',
+      options: '',
+      required: true,
+      placeholder: '',
+    })
+  }
+
+  function openEditStep(step) {
+    setStepMode('edit')
+    setEditingStep(step)
+    setStepForm({
+      step_number: step.step_number,
+      question: step.question,
+      field_type: step.field_type,
+      options: (step.options || []).join(', '),
+      required: step.required ?? true,
+      placeholder: step.placeholder || '',
+    })
+  }
+
+  const filteredSubs = submissions.filter(s => {
+    if (!subSearch) return true
+    const q = subSearch.toLowerCase()
+    return (
+      (s.name || s.full_name || '').toLowerCase().includes(q) ||
+      (s.email || '').toLowerCase().includes(q) ||
+      (s.idea_summary || s.business_idea || s.description || '').toLowerCase().includes(q) ||
+      (s.industry || '').toLowerCase().includes(q)
+    )
+  })
+
+  const FIELD_TYPES = [
+    { value: 'text', label: 'Short Text' },
+    { value: 'textarea', label: 'Long Text' },
+    { value: 'select', label: 'Dropdown' },
+    { value: 'radio', label: 'Radio Buttons' },
+    { value: 'email', label: 'Email' },
+    { value: 'tel', label: 'Phone' },
+  ]
+
+  return (
+    <div className="p-6 max-w-6xl">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white">Wizard Builder</h1>
+        <p className="text-slate-400 text-sm mt-1">View lead submissions and configure the onboarding wizard flow</p>
+      </div>
+
+      {/* Tab Nav */}
+      <div className="flex gap-1 mb-6 bg-slate-800/50 rounded-lg p-1 w-fit">
+        {[
+          { id: 'submissions', label: 'Submissions' },
+          { id: 'flow', label: 'Flow Editor' },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── SUBMISSIONS TAB ── */}
+      {activeTab === 'submissions' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <input
+              value={subSearch}
+              onChange={e => setSubSearch(e.target.value)}
+              placeholder="Search by name, email, idea..."
+              className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 w-80"
+            />
+            <div className="flex items-center gap-3">
+              <span className="text-slate-500 text-sm">{filteredSubs.length} of {submissions.length}</span>
+              <button onClick={fetchSubmissions} className="text-slate-400 hover:text-white text-sm transition-colors">↻ Refresh</button>
+            </div>
+          </div>
+
+          {subLoading ? (
+            <div className="text-center py-16 text-slate-400">Loading submissions...</div>
+          ) : filteredSubs.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              {subSearch ? 'No submissions match your search.' : 'No submissions yet.'}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredSubs.map(sub => {
+                const isOpen = selectedSub?.id === sub.id
+                const name = sub.name || sub.full_name || 'Unknown'
+                const email = sub.email || '—'
+                const idea = sub.idea_summary || sub.business_idea || sub.description || 'No summary provided'
+                return (
+                  <div
+                    key={sub.id}
+                    className={`bg-[#0D1424] border rounded-xl transition-colors ${isOpen ? 'border-blue-500/40' : 'border-white/10 hover:border-white/20'}`}
+                  >
+                    <div
+                      className="p-4 cursor-pointer"
+                      onClick={() => setSelectedSub(isOpen ? null : sub)}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-1 flex-wrap">
+                            <span className="text-white font-semibold">{name}</span>
+                            <span className="text-slate-400 text-sm">{email}</span>
+                            {sub.industry && (
+                              <span className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">{sub.industry}</span>
+                            )}
+                            {sub.stage && (
+                              <span className="text-xs bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded">{sub.stage}</span>
+                            )}
+                          </div>
+                          <p className="text-slate-400 text-sm truncate">{idea}</p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-xs text-slate-500">
+                            {new Date(sub.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                          <svg
+                            className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {isOpen && (
+                      <div className="px-4 pb-4 border-t border-white/10 pt-4" onClick={e => e.stopPropagation()}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {Object.entries(sub)
+                            .filter(([k, v]) => !['id', 'updated_at'].includes(k) && v !== null && v !== '')
+                            .map(([k, v]) => (
+                              <div key={k}>
+                                <div className="text-slate-500 text-xs uppercase tracking-wide mb-0.5">
+                                  {k.replace(/_/g, ' ')}
+                                </div>
+                                <div className="text-white text-sm break-words">
+                                  {typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)}
+                                </div>
+                              </div>
+                            ))
+                          }
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── FLOW EDITOR TAB ── */}
+      {activeTab === 'flow' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Wizard Steps</h2>
+              <p className="text-slate-400 text-sm">Configure the questions shown during the signup wizard</p>
+            </div>
+            <button
+              onClick={openCreateStep}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+            >
+              + Add Step
+            </button>
+          </div>
+
+          {/* Step Form */}
+          {stepMode !== 'list' && (
+            <div className="bg-[#0D1424] border border-white/10 rounded-xl p-6 space-y-4">
+              <h3 className="text-white font-semibold">{stepMode === 'create' ? 'New Step' : 'Edit Step'}</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-400 text-xs mb-1 block">Step Number</label>
+                  <input
+                    type="number"
+                    value={stepForm.step_number}
+                    onChange={e => setStepForm(f => ({ ...f, step_number: e.target.value }))}
+                    min={1}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 text-xs mb-1 block">Field Type</label>
+                  <select
+                    value={stepForm.field_type}
+                    onChange={e => setStepForm(f => ({ ...f, field_type: e.target.value }))}
+                    className="w-full bg-[#0D1424] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  >
+                    {FIELD_TYPES.map(ft => (
+                      <option key={ft.value} value={ft.value}>{ft.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">Question</label>
+                <input
+                  value={stepForm.question}
+                  onChange={e => setStepForm(f => ({ ...f, question: e.target.value }))}
+                  placeholder="e.g. What's your business idea?"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">Placeholder (optional)</label>
+                <input
+                  value={stepForm.placeholder}
+                  onChange={e => setStepForm(f => ({ ...f, placeholder: e.target.value }))}
+                  placeholder="Hint text shown inside the field..."
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {['select', 'radio'].includes(stepForm.field_type) && (
+                <div>
+                  <label className="text-slate-400 text-xs mb-1 block">Options (comma-separated)</label>
+                  <input
+                    value={stepForm.options}
+                    onChange={e => setStepForm(f => ({ ...f, options: e.target.value }))}
+                    placeholder="E-commerce, SaaS, Service Business, Other"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="step-required"
+                  checked={stepForm.required}
+                  onChange={e => setStepForm(f => ({ ...f, required: e.target.checked }))}
+                  className="rounded"
+                />
+                <label htmlFor="step-required" className="text-slate-400 text-sm cursor-pointer">Required field</label>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={saveStep}
+                  disabled={!stepForm.question.trim() || stepSaving}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  {stepSaving ? 'Saving...' : stepMode === 'create' ? 'Add Step' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={() => { setStepMode('list'); setEditingStep(null) }}
+                  className="text-slate-400 hover:text-white px-4 py-2 text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Steps List */}
+          {stepsLoading ? (
+            <div className="text-center py-16 text-slate-400">Loading steps...</div>
+          ) : steps.length === 0 && stepMode === 'list' ? (
+            <div className="text-center py-16 text-slate-400">
+              No steps configured yet — click <strong className="text-white">+ Add Step</strong> to build your wizard.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {steps.map(step => (
+                <div key={step.id} className="bg-[#0D1424] border border-white/10 rounded-xl p-4 flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-sm shrink-0 mt-0.5">
+                    {step.step_number}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-medium">{step.question}</div>
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                      <span className="text-xs text-slate-500 font-mono bg-white/5 px-2 py-0.5 rounded">
+                        {FIELD_TYPES.find(ft => ft.value === step.field_type)?.label || step.field_type}
+                      </span>
+                      {step.required && (
+                        <span className="text-xs text-amber-400">required</span>
+                      )}
+                      {step.placeholder && (
+                        <span className="text-xs text-slate-500 truncate max-w-xs">"{step.placeholder}"</span>
+                      )}
+                    </div>
+                    {step.options?.length > 0 && (
+                      <div className="flex gap-1 mt-2 flex-wrap">
+                        {step.options.map(o => (
+                          <span key={o} className="text-xs bg-white/5 text-slate-400 border border-white/10 px-2 py-0.5 rounded">
+                            {o}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => openEditStep(step)}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 hover:text-white transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteStep(step.id)}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
