@@ -76,7 +76,7 @@ function NewProjectModal({ onClose, onCreated, currentUserId }) {
           customer_id: currentUserId,
           progress: 0,
         })
-        .select('*, profiles!projects_customer_id_fkey(full_name, email)')
+        .select('*')
         .single()
       if (insertErr) throw insertErr
       onCreated(data)
