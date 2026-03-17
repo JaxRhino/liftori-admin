@@ -15,14 +15,9 @@ import Platforms from './pages/Platforms'
 import PlatformDetail from './pages/PlatformDetail'
 import Chat from './pages/Chat'
 import DiscountCodes from './pages/DiscountCodes'
-import Tasks from './pages/Tasks'
-import Notes from './pages/Notes'
-import Calendar from './pages/Calendar'
-import Pipeline from './pages/Pipeline'
-import Marketing from './pages/Marketing'
-import WizardBuilder from './pages/WizardBuilder'
-import CustomerComms from './pages/CustomerComms'
+import Plans from './pages/Plans'
 import PortalDashboard from './pages/portal/PortalDashboard'
+import ChoosePlan from './pages/portal/ChoosePlan'
 import PortalProject from './pages/portal/PortalProject'
 import PortalMessages from './pages/portal/PortalMessages'
 import PortalDocuments from './pages/portal/PortalDocuments'
@@ -45,23 +40,15 @@ function ProtectedRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { isAdmin, loading, user, profile } = useAuth()
-  if (loading || (user && !profile)) return (
-    <div className="min-h-screen bg-navy-950 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  const { isAdmin, loading } = useAuth()
+  if (loading) return null
   if (!isAdmin) return <Navigate to="/portal" replace />
   return children
 }
 
 function ClientRoute({ children }) {
-  const { isAdmin, loading, user, profile } = useAuth()
-  if (loading || (user && !profile)) return (
-    <div className="min-h-screen bg-navy-950 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  const { isAdmin, loading } = useAuth()
+  if (loading) return null
   if (isAdmin) return <Navigate to="/" replace />
   return children
 }
@@ -99,10 +86,6 @@ export default function App() {
           }>
             <Route index element={<Dashboard />} />
             <Route path="projects" element={<Projects />} />
-              <Route path="pipeline" element={<Pipeline />} />
-            <Route path="marketing" element={<Marketing />} />
-              <Route path="wizard" element={<WizardBuilder />} />
-              <Route path="comms" element={<CustomerComms />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="waitlist" element={<Waitlist />} />
             <Route path="affiliates" element={<Affiliates />} />
@@ -111,11 +94,18 @@ export default function App() {
             <Route path="platforms" element={<Platforms />} />
             <Route path="platforms/:id" element={<PlatformDetail />} />
             <Route path="discount-codes" element={<DiscountCodes />} />
+            <Route path="plans" element={<Plans />} />
             <Route path="chat" element={<Chat />} />
-            <Route path="tasks" element={<Tasks />} />
-            <Route path="notes" element={<Notes />} />
-            <Route path="calendar" element={<Calendar />} />
           </Route>
+
+          {/* Choose Plan — full-screen, outside ClientLayout */}
+          <Route path="/portal/choose-plan" element={
+            <ProtectedRoute>
+              <ClientRoute>
+                <ChoosePlan />
+              </ClientRoute>
+            </ProtectedRoute>
+          } />
 
           {/* Client portal routes */}
           <Route path="/portal" element={
