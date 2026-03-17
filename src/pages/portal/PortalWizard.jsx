@@ -1127,7 +1127,6 @@ export default function PortalWizard() {
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-3">Design style</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {CRM_DESIGN_STYLES.map(s => ()}
                 {CRM_DESIGN_STYLES.map(s => (
                   <button key={s.value} onClick={() => update('crm_design_style', s.value)}
                     className={`p-4 rounded-lg border text-left transition-all ${getAccentClasses('CRM Builder', form.crm_design_style === s.value)}`}>
