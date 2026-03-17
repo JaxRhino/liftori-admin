@@ -878,7 +878,6 @@ export default function PortalWizard() {
             <div>
               <p className="text-sm text-gray-400 mb-3">Select the pages you need *</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {WEBSITE_PAGES.map(pg => ()}
                 {WEBSITE_PAGES.map(pg => (
                   <button key={pg} onClick={() => toggleArrayItem('website_pages', pg)}
                     className={`p-3 rounded-lg border text-sm text-left transition-all flex items-center gap-3 ${getAccentClasses('Website Builder', form.website_pages.includes(pg))}`}>
