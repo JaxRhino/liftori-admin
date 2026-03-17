@@ -278,6 +278,13 @@ export default function PortalWizard() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
+  // ─── New fields (redesign spec) ─────────────────────────────────────────────
+  const [discountCode, setDiscountCode]         = useState('')
+  const [discountValidating, setDiscountValidating] = useState(false)
+  const [discountResult, setDiscountResult]     = useState(null) // null | { valid, pct, code }
+  const [agreementAccepted, setAgreementAccepted] = useState(false)
+  const [marketingConsent, setMarketingConsent] = useState(false)
+
   const [form, setForm] = useState({
     // Step 1
     project_name: '', elevator_pitch: '', problem_solved: '',
@@ -382,11 +389,11 @@ export default function PortalWizard() {
         return form.budget_range && form.timeline // generic timeline/budget
       case 9:
         if (isBook) return form.estimate_approved === true
-        return true // generic review
+        return agreementAccepted // generic review — must accept agreement
       case 10:
         if (isBook) return form.budget_range && form.timeline
         return true
-      case 11: return true
+      case 11: return agreementAccepted // book review — must accept agreement
       default: return true
     }
   }
@@ -402,7 +409,7 @@ export default function PortalWizard() {
       let allFeatures = []
       let brief = ''
       let projectName = form.project_name
-      let projectStatus = 'Wizard Complete'
+      let projectStatus = 'Pending Estimate' // all wizard submissions go to Pending Estimate now
 
       if (isBook) {
         projectName = form.book_title || form.project_name
@@ -503,6 +510,10 @@ export default function PortalWizard() {
           timeline_pref: form.timeline,
           budget_range: form.budget_range,
           progress: 0,
+          // New fields from redesign spec
+          discount_code_used:    discountResult?.valid ? discountCode.trim().toUpperCase() : null,
+          agreement_accepted_at: agreementAccepted ? new Date().toISOString() : null,
+          marketing_consent:     marketingConsent,
         })
         .select()
         .single()
@@ -525,6 +536,36 @@ export default function PortalWizard() {
       setError(err.message || 'Something went wrong. Please try again.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // ─── DISCOUNT CODE VALIDATION ────────────────────────────────────────────────
+  async function validateDiscountCode() {
+    const code = discountCode.trim().toUpperCase()
+    if (!code) return
+    setDiscountValidating(true)
+    setDiscountResult(null)
+    try {
+      const { data, error } = await supabase
+        .from('discount_codes')
+        .select('id, discount_pct, max_uses, use_count, expires_at, is_active')
+        .eq('code', code)
+        .single()
+      if (error || !data) {
+        setDiscountResult({ valid: false })
+        return
+      }
+      const expired = data.expires_at && new Date(data.expires_at) < new Date()
+      const maxedOut = data.max_uses && data.use_count >= data.max_uses
+      if (!data.is_active || expired || maxedOut) {
+        setDiscountResult({ valid: false })
+        return
+      }
+      setDiscountResult({ valid: true, pct: data.discount_pct, code })
+    } catch {
+      setDiscountResult({ valid: false })
+    } finally {
+      setDiscountValidating(false)
     }
   }
 
@@ -837,73 +878,12 @@ export default function PortalWizard() {
             <div>
               <p className="text-sm text-gray-400 mb-3">Select the pages you need *</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {WEBSITE_PAGES.map(pg => ()}
                 {WEBSITE_PAGES.map(pg => (
                   <button key={pg} onClick={() => toggleArrayItem('website_pages', pg)}
                     className={`p-3 rounded-lg border text-sm text-left transition-all flex items-center gap-3 ${getAccentClasses('Website Builder', form.website_pages.includes(pg))}`}>
                     <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${form.website_pages.includes(pg) ? 'bg-emerald-500' : 'border border-navy-500'}`}>
-                      {form.website_pages.includes(pg) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>}
-                    </div>
-                    {pg}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Any other pages?</label>
-              <textarea value={form.website_custom_pages} onChange={e => update('website_custom_pages', e.target.value)}
-                placeholder="Any other pages or sections you need..." className="input-field resize-y" rows={2} />
-            </div>
-          </div>
-        )
-        // Generic design
-        return (
-          <div className="space-y-6">
-            <div>
-              <p className="text-sm text-gray-400 mb-3">Pick a design vibe *</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {DESIGN_VIBES.map(v => (
-                  <button key={v.value} onClick={() => update('vibe', v.value)}
-                    className={`p-4 rounded-lg border text-left transition-all ${getAccentClasses(form.app_type, form.vibe === v.value)}`}>
-                    <p className={`font-medium text-sm ${form.vibe === v.value ? 'text-brand-blue' : 'text-white'}`}>{v.value}</p>
-                    <p className="text-xs text-gray-500 mt-1">{v.desc}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Color preferences</label>
-              <input type="text" value={form.color_preference} onChange={e => update('color_preference', e.target.value)}
-                placeholder="e.g., Blues and whites, Earth tones, Match my brand..." className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Any reference sites you like?</label>
-              <textarea value={form.reference_sites} onChange={e => update('reference_sites', e.target.value)}
-                placeholder="Paste URLs of websites or apps whose design you admire..." className="input-field min-h-[80px] resize-y" rows={3} />
-            </div>
-            {(form.app_type === 'Web App' || form.app_type === 'Mobile App') && (
-              <div>
-                <p className="text-sm text-gray-400 mb-1">Tech stack preference</p>
-                <p className="text-xs text-gray-500 mb-3">Do you have a preferred technology, or should we choose the best fit for your project?</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {TECH_STACK_OPTIONS.map(t => (
-                    <button key={t.value} onClick={() => update('tech_stack_pref', t.value)}
-                      className={`p-3 rounded-lg border text-left transition-all ${getAccentClasses(form.app_type, form.tech_stack_pref === t.value)}`}>
-                      <p className={`font-medium text-sm ${form.tech_stack_pref === t.value ? 'text-brand-blue' : 'text-white'}`}>{t.icon} {t.value}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{t.desc}</p>
-                    </button>
-                  ))}
-                </div>
-                {form.tech_stack_pref === 'I have specific requirements' && (
-                  <textarea value={form.tech_stack_custom} onChange={e => update('tech_stack_custom', e.target.value)}
-                    placeholder="Describe your tech stack requirements in detail..."
-                    className="input-field resize-y mt-3" rows={3} />
-                )}
-              </div>
-            )}
-          </div>
-        )
-
-      // ── STEP 6 ──────────────────────────────────────────────────────────────
+                      {form.website_pages.includes(pg) && <svg className="w-3 h-3 text-whi─ STEP 6 ──────────────────────────────────────────────────────────────
       case 6:
         if (isBook) return (
           <div className="space-y-6">
@@ -1141,7 +1121,72 @@ export default function PortalWizard() {
             {(form.website_delivery === 'Build, Launch & Host' || form.website_delivery === 'Build, Launch, Host & Maintain') && (
               <>
                 <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-300">
-                  ✅ Includes <strong>10 free major updates per year</strong>. Additional updates available via maintenance plan or per-update pricing.
+                  ✅ Includes <strong>10 free major updates pe</div>
+        )
+        if (isCRM) return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">Design style</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {CRM_DESIGN_STYLES.map(s => ()}
+                {CRM_DESIGN_STYLES.map(s => (
+                  <button key={s.value} onClick={() => update('crm_design_style', s.value)}
+                    className={`p-4 rounded-lg border text-left transition-all ${getAccentClasses('CRM Builder', form.crm_design_style === s.value)}`}>
+                    <p className={`font-medium text-sm ${form.crm_design_style === s.value ? 'text-violet-400' : 'text-white'}`}>{s.value}</p>
+                    <p className="text-xs text-gray-500 mt-1">{s.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">Where will your CRM live? *</label>
+              <div className="grid grid-cols-1 gap-3">
+                {CRM_DOMAIN_OPTIONS.map(o => (
+                  <button key={o.value} onClick={() => update('crm_domain_option', o.value)}
+                    className={`p-4 rounded-lg border text-left transition-all ${getAccentClasses('CRM Builder', form.crm_domain_option === o.value)}`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{o.icon}</span>
+                      <div>
+                        <p className={`font-medium text-sm ${form.crm_domain_option === o.value ? 'text-violet-400' : 'text-white'}`}>{o.value}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{o.desc}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {(form.crm_domain_option === 'Use my own domain') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Your domain name</label>
+                <input type="text" value={form.crm_own_domain} onChange={e => update('crm_own_domain', e.target.value)}
+                  placeholder="e.g., mycrm.company.com" className="input-field" />
+              </div>
+            )}
+          </div>
+        )
+        if (isWeb) return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">How do you want this delivered? *</label>
+              <div className="grid grid-cols-1 gap-3">
+                {WEBSITE_DELIVERY_OPTIONS.map(o => (
+                  <button key={o.value} onClick={() => update('website_delivery', o.value)}
+                    className={`p-4 rounded-lg border text-left transition-all ${getAccentClasses('Website Builder', form.website_delivery === o.value)}`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{o.icon}</span>
+                      <div>
+                        <p className={`font-medium text-sm ${form.website_delivery === o.value ? 'text-emerald-400' : 'text-white'}`}>{o.value}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{o.desc}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {(form.website_delivery === 'Build, Launch & Host' || form.website_delivery === 'Build, Launch, Host & Maintain') && (
+              <>
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-300">
+                  ✅ Includes <strong>10 free major updates per"year</strong>. Additional updates available via maintenance plan or per-update pricing.
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">Ongoing maintenance plan</label>
@@ -1474,6 +1519,88 @@ export default function PortalWizard() {
           <ReviewItem label="Budget" value={form.budget_range} />
           {form.launch_date && <ReviewItem label="Target Date" value={form.launch_date} />}
         </ReviewSection>
+
+        {/* ── ESTIMATE MESSAGE ─────────────────────────────────────────────── */}
+        <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-1.5">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sky-400 text-base">📋</span>
+            <h3 className="text-white font-semibold text-sm">Your Project Estimate</h3>
+          </div>
+          <p className="text-gray-300 text-sm leading-relaxed">
+            Your project estimate will be sent to you shortly. Our team will review your project
+            details, calculate the build cost, and send you a formal estimate via email.
+            A <strong className="text-white">50% deposit</strong> is required to begin your build.
+          </p>
+        </div>
+
+        {/* ── DISCOUNT CODE ────────────────────────────────────────────────── */}
+        <div className="p-4 rounded-xl bg-navy-800/60 border border-navy-700/50 space-y-3">
+          <h3 className="text-white font-semibold text-sm">Have a discount code?</h3>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={discountCode}
+              onChange={e => { setDiscountCode(e.target.value.toUpperCase()); setDiscountResult(null) }}
+              onKeyDown={e => { if (e.key === 'Enter') validateDiscountCode() }}
+              placeholder="e.g. EARLYBIRD90"
+              className="flex-1 bg-navy-900/80 border border-navy-600 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+            />
+            <button
+              type="button"
+              onClick={validateDiscountCode}
+              disabled={!discountCode.trim() || discountValidating}
+              className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {discountValidating ? '…' : 'Apply'}
+            </button>
+          </div>
+          {discountResult?.valid && (
+            <p className="text-sm text-emerald-400 flex items-center gap-1.5">
+              ✓ Code applied — <strong>{discountResult.pct}% discount</strong> will be reflected in your estimate.
+            </p>
+          )}
+          {discountResult?.valid === false && (
+            <p className="text-sm text-red-400">That code isn't valid or has expired. Check the code and try again.</p>
+          )}
+        </div>
+
+        {/* ── MARKETING CONSENT ────────────────────────────────────────────── */}
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={marketingConsent}
+            onChange={e => setMarketingConsent(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded border-navy-600 text-sky-500 focus:ring-sky-500 shrink-0"
+          />
+          <span className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors leading-relaxed">
+            May we feature your project in our marketing materials, blog posts, and case studies?{' '}
+            <span className="text-gray-500">(Optional)</span>
+          </span>
+        </label>
+
+        {/* ── AGREEMENT ────────────────────────────────────────────────────── */}
+        <div className={`p-4 rounded-xl border transition-colors ${
+          agreementAccepted ? 'border-sky-500/50 bg-sky-500/5' : 'border-navy-600 bg-navy-800/40'
+        }`}>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreementAccepted}
+              onChange={e => setAgreementAccepted(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-navy-600 text-sky-500 focus:ring-sky-500 shrink-0"
+            />
+            <span className="text-sm text-gray-300 leading-relaxed">
+              I agree to Liftori's{' '}
+              <a href="https://liftori.ai/terms" target="_blank" rel="noopener noreferrer"
+                className="text-sky-400 hover:underline">Terms of Service</a>{' '}
+              and{' '}
+              <a href="https://liftori.ai/service-agreement" target="_blank" rel="noopener noreferrer"
+                className="text-sky-400 hover:underline">Service Agreement</a>.{' '}
+              <span className="text-gray-500">Required to submit.</span>
+            </span>
+          </label>
+        </div>
+
         {error && (
           <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-400">{error}</div>
         )}
