@@ -220,6 +220,29 @@ export default function AdminLayout() {
               </div>
             )}
           </div>
+
+          {/* Client Portals */}
+          <div className="pt-1">
+            {sidebarOpen && (
+              <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Client Portals</p>
+            )}
+            <a
+              href="https://www.vjthriftfinds.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-gray-400 hover:text-white hover:bg-navy-700/50"
+              title="Customer Portal">
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+              </svg>
+              {sidebarOpen && <span className="flex-1">Customer Portal</span>}
+              {sidebarOpen && (
+                <svg className="w-3 h-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+                </svg>
+              )}
+            </a>
+          </div>
         </nav>
 
         {/* User */}
