@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
@@ -357,10 +357,10 @@ export default function Projects() {
     showToast(`"${project.name}" created`)
   }
 
+  const navigate = useNavigate()
+
   function openProject(proj) {
-    setSelectedProject(proj)
-    setAdminNotes(proj.admin_notes || '')
-    setEmailOpen(false)
+    navigate(`/admin/projects/${proj.id}`)
   }
 
   function closeProject() {
