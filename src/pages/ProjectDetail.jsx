@@ -1,7 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState 
+
+      {/* Tab Navigation */}
+      <div className="flex gap-1 mb-6 bg-white/[0.03] rounded-xl p-1 border border-white/10 w-fit">
+        <button
+          onClick={() => setActiveTab('details')}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === 'details'
+              ? 'bg-brand-blue/20 text-brand-blue'
+              : 'text-white/50 hover:text-white/70 hover:bg-white/5'
+          }`}
+        >
+          Details
+        </button>
+        <button
+          onClick={() => setActiveTab('devlab')}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'devlab'
+              ? 'bg-emerald-500/20 text-emerald-400'
+              : 'text-white/50 hover:text-white/70 hover:bg-white/5'
+          }`}
+        >
+          Dev Lab
+        </button>
+      </div>
+
+      {activeTab === 'devlab' ? (
+        <DevLab project={project} />
+      ) : (
+      <>} from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import DevLab from '../components/DevLab'
 
 const STATUSES = ['Wizard Complete', 'Brief Review', 'Design Approval', 'In Build', 'QA', 'Launched', 'On Hold', 'Cancelled']
 const STATUS_COLORS = {
@@ -28,6 +58,7 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
   const [newMessage, setNewMessage] = useState('')
+  const [activeTab, setActiveTab] = useState('details')
   const [sendingMessage, setSendingMessage] = useState(false)
   const [newMilestone, setNewMilestone] = useState('')
   const [addingMilestone, setAddingMilestone] = useState(false)
@@ -501,6 +532,8 @@ export default function ProjectDetail() {
             </div>
           )}
         </div>
+      )}
+      </>
       )}
     </div>
   )
