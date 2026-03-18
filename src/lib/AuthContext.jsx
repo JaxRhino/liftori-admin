@@ -35,11 +35,12 @@ export function AuthProvider({ children }) {
         const sessionUser = session?.user ?? null
         setUser(sessionUser)
         if (sessionUser) {
-          fetchProfile(sessionUser.id)
+          await fetchProfile(sessionUser.id)
         } else {
           setProfile(null)
         }
-        // INITIAL_SESSION fires exactly once on mount — safe to end loading here
+        // INITIAL_SESSION fires exactly once on mount — await profile first so isAdmin is set before route guards run
+        // Must await fetchProfile first so isAdmin is ready before route guards run
         if (event === 'INITIAL_SESSION') {
           setLoading(false)
         }
