@@ -204,7 +204,7 @@ export default function ProjectDetail() {
           <div>
             <h1 className="text-2xl font-bold text-white">{project.name}</h1>
             <p className="text-gray-400 text-sm mt-0.5">
-              {project.profiles?.full_name || project.profiles?.email || 'No customer'} â {project.project_type} â {project.tier}
+              {project.profiles?.full_name || project.profiles?.email || 'No customer'} — {project.project_type} — {project.tier}
             </p>
           </div>
         </div>
@@ -477,7 +477,7 @@ export default function ProjectDetail() {
                 }`}>
                   <p className="text-sm">{msg.body}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {msg.profiles?.full_name || msg.sender_type} â {new Date(msg.created_at).toLocaleString()}
+                    {msg.profiles?.full_name || msg.sender_type} — {new Date(msg.created_at).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -542,7 +542,7 @@ function DetailRow({ label, value }) {
   return (
     <div className="flex justify-between items-center py-1.5 border-b border-navy-700/30 last:border-0">
       <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-sm text-white">{value || 'â'}</span>
+      <span className="text-sm text-white">{value || '—'}</span>
     </div>
   )
 }
