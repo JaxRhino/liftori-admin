@@ -346,7 +346,6 @@ export default function PortalWizard() {
   const isCRM = form.app_type === 'CRM Builder'
   const isWeb = form.app_type === 'Website Builder'
   const totalSteps = isBook ? BOOK_TOTAL_STEPS : TOTAL_STEPS
-
   function update(field, value) {
     setForm(prev => ({ ...prev, [field]: value }))
   }
@@ -426,7 +425,7 @@ export default function PortalWizard() {
         ].filter(Boolean)
         brief = [
           form.elevator_pitch,
-          `Book: "${form.book_title}" — ${form.book_type} / ${form.book_genre}`,
+          `Book: "${form.book_title}" —  ${form.book_type} / ${form.book_genre}`,
           form.book_series === 'Part of a Series' && form.series_name ? `Series: ${form.series_name}` : null,
           `Path: ${form.book_path}`,
           form.manuscript_status ? `Manuscript Status: ${form.manuscript_status}` : null,
@@ -882,7 +881,69 @@ export default function PortalWizard() {
                   <button key={pg} onClick={() => toggleArrayItem('website_pages', pg)}
                     className={`p-3 rounded-lg border text-sm text-left transition-all flex items-center gap-3 ${getAccentClasses('Website Builder', form.website_pages.includes(pg))}`}>
                     <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${form.website_pages.includes(pg) ? 'bg-emerald-500' : 'border border-navy-500'}`}>
-                      {form.website_pages.includes(pg) && <svg className="w-3 h-3 text-whi─ STEP 6 ──────────────────────────────────────────────────────────────
+                      {form.website_pages.includes(pg) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>}
+                    </div>
+                    {pg}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Any other pages?</label>
+              <textarea value={form.website_custom_pages} onChange={e => update('website_custom_pages', e.target.value)}
+                placeholder="Any other pages or sections you need..." className="input-field resize-y" rows={2} />
+            </div>
+          </div>
+        )
+        // Generic design
+        return (
+          <div className="space-y-6">
+            <div>
+              <p className="text-sm text-gray-400 mb-3">Pick a design vibe *</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {DESIGN_VIBES.map(v => (
+                  <button key={v.value} onClick={() => update('vibe', v.value)}
+                    className={`p-4 rounded-lg border text-left transition-all ${getAccentClasses(form.app_type, form.vibe === v.value)}`}>
+                    <p className={`font-medium text-sm ${form.vibe === v.value ? 'text-brand-blue' : 'text-white'}`}>{v.value}</p>
+                    <p className="text-xs text-gray-500 mt-1">{v.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Color preferences</label>
+              <input type="text" value={form.color_preference} onChange={e => update('color_preference', e.target.value)}
+                placeholder="e.g., Blues and whites, Earth tones, Match my brand..." className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Any reference sites you like?</label>
+              <textarea value={form.reference_sites} onChange={e => update('reference_sites', e.target.value)}
+                placeholder="Paste URLs of websites or apps whose design you admire..." className="input-field min-h-[80px] resize-y" rows={3} />
+            </div>
+            {(form.app_type === 'Web App' || form.app_type === 'Mobile App') && (
+              <div>
+                <p className="text-sm text-gray-400 mb-1">Tech stack preference</p>
+                <p className="text-xs text-gray-500 mb-3">Do you have a preferred technology, or should we choose the best fit for your project?</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {TECH_STACK_OPTIONS.map(t => (
+                    <button key={t.value} onClick={() => update('tech_stack_pref', t.value)}
+                      className={`p-3 rounded-lg border text-left transition-all ${getAccentClasses(form.app_type, form.tech_stack_pref === t.value)}`}>
+                      <p className={`font-medium text-sm ${form.tech_stack_pref === t.value ? 'text-brand-blue' : 'text-white'}`}>{t.icon} {t.value}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{t.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                {form.tech_stack_pref === 'I have specific requirements' && (
+                  <textarea value={form.tech_stack_custom} onChange={e => update('tech_stack_custom', e.target.value)}
+                    placeholder="Describe your tech stack requirements in detail..."
+                    className="input-field resize-y mt-3" rows={3} />
+                )}
+              </div>
+            )}
+          </div>
+        )
+
+      // ── STEP 6 ──────────────────────────────────────────────────────────────
       case 6:
         if (isBook) return (
           <div className="space-y-6">
@@ -1120,71 +1181,7 @@ export default function PortalWizard() {
             {(form.website_delivery === 'Build, Launch & Host' || form.website_delivery === 'Build, Launch, Host & Maintain') && (
               <>
                 <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-300">
-                  ✅ Includes <strong>10 free major updates pe</div>
-        )
-        if (isCRM) return (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-3">Design style</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {CRM_DESIGN_STYLES.map(s => (
-                  <button key={s.value} onClick={() => update('crm_design_style', s.value)}
-                    className={`p-4 rounded-lg border text-left transition-all ${getAccentClasses('CRM Builder', form.crm_design_style === s.value)}`}>
-                    <p className={`font-medium text-sm ${form.crm_design_style === s.value ? 'text-violet-400' : 'text-white'}`}>{s.value}</p>
-                    <p className="text-xs text-gray-500 mt-1">{s.desc}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-3">Where will your CRM live? *</label>
-              <div className="grid grid-cols-1 gap-3">
-                {CRM_DOMAIN_OPTIONS.map(o => (
-                  <button key={o.value} onClick={() => update('crm_domain_option', o.value)}
-                    className={`p-4 rounded-lg border text-left transition-all ${getAccentClasses('CRM Builder', form.crm_domain_option === o.value)}`}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">{o.icon}</span>
-                      <div>
-                        <p className={`font-medium text-sm ${form.crm_domain_option === o.value ? 'text-violet-400' : 'text-white'}`}>{o.value}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{o.desc}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-            {(form.crm_domain_option === 'Use my own domain') && (
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Your domain name</label>
-                <input type="text" value={form.crm_own_domain} onChange={e => update('crm_own_domain', e.target.value)}
-                  placeholder="e.g., mycrm.company.com" className="input-field" />
-              </div>
-            )}
-          </div>
-        )
-        if (isWeb) return (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-3">How do you want this delivered? *</label>
-              <div className="grid grid-cols-1 gap-3">
-                {WEBSITE_DELIVERY_OPTIONS.map(o => (
-                  <button key={o.value} onClick={() => update('website_delivery', o.value)}
-                    className={`p-4 rounded-lg border text-left transition-all ${getAccentClasses('Website Builder', form.website_delivery === o.value)}`}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">{o.icon}</span>
-                      <div>
-                        <p className={`font-medium text-sm ${form.website_delivery === o.value ? 'text-emerald-400' : 'text-white'}`}>{o.value}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{o.desc}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-            {(form.website_delivery === 'Build, Launch & Host' || form.website_delivery === 'Build, Launch, Host & Maintain') && (
-              <>
-                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-300">
-                  ✅ Includes <strong>10 free major updates per"year</strong>. Additional updates available via maintenance plan or per-update pricing.
+                  ✅ Includes <strong>10 free major updates per year</strong>. Additional updates available via maintenance plan or per-update pricing.
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">Ongoing maintenance plan</label>
@@ -1521,7 +1518,7 @@ export default function PortalWizard() {
         {/* ── ESTIMATE MESSAGE ─────────────────────────────────────────────── */}
         <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-1.5">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-sky-400 text-base">📋</span>
+            <span className="text-sky-400 text-base">🌋</span>
             <h3 className="text-white font-semibold text-sm">Your Project Estimate</h3>
           </div>
           <p className="text-gray-300 text-sm leading-relaxed">
