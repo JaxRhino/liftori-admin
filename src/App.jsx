@@ -47,9 +47,8 @@ function AdminRoute({ children }) {
 }
 
 function ClientRoute({ children }) {
-  const { isAdmin, loading } = useAuth()
+  const { loading } = useAuth()
   if (loading) return null
-  if (isAdmin) return <Navigate to="/" replace />
   return children
 }
 
