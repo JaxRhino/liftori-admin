@@ -19,6 +19,7 @@ import Plans from './pages/Plans'
 import PortalDashboard from './pages/portal/PortalDashboard'
 import ChoosePlan from './pages/portal/ChoosePlan'
 import PortalProject from './pages/portal/PortalProject'
+import ComingSoon from './pages/ComingSoon'
 import PortalProjects from './pages/portal/PortalProjects'
 import PortalSettings from './pages/portal/PortalSettings'
 import PortalMessages from './pages/portal/PortalMessages'
@@ -97,6 +98,14 @@ export default function App() {
             <Route path="discount-codes" element={<DiscountCodes />} />
             <Route path="plans" element={<Plans />} />
             <Route path="chat" element={<Chat />} />
+            <Route path="pipeline" element={<ComingSoon />} />
+            <Route path="marketing" element={<ComingSoon />} />
+            <Route path="wizard" element={<ComingSoon />} />
+            <Route path="comms" element={<ComingSoon />} />
+            <Route path="tasks" element={<ComingSoon />} />
+            <Route path="notes" element={<ComingSoon />} />
+            <Route path="calendar" element={<ComingSoon />} />
+            <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
 
           {/* Choose Plan — full-screen, outside ClientLayout */}
