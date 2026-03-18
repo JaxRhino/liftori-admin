@@ -1,33 +1,4 @@
-import { useEffect, useState 
-
-      {/* Tab Navigation */}
-      <div className="flex gap-1 mb-6 bg-white/[0.03] rounded-xl p-1 border border-white/10 w-fit">
-        <button
-          onClick={() => setActiveTab('details')}
-          className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'details'
-              ? 'bg-brand-blue/20 text-brand-blue'
-              : 'text-white/50 hover:text-white/70 hover:bg-white/5'
-          }`}
-        >
-          Details
-        </button>
-        <button
-          onClick={() => setActiveTab('devlab')}
-          className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'devlab'
-              ? 'bg-emerald-500/20 text-emerald-400'
-              : 'text-white/50 hover:text-white/70 hover:bg-white/5'
-          }`}
-        >
-          Dev Lab
-        </button>
-      </div>
-
-      {activeTab === 'devlab' ? (
-        <DevLab project={project} />
-      ) : (
-      <>} from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
@@ -57,8 +28,8 @@ export default function ProjectDetail() {
   const [updates, setUpdates] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
+  const [topTab, setTopTab] = useState('details')
   const [newMessage, setNewMessage] = useState('')
-  const [activeTab, setActiveTab] = useState('details')
   const [sendingMessage, setSendingMessage] = useState(false)
   const [newMilestone, setNewMilestone] = useState('')
   const [addingMilestone, setAddingMilestone] = useState(false)
@@ -233,7 +204,7 @@ export default function ProjectDetail() {
           <div>
             <h1 className="text-2xl font-bold text-white">{project.name}</h1>
             <p className="text-gray-400 text-sm mt-0.5">
-              {project.profiles?.full_name || project.profiles?.email || 'No customer'} — {project.project_type} — {project.tier}
+              {project.profiles?.full_name || project.profiles?.email || 'No customer'} â {project.project_type} â {project.tier}
             </p>
           </div>
         </div>
@@ -248,6 +219,34 @@ export default function ProjectDetail() {
         </div>
       </div>
 
+      {/* Top-Level Tab Navigation */}
+      <div className="flex gap-1 mb-6 bg-white/[0.03] rounded-xl p-1 border border-white/10 w-fit">
+        <button
+          onClick={() => setTopTab('details')}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+            topTab === 'details'
+              ? 'bg-brand-blue/20 text-brand-blue'
+              : 'text-white/50 hover:text-white/70 hover:bg-white/5'
+          }`}
+        >
+          Details
+        </button>
+        <button
+          onClick={() => setTopTab('devlab')}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            topTab === 'devlab'
+              ? 'bg-emerald-500/20 text-emerald-400'
+              : 'text-white/50 hover:text-white/70 hover:bg-white/5'
+          }`}
+        >
+          Dev Lab
+        </button>
+      </div>
+
+      {topTab === 'devlab' ? (
+        <DevLab project={project} />
+      ) : (
+      <>
       <div className="card mb-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-gray-400">Build Progress</span>
@@ -478,7 +477,7 @@ export default function ProjectDetail() {
                 }`}>
                   <p className="text-sm">{msg.body}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {msg.profiles?.full_name || msg.sender_type} — {new Date(msg.created_at).toLocaleString()}
+                    {msg.profiles?.full_name || msg.sender_type} â {new Date(msg.created_at).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -543,7 +542,7 @@ function DetailRow({ label, value }) {
   return (
     <div className="flex justify-between items-center py-1.5 border-b border-navy-700/30 last:border-0">
       <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-sm text-white">{value || '—'}</span>
+      <span className="text-sm text-white">{value || 'â'}</span>
     </div>
   )
 }
