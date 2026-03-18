@@ -36,6 +36,8 @@ export default function ProjectDetail() {
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
+  const [newUpdate, setNewUpdate] = useState({ title: '', body: '', update_type: 'progress' })
+  const [postingUpdate, setPostingUpdate] = useState(false)
 
   useEffect(() => {
     fetchAll()
@@ -116,6 +118,37 @@ export default function ProjectDetail() {
       console.error('Save error:', err)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function postUpdate() {
+    if (!newUpdate.title.trim() || !newUpdate.body.trim()) return
+    setPostingUpdate(true)
+    try {
+      const { data, error } = await supabase.from('project_updates').insert({
+        project_id: id,
+        title: newUpdate.title.trim(),
+        body: newUpdate.body.trim(),
+        update_type: newUpdate.update_type,
+        created_by: user.id
+      }).select('*').single()
+      if (error) throw error
+      setUpdates(prev => [data, ...prev])
+      setNewUpdate({ title: '', body: '', update_type: 'progress' })
+    } catch (err) {
+      console.error('Post update error:', err)
+    } finally {
+      setPostingUpdate(false)
+    }
+  }
+
+  async function deleteUpdate(updateId) {
+    try {
+      const { error } = await supabase.from('project_updates').delete().eq('id', updateId)
+      if (error) throw error
+      setUpdates(prev => prev.filter(u => u.id !== updateId))
+    } catch (err) {
+      console.error('Delete update error:', err)
     }
   }
 
@@ -507,27 +540,86 @@ export default function ProjectDetail() {
       )}
 
       {activeTab === 'updates' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Compose Update */}
+          <div className="card">
+            <h3 className="text-sm font-medium text-gray-400 mb-4">Post Update to Customer</h3>
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  className="input flex-1"
+                  placeholder="Update title..."
+                  value={newUpdate.title}
+                  onChange={e => setNewUpdate(u => ({ ...u, title: e.target.value }))}
+                />
+                <select
+                  value={newUpdate.update_type}
+                  onChange={e => setNewUpdate(u => ({ ...u, update_type: e.target.value }))}
+                  className="bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue/50"
+                >
+                  <option value="progress">Progress</option>
+                  <option value="milestone">Milestone</option>
+                  <option value="alert">Alert</option>
+                  <option value="launch">Launch</option>
+                  <option value="design">Design</option>
+                  <option value="review">Review</option>
+                </select>
+              </div>
+              <textarea
+                className="w-full bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue/50 min-h-[100px] resize-y"
+                placeholder="Write an update for the customer... They will see this in their portal."
+                value={newUpdate.body}
+                onChange={e => setNewUpdate(u => ({ ...u, body: e.target.value }))}
+              />
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-600">Visible to the customer in their portal</p>
+                <button
+                  onClick={postUpdate}
+                  disabled={postingUpdate || !newUpdate.title.trim() || !newUpdate.body.trim()}
+                  className="btn-primary disabled:opacity-50 flex items-center gap-2"
+                >
+                  {postingUpdate ? 'Posting...' : 'Post Update'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Update History */}
           {updates.map(upd => (
-            <div key={upd.id} className="card">
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`badge ${
-                  upd.update_type === 'milestone' ? 'bg-purple-500/20 text-purple-400'
-                  : upd.update_type === 'alert' ? 'bg-orange-500/20 text-orange-400'
-                  : upd.update_type === 'launch' ? 'bg-emerald-500/20 text-emerald-400'
-                  : 'bg-brand-blue/20 text-brand-blue'
-                }`}>
-                  {upd.update_type}
-                </span>
-                <span className="text-xs text-gray-500">{new Date(upd.created_at).toLocaleString()}</span>
+            <div key={upd.id} className="card group">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className={`badge ${
+                    upd.update_type === 'milestone' ? 'bg-purple-500/20 text-purple-400'
+                    : upd.update_type === 'alert' ? 'bg-orange-500/20 text-orange-400'
+                    : upd.update_type === 'launch' ? 'bg-emerald-500/20 text-emerald-400'
+                    : upd.update_type === 'design' ? 'bg-pink-500/20 text-pink-400'
+                    : upd.update_type === 'review' ? 'bg-yellow-500/20 text-yellow-400'
+                    : 'bg-brand-blue/20 text-brand-blue'
+                  }`}>
+                    {upd.update_type}
+                  </span>
+                  <span className="text-xs text-gray-500">{new Date(upd.created_at).toLocaleString()}</span>
+                </div>
+                <button
+                  onClick={() => deleteUpdate(upd.id)}
+                  className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                  title="Delete update"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
               <h3 className="text-sm font-semibold text-white">{upd.title}</h3>
-              <p className="text-sm text-gray-400 mt-1">{upd.body}</p>
+              <p className="text-sm text-gray-400 mt-1 whitespace-pre-wrap">{upd.body}</p>
             </div>
           ))}
           {updates.length === 0 && (
             <div className="card text-center py-8">
               <p className="text-gray-500 text-sm">No updates posted yet</p>
+              <p className="text-gray-600 text-xs mt-1">Post your first update above — the customer will see it in their portal</p>
             </div>
           )}
         </div>
