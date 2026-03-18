@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true
 
-    async function fetchProfile(userId) {
+    async function fetchProfile(userId, endLoading = false) {
       try {
         const { data, error } = await supabase
           .from('profiles')
@@ -23,6 +23,8 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.error('[Auth] Profile fetch error:', err)
         if (mounted) setProfile(null)
+      } finally {
+        if (endLoading && mounted) setLoading(false)
       }
     }
 
@@ -30,19 +32,17 @@ export function AuthProvider({ children }) {
     // This is Supabase's recommended SPA pattern and avoids the Web Locks
     // hang that broke page refresh (getSession() can deadlock on reload).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (!mounted) return
         const sessionUser = session?.user ?? null
         setUser(sessionUser)
+        const isInitial = event === 'INITIAL_SESSION'
         if (sessionUser) {
-          await fetchProfile(sessionUser.id)
+          // Pass isInitial so fetchProfile ends loading AFTER profile is set
+          fetchProfile(sessionUser.id, isInitial)
         } else {
           setProfile(null)
-        }
-        // INITIAL_SESSION fires exactly once on mount — await profile first so isAdmin is set before route guards run
-        // Must await fetchProfile first so isAdmin is ready before route guards run
-        if (event === 'INITIAL_SESSION') {
-          setLoading(false)
+          if (isInitial) setLoading(false)
         }
       }
     )
@@ -53,7 +53,7 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  async function signIn(email, password) {
+    async function signIn(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     return data
