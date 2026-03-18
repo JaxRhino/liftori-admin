@@ -233,22 +233,15 @@ export default function AdminLayout() {
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Client Portals</p>
             )}
-            <a
-              href="https://www.liftori.ai/demo/admin.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-gray-400 hover:text-white hover:bg-navy-700/50"
+            <NavLink
+              to="/portal"
+              className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? 'text-white bg-navy-700/70' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}
               title="VJ Portal">
               <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               {sidebarOpen && <span className="flex-1">Portal</span>}
-              {sidebarOpen && (
-                <svg className="w-3 h-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
-                </svg>
-              )}
-            </a>
+            </NavLink>
             <a
               href="https://www.vjthriftfinds.com"
               target="_blank"
