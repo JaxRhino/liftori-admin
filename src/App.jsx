@@ -19,6 +19,8 @@ import Plans from './pages/Plans'
 import PortalDashboard from './pages/portal/PortalDashboard'
 import ChoosePlan from './pages/portal/ChoosePlan'
 import PortalProject from './pages/portal/PortalProject'
+import PortalProjects from './pages/portal/PortalProjects'
+import PortalSettings from './pages/portal/PortalSettings'
 import PortalMessages from './pages/portal/PortalMessages'
 import PortalDocuments from './pages/portal/PortalDocuments'
 import PortalInvoices from './pages/portal/PortalInvoices'
@@ -115,10 +117,11 @@ export default function App() {
             </ProtectedRoute>
           }>
             <Route index element={<PortalDashboard />} />
-            <Route path="project" element={<PortalProject />} />
+            <Route path="projects" element={<PortalProjects />} />
             <Route path="messages" element={<PortalMessages />} />
             <Route path="documents" element={<PortalDocuments />} />
             <Route path="invoices" element={<PortalInvoices />} />
+            <Route path="settings" element={<PortalSettings />} />
             <Route path="new-project" element={<PortalWizard />} />
           </Route>
 
