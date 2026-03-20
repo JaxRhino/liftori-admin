@@ -22,6 +22,7 @@ export default function Platforms() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [newPlatform, setNewPlatform] = useState({
     client_name: '', owner_name: '', owner_email: '',
@@ -61,13 +62,17 @@ export default function Platforms() {
       p.owner_name?.toLowerCase().includes(search.toLowerCase()) ||
       p.domain?.toLowerCase().includes(search.toLowerCase())
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesType = typeFilter === 'all' || p.platform_type === typeFilter
+    return matchesSearch && matchesStatus && matchesType
   })
+
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
   const stats = {
     total: platforms.length,
-    live: platforms.filter(p => p.status === 'Live').length,
-    inBuild: platforms.filter(p => p.status === 'In Build').length,
+    active: platforms.filter(p => p.status === 'Live').length,
+    buildsThisMonth: platforms.filter(p => p.created_at >= monthStart).length,
     revenue: platforms.reduce((sum, p) => sum + (p.monthly_revenue || 0), 0)
   }
 
@@ -100,8 +105,8 @@ export default function Platforms() {
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Total Platforms', value: stats.total, color: 'text-white' },
-          { label: 'Live', value: stats.live, color: 'text-emerald-400' },
-          { label: 'In Build', value: stats.inBuild, color: 'text-brand-blue' },
+          { label: 'Active / Live', value: stats.active, color: 'text-emerald-400' },
+          { label: 'Builds This Month', value: stats.buildsThisMonth, color: 'text-brand-blue' },
           { label: 'Monthly Revenue', value: `$${(stats.revenue / 100).toLocaleString()}`, color: 'text-brand-cyan' }
         ].map(stat => (
           <div key={stat.label} className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
@@ -127,6 +132,14 @@ export default function Platforms() {
           <option value="On Hold">On Hold</option>
           <option value="Completed">Completed</option>
           <option value="Cancelled">Cancelled</option>
+        </select>
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+          className="bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue/50">
+          <option value="all">All Types</option>
+          <option value="Web App">Web App</option>
+          <option value="Mobile App">Mobile App</option>
+          <option value="Business Platform">Business Platform</option>
+          <option value="E-Commerce">E-Commerce</option>
         </select>
       </div>
 

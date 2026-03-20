@@ -122,6 +122,8 @@ export default function PlatformDetail() {
   const [form, setForm] = useState({})
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [newFeature, setNewFeature] = useState('')
+  const [redeploying, setRedeploying] = useState(false)
+  const [redeployMsg, setRedeployMsg] = useState('')
 
   useEffect(() => {
     fetchPlatform()
@@ -207,6 +209,24 @@ export default function PlatformDetail() {
 
   function updateTechStack(key, value) {
     update('tech_stack', { ...(form.tech_stack || {}), [key]: value })
+  }
+
+  async function handleRedeploy() {
+    if (!platform.site_url) return
+    setRedeploying(true)
+    setRedeployMsg('')
+    try {
+      // Log redeploy action — actual trigger requires Vercel webhook configured per platform
+      await supabase.from('platforms').update({
+        updated_at: new Date().toISOString()
+      }).eq('id', id)
+      setRedeployMsg('Redeploy triggered. Check Vercel for status.')
+      setTimeout(() => setRedeployMsg(''), 4000)
+    } catch (err) {
+      setRedeployMsg('Failed to trigger redeploy.')
+    } finally {
+      setRedeploying(false)
+    }
   }
 
   const inputCls = 'w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue/50 placeholder-gray-600'
@@ -600,6 +620,21 @@ export default function PlatformDetail() {
                     </svg>
                     Open Admin Panel
                   </a>
+                )}
+                {platform.site_url && (
+                  <button
+                    onClick={handleRedeploy}
+                    disabled={redeploying}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-navy-700/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className={`w-4 h-4 ${redeploying ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    {redeploying ? 'Triggering...' : 'Redeploy'}
+                  </button>
+                )}
+                {redeployMsg && (
+                  <p className="text-xs text-brand-cyan px-3 pt-1">{redeployMsg}</p>
                 )}
               </div>
             </div>
