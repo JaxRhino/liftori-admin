@@ -1,3 +1,7 @@
 # liftori-admin
 Liftori admin dashboard — React SPA for project management, waitlist ops, and client builds
 
+
+# liftori-admin
+Liftori admin dashboard — React SPA for project management, waitlist ops, and client builds
+
