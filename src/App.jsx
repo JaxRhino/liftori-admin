@@ -20,6 +20,7 @@ import Plans from './pages/Plans'
 import PortalDashboard from './pages/portal/PortalDashboard'
 import ChoosePlan from './pages/portal/ChoosePlan'
 import PortalProject from './pages/portal/PortalProject'
+import Settings from './pages/Settings'
 import ComingSoon from './pages/ComingSoon'
 import PortalProjects from './pages/portal/PortalProjects'
 import PortalSettings from './pages/portal/PortalSettings'
@@ -107,6 +108,7 @@ export default function App() {
             <Route path="tasks" element={<ComingSoon />} />
             <Route path="notes" element={<ComingSoon />} />
             <Route path="calendar" element={<ComingSoon />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
 
