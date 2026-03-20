@@ -2,20 +2,47 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+const PIPELINE_STATUSES = [
+  'Wizard Complete',
+  'Brief Review',
+  'Design Approval',
+  'In Build',
+  'QA',
+  'Launched',
+]
+
+const PIPELINE_COLORS = {
+  'Wizard Complete': { bg: 'bg-gray-500/20', text: 'text-gray-400' },
+  'Brief Review':   { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+  'Design Approval':{ bg: 'bg-purple-500/20', text: 'text-purple-400' },
+  'In Build':       { bg: 'bg-brand-blue/20', text: 'text-brand-blue' },
+  'QA':             { bg: 'bg-orange-500/20', text: 'text-orange-400' },
+  'Launched':       { bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
+}
+
+const ACTIVITY_DOT = {
+  blue:   'bg-sky-400',
+  purple: 'bg-purple-400',
+  green:  'bg-emerald-400',
+  orange: 'bg-orange-400',
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState({
     totalSignups: 0,
     todaySignups: 0,
     totalProjects: 0,
     activeProjects: 0,
-    totalAffiliates: 0,
+    activeAffiliates: 0,
     totalCustomers: 0,
-    totalMRR: 0
+    totalMRR: 0,
+    totalRevenue: 0,
   })
   const [recentSignups, setRecentSignups] = useState([])
   const [recentProjects, setRecentProjects] = useState([])
-  const [weeklySignups, setWeeklySignups] = useState({ labels: [], counts: [] })
+  const [weeklySignups, setWeeklySignups] = useState({ labels: [], counts: [], dayNames: [] })
   const [activityFeed, setActivityFeed] = useState([])
+  const [pipelineCounts, setPipelineCounts] = useState({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -27,7 +54,6 @@ export default function Dashboard() {
       const today = new Date()
       const todayStr = today.toISOString().split('T')[0]
 
-      // 7 days ago at midnight for sparkline
       const days7ago = new Date(today)
       days7ago.setDate(days7ago.getDate() - 6)
       days7ago.setHours(0, 0, 0, 0)
@@ -37,26 +63,34 @@ export default function Dashboard() {
         { count: todaySignups },
         { count: totalProjects },
         { count: activeProjects },
-        { count: totalAffiliates },
+        { count: activeAffiliates },
         { count: totalCustomers },
         { data: signups },
         { data: projects },
         { data: last7signups },
-        { data: mrrProjects }
+        { data: mrrProjects },
+        { data: allStatuses },
+        { data: paidInvoices },
+        { data: recentUpdates },
+        { data: recentMessages },
       ] = await Promise.all([
         supabase.from('waitlist_signups').select('*', { count: 'exact', head: true }),
         supabase.from('waitlist_signups').select('*', { count: 'exact', head: true }).gte('created_at', todayStr),
         supabase.from('projects').select('*', { count: 'exact', head: true }),
-        supabase.from('projects').select('*', { count: 'exact', head: true }).in('status', ['In Build', 'QA', 'Design Approval', 'Brief Review']),
-        supabase.from('affiliates').select('*', { count: 'exact', head: true }),
+        supabase.from('projects').select('*', { count: 'exact', head: true }).in('status', ['In Build', 'QA']),
+        supabase.from('affiliates').select('*', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'customer'),
         supabase.from('waitlist_signups').select('*').order('created_at', { ascending: false }).limit(5),
         supabase.from('projects').select('*, profiles!projects_customer_id_fkey(full_name, email)').order('created_at', { ascending: false }).limit(5),
         supabase.from('waitlist_signups').select('created_at').gte('created_at', days7ago.toISOString()).order('created_at', { ascending: true }),
-        supabase.from('projects').select('mrr').not('mrr', 'is', null).gt('mrr', 0)
+        supabase.from('projects').select('mrr').not('mrr', 'is', null).gt('mrr', 0),
+        supabase.from('projects').select('status'),
+        supabase.from('invoices').select('amount_cents').eq('status', 'paid'),
+        supabase.from('project_updates').select('id, title, body, project_id, created_at, projects(id, name)').order('created_at', { ascending: false }).limit(10),
+        supabase.from('chat_messages').select('id, content, created_at, profiles!chat_messages_sender_id_fkey(full_name)').order('created_at', { ascending: false }).limit(10),
       ])
 
-      // Build 7-day sparkline
+      // 7-day sparkline
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
       const labels = []
       const counts = []
@@ -70,26 +104,53 @@ export default function Dashboard() {
       }
       setWeeklySignups({ labels, counts, dayNames })
 
-      // Total MRR from active projects
+      // Financials
       const totalMRR = (mrrProjects || []).reduce((sum, p) => sum + (p.mrr || 0), 0)
+      const totalRevenue = (paidInvoices || []).reduce((sum, i) => sum + (i.amount_cents || 0), 0)
 
-      // Activity feed — merge signups + projects, sort by recency
+      // Pipeline counts by status
+      const pipeline = {}
+      PIPELINE_STATUSES.forEach(s => { pipeline[s] = 0 })
+      ;(allStatuses || []).forEach(p => {
+        if (p.status && pipeline[p.status] !== undefined) pipeline[p.status]++
+      })
+      setPipelineCounts(pipeline)
+
+      // Activity feed — merge 4 sources, sort desc, cap at 20
       const feed = [
-        ...(signups || []).slice(0, 5).map(s => ({
+        ...(signups || []).map(s => ({
           type: 'signup',
           text: `${s.full_name || 'Anonymous'} joined the waitlist`,
           sub: s.email,
           time: s.created_at,
-          color: 'blue'
+          color: 'blue',
+          link: '/waitlist',
         })),
-        ...(projects || []).slice(0, 5).map(p => ({
+        ...(projects || []).map(p => ({
           type: 'project',
           text: `"${p.name}" project created`,
           sub: p.profiles?.full_name || 'Unassigned customer',
           time: p.created_at,
-          color: 'purple'
-        }))
-      ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 8)
+          color: 'purple',
+          link: `/projects/${p.id}`,
+        })),
+        ...(recentUpdates || []).map(u => ({
+          type: 'update',
+          text: u.title || (u.body ? u.body.slice(0, 70) : 'Project update posted'),
+          sub: u.projects?.name || 'Unknown project',
+          time: u.created_at,
+          color: 'green',
+          link: u.project_id ? `/projects/${u.project_id}` : '/projects',
+        })),
+        ...(recentMessages || []).map(m => ({
+          type: 'chat',
+          text: m.content ? m.content.slice(0, 80) : 'New message',
+          sub: m.profiles?.full_name || 'Team member',
+          time: m.created_at,
+          color: 'orange',
+          link: '/chat',
+        })),
+      ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 20)
 
       setActivityFeed(feed)
       setStats({
@@ -97,9 +158,10 @@ export default function Dashboard() {
         todaySignups: todaySignups || 0,
         totalProjects: totalProjects || 0,
         activeProjects: activeProjects || 0,
-        totalAffiliates: totalAffiliates || 0,
+        activeAffiliates: activeAffiliates || 0,
         totalCustomers: totalCustomers || 0,
-        totalMRR
+        totalMRR,
+        totalRevenue,
       })
       setRecentSignups(signups || [])
       setRecentProjects(projects || [])
@@ -120,9 +182,17 @@ export default function Dashboard() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-gray-400 text-sm mt-1">Overview of your Liftori operations</p>
+      {/* Header + Quick Actions */}
+      <div className="flex items-start justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-gray-400 text-sm mt-1">Overview of your Liftori operations</p>
+        </div>
+        <div className="flex gap-3 flex-shrink-0">
+          <Link to="/projects" className="btn-primary text-sm">+ New Project</Link>
+          <Link to="/waitlist" className="btn-secondary text-sm">View Waitlist</Link>
+          <Link to="/chat" className="btn-secondary text-sm">Open Chat</Link>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -131,25 +201,37 @@ export default function Dashboard() {
         <StatCard label="Today" value={stats.todaySignups} color="cyan" />
         <StatCard label="Projects" value={stats.totalProjects} color="purple" />
         <StatCard label="Active Builds" value={stats.activeProjects} color="green" />
-        <StatCard label="Affiliates" value={stats.totalAffiliates} color="orange" />
+        <StatCard label="Active Affiliates" value={stats.activeAffiliates} color="orange" />
         <StatCard label="Customers" value={stats.totalCustomers} color="pink" />
       </div>
 
-      {/* MRR + Sparkline Row */}
-      <div className="grid lg:grid-cols-3 gap-6 mb-6">
-        {/* MRR Card */}
+      {/* Financial Row + Sparkline */}
+      <div className="grid lg:grid-cols-4 gap-6 mb-6">
+        {/* Revenue */}
         <div className="card flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Monthly Recurring Revenue</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Total Revenue</p>
             <p className="text-3xl font-bold text-emerald-400">
-              ${(stats.totalMRR / 100).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+              ${(stats.totalRevenue / 100).toLocaleString('en-US', { minimumFractionDigits: 0 })}
             </p>
-            <p className="text-xs text-gray-600 mt-1">across active projects</p>
+            <p className="text-xs text-gray-600 mt-1">from paid invoices</p>
           </div>
           <div className="text-5xl font-bold text-emerald-400/10 select-none">$</div>
         </div>
 
-        {/* 7-Day Signup Sparkline */}
+        {/* MRR */}
+        <div className="card flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Monthly Recurring</p>
+            <p className="text-3xl font-bold text-sky-400">
+              ${(stats.totalMRR / 100).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+            </p>
+            <p className="text-xs text-gray-600 mt-1">across active projects</p>
+          </div>
+          <div className="text-5xl font-bold text-sky-400/10 select-none">↑</div>
+        </div>
+
+        {/* 7-Day Sparkline */}
         <div className="card lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Signups — Last 7 Days</p>
@@ -162,6 +244,30 @@ export default function Dashboard() {
             labels={weeklySignups.labels}
             dayNames={weeklySignups.dayNames}
           />
+        </div>
+      </div>
+
+      {/* Pipeline Summary */}
+      <div className="card mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Project Pipeline</h2>
+          <Link to="/projects" className="text-brand-blue text-sm hover:underline">Manage →</Link>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {PIPELINE_STATUSES.map(status => {
+            const count = pipelineCounts[status] || 0
+            const colors = PIPELINE_COLORS[status] || { bg: 'bg-gray-500/20', text: 'text-gray-400' }
+            return (
+              <Link
+                key={status}
+                to={`/projects?status=${encodeURIComponent(status)}`}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg ${colors.bg} hover:opacity-80 transition-opacity`}
+              >
+                <span className={`text-2xl font-bold leading-none ${colors.text}`}>{count}</span>
+                <span className={`text-xs font-medium ${colors.text} opacity-80`}>{status}</span>
+              </Link>
+            )
+          })}
         </div>
       </div>
 
@@ -234,20 +340,35 @@ export default function Dashboard() {
           {activityFeed.length === 0 ? (
             <p className="text-gray-500 text-sm">No activity yet</p>
           ) : (
-            <div className="space-y-0">
-              {activityFeed.map((item, i) => (
-                <div key={i} className="flex gap-3 py-2.5 border-b border-navy-700/20 last:border-0">
-                  <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                    item.color === 'blue' ? 'bg-sky-400' :
-                    item.color === 'purple' ? 'bg-purple-400' :
-                    'bg-emerald-400'
-                  }`} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-white leading-snug truncate">{item.text}</p>
-                    <p className="text-xs text-gray-500 truncate mt-0.5">{item.sub} · {formatTimeAgo(item.time)}</p>
+            <div className="space-y-0 max-h-96 overflow-y-auto pr-1">
+              {activityFeed.map((item, i) => {
+                const dot = ACTIVITY_DOT[item.color] || 'bg-gray-400'
+                const inner = (
+                  <>
+                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${dot}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-white leading-snug line-clamp-2">{item.text}</p>
+                      <p className="text-xs text-gray-500 truncate mt-0.5">{item.sub} · {formatTimeAgo(item.time)}</p>
+                    </div>
+                  </>
+                )
+                if (item.link) {
+                  return (
+                    <Link
+                      key={i}
+                      to={item.link}
+                      className="flex gap-3 py-2.5 border-b border-navy-700/20 last:border-0 hover:bg-navy-700/20 -mx-2 px-2 rounded transition-colors"
+                    >
+                      {inner}
+                    </Link>
+                  )
+                }
+                return (
+                  <div key={i} className="flex gap-3 py-2.5 border-b border-navy-700/20 last:border-0">
+                    {inner}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -294,12 +415,12 @@ function formatTimeAgo(dateStr) {
 
 function StatCard({ label, value, color }) {
   const colorMap = {
-    blue: 'text-brand-blue',
-    cyan: 'text-brand-cyan',
+    blue:   'text-brand-blue',
+    cyan:   'text-brand-cyan',
     purple: 'text-purple-400',
-    green: 'text-emerald-400',
+    green:  'text-emerald-400',
     orange: 'text-orange-400',
-    pink: 'text-pink-400'
+    pink:   'text-pink-400',
   }
   return (
     <div className="stat-card">
@@ -312,13 +433,13 @@ function StatCard({ label, value, color }) {
 function StatusBadge({ status }) {
   const statusColors = {
     'Wizard Complete': 'bg-gray-500/20 text-gray-400',
-    'Brief Review': 'bg-yellow-500/20 text-yellow-400',
+    'Brief Review':    'bg-yellow-500/20 text-yellow-400',
     'Design Approval': 'bg-purple-500/20 text-purple-400',
-    'In Build': 'bg-brand-blue/20 text-brand-blue',
-    'QA': 'bg-orange-500/20 text-orange-400',
-    'Launched': 'bg-emerald-500/20 text-emerald-400',
-    'On Hold': 'bg-gray-500/20 text-gray-500',
-    'Cancelled': 'bg-red-500/20 text-red-400'
+    'In Build':        'bg-brand-blue/20 text-brand-blue',
+    'QA':              'bg-orange-500/20 text-orange-400',
+    'Launched':        'bg-emerald-500/20 text-emerald-400',
+    'On Hold':         'bg-gray-500/20 text-gray-500',
+    'Cancelled':       'bg-red-500/20 text-red-400',
   }
   return (
     <span className={`badge ${statusColors[status] || 'bg-gray-500/20 text-gray-400'}`}>
