@@ -183,7 +183,7 @@ export default function Customers() {
         .from('profiles')
         .select(`
           id, full_name, email, role, created_at, updated_at,
-          projects (id, name, status, tier, mrr, created_at)
+          projects!projects_customer_id_fkey (id, name, status, tier, mrr, created_at)
         `)
         .eq('role', 'customer')
         .order('created_at', { ascending: false })

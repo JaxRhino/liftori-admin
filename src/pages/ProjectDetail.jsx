@@ -21,9 +21,9 @@ const PROJECT_TYPES = ['Web App', 'Mobile App', 'Business Platform', 'E-Commerce
 const TIERS = ['Starter', 'Growth', 'Scale', 'Enterprise']
 
 const BUDGET_RANGES = [
-  '$2,500 â $5,000',
-  '$5,000 â $10,000',
-  '$10,000 â $25,000',
+  '$2,500 – $5,000',
+  '$5,000 – $10,000',
+  '$10,000 – $25,000',
   '$25,000+',
   'Not sure yet'
 ]
@@ -218,7 +218,7 @@ Features: ${editForm.features || (project.features || []).join(', ') || 'None sp
           max_tokens: 600,
           messages: [{
             role: 'user',
-            content: `You are a project scoping assistant for Liftori, an AI-powered app delivery service. Based on the following project details, write a clear, concise project brief (3-5 sentences) that describes what will be built, the target user, key value proposition, and technical approach. Be specific and actionable â this brief goes directly to the dev team.
+            content: `You are a project scoping assistant for Liftori, an AI-powered app delivery service. Based on the following project details, write a clear, concise project brief (3-5 sentences) that describes what will be built, the target user, key value proposition, and technical approach. Be specific and actionable — this brief goes directly to the dev team.
 
 ${context}
 
@@ -404,7 +404,7 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
           <div>
             <h1 className="text-2xl font-bold text-white">{project.name}</h1>
             <p className="text-gray-400 text-sm mt-0.5">
-              {project.profiles?.full_name || project.profiles?.email || 'No customer'} â {project.project_type} â {project.tier}
+              {project.profiles?.full_name || project.profiles?.email || 'No customer'} — {project.project_type} — {project.tier}
             </p>
           </div>
         </div>
@@ -510,7 +510,7 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
             />
           </div>
 
-          {/* Sub-Tab Navigation â scrollable for many tabs */}
+          {/* Sub-Tab Navigation — scrollable for many tabs */}
           <div className="flex gap-1 mb-6 border-b border-navy-700/50 pb-px overflow-x-auto">
             {tabs.map(tab => (
               <button
@@ -1138,7 +1138,7 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
                       <h4 className="text-sm font-medium text-white">Project Estimate</h4>
                       <p className="text-xs text-gray-500">
                         {project.budget_range ? `Budget: ${project.budget_range}` : 'Cost breakdown and timeline estimate'}
-                        {' â '}
+                        {' — '}
                         <span className="text-yellow-400/80">Estimates may vary depending on scope</span>
                       </p>
                     </div>
@@ -1180,7 +1180,7 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
                     }`}>
                       <p className="text-sm">{msg.body}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {msg.profiles?.full_name || msg.sender_type} â {new Date(msg.created_at).toLocaleString()}
+                        {msg.profiles?.full_name || msg.sender_type} — {new Date(msg.created_at).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -1288,7 +1288,7 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
               {updates.length === 0 && (
                 <div className="card text-center py-8">
                   <p className="text-gray-500 text-sm">No updates posted yet</p>
-                  <p className="text-gray-600 text-xs mt-1">Post your first update above â the customer will see it in their portal</p>
+                  <p className="text-gray-600 text-xs mt-1">Post your first update above — the customer will see it in their portal</p>
                 </div>
               )}
             </div>

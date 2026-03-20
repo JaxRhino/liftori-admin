@@ -148,7 +148,7 @@ export default function Platforms() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(platform => (
-            <Link key={platform.id} to={`/platforms/${platform.id}`}
+            <Link key={platform.id} to={`/admin/platforms/${platform.id}`}
               className="bg-navy-800 border border-navy-700/50 rounded-xl p-5 hover:border-brand-blue/30 transition-all group">
               <div className="flex items-start justify-between mb-3">
                 <h3 className="text-white font-semibold group-hover:text-brand-blue transition-colors">{platform.client_name}</h3>
