@@ -55,6 +55,14 @@ function NewProjectModal({ onClose, onCreated, currentUserId }) {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [profiles, setProfiles] = useState([])
+  const [customerId, setCustomerId] = useState(currentUserId || '')
+
+  useEffect(() => {
+    supabase.from('profiles').select('id, full_name, email').order('full_name').then(({ data }) => {
+      setProfiles(data || [])
+    })
+  }, [])
 
   function update(field, value) {
     setForm(f => ({ ...f, [field]: value }))
@@ -73,7 +81,7 @@ function NewProjectModal({ onClose, onCreated, currentUserId }) {
           tier: form.tier,
           brief: form.brief.trim() || null,
           status: 'Brief Review',
-          customer_id: currentUserId,
+          customer_id: customerId || null,
           progress: 0,
         })
         .select('*')
@@ -134,6 +142,24 @@ function NewProjectModal({ onClose, onCreated, currentUserId }) {
               className="w-full bg-navy-800 border border-navy-600/50 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-brand-blue transition-colors"
               autoFocus
             />
+          </div>
+
+          {/* Customer */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">Customer</label>
+            <select
+              value={customerId}
+              onChange={e => setCustomerId(e.target.value)}
+              className="w-full bg-navy-800 border border-navy-600/50 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand-blue transition-colors"
+              style={{ color: customerId ? 'white' : 'rgb(107,114,128)' }}
+            >
+              <option value="" style={{ color: 'rgb(107,114,128)' }}>No customer (internal project)</option>
+              {profiles.map(p => (
+                <option key={p.id} value={p.id} style={{ color: 'white', background: '#0f172a' }}>
+                  {p.full_name || p.email}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Type */}
@@ -327,6 +353,9 @@ export default function Projects() {
   const [emailOpen, setEmailOpen] = useState(false)
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState('date')
+  const [sortDir, setSortDir] = useState('desc')
 
   useEffect(() => {
     fetchProjects()
@@ -435,7 +464,35 @@ export default function Projects() {
   const totalMRR = projects.reduce((s, p) => s + (p.mrr || 0), 0)
   const inBuildCount = projects.filter(p => p.status === 'In Build').length
   const launchedCount = projects.filter(p => p.status === 'Launched').length
-  const filtered = statusFilter === 'all' ? projects : projects.filter(p => p.status === statusFilter)
+
+  const searchFiltered = searchQuery.trim()
+    ? projects.filter(p => {
+        const q = searchQuery.toLowerCase()
+        return p.name?.toLowerCase().includes(q) ||
+          p.profiles?.full_name?.toLowerCase().includes(q) ||
+          p.profiles?.email?.toLowerCase().includes(q)
+      })
+    : projects
+
+  const filtered = statusFilter === 'all' ? searchFiltered : searchFiltered.filter(p => p.status === statusFilter)
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'name') {
+      const cmp = (a.name || '').localeCompare(b.name || '')
+      return sortDir === 'asc' ? cmp : -cmp
+    }
+    if (sortBy === 'status') {
+      const cmp = STATUS_ALL.indexOf(a.status) - STATUS_ALL.indexOf(b.status)
+      return sortDir === 'asc' ? cmp : -cmp
+    }
+    if (sortBy === 'progress') {
+      const cmp = (a.progress || 0) - (b.progress || 0)
+      return sortDir === 'asc' ? cmp : -cmp
+    }
+    // date (default)
+    const cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    return sortDir === 'asc' ? cmp : -cmp
+  })
 
   const statusCounts = {}
   projects.forEach(p => { statusCounts[p.status] = (statusCounts[p.status] || 0) + 1 })
@@ -549,6 +606,36 @@ export default function Projects() {
         </div>
       </div>
 
+      {/* Search bar */}
+      {projects.length > 0 && (
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-sm">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search by name or customer..."
+              className="w-full bg-navy-800 border border-navy-700/50 rounded-lg pl-9 pr-8 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue transition-colors"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-xs text-gray-500 whitespace-nowrap">
+              {searchFiltered.length} result{searchFiltered.length !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+      )}
+
       {projects.length === 0 ? (
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl text-center py-16">
           <svg className="w-14 h-14 mx-auto text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.5}>
@@ -575,7 +662,7 @@ export default function Projects() {
         <div className="flex gap-4 overflow-x-auto pb-4">
           {activePipelineStatuses.map(status => {
             const colors = STATUS_COLORS[status]
-            const colProjects = projects.filter(p => p.status === status)
+            const colProjects = searchFiltered.filter(p => p.status === status)
             const hasNext = !!NEXT_STATUS[status]
 
             return (
@@ -662,7 +749,7 @@ export default function Projects() {
                   <span className="text-xs text-gray-500 ml-auto">{statusCounts[status]}</span>
                 </div>
                 <div className="space-y-2">
-                  {projects.filter(p => p.status === status).map(project => (
+                  {searchFiltered.filter(p => p.status === status).map(project => (
                     <div key={project.id} onClick={() => openProject(project)} style={{cursor:"pointer"}} className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
                       <Link
                         to={`/admin/projects/${project.id}`}
@@ -719,17 +806,36 @@ export default function Projects() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-navy-700/50 bg-navy-900/30">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Project</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Customer</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Tier</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Progress</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">MRR</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
+                  {[
+                    { label: 'Project', key: 'name' },
+                    { label: 'Customer', key: null },
+                    { label: 'Tier', key: null },
+                    { label: 'Status', key: 'status' },
+                    { label: 'Progress', key: 'progress' },
+                    { label: 'MRR', key: null },
+                    { label: 'Created', key: 'date' },
+                  ].map(col => (
+                    <th key={col.label} className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      {col.key ? (
+                        <button
+                          onClick={() => {
+                            if (sortBy === col.key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+                            else { setSortBy(col.key); setSortDir('desc') }
+                          }}
+                          className={`flex items-center gap-1 hover:text-white transition-colors ${sortBy === col.key ? 'text-brand-blue' : ''}`}
+                        >
+                          {col.label}
+                          <svg className={`w-3 h-3 transition-transform ${sortBy === col.key && sortDir === 'asc' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      ) : col.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy-700/30">
-                {filtered.map(project => {
+                {sorted.map(project => {
                   const tColor =
                     project.tier === 'Growth' ? 'bg-blue-500/20 text-blue-400' :
                     project.tier === 'Scale' ? 'bg-purple-500/20 text-purple-400' :
