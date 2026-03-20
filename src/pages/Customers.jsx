@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 // DB uses Title Case status values
@@ -56,13 +57,120 @@ function TierBadge({ tier }) {
   )
 }
 
+function CreateCustomerModal({ onClose, onCreated }) {
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'customer' })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  function handleChange(field, value) {
+    setForm(prev => ({ ...prev, [field]: value }))
+    setError(null)
+  }
+
+  async function handleCreate() {
+    if (!form.email.trim()) { setError('Email is required'); return }
+    setSaving(true)
+    setError(null)
+    try {
+      const { data, error: err } = await supabase
+        .from('profiles')
+        .insert({
+          full_name: form.full_name.trim() || null,
+          email: form.email.trim(),
+          role: form.role,
+        })
+        .select()
+        .single()
+      if (err) throw err
+      onCreated(data)
+      onClose()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+      <div className="bg-navy-800 border border-navy-700/50 rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-navy-700/50">
+          <h2 className="text-lg font-semibold text-white">New Customer</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Full Name</label>
+            <input
+              type="text"
+              value={form.full_name}
+              onChange={e => handleChange('full_name', e.target.value)}
+              className="w-full bg-navy-900/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue/50"
+              placeholder="Jane Smith"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Email <span className="text-red-400">*</span></label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => handleChange('email', e.target.value)}
+              className="w-full bg-navy-900/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue/50"
+              placeholder="jane@example.com"
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Role</label>
+            <select
+              value={form.role}
+              onChange={e => handleChange('role', e.target.value)}
+              className="w-full bg-navy-900/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40"
+            >
+              <option value="customer">Customer</option>
+              <option value="admin">Admin</option>
+              <option value="affiliate">Affiliate</option>
+            </select>
+          </div>
+          {error && (
+            <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-navy-700/50">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white text-sm font-medium rounded-lg hover:bg-sky-400 transition-colors disabled:opacity-50"
+          >
+            {saving ? (
+              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creating…</>
+            ) : (
+              'Create Customer'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Customers() {
+  const navigate = useNavigate()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [tierFilter, setTierFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [expandedId, setExpandedId] = useState(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
     fetchCustomers()
@@ -176,15 +284,26 @@ export default function Customers() {
             {loading ? 'Loading...' : `${customers.length} total customer${customers.length !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <button
-          onClick={fetchCustomers}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white border border-navy-700/50 rounded-lg hover:border-navy-600 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-brand-blue hover:bg-sky-400 rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Customer
+          </button>
+          <button
+            onClick={fetchCustomers}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white border border-navy-700/50 rounded-lg hover:border-navy-600 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats Row */}
@@ -343,16 +462,24 @@ export default function Customers() {
                           <span className="text-sm text-gray-400">{formatDate(customer.created_at)}</span>
                         </td>
 
-                        {/* Expand toggle */}
+                        {/* Actions */}
                         <td className="px-4 py-3 text-right">
-                          <svg
-                            className={`w-4 h-4 text-gray-500 transition-transform ml-auto ${isExpanded ? 'rotate-180' : ''}`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={e => { e.stopPropagation(); navigate(`/admin/customers/${customer.id}`) }}
+                              className="px-2.5 py-1 text-xs text-brand-blue border border-brand-blue/30 rounded hover:bg-brand-blue/10 transition-colors"
+                            >
+                              View
+                            </button>
+                            <svg
+                              className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
                         </td>
                       </tr>
 
@@ -417,6 +544,17 @@ export default function Customers() {
         <p className="text-xs text-gray-500 text-center">
           Showing {filtered.length} of {customers.length} customers
         </p>
+      )}
+
+      {/* Create Customer Modal */}
+      {showCreateModal && (
+        <CreateCustomerModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={newCustomer => {
+            setCustomers(prev => [{ ...newCustomer, projects: [] }, ...prev])
+            setShowCreateModal(false)
+          }}
+        />
       )}
     </div>
   )

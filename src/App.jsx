@@ -10,6 +10,7 @@ import ProjectDetail from './pages/ProjectDetail'
 import Waitlist from './pages/Waitlist'
 import Affiliates from './pages/Affiliates'
 import Customers from './pages/Customers'
+import CustomerDetail from './pages/CustomerDetail'
 import ConvertSignup from './pages/ConvertSignup'
 import Platforms from './pages/Platforms'
 import PlatformDetail from './pages/PlatformDetail'
@@ -92,6 +93,7 @@ export default function App() {
             <Route path="waitlist" element={<Waitlist />} />
             <Route path="affiliates" element={<Affiliates />} />
             <Route path="customers" element={<Customers />} />
+            <Route path="customers/:id" element={<CustomerDetail />} />
             <Route path="customers/convert/:signupId" element={<ConvertSignup />} />
             <Route path="platforms" element={<Platforms />} />
             <Route path="platforms/:id" element={<PlatformDetail />} />
