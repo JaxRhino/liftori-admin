@@ -28,6 +28,12 @@ import PortalMessages from './pages/portal/PortalMessages'
 import PortalDocuments from './pages/portal/PortalDocuments'
 import PortalInvoices from './pages/portal/PortalInvoices'
 import PortalWizard from './pages/portal/PortalWizard'
+// Freight AI — BIH Logistics
+import FreightDashboard from './pages/freight/FreightDashboard'
+import FreightSalesProfiles from './pages/freight/FreightSalesProfiles'
+import FreightShippers from './pages/freight/FreightShippers'
+import FreightLoads from './pages/freight/FreightLoads'
+import FreightCommissions from './pages/freight/FreightCommissions'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -101,6 +107,12 @@ export default function App() {
             <Route path="discount-codes" element={<DiscountCodes />} />
             <Route path="plans" element={<Plans />} />
             <Route path="chat" element={<Chat />} />
+            {/* Freight AI — BIH Logistics */}
+            <Route path="freight" element={<FreightDashboard />} />
+            <Route path="freight/sales-profiles" element={<FreightSalesProfiles />} />
+            <Route path="freight/shippers" element={<FreightShippers />} />
+            <Route path="freight/loads" element={<FreightLoads />} />
+            <Route path="freight/commissions" element={<FreightCommissions />} />
             <Route path="pipeline" element={<ComingSoon />} />
             <Route path="marketing" element={<ComingSoon />} />
             <Route path="wizard" element={<ComingSoon />} />

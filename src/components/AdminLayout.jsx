@@ -2,6 +2,44 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useState } from 'react'
 
+const freightNavItems = [
+  {
+    label: 'Overview', path: '/admin/freight', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Sales Profiles', path: '/admin/freight/sales-profiles', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Shippers', path: '/admin/freight/shippers', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Loads', path: '/admin/freight/loads', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Commissions', path: '/admin/freight/commissions', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+      </svg>
+    )
+  },
+]
+
 const toolItems = [
   {
     label: 'Tasks', path: '/admin/tasks', icon: (
@@ -144,6 +182,8 @@ export default function AdminLayout() {
 
   const isToolsRoute = ['/admin/tasks', '/admin/notes', '/admin/calendar'].some(p => location.pathname.startsWith(p))
   const [toolsOpen, setToolsOpen] = useState(isToolsRoute)
+  const isFreightRoute = location.pathname.startsWith('/admin/freight')
+  const [freightOpen, setFreightOpen] = useState(isFreightRoute)
 
   async function handleSignOut() {
     await signOut()
@@ -236,10 +276,64 @@ export default function AdminLayout() {
             )}
           </div>
 
+          {/* Freight AI */}
+          <div className="pt-1">
+            {sidebarOpen && (
+              <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Client Platforms</p>
+            )}
+            <button
+              onClick={() => { if (sidebarOpen) setFreightOpen(o => !o); else navigate('/admin/freight') }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                isFreightRoute ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
+              }`}>
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+              </svg>
+              {sidebarOpen && (
+                <>
+                  <span className="flex-1 text-left">Freight AI</span>
+                  <svg className={`w-4 h-4 transition-transform ${freightOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </>
+              )}
+            </button>
+            {sidebarOpen && freightOpen && (
+              <div className="ml-3 pl-3 border-l border-white/10 mt-1 space-y-0.5">
+                {freightNavItems.map(item => (
+                  <NavLink key={item.path} to={item.path} end={item.path === '/admin/freight'}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors ${isActive
+                        ? 'bg-brand-blue/10 text-brand-blue'
+                        : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
+                      }`
+                    }>
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+            {!sidebarOpen && (
+              <NavLink to="/admin/freight"
+                className={({ isActive }) =>
+                  `flex items-center justify-center px-3 py-2 rounded-lg text-xs transition-colors ${isActive
+                    ? 'bg-brand-blue/10 text-brand-blue'
+                    : 'text-gray-500 hover:text-white hover:bg-navy-700/50'
+                  }`
+                }
+                title="Freight AI">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                </svg>
+              </NavLink>
+            )}
+          </div>
+
           {/* Client Portals */}
           <div className="pt-1">
             {sidebarOpen && (
-              <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Client Portals</p>
+              <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Portals</p>
             )}
             <NavLink
               to="/portal"
