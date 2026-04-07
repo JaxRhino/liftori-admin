@@ -66,6 +66,14 @@ const toolItems = [
 
 const salesHubItems = [
   {
+    label: 'Lead Hunter', path: '/admin/lead-hunter', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+      </svg>
+    )
+  },
+  {
     label: 'Customers', path: '/admin/customers', icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -225,7 +233,7 @@ export default function AdminLayout() {
     if (mainRef.current) mainRef.current.scrollTop = 0
   }, [location.pathname])
 
-  const isSalesHubRoute = ['/admin/customers', '/admin/projects', '/admin/pipeline', '/admin/platforms'].some(p => location.pathname.startsWith(p))
+  const isSalesHubRoute = ['/admin/customers', '/admin/projects', '/admin/pipeline', '/admin/platforms', '/admin/lead-hunter'].some(p => location.pathname.startsWith(p))
   const [salesHubOpen, setSalesHubOpen] = useState(isSalesHubRoute)
   const isOpsRoute = ['/admin/wizard', '/admin/waitlist', '/admin/affiliates', '/admin/discount-codes', '/admin/plans'].some(p => location.pathname.startsWith(p))
   const [opsOpen, setOpsOpen] = useState(isOpsRoute)

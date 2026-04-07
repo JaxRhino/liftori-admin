@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
+import LeadHunter from './pages/LeadHunter'
 import ProjectDetail from './pages/ProjectDetail'
 import Waitlist from './pages/Waitlist'
 import Affiliates from './pages/Affiliates'
@@ -139,6 +140,7 @@ export default function App() {
             <Route path="customers/convert/:signupId" element={<ConvertSignup />} />
             <Route path="platforms" element={<Platforms />} />
             <Route path="platforms/:id" element={<PlatformDetail />} />
+            <Route path="lead-hunter" element={<LeadHunter />} />
             <Route path="discount-codes" element={<DiscountCodes />} />
             <Route path="plans" element={<Plans />} />
             <Route path="chat" element={<RallyChat />} />
