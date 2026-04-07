@@ -285,20 +285,108 @@ function ActivityTab({ updates }) {
   )
 }
 
+// ─── Reusable form components ─────────────────────────────────────────────────
+const inputCls = 'w-full bg-navy-900/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue/50'
+const selectCls = 'w-full bg-navy-900/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40'
+const labelCls = 'block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5'
+const textareaCls = 'w-full bg-navy-900/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue/50 resize-none'
+
+function FormField({ label, children, span2 }) {
+  return (
+    <div className={span2 ? 'sm:col-span-2' : ''}>
+      <label className={labelCls}>{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function SectionHeader({ icon, title, subtitle }) {
+  return (
+    <div className="flex items-center gap-3 pt-6 pb-2 border-t border-navy-700/30 first:border-t-0 first:pt-0">
+      <div className="w-8 h-8 rounded-lg bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center text-brand-blue flex-shrink-0">
+        {icon}
+      </div>
+      <div>
+        <h3 className="text-sm font-semibold text-white">{title}</h3>
+        {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+      </div>
+    </div>
+  )
+}
+
 // ─── Edit Tab ──────────────────────────────────────────────────────────────────
 function EditTab({ customer, onSaved }) {
   const [form, setForm] = useState({
+    // Identity
+    first_name: customer.first_name || '',
+    last_name: customer.last_name || '',
     full_name: customer.full_name || '',
     email: customer.email || '',
+    phone: customer.phone || '',
     avatar_url: customer.avatar_url || '',
     role: customer.role || 'customer',
+    status: customer.status || 'Active',
+    // Company
+    company_name: customer.company_name || '',
+    company_website: customer.company_website || '',
+    company_industry: customer.company_industry || '',
+    company_size: customer.company_size || '',
+    company_description: customer.company_description || '',
+    company_founded_year: customer.company_founded_year || '',
+    business_type: customer.business_type || '',
+    target_audience: customer.target_audience || '',
+    // Legal entity
+    legal_entity_name: customer.legal_entity_name || '',
+    legal_entity_type: customer.legal_entity_type || '',
+    ein_tax_id: customer.ein_tax_id || '',
+    legal_address_line1: customer.legal_address_line1 || '',
+    legal_address_line2: customer.legal_address_line2 || '',
+    legal_city: customer.legal_city || '',
+    legal_state: customer.legal_state || '',
+    legal_zip: customer.legal_zip || '',
+    legal_country: customer.legal_country || 'US',
+    // Billing / plan
+    billing_email: customer.billing_email || '',
+    billing_phone: customer.billing_phone || '',
+    plan_tier: customer.plan_tier || '',
+    plan_status: customer.plan_status || '',
+    stripe_customer_id: customer.stripe_customer_id || '',
+    // Social
+    social_website: customer.social_website || '',
+    social_facebook: customer.social_facebook || '',
+    social_instagram: customer.social_instagram || '',
+    social_twitter: customer.social_twitter || '',
+    social_linkedin: customer.social_linkedin || '',
+    social_tiktok: customer.social_tiktok || '',
+    social_youtube: customer.social_youtube || '',
+    social_github: customer.social_github || '',
+    social_pinterest: customer.social_pinterest || '',
+    social_yelp: customer.social_yelp || '',
+    social_google_business: customer.social_google_business || '',
+    // Brand / platform
+    brand_logo_url: customer.brand_logo_url || '',
+    preferred_domain: customer.preferred_domain || '',
+    tech_stack_notes: customer.tech_stack_notes || '',
+    onboarding_notes: customer.onboarding_notes || '',
+    internal_notes: customer.internal_notes || '',
+    referral_source: customer.referral_source || '',
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
+  const [activeSection, setActiveSection] = useState('identity')
 
   function handleChange(field, value) {
-    setForm(prev => ({ ...prev, [field]: value }))
+    setForm(prev => {
+      const next = { ...prev, [field]: value }
+      // Auto-sync full_name from first + last
+      if (field === 'first_name' || field === 'last_name') {
+        const first = field === 'first_name' ? value : prev.first_name
+        const last = field === 'last_name' ? value : prev.last_name
+        next.full_name = [first, last].filter(Boolean).join(' ')
+      }
+      return next
+    })
     setSaved(false)
     setError(null)
   }
@@ -307,15 +395,23 @@ function EditTab({ customer, onSaved }) {
     setSaving(true)
     setError(null)
     try {
+      const payload = { ...form, updated_at: new Date().toISOString() }
+      // Clean empty strings to null for optional fields
+      Object.keys(payload).forEach(k => {
+        if (payload[k] === '') payload[k] = null
+      })
+      // Keep required fields
+      payload.email = form.email
+      payload.role = form.role
+      payload.status = form.status || 'Active'
+      // Convert founded year
+      if (form.company_founded_year) {
+        payload.company_founded_year = parseInt(form.company_founded_year) || null
+      }
+
       const { error: err } = await supabase
         .from('profiles')
-        .update({
-          full_name: form.full_name || null,
-          email: form.email,
-          avatar_url: form.avatar_url || null,
-          role: form.role,
-          updated_at: new Date().toISOString(),
-        })
+        .update(payload)
         .eq('id', customer.id)
       if (err) throw err
       setSaved(true)
@@ -327,76 +423,381 @@ function EditTab({ customer, onSaved }) {
     }
   }
 
+  const sections = [
+    { key: 'identity', label: 'Identity & Status' },
+    { key: 'company', label: 'Company' },
+    { key: 'legal', label: 'Legal Entity' },
+    { key: 'billing', label: 'Billing & Plan' },
+    { key: 'social', label: 'Social & Web' },
+    { key: 'brand', label: 'Brand & Platform' },
+    { key: 'notes', label: 'Notes' },
+  ]
+
   return (
-    <div className="max-w-lg space-y-5">
-      <div>
-        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-          Full Name
-        </label>
-        <input
-          type="text"
-          value={form.full_name}
-          onChange={e => handleChange('full_name', e.target.value)}
-          className="w-full bg-navy-900/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue/50"
-          placeholder="Customer name"
-        />
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-          Email
-        </label>
-        <input
-          type="email"
-          value={form.email}
-          onChange={e => handleChange('email', e.target.value)}
-          className="w-full bg-navy-900/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue/50"
-          placeholder="email@example.com"
-        />
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-          Avatar URL
-        </label>
-        <input
-          type="url"
-          value={form.avatar_url}
-          onChange={e => handleChange('avatar_url', e.target.value)}
-          className="w-full bg-navy-900/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue/50"
-          placeholder="https://..."
-        />
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-          Role
-        </label>
-        <select
-          value={form.role}
-          onChange={e => handleChange('role', e.target.value)}
-          className="w-full bg-navy-900/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40"
-        >
-          <option value="customer">Customer</option>
-          <option value="admin">Admin</option>
-          <option value="affiliate">Affiliate</option>
-        </select>
+    <div className="space-y-6">
+      {/* Section nav pills */}
+      <div className="flex flex-wrap gap-2">
+        {sections.map(s => (
+          <button
+            key={s.key}
+            onClick={() => setActiveSection(s.key)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              activeSection === s.key
+                ? 'bg-brand-blue text-white'
+                : 'text-gray-400 hover:text-white hover:bg-navy-700/50 border border-navy-700/50'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
       </div>
 
-      {error && (
-        <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+      {/* ── Identity & Status ──────────────────────────────────── */}
+      {activeSection === 'identity' && (
+        <div className="space-y-4">
+          <SectionHeader
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>}
+            title="Identity & Status"
+            subtitle="Contact details, role, and account status"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="First Name">
+              <input type="text" value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} className={inputCls} placeholder="Jane" />
+            </FormField>
+            <FormField label="Last Name">
+              <input type="text" value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} className={inputCls} placeholder="Smith" />
+            </FormField>
+            <FormField label="Display Name (auto)">
+              <input type="text" value={form.full_name} readOnly className={`${inputCls} opacity-60 cursor-not-allowed`} />
+            </FormField>
+            <FormField label="Phone">
+              <input type="tel" value={form.phone} onChange={e => handleChange('phone', e.target.value)} className={inputCls} placeholder="(555) 123-4567" />
+            </FormField>
+            <FormField label="Email">
+              <input type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} className={inputCls} placeholder="jane@example.com" />
+            </FormField>
+            <FormField label="Avatar URL">
+              <input type="url" value={form.avatar_url} onChange={e => handleChange('avatar_url', e.target.value)} className={inputCls} placeholder="https://..." />
+            </FormField>
+            <FormField label="Status">
+              <select value={form.status} onChange={e => handleChange('status', e.target.value)} className={selectCls}>
+                <option value="Active">Active</option>
+                <option value="Prospect">Prospect</option>
+                <option value="Onboarding">Onboarding</option>
+                <option value="In Build">In Build</option>
+                <option value="Launched">Launched</option>
+                <option value="On Hold">On Hold</option>
+                <option value="Churned">Churned</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </FormField>
+            <FormField label="Role">
+              <select value={form.role} onChange={e => handleChange('role', e.target.value)} className={selectCls}>
+                <option value="customer">Customer</option>
+                <option value="admin">Admin</option>
+                <option value="affiliate">Affiliate</option>
+              </select>
+            </FormField>
+            <FormField label="Referral Source" span2>
+              <select value={form.referral_source} onChange={e => handleChange('referral_source', e.target.value)} className={selectCls}>
+                <option value="">— Select —</option>
+                <option value="Google Search">Google Search</option>
+                <option value="Social Media">Social Media</option>
+                <option value="Referral">Referral</option>
+                <option value="Affiliate">Affiliate</option>
+                <option value="Cold Outreach">Cold Outreach</option>
+                <option value="Word of Mouth">Word of Mouth</option>
+                <option value="Advertising">Advertising</option>
+                <option value="Event / Conference">Event / Conference</option>
+                <option value="Other">Other</option>
+              </select>
+            </FormField>
+          </div>
+        </div>
       )}
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white text-sm font-medium rounded-lg hover:bg-sky-400 transition-colors disabled:opacity-50"
-      >
-        {saving ? (
-          <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</>
-        ) : saved ? (
-          <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Saved!</>
-        ) : (
-          'Save Changes'
+      {/* ── Company ────────────────────────────────────────────── */}
+      {activeSection === 'company' && (
+        <div className="space-y-4">
+          <SectionHeader
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>}
+            title="Company Information"
+            subtitle="Business details used across estimates, agreements, and client portals"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Company Name">
+              <input type="text" value={form.company_name} onChange={e => handleChange('company_name', e.target.value)} className={inputCls} placeholder="Acme Corp" />
+            </FormField>
+            <FormField label="Company Website">
+              <input type="url" value={form.company_website} onChange={e => handleChange('company_website', e.target.value)} className={inputCls} placeholder="https://acme.com" />
+            </FormField>
+            <FormField label="Industry">
+              <select value={form.company_industry} onChange={e => handleChange('company_industry', e.target.value)} className={selectCls}>
+                <option value="">— Select —</option>
+                <option value="E-Commerce / Retail">E-Commerce / Retail</option>
+                <option value="SaaS / Technology">SaaS / Technology</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Real Estate">Real Estate</option>
+                <option value="Finance / Insurance">Finance / Insurance</option>
+                <option value="Construction / Home Services">Construction / Home Services</option>
+                <option value="Food & Beverage">Food & Beverage</option>
+                <option value="Education">Education</option>
+                <option value="Legal">Legal</option>
+                <option value="Marketing / Agency">Marketing / Agency</option>
+                <option value="Nonprofit">Nonprofit</option>
+                <option value="Automotive">Automotive</option>
+                <option value="Beauty / Wellness">Beauty / Wellness</option>
+                <option value="Entertainment / Media">Entertainment / Media</option>
+                <option value="Manufacturing">Manufacturing</option>
+                <option value="Professional Services">Professional Services</option>
+                <option value="Logistics / Freight">Logistics / Freight</option>
+                <option value="Other">Other</option>
+              </select>
+            </FormField>
+            <FormField label="Company Size">
+              <select value={form.company_size} onChange={e => handleChange('company_size', e.target.value)} className={selectCls}>
+                <option value="">— Select —</option>
+                <option value="Solo / Freelancer">Solo / Freelancer</option>
+                <option value="2-10">2–10 employees</option>
+                <option value="11-50">11–50 employees</option>
+                <option value="51-200">51–200 employees</option>
+                <option value="201-500">201–500 employees</option>
+                <option value="500+">500+ employees</option>
+              </select>
+            </FormField>
+            <FormField label="Business Type">
+              <select value={form.business_type} onChange={e => handleChange('business_type', e.target.value)} className={selectCls}>
+                <option value="">— Select —</option>
+                <option value="B2B">B2B</option>
+                <option value="B2C">B2C</option>
+                <option value="B2B2C">B2B2C</option>
+                <option value="D2C">D2C (Direct to Consumer)</option>
+                <option value="Marketplace">Marketplace</option>
+                <option value="Nonprofit">Nonprofit</option>
+                <option value="Government">Government</option>
+              </select>
+            </FormField>
+            <FormField label="Founded Year">
+              <input type="number" value={form.company_founded_year} onChange={e => handleChange('company_founded_year', e.target.value)} className={inputCls} placeholder="2020" min="1900" max="2030" />
+            </FormField>
+            <FormField label="Target Audience" span2>
+              <input type="text" value={form.target_audience} onChange={e => handleChange('target_audience', e.target.value)} className={inputCls} placeholder="Small business owners, millennials, local shoppers..." />
+            </FormField>
+            <FormField label="Company Description" span2>
+              <textarea value={form.company_description} onChange={e => handleChange('company_description', e.target.value)} className={textareaCls} rows={3} placeholder="Brief description of what the company does..." />
+            </FormField>
+          </div>
+        </div>
+      )}
+
+      {/* ── Legal Entity ───────────────────────────────────────── */}
+      {activeSection === 'legal' && (
+        <div className="space-y-4">
+          <SectionHeader
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" /></svg>}
+            title="Legal Business Entity"
+            subtitle="Required for Stripe, agreements, invoices, and compliance"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Legal Entity Name">
+              <input type="text" value={form.legal_entity_name} onChange={e => handleChange('legal_entity_name', e.target.value)} className={inputCls} placeholder="Acme Corp LLC" />
+            </FormField>
+            <FormField label="Entity Type">
+              <select value={form.legal_entity_type} onChange={e => handleChange('legal_entity_type', e.target.value)} className={selectCls}>
+                <option value="">— Select —</option>
+                <option value="Sole Proprietorship">Sole Proprietorship</option>
+                <option value="LLC">LLC</option>
+                <option value="S-Corp">S-Corp</option>
+                <option value="C-Corp">C-Corp</option>
+                <option value="Partnership">Partnership</option>
+                <option value="LP">Limited Partnership (LP)</option>
+                <option value="LLP">LLP</option>
+                <option value="Nonprofit">Nonprofit (501c3)</option>
+                <option value="Trust">Trust</option>
+                <option value="Other">Other</option>
+              </select>
+            </FormField>
+            <FormField label="EIN / Tax ID">
+              <input type="text" value={form.ein_tax_id} onChange={e => handleChange('ein_tax_id', e.target.value)} className={inputCls} placeholder="XX-XXXXXXX" />
+            </FormField>
+            <div /> {/* spacer */}
+            <FormField label="Address Line 1">
+              <input type="text" value={form.legal_address_line1} onChange={e => handleChange('legal_address_line1', e.target.value)} className={inputCls} placeholder="123 Main St" />
+            </FormField>
+            <FormField label="Address Line 2">
+              <input type="text" value={form.legal_address_line2} onChange={e => handleChange('legal_address_line2', e.target.value)} className={inputCls} placeholder="Suite 200" />
+            </FormField>
+            <FormField label="City">
+              <input type="text" value={form.legal_city} onChange={e => handleChange('legal_city', e.target.value)} className={inputCls} placeholder="Jacksonville" />
+            </FormField>
+            <FormField label="State">
+              <input type="text" value={form.legal_state} onChange={e => handleChange('legal_state', e.target.value)} className={inputCls} placeholder="FL" />
+            </FormField>
+            <FormField label="ZIP Code">
+              <input type="text" value={form.legal_zip} onChange={e => handleChange('legal_zip', e.target.value)} className={inputCls} placeholder="32256" />
+            </FormField>
+            <FormField label="Country">
+              <select value={form.legal_country} onChange={e => handleChange('legal_country', e.target.value)} className={selectCls}>
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="GB">United Kingdom</option>
+                <option value="AU">Australia</option>
+                <option value="Other">Other</option>
+              </select>
+            </FormField>
+          </div>
+        </div>
+      )}
+
+      {/* ── Billing & Plan ─────────────────────────────────────── */}
+      {activeSection === 'billing' && (
+        <div className="space-y-4">
+          <SectionHeader
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>}
+            title="Billing & Plan"
+            subtitle="Payment contact, subscription tier, and Stripe integration"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Billing Email">
+              <input type="email" value={form.billing_email} onChange={e => handleChange('billing_email', e.target.value)} className={inputCls} placeholder="billing@acme.com" />
+            </FormField>
+            <FormField label="Billing Phone">
+              <input type="tel" value={form.billing_phone} onChange={e => handleChange('billing_phone', e.target.value)} className={inputCls} placeholder="(555) 123-4567" />
+            </FormField>
+            <FormField label="Plan Tier">
+              <select value={form.plan_tier} onChange={e => handleChange('plan_tier', e.target.value)} className={selectCls}>
+                <option value="">— None —</option>
+                <option value="starter">Starter</option>
+                <option value="growth">Growth</option>
+                <option value="scale">Scale</option>
+                <option value="enterprise">Enterprise</option>
+                <option value="custom">Custom</option>
+              </select>
+            </FormField>
+            <FormField label="Plan Status">
+              <select value={form.plan_status} onChange={e => handleChange('plan_status', e.target.value)} className={selectCls}>
+                <option value="">— None —</option>
+                <option value="trial">Trial</option>
+                <option value="active">Active</option>
+                <option value="past_due">Past Due</option>
+                <option value="paused">Paused</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </FormField>
+            <FormField label="Stripe Customer ID" span2>
+              <input type="text" value={form.stripe_customer_id} onChange={e => handleChange('stripe_customer_id', e.target.value)} className={inputCls} placeholder="cus_xxxxxxxxxxxxxx" />
+            </FormField>
+          </div>
+        </div>
+      )}
+
+      {/* ── Social & Web ───────────────────────────────────────── */}
+      {activeSection === 'social' && (
+        <div className="space-y-4">
+          <SectionHeader
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>}
+            title="Social Media & Web Presence"
+            subtitle="Client's online profiles — used for platform builds, marketing, and SEO"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Primary Website">
+              <input type="url" value={form.social_website} onChange={e => handleChange('social_website', e.target.value)} className={inputCls} placeholder="https://acme.com" />
+            </FormField>
+            <FormField label="Google Business Profile">
+              <input type="url" value={form.social_google_business} onChange={e => handleChange('social_google_business', e.target.value)} className={inputCls} placeholder="https://g.page/..." />
+            </FormField>
+            <FormField label="Facebook">
+              <input type="url" value={form.social_facebook} onChange={e => handleChange('social_facebook', e.target.value)} className={inputCls} placeholder="https://facebook.com/..." />
+            </FormField>
+            <FormField label="Instagram">
+              <input type="url" value={form.social_instagram} onChange={e => handleChange('social_instagram', e.target.value)} className={inputCls} placeholder="https://instagram.com/..." />
+            </FormField>
+            <FormField label="X / Twitter">
+              <input type="url" value={form.social_twitter} onChange={e => handleChange('social_twitter', e.target.value)} className={inputCls} placeholder="https://x.com/..." />
+            </FormField>
+            <FormField label="LinkedIn">
+              <input type="url" value={form.social_linkedin} onChange={e => handleChange('social_linkedin', e.target.value)} className={inputCls} placeholder="https://linkedin.com/company/..." />
+            </FormField>
+            <FormField label="TikTok">
+              <input type="url" value={form.social_tiktok} onChange={e => handleChange('social_tiktok', e.target.value)} className={inputCls} placeholder="https://tiktok.com/@..." />
+            </FormField>
+            <FormField label="YouTube">
+              <input type="url" value={form.social_youtube} onChange={e => handleChange('social_youtube', e.target.value)} className={inputCls} placeholder="https://youtube.com/@..." />
+            </FormField>
+            <FormField label="Pinterest">
+              <input type="url" value={form.social_pinterest} onChange={e => handleChange('social_pinterest', e.target.value)} className={inputCls} placeholder="https://pinterest.com/..." />
+            </FormField>
+            <FormField label="Yelp">
+              <input type="url" value={form.social_yelp} onChange={e => handleChange('social_yelp', e.target.value)} className={inputCls} placeholder="https://yelp.com/biz/..." />
+            </FormField>
+            <FormField label="GitHub">
+              <input type="url" value={form.social_github} onChange={e => handleChange('social_github', e.target.value)} className={inputCls} placeholder="https://github.com/..." />
+            </FormField>
+          </div>
+        </div>
+      )}
+
+      {/* ── Brand & Platform ───────────────────────────────────── */}
+      {activeSection === 'brand' && (
+        <div className="space-y-4">
+          <SectionHeader
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" /></svg>}
+            title="Brand & Platform"
+            subtitle="Branding assets, domain, and technical context for the build"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Brand Logo URL">
+              <input type="url" value={form.brand_logo_url} onChange={e => handleChange('brand_logo_url', e.target.value)} className={inputCls} placeholder="https://..." />
+            </FormField>
+            <FormField label="Preferred Domain">
+              <input type="text" value={form.preferred_domain} onChange={e => handleChange('preferred_domain', e.target.value)} className={inputCls} placeholder="acme.com or acme-store.com" />
+            </FormField>
+            <FormField label="Tech Stack Notes" span2>
+              <textarea value={form.tech_stack_notes} onChange={e => handleChange('tech_stack_notes', e.target.value)} className={textareaCls} rows={3} placeholder="Existing tech, integrations needed, APIs, POS system, payment processors..." />
+            </FormField>
+            <FormField label="Onboarding Notes" span2>
+              <textarea value={form.onboarding_notes} onChange={e => handleChange('onboarding_notes', e.target.value)} className={textareaCls} rows={3} placeholder="Key details from onboarding call, special requirements, timeline constraints..." />
+            </FormField>
+          </div>
+        </div>
+      )}
+
+      {/* ── Notes ──────────────────────────────────────────────── */}
+      {activeSection === 'notes' && (
+        <div className="space-y-4">
+          <SectionHeader
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>}
+            title="Internal Notes"
+            subtitle="Private notes visible only to admins — never shown to clients"
+          />
+          <div className="space-y-4">
+            <FormField label="Internal Notes" span2>
+              <textarea value={form.internal_notes} onChange={e => handleChange('internal_notes', e.target.value)} className={textareaCls} rows={5} placeholder="Private notes about this customer — relationship context, preferences, red flags, VIP treatment, etc." />
+            </FormField>
+          </div>
+        </div>
+      )}
+
+      {/* Save bar — always visible */}
+      <div className="sticky bottom-0 bg-navy-900/95 backdrop-blur border-t border-navy-700/30 -mx-6 px-6 py-4 flex items-center gap-4">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2.5 bg-brand-blue text-white text-sm font-medium rounded-lg hover:bg-sky-400 transition-colors disabled:opacity-50"
+        >
+          {saving ? (
+            <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</>
+          ) : saved ? (
+            <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Saved!</>
+          ) : (
+            'Save Changes'
+          )}
+        </button>
+        {error && (
+          <p className="text-sm text-red-400">{error}</p>
         )}
-      </button>
+        {saved && <p className="text-xs text-emerald-400">All changes saved to database</p>}
+      </div>
     </div>
   )
 }
@@ -538,11 +939,32 @@ export default function CustomerDetail() {
               {customer.full_name || <span className="italic text-gray-500">No name</span>}
             </h1>
             <p className="text-sm text-gray-400 mt-0.5">{customer.email}</p>
+            {customer.company_name && <p className="text-xs text-gray-500 mt-0.5">{customer.company_name}{customer.company_industry ? ` · ${customer.company_industry}` : ''}</p>}
             <div className="flex items-center gap-3 mt-2 flex-wrap">
+              {customer.status && (
+                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${
+                  customer.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' :
+                  customer.status === 'Prospect' ? 'bg-blue-500/20 text-blue-400' :
+                  customer.status === 'Onboarding' ? 'bg-purple-500/20 text-purple-400' :
+                  customer.status === 'In Build' ? 'bg-brand-blue/20 text-brand-blue' :
+                  customer.status === 'Launched' ? 'bg-emerald-500/20 text-emerald-400' :
+                  customer.status === 'Churned' ? 'bg-red-500/20 text-red-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                  {customer.status}
+                </span>
+              )}
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-500/20 text-gray-400 capitalize">
                 {customer.role}
               </span>
+              {customer.plan_tier && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400 capitalize">
+                  {customer.plan_tier} plan
+                </span>
+              )}
               <span className="text-xs text-gray-500">Joined {formatDate(customer.created_at)}</span>
+              {customer.phone && <span className="text-xs text-gray-500">{customer.phone}</span>}
             </div>
           </div>
 
