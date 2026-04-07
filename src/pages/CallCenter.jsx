@@ -39,7 +39,7 @@ import {
   PhoneOff,
   Mic,
   MicOff,
-  Hold,
+  Pause,
   ArrowUpRight,
   Clock,
   AlertCircle,
@@ -201,7 +201,7 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
           variant={isOnHold ? 'default' : 'outline'}
           className="flex items-center gap-2"
         >
-          <Hold size={16} />
+          <Pause size={16} />
           {isOnHold ? 'Resume' : 'Hold'}
         </Button>
         <Button
