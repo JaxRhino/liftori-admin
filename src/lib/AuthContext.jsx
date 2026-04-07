@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [token, setToken] = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -36,6 +37,7 @@ export function AuthProvider({ children }) {
         if (!mounted) return
         const sessionUser = session?.user ?? null
         setUser(sessionUser)
+        setToken(session?.access_token ?? null)
         const isInitial = event === 'INITIAL_SESSION'
         if (sessionUser) {
           // Pass isInitial so fetchProfile ends loading AFTER profile is set
@@ -82,12 +84,13 @@ export function AuthProvider({ children }) {
     if (error) throw error
     setUser(null)
     setProfile(null)
+    setToken(null)
   }
 
   const isAdmin = profile?.role === 'admin'
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, signIn, signOut, signUp }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, token, signIn, signOut, signUp }}>
       {children}
     </AuthContext.Provider>
   )

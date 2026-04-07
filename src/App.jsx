@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import AdminLayout from './components/AdminLayout'
 import ClientLayout from './components/ClientLayout'
@@ -14,7 +15,10 @@ import CustomerDetail from './pages/CustomerDetail'
 import ConvertSignup from './pages/ConvertSignup'
 import Platforms from './pages/Platforms'
 import PlatformDetail from './pages/PlatformDetail'
-import Chat from './pages/Chat'
+import RallyChat from './pages/RallyChat'
+import Rally from './pages/Rally'
+import { WebSocketProvider } from './contexts/WebSocketContext'
+import { VideoCallProvider } from './contexts/VideoCallContext'
 import DiscountCodes from './pages/DiscountCodes'
 import Plans from './pages/Plans'
 import PortalDashboard from './pages/portal/PortalDashboard'
@@ -22,6 +26,9 @@ import ChoosePlan from './pages/portal/ChoosePlan'
 import PortalProject from './pages/portal/PortalProject'
 import Settings from './pages/Settings'
 import ComingSoon from './pages/ComingSoon'
+import CallCenter from './pages/CallCenter'
+import InHouseBuilds from './pages/InHouseBuilds'
+import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import PortalProjects from './pages/portal/PortalProjects'
 import PortalSettings from './pages/portal/PortalSettings'
 import PortalMessages from './pages/portal/PortalMessages'
@@ -34,15 +41,40 @@ import FreightSalesProfiles from './pages/freight/FreightSalesProfiles'
 import FreightShippers from './pages/freight/FreightShippers'
 import FreightLoads from './pages/freight/FreightLoads'
 import FreightCommissions from './pages/freight/FreightCommissions'
+// EOS — Entrepreneurial Operating System
+import EOSDashboard from './pages/eos/EOSDashboard'
+import EOSLeadershipDashboard from './pages/eos/EOSLeadershipDashboard'
+import EOSScorecard from './pages/eos/EOSScorecard'
+import EOSRocks from './pages/eos/EOSRocks'
+import EOSIssues from './pages/eos/EOSIssues'
+import EOSTodos from './pages/eos/EOSTodos'
+import EOSHeadlines from './pages/eos/EOSHeadlines'
+import EOSL10Meetings from './pages/eos/EOSL10Meetings'
+import EOSL10MeetingRoom from './pages/eos/EOSL10MeetingRoom'
+import EOSAccountabilityChart from './pages/eos/EOSAccountabilityChart'
+import EOSVTO from './pages/eos/EOSVTO'
+// Finance Hub
+import FinanceDashboard from './pages/finance/FinanceDashboard'
+import InvoicesList from './pages/finance/InvoicesList'
+import PaymentsList from './pages/finance/PaymentsList'
+import ExpensesList from './pages/finance/ExpensesList'
+import JournalEntries from './pages/finance/JournalEntries'
+import FinancialReports from './pages/finance/FinancialReports'
+import CommissionBatches from './pages/finance/CommissionBatches'
+import ChartOfAccounts from './pages/finance/ChartOfAccounts'
+// Communications Hub
+import CommunicationsHub from './pages/communications/CommunicationsHub'
+import ChannelsSettings from './pages/communications/ChannelsSettings'
+import AutomationsPage from './pages/communications/AutomationsPage'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
+  const location = useLocation()
   if (loading) return (
     <div className="min-h-screen bg-navy-950 flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
     </div>
   )
-  const location = useLocation()
   if (!user) {
     const redirectTo = location.pathname + location.search
     return <Navigate to={`/login?redirectTo=${encodeURIComponent(redirectTo)}`} replace />
@@ -76,8 +108,10 @@ function RootRedirect() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+      <WebSocketProvider>
+        <VideoCallProvider>
+          <BrowserRouter>
+            <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
@@ -95,6 +129,7 @@ export default function App() {
             </ProtectedRoute>
           }>
             <Route index element={<Dashboard />} />
+            <Route path="call-center" element={<CallCenter />} />
             <Route path="projects" element={<Projects />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="waitlist" element={<Waitlist />} />
@@ -106,20 +141,48 @@ export default function App() {
             <Route path="platforms/:id" element={<PlatformDetail />} />
             <Route path="discount-codes" element={<DiscountCodes />} />
             <Route path="plans" element={<Plans />} />
-            <Route path="chat" element={<Chat />} />
+            <Route path="chat" element={<RallyChat />} />
+            <Route path="rally" element={<Rally />} />
             {/* Freight AI — BIH Logistics */}
             <Route path="freight" element={<FreightDashboard />} />
             <Route path="freight/sales-profiles" element={<FreightSalesProfiles />} />
             <Route path="freight/shippers" element={<FreightShippers />} />
             <Route path="freight/loads" element={<FreightLoads />} />
             <Route path="freight/commissions" element={<FreightCommissions />} />
+            {/* EOS — Entrepreneurial Operating System */}
+            <Route path="eos" element={<EOSDashboard />} />
+            <Route path="eos/leadership" element={<EOSLeadershipDashboard />} />
+            <Route path="eos/scorecard" element={<EOSScorecard />} />
+            <Route path="eos/rocks" element={<EOSRocks />} />
+            <Route path="eos/issues" element={<EOSIssues />} />
+            <Route path="eos/todos" element={<EOSTodos />} />
+            <Route path="eos/headlines" element={<EOSHeadlines />} />
+            <Route path="eos/meetings" element={<EOSL10Meetings />} />
+            <Route path="eos/meetings/:meetingId" element={<EOSL10MeetingRoom />} />
+            <Route path="eos/accountability" element={<EOSAccountabilityChart />} />
+            <Route path="eos/vto" element={<EOSVTO />} />
+            {/* In-House Builds */}
+            <Route path="builds" element={<InHouseBuilds />} />
+            <Route path="builds/:id" element={<InHouseBuildDetail />} />
             <Route path="pipeline" element={<ComingSoon />} />
             <Route path="marketing" element={<ComingSoon />} />
             <Route path="wizard" element={<ComingSoon />} />
-            <Route path="comms" element={<ComingSoon />} />
             <Route path="tasks" element={<ComingSoon />} />
             <Route path="notes" element={<ComingSoon />} />
             <Route path="calendar" element={<ComingSoon />} />
+            {/* Finance Hub */}
+            <Route path="finance" element={<FinanceDashboard />} />
+            <Route path="finance/invoices" element={<InvoicesList />} />
+            <Route path="finance/payments" element={<PaymentsList />} />
+            <Route path="finance/expenses" element={<ExpensesList />} />
+            <Route path="finance/journal" element={<JournalEntries />} />
+            <Route path="finance/reports" element={<FinancialReports />} />
+            <Route path="finance/commissions" element={<CommissionBatches />} />
+            <Route path="finance/accounts" element={<ChartOfAccounts />} />
+            {/* Communications Hub */}
+            <Route path="comms" element={<CommunicationsHub />} />
+            <Route path="comms/channels" element={<ChannelsSettings />} />
+            <Route path="comms/automations" element={<AutomationsPage />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
@@ -152,8 +215,11 @@ export default function App() {
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            </Routes>
+          </BrowserRouter>
+          <Toaster position="top-right" richColors theme="dark" />
+        </VideoCallProvider>
+      </WebSocketProvider>
     </AuthProvider>
   )
 }
