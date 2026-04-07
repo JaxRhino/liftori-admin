@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
+import { fetchDashboardStats } from '../lib/eosService'
 
 const PIPELINE_STATUSES = [
   'Wizard Complete',
@@ -28,6 +30,8 @@ const ACTIVITY_DOT = {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth()
+  const [eosStats, setEosStats] = useState(null)
   const [stats, setStats] = useState({
     totalSignups: 0,
     todaySignups: 0,
@@ -47,7 +51,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData()
-  }, [])
+    if (user?.id) {
+      fetchDashboardStats(user.id).then(setEosStats).catch(err => console.error('EOS stats:', err))
+    }
+  }, [user?.id])
 
   async function fetchDashboardData() {
     try {
@@ -271,6 +278,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* EOS Widget */}
+      {eosStats && <EOSWidget stats={eosStats} />}
+
       {/* Bottom Row: Signups | Projects | Activity */}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Recent Signups */}
@@ -373,6 +383,109 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function EOSWidget({ stats }) {
+  const nextMeeting = stats.next_meeting
+  const rockPct = stats.rocks?.total > 0
+    ? Math.round((stats.rocks.on_track / stats.rocks.total) * 100)
+    : null
+  const scorecardPct = stats.scorecard?.total_metrics > 0
+    ? Math.round((stats.scorecard.green_count / stats.scorecard.total_metrics) * 100)
+    : null
+
+  return (
+    <div className="card mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <svg className="w-5 h-5 text-brand-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
+          </svg>
+          EOS Pulse
+        </h2>
+        <Link to="/admin/eos" className="text-brand-blue text-sm hover:underline">Open EOS →</Link>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Next L10 */}
+        <Link to="/admin/eos/meetings" className="bg-navy-800/50 border border-navy-700/50 rounded-lg p-4 hover:border-brand-blue/30 transition-colors">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Next L10</p>
+          {nextMeeting ? (
+            <>
+              <p className="text-sm font-semibold text-white truncate">{nextMeeting.title}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {new Date(nextMeeting.scheduled_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-gray-600">No meetings scheduled</p>
+          )}
+        </Link>
+
+        {/* Scorecard Health */}
+        <Link to="/admin/eos/scorecard" className="bg-navy-800/50 border border-navy-700/50 rounded-lg p-4 hover:border-brand-blue/30 transition-colors">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Scorecard</p>
+          {scorecardPct !== null ? (
+            <>
+              <p className={`text-2xl font-bold ${scorecardPct >= 80 ? 'text-emerald-400' : scorecardPct >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+                {scorecardPct}%
+              </p>
+              <p className="text-xs text-gray-400 mt-1">{stats.scorecard.green_count}/{stats.scorecard.total_metrics} green</p>
+            </>
+          ) : (
+            <p className="text-sm text-gray-600">No metrics yet</p>
+          )}
+        </Link>
+
+        {/* Rocks */}
+        <Link to="/admin/eos/rocks" className="bg-navy-800/50 border border-navy-700/50 rounded-lg p-4 hover:border-brand-blue/30 transition-colors">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Rocks</p>
+          {stats.rocks?.total > 0 ? (
+            <>
+              <p className={`text-2xl font-bold ${rockPct >= 80 ? 'text-emerald-400' : rockPct >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+                {stats.rocks.on_track}/{stats.rocks.total}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">on track</p>
+            </>
+          ) : (
+            <p className="text-sm text-gray-600">No rocks set</p>
+          )}
+        </Link>
+
+        {/* To-Dos + Issues */}
+        <Link to="/admin/eos/todos" className="bg-navy-800/50 border border-navy-700/50 rounded-lg p-4 hover:border-brand-blue/30 transition-colors">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">To-Dos</p>
+          <p className="text-2xl font-bold text-white">{stats.todos?.count || 0}</p>
+          <p className="text-xs text-gray-400 mt-1">
+            {stats.todos?.due_this_week || 0} due this week · {stats.issues?.open_count || 0} open issues
+          </p>
+        </Link>
+      </div>
+
+      {/* Recent Headlines */}
+      {stats.headlines?.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-navy-700/30">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Recent Headlines</p>
+            <Link to="/admin/eos/headlines" className="text-xs text-brand-blue hover:underline">View all</Link>
+          </div>
+          <div className="space-y-2">
+            {stats.headlines.slice(0, 3).map(h => (
+              <div key={h.id} className="flex items-start gap-2">
+                <span className="text-xs mt-0.5">
+                  {h.category === 'good_news' ? '🟢' : h.category === 'fyi' ? '🔵' : h.category === 'issue' ? '🔴' : '⚪'}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-white truncate">{h.message}</p>
+                  <p className="text-xs text-gray-500">{formatTimeAgo(h.created_at)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
