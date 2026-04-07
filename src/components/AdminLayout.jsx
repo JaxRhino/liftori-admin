@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 
 const freightNavItems = [
   {
@@ -217,7 +217,13 @@ export default function AdminLayout() {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const mainRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  // Scroll to top on route change
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0
+  }, [location.pathname])
 
   const isSalesHubRoute = ['/admin/customers', '/admin/projects', '/admin/pipeline', '/admin/platforms'].some(p => location.pathname.startsWith(p))
   const [salesHubOpen, setSalesHubOpen] = useState(isSalesHubRoute)
@@ -663,7 +669,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto bg-navy-950">
+      <main ref={mainRef} className="flex-1 overflow-auto bg-navy-950">
         <div className="p-0">
           <Outlet context={{ sidebarOpen }} />
         </div>
