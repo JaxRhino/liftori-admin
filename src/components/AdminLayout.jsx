@@ -304,12 +304,12 @@ export default function AdminLayout() {
                   <div className="ml-3 pl-3 border-l border-white/10 mt-1 space-y-0.5">
                     {[
                       { label: 'EOS Hub', path: '/admin/eos' },
+                      { label: 'L10 Meetings', path: '/admin/eos/meetings' },
                       { label: 'Scorecard', path: '/admin/eos/scorecard' },
                       { label: 'Rocks', path: '/admin/eos/rocks' },
                       { label: 'Issues (IDS)', path: '/admin/eos/issues' },
                       { label: 'To-Dos', path: '/admin/eos/todos' },
                       { label: 'Headlines', path: '/admin/eos/headlines' },
-                      { label: 'L10 Meetings', path: '/admin/eos/meetings' },
                       { label: 'Accountability', path: '/admin/eos/accountability' },
                       { label: 'V/TO', path: '/admin/eos/vto' },
                       { label: 'Leadership', path: '/admin/eos/leadership' },
@@ -663,9 +663,4 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        <Outlet context={{ sidebarOpen }} />
-      </main>
-    </div>
-  )
-}
+      <main className="flex-1 overflow-auto
