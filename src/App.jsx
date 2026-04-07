@@ -8,6 +8,8 @@ import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import LeadHunter from './pages/LeadHunter'
+import Estimates from './pages/Estimates'
+import Agreements from './pages/Agreements'
 import ProjectDetail from './pages/ProjectDetail'
 import Waitlist from './pages/Waitlist'
 import Affiliates from './pages/Affiliates'
@@ -141,6 +143,8 @@ export default function App() {
             <Route path="platforms" element={<Platforms />} />
             <Route path="platforms/:id" element={<PlatformDetail />} />
             <Route path="lead-hunter" element={<LeadHunter />} />
+            <Route path="estimates" element={<Estimates />} />
+            <Route path="agreements" element={<Agreements />} />
             <Route path="discount-codes" element={<DiscountCodes />} />
             <Route path="plans" element={<Plans />} />
             <Route path="chat" element={<RallyChat />} />
