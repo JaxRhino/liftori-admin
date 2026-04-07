@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import {
   fetchAutomations, createAutomation, updateAutomation, deleteAutomation,
@@ -15,6 +15,45 @@ import {
   Plus, Trash2, Settings, AlertCircle, PlayCircle, Clock,
   ZapOff, Zap, Mail, MessageSquare, Tag, User, Pencil,
 } from 'lucide-react';
+
+// Error boundary to catch and display runtime crashes
+class AutomationsErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('[AutomationsPage] Render crash:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
+          <div className="max-w-lg text-center">
+            <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">Automations Page Error</h2>
+            <p className="text-gray-400 mb-4">Something crashed while rendering this page.</p>
+            <pre className="text-left bg-slate-800 border border-slate-700 rounded p-4 text-red-300 text-xs overflow-auto max-h-48">
+              {this.state.error?.message || 'Unknown error'}
+              {'\n'}
+              {this.state.error?.stack || ''}
+            </pre>
+            <button
+              onClick={() => { this.setState({ hasError: false, error: null }); }}
+              className="mt-4 px-4 py-2 bg-sky-500 text-white rounded hover:bg-sky-600"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const TRIGGER_TYPES = [
   { id: 'new_conversation', label: 'New Conversation', icon: Plus },
@@ -37,7 +76,7 @@ const ACTION_TYPES = [
 
 const TEMPLATE_CATEGORIES = ['welcome', 'followup', 'closure', 'feedback', 'other'];
 
-export default function AutomationsPage() {
+function AutomationsPageInner() {
   const { user } = useAuth();
   const [automations, setAutomations] = useState([]);
   const [channels, setChannels] = useState([]);
@@ -82,13 +121,13 @@ export default function AutomationsPage() {
     try {
       setLoading(true);
       const [autoData, channelsData, templatesData] = await Promise.all([
-        fetchAutomations(),
-        fetchChannels(),
-        fetchTemplates(),
+        fetchAutomations().catch(e => { console.error('[Automations] fetchAutomations failed:', e); return []; }),
+        fetchChannels().catch(e => { console.error('[Automations] fetchChannels failed:', e); return []; }),
+        fetchTemplates().catch(e => { console.error('[Automations] fetchTemplates failed:', e); return []; }),
       ]);
-      setAutomations(autoData);
-      setChannels(channelsData);
-      setTemplates(templatesData);
+      setAutomations(Array.isArray(autoData) ? autoData : []);
+      setChannels(Array.isArray(channelsData) ? channelsData : []);
+      setTemplates(Array.isArray(templatesData) ? templatesData : []);
     } catch (err) {
       console.error('[Automations] Fetch error:', err);
       toast.error('Failed to load automations');
@@ -720,7 +759,7 @@ export default function AutomationsPage() {
                 rows={5}
               />
               <p className="mt-1 text-xs text-gray-500">
-                Use {{variable}} for dynamic content
+                {'Use {{variable}} for dynamic content'}
               </p>
             </div>
 
@@ -776,5 +815,14 @@ export default function AutomationsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Wrapped export with error boundary
+export default function AutomationsPageWithBoundary() {
+  return (
+    <AutomationsErrorBoundary>
+      <AutomationsPageInner />
+    </AutomationsErrorBoundary>
   );
 }
