@@ -13,16 +13,21 @@ const COMMON_EMOJIS = [
   '✨', '🎯', '💡', '📌', '⚡', '🌟', '🎨', '🏆'
 ];
 
-const EmojiPicker = ({ onSelect, trigger }) => {
+const EmojiPicker = ({ onSelect, trigger, onOpenChange: onOpenChangeProp }) => {
   const [open, setOpen] = useState(false);
+
+  const handleOpenChange = (isOpen) => {
+    setOpen(isOpen);
+    onOpenChangeProp?.(isOpen);
+  };
 
   const handleSelect = (emoji) => {
     onSelect(emoji);
-    setOpen(false);
+    handleOpenChange(false);
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         {trigger || (
           <Button variant="ghost" size="icon" className="h-8 w-8">

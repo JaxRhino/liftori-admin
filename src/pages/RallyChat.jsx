@@ -101,6 +101,7 @@ export const Chat = () => {
 
   // Reactions
   const [messageReactions, setMessageReactions] = useState({});
+  const [emojiPickerOpenFor, setEmojiPickerOpenFor] = useState(null);
 
   // File upload
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -1433,10 +1434,11 @@ export const Chat = () => {
                       </div>
 
                       {/* Message Actions Menu */}
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className={`transition-opacity ${emojiPickerOpenFor === item.message.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                         <div className="flex items-center gap-1">
-                          <EmojiPicker 
+                          <EmojiPicker
                             onSelect={(emoji) => handleReactToMessage(item.message, emoji)}
+                            onOpenChange={(isOpen) => setEmojiPickerOpenFor(isOpen ? item.message.id : null)}
                             trigger={
                               <Button variant="ghost" size="icon" className="h-7 w-7">
                                 <Smile className="h-4 w-4" />
