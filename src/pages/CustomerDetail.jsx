@@ -509,6 +509,8 @@ function DetailSection({ icon, title, children }) {
 
 function DetailsTab({ customer }) {
   const c = customer
+  const [activeSection, setActiveSection] = useState('identity')
+
   const statusColor =
     c.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' :
     c.status === 'Prospect' ? 'bg-blue-500/20 text-blue-400' :
@@ -518,41 +520,47 @@ function DetailsTab({ customer }) {
     c.status === 'Churned' ? 'bg-red-500/20 text-red-400' :
     'bg-gray-500/20 text-gray-400'
 
-  const hasIdentity = c.first_name || c.last_name || c.phone || c.status || c.referral_source
-  const hasCompany = c.company_name || c.company_website || c.company_industry || c.company_size || c.business_type || c.company_description || c.target_audience
-  const hasLegal = c.legal_entity_name || c.legal_entity_type || c.ein_tax_id || c.legal_address_line1
-  const hasBilling = c.billing_email || c.billing_phone || c.plan_tier || c.plan_status || c.stripe_customer_id
-  const hasSocial = c.social_website || c.social_facebook || c.social_instagram || c.social_twitter || c.social_linkedin || c.social_tiktok || c.social_youtube || c.social_github || c.social_pinterest || c.social_yelp || c.social_google_business
-  const hasBrand = c.brand_logo_url || c.preferred_domain || c.tech_stack_notes || c.onboarding_notes
-  const hasNotes = c.internal_notes
-
-  const isEmpty = !hasIdentity && !hasCompany && !hasLegal && !hasBilling && !hasSocial && !hasBrand && !hasNotes
-
-  if (isEmpty) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-        <svg className="w-10 h-10 mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-        </svg>
-        <p className="text-sm">No details added yet</p>
-        <p className="text-xs text-gray-600 mt-1">Use the Edit tab to add customer information</p>
-      </div>
-    )
-  }
-
   const legalAddress = [c.legal_address_line1, c.legal_address_line2].filter(Boolean).join(', ')
   const legalCityStateZip = [c.legal_city, c.legal_state, c.legal_zip].filter(Boolean).join(', ')
 
+  const sections = [
+    { key: 'identity', label: 'Identity & Status' },
+    { key: 'company', label: 'Company' },
+    { key: 'legal', label: 'Legal Entity' },
+    { key: 'billing', label: 'Billing & Plan' },
+    { key: 'social', label: 'Social & Web' },
+    { key: 'brand', label: 'Brand & Platform' },
+    { key: 'notes', label: 'Notes' },
+  ]
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Section nav pills */}
+      <div className="flex flex-wrap gap-2">
+        {sections.map(s => (
+          <button
+            key={s.key}
+            onClick={() => setActiveSection(s.key)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              activeSection === s.key
+                ? 'bg-brand-blue text-white'
+                : 'text-gray-400 hover:text-white hover:bg-navy-700/50 border border-navy-700/50'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
       {/* Identity & Status */}
-      {hasIdentity && (
+      {activeSection === 'identity' && (
         <DetailSection
           icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>}
           title="Identity & Status"
         >
           <DetailField label="First Name" value={c.first_name} />
           <DetailField label="Last Name" value={c.last_name} />
+          <DetailField label="Email" value={c.email} />
           <DetailField label="Phone" value={c.phone} />
           {c.status && (
             <div>
@@ -565,11 +573,13 @@ function DetailsTab({ customer }) {
           )}
           <DetailField label="Role" value={c.role} />
           <DetailField label="Referral Source" value={c.referral_source} />
+          <DetailField label="Joined" value={formatDate(c.created_at)} />
+          <DetailField label="Last Updated" value={formatDate(c.updated_at)} />
         </DetailSection>
       )}
 
       {/* Company */}
-      {hasCompany && (
+      {activeSection === 'company' && (
         <DetailSection
           icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>}
           title="Company"
@@ -591,7 +601,7 @@ function DetailsTab({ customer }) {
       )}
 
       {/* Legal Entity */}
-      {hasLegal && (
+      {activeSection === 'legal' && (
         <DetailSection
           icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" /></svg>}
           title="Legal Entity"
@@ -599,27 +609,27 @@ function DetailsTab({ customer }) {
           <DetailField label="Legal Name" value={c.legal_entity_name} />
           <DetailField label="Entity Type" value={c.legal_entity_type} />
           <DetailField label="EIN / Tax ID" value={c.ein_tax_id} mono />
-          {legalAddress && <DetailField label="Address" value={legalAddress} />}
-          {legalCityStateZip && <DetailField label="City / State / ZIP" value={legalCityStateZip} />}
+          {legalAddress ? <DetailField label="Address" value={legalAddress} /> : <DetailField label="Address" value={null} />}
+          {legalCityStateZip ? <DetailField label="City / State / ZIP" value={legalCityStateZip} /> : <DetailField label="City / State / ZIP" value={null} />}
           <DetailField label="Country" value={c.legal_country} />
         </DetailSection>
       )}
 
       {/* Billing & Plan */}
-      {hasBilling && (
+      {activeSection === 'billing' && (
         <DetailSection
           icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>}
           title="Billing & Plan"
         >
           <DetailField label="Billing Email" value={c.billing_email} />
           <DetailField label="Billing Phone" value={c.billing_phone} />
-          {c.plan_tier && (
+          {c.plan_tier ? (
             <div>
               <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-0.5">Plan Tier</p>
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400 capitalize">{c.plan_tier}</span>
             </div>
-          )}
-          {c.plan_status && (
+          ) : <DetailField label="Plan Tier" value={null} />}
+          {c.plan_status ? (
             <div>
               <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-0.5">Plan Status</p>
               <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${
@@ -629,13 +639,13 @@ function DetailsTab({ customer }) {
                 'bg-gray-500/20 text-gray-400'
               }`}>{c.plan_status.replace('_', ' ')}</span>
             </div>
-          )}
+          ) : <DetailField label="Plan Status" value={null} />}
           <DetailField label="Stripe ID" value={c.stripe_customer_id} mono />
         </DetailSection>
       )}
 
       {/* Social & Web */}
-      {hasSocial && (
+      {activeSection === 'social' && (
         <DetailSection
           icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>}
           title="Social & Web"
@@ -655,7 +665,7 @@ function DetailsTab({ customer }) {
       )}
 
       {/* Brand & Platform */}
-      {hasBrand && (
+      {activeSection === 'brand' && (
         <DetailSection
           icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" /></svg>}
           title="Brand & Platform"
@@ -678,7 +688,7 @@ function DetailsTab({ customer }) {
       )}
 
       {/* Internal Notes */}
-      {hasNotes && (
+      {activeSection === 'notes' && (
         <div className="rounded-xl bg-yellow-500/5 border border-yellow-500/20 p-5">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-6 h-6 rounded-md bg-yellow-500/10 flex items-center justify-center text-yellow-400 flex-shrink-0">
@@ -687,7 +697,11 @@ function DetailsTab({ customer }) {
             <h3 className="text-xs font-semibold text-yellow-400/70 uppercase tracking-wider">Internal Notes</h3>
             <span className="text-[10px] text-yellow-500/40 ml-1">Admin only</span>
           </div>
-          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{c.internal_notes}</p>
+          {c.internal_notes ? (
+            <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{c.internal_notes}</p>
+          ) : (
+            <p className="text-xs text-gray-600 italic">No internal notes yet</p>
+          )}
         </div>
       )}
     </div>
