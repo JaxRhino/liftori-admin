@@ -78,14 +78,14 @@ export default function CommunicationsHub() {
   async function fetchData() {
     try {
       setLoading(true);
-      const [convData, usersData] = await Promise.all([
+      const [convResult, usersData] = await Promise.all([
         fetchConversations({ limit: 100 }),
         fetchCommsUsers(),
       ]);
-      setConversations(convData);
+      setConversations(convResult.data || []);
       setUsers(usersData);
-      if (convData.length > 0) {
-        selectConversation(convData[0]);
+      if ((convResult.data || []).length > 0) {
+        selectConversation(convResult.data[0]);
       }
     } catch (err) {
       console.error('[Comms Hub] Fetch error:', err);
@@ -100,7 +100,7 @@ export default function CommunicationsHub() {
     try {
       const msgs = await fetchMessages(conv.id);
       setMessages(msgs);
-      await markConversationRead(conv.id, user.id);
+      await markConversationRead(conv.id);
       setConversations(prev =>
         prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)
       );
@@ -114,15 +114,7 @@ export default function CommunicationsHub() {
     if (!newMessage.trim() || !selectedConv) return;
     try {
       setSending(true);
-      const msg = await sendMessage({
-        conversation_id: selectedConv.id,
-        sender_id: user.id,
-        sender_name: profile?.full_name || 'Unknown',
-        body: newMessage,
-        message_type: 'outbound',
-        is_read: true,
-        created_at: new Date().toISOString(),
-      });
+      const msg = await sendMessage(selectedConv.id, { body: newMessage });
       setMessages(prev => [...prev, msg]);
       setNewMessage('');
       toast.success('Message sent');
@@ -150,15 +142,7 @@ export default function CommunicationsHub() {
       });
 
       if (composing.body.trim()) {
-        await sendMessage({
-          conversation_id: conv.id,
-          sender_id: user.id,
-          sender_name: profile?.full_name || 'Unknown',
-          body: composing.body,
-          message_type: 'outbound',
-          is_read: true,
-          created_at: new Date().toISOString(),
-        });
+        await sendMessage(conv.id, { body: composing.body });
       }
 
       setConversations(prev => [conv, ...prev]);
@@ -188,7 +172,7 @@ export default function CommunicationsHub() {
   async function handleAssign(userId, userName) {
     if (!selectedConv) return;
     try {
-      const updated = await assignConversation(selectedConv.id, userId, userName);
+      const updated = await assignConversation(selectedConv.id, userId);
       setSelectedConv(updated);
       setConversations(prev => prev.map(c => c.id === selectedConv.id ? updated : c));
       setShowAssign(false);
@@ -483,11 +467,11 @@ export default function CommunicationsHub() {
                 messages.map(msg => (
                   <div
                     key={msg.id}
-                    className={`flex ${msg.message_type === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
                       className={`max-w-xs rounded-lg px-4 py-3 ${
-                        msg.message_type === 'outbound'
+                        msg.direction === 'outbound'
                           ? 'bg-sky-500/20 text-white border border-sky-500/30'
                           : 'bg-slate-700 text-gray-100 border border-slate-600'
                       }`}

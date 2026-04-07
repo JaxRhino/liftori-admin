@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import {
   fetchAutomations, createAutomation, updateAutomation, deleteAutomation,
-  fetchChannels, fetchTemplates,
+  fetchChannels, fetchTemplates, createTemplate, updateTemplate,
 } from '../../lib/commsService';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -243,14 +243,10 @@ export default function AutomationsPage() {
       };
 
       if (editingTemplate) {
-        const updated = await updateAutomation(editingTemplate.id, payload);
-        // Note: this would be updateTemplate if available
+        await updateTemplate(editingTemplate.id, payload);
         toast.success('Template updated');
       } else {
-        await createAutomation({
-          ...payload,
-          is_template: true,
-        });
+        await createTemplate(payload);
         toast.success('Template created');
       }
 
