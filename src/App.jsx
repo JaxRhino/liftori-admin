@@ -67,6 +67,21 @@ import JournalEntries from './pages/finance/JournalEntries'
 import FinancialReports from './pages/finance/FinancialReports'
 import CommissionBatches from './pages/finance/CommissionBatches'
 import ChartOfAccounts from './pages/finance/ChartOfAccounts'
+// Marketing Hub
+import MarketingDashboard from './pages/marketing/MarketingDashboard'
+import MarketingTracker from './pages/marketing/MarketingTracker'
+import AdManager from './pages/marketing/AdManager'
+import OnPaceTracking from './pages/marketing/OnPaceTracking'
+import ContentCreator from './pages/marketing/ContentCreator'
+import Scheduler from './pages/marketing/Scheduler'
+import CustomerMap from './pages/marketing/CustomerMap'
+import SEOManager from './pages/marketing/SEOManager'
+import EmailCampaigns from './pages/marketing/EmailCampaigns'
+import Analytics from './pages/marketing/Analytics'
+import SocialListening from './pages/marketing/SocialListening'
+import UTMBuilder from './pages/marketing/UTMBuilder'
+import ABTesting from './pages/marketing/ABTesting'
+import AudienceSegments from './pages/marketing/AudienceSegments'
 // Communications Hub
 import CommunicationsHub from './pages/communications/CommunicationsHub'
 import ChannelsSettings from './pages/communications/ChannelsSettings'
@@ -176,7 +191,21 @@ export default function App() {
             <Route path="builds" element={<InHouseBuilds />} />
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
             <Route path="pipeline" element={<ComingSoon />} />
-            <Route path="marketing" element={<ComingSoon />} />
+            {/* Marketing Hub */}
+            <Route path="marketing" element={<MarketingDashboard />} />
+            <Route path="marketing/tracker" element={<MarketingTracker />} />
+            <Route path="marketing/ads" element={<AdManager />} />
+            <Route path="marketing/on-pace" element={<OnPaceTracking />} />
+            <Route path="marketing/content" element={<ContentCreator />} />
+            <Route path="marketing/scheduler" element={<Scheduler />} />
+            <Route path="marketing/customer-map" element={<CustomerMap />} />
+            <Route path="marketing/seo" element={<SEOManager />} />
+            <Route path="marketing/email" element={<EmailCampaigns />} />
+            <Route path="marketing/analytics" element={<Analytics />} />
+            <Route path="marketing/social-listening" element={<SocialListening />} />
+            <Route path="marketing/utm-builder" element={<UTMBuilder />} />
+            <Route path="marketing/ab-testing" element={<ABTesting />} />
+            <Route path="marketing/audience-segments" element={<AudienceSegments />} />
             <Route path="wizard" element={<ComingSoon />} />
             <Route path="tasks" element={<ComingSoon />} />
             <Route path="notes" element={<ComingSoon />} />
