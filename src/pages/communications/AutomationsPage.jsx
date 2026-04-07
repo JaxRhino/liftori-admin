@@ -13,7 +13,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { toast } from 'sonner';
 import {
   Plus, Trash2, Settings, AlertCircle, PlayCircle, Clock,
-  ZapOff, Zap, Mail, MessageSquare, Tag, User, Edit,
+  ZapOff, Zap, Mail, MessageSquare, Tag, User, Pencil,
 } from 'lucide-react';
 
 const TRIGGER_TYPES = [
@@ -394,7 +394,7 @@ export default function AutomationsPage() {
                             variant="outline"
                             onClick={() => openEditAutoDialog(auto)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
@@ -509,7 +509,7 @@ export default function AutomationsPage() {
                             onClick={() => openEditTemplateDialog(template)}
                             className="text-sky-400 hover:text-sky-300"
                           >
-                            <Edit className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                         </div>
                       </td>
