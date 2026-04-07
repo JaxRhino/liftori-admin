@@ -10,6 +10,7 @@ import Projects from './pages/Projects'
 import LeadHunter from './pages/LeadHunter'
 import Estimates from './pages/Estimates'
 import Agreements from './pages/Agreements'
+import Commissions from './pages/Commissions'
 import ProjectDetail from './pages/ProjectDetail'
 import Waitlist from './pages/Waitlist'
 import Affiliates from './pages/Affiliates'
@@ -145,6 +146,7 @@ export default function App() {
             <Route path="lead-hunter" element={<LeadHunter />} />
             <Route path="estimates" element={<Estimates />} />
             <Route path="agreements" element={<Agreements />} />
+            <Route path="commissions" element={<Commissions />} />
             <Route path="discount-codes" element={<DiscountCodes />} />
             <Route path="plans" element={<Plans />} />
             <Route path="chat" element={<RallyChat />} />
