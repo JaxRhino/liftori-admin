@@ -196,9 +196,9 @@ export default function Dashboard() {
           <p className="text-gray-400 text-sm mt-1">Overview of your Liftori operations</p>
         </div>
         <div className="flex gap-3 flex-shrink-0">
-          <Link to="/projects" className="btn-primary text-sm">+ New Project</Link>
-          <Link to="/waitlist" className="btn-secondary text-sm">View Waitlist</Link>
-          <Link to="/chat" className="btn-secondary text-sm">Open Chat</Link>
+          <Link to="/admin/projects" className="btn-primary text-sm">+ New Project</Link>
+          <Link to="/admin/waitlist" className="btn-secondary text-sm">View Waitlist</Link>
+          <Link to="/admin/chat" className="btn-secondary text-sm">Open Chat</Link>
         </div>
       </div>
 
