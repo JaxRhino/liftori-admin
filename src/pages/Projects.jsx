@@ -4,33 +4,45 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const STATUS_PIPELINE = [
+  'New Lead',
+  'Acct Created',
+  'Wizard Started',
   'Wizard Complete',
   'Brief Review',
-  'Design Approval',
+  'Estimate Sent',
+  'Under Contract',
   'In Build',
-  'QA',
+  'Payment Hold',
   'Launched',
 ]
 
 const STATUS_ALL = [...STATUS_PIPELINE, 'On Hold', 'Cancelled']
 
 const STATUS_COLORS = {
+  'New Lead': { bg: 'bg-sky-500/20', text: 'text-sky-400', dot: 'bg-sky-400', ring: 'ring-sky-500/40' },
+  'Acct Created': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', dot: 'bg-indigo-400', ring: 'ring-indigo-500/40' },
+  'Wizard Started': { bg: 'bg-violet-500/20', text: 'text-violet-400', dot: 'bg-violet-400', ring: 'ring-violet-500/40' },
   'Wizard Complete': { bg: 'bg-gray-500/20', text: 'text-gray-400', dot: 'bg-gray-400', ring: 'ring-gray-500/40' },
   'Brief Review': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', dot: 'bg-yellow-400', ring: 'ring-yellow-500/40' },
-  'Design Approval': { bg: 'bg-purple-500/20', text: 'text-purple-400', dot: 'bg-purple-400', ring: 'ring-purple-500/40' },
+  'Estimate Sent': { bg: 'bg-amber-500/20', text: 'text-amber-400', dot: 'bg-amber-400', ring: 'ring-amber-500/40' },
+  'Under Contract': { bg: 'bg-purple-500/20', text: 'text-purple-400', dot: 'bg-purple-400', ring: 'ring-purple-500/40' },
   'In Build': { bg: 'bg-brand-blue/20', text: 'text-brand-blue', dot: 'bg-brand-blue', ring: 'ring-brand-blue/40' },
-  'QA': { bg: 'bg-orange-500/20', text: 'text-orange-400', dot: 'bg-orange-400', ring: 'ring-orange-500/40' },
+  'Payment Hold': { bg: 'bg-rose-500/20', text: 'text-rose-400', dot: 'bg-rose-400', ring: 'ring-rose-500/40' },
   'Launched': { bg: 'bg-emerald-500/20', text: 'text-emerald-400', dot: 'bg-emerald-400', ring: 'ring-emerald-500/40' },
   'On Hold': { bg: 'bg-gray-500/20', text: 'text-gray-500', dot: 'bg-gray-500', ring: 'ring-gray-600/40' },
   'Cancelled': { bg: 'bg-red-500/20', text: 'text-red-400', dot: 'bg-red-400', ring: 'ring-red-500/40' },
 }
 
 const NEXT_STATUS = {
+  'New Lead': 'Acct Created',
+  'Acct Created': 'Wizard Started',
+  'Wizard Started': 'Wizard Complete',
   'Wizard Complete': 'Brief Review',
-  'Brief Review': 'Design Approval',
-  'Design Approval': 'In Build',
-  'In Build': 'QA',
-  'QA': 'Launched',
+  'Brief Review': 'Estimate Sent',
+  'Estimate Sent': 'Under Contract',
+  'Under Contract': 'In Build',
+  'In Build': 'Payment Hold',
+  'Payment Hold': 'Launched',
 }
 
 const PROJECT_TYPES = [
@@ -80,7 +92,7 @@ function NewProjectModal({ onClose, onCreated, currentUserId }) {
           project_type: form.project_type,
           tier: form.tier,
           brief: form.brief.trim() || null,
-          status: 'Brief Review',
+          status: 'New Lead',
           customer_id: customerId || null,
           progress: 0,
         })

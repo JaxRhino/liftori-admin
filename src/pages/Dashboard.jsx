@@ -5,21 +5,29 @@ import { useAuth } from '../lib/AuthContext'
 import { fetchDashboardStats } from '../lib/eosService'
 
 const PIPELINE_STATUSES = [
+  'New Lead',
+  'Acct Created',
+  'Wizard Started',
   'Wizard Complete',
   'Brief Review',
-  'Design Approval',
+  'Estimate Sent',
+  'Under Contract',
   'In Build',
-  'QA',
+  'Payment Hold',
   'Launched',
 ]
 
 const PIPELINE_COLORS = {
+  'New Lead':        { bg: 'bg-sky-500/20', text: 'text-sky-400' },
+  'Acct Created':    { bg: 'bg-indigo-500/20', text: 'text-indigo-400' },
+  'Wizard Started':  { bg: 'bg-violet-500/20', text: 'text-violet-400' },
   'Wizard Complete': { bg: 'bg-gray-500/20', text: 'text-gray-400' },
-  'Brief Review':   { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
-  'Design Approval':{ bg: 'bg-purple-500/20', text: 'text-purple-400' },
-  'In Build':       { bg: 'bg-brand-blue/20', text: 'text-brand-blue' },
-  'QA':             { bg: 'bg-orange-500/20', text: 'text-orange-400' },
-  'Launched':       { bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
+  'Brief Review':    { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+  'Estimate Sent':   { bg: 'bg-amber-500/20', text: 'text-amber-400' },
+  'Under Contract':  { bg: 'bg-purple-500/20', text: 'text-purple-400' },
+  'In Build':        { bg: 'bg-brand-blue/20', text: 'text-brand-blue' },
+  'Payment Hold':    { bg: 'bg-rose-500/20', text: 'text-rose-400' },
+  'Launched':        { bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
 }
 
 const ACTIVITY_DOT = {
