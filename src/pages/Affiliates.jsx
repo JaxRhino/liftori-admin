@@ -3,10 +3,11 @@ import { supabase } from '../lib/supabase'
 
 // Performance tier thresholds (referral count)
 const PERF_TIERS = [
-  { key: 'gold',   label: 'Gold',   min: 15, bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
-  { key: 'silver', label: 'Silver', min: 5,  bg: 'bg-gray-400/20',   text: 'text-gray-300'  },
-  { key: 'bronze', label: 'Bronze', min: 1,  bg: 'bg-orange-800/20', text: 'text-orange-400' },
-  { key: 'none',   label: 'None',   min: 0,  bg: 'bg-gray-500/10',   text: 'text-gray-600'  },
+  { key: 'diamond', label: 'Diamond', min: 30, bg: 'bg-violet-500/20', text: 'text-violet-400' },
+  { key: 'gold',    label: 'Gold',    min: 15, bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+  { key: 'silver',  label: 'Silver',  min: 5,  bg: 'bg-gray-400/20',   text: 'text-gray-300'  },
+  { key: 'bronze',  label: 'Bronze',  min: 1,  bg: 'bg-orange-800/20', text: 'text-orange-400' },
+  { key: 'none',    label: 'None',    min: 0,  bg: 'bg-gray-500/10',   text: 'text-gray-600'  },
 ]
 
 function getPerfTier(referrals) {
@@ -40,6 +41,7 @@ function PerfBadge({ referrals }) {
   if (tier.key === 'none') return <span className="text-xs text-gray-600">—</span>
   return (
     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${tier.bg} ${tier.text}`}>
+      {tier.key === 'diamond' && '💎 '}
       {tier.key === 'gold' && '★ '}
       {tier.label}
     </span>
@@ -66,6 +68,149 @@ function CopyButton({ value, label = 'Copy' }) {
     >
       {copied ? 'Copied!' : label}
     </button>
+  )
+}
+
+// ─── Affiliate Program Highlights Banner ──────────────────────────────────────
+
+function HighlightsBanner() {
+  const highlights = [
+    { icon: '💰', text: 'Earn up to 20% recurring commission' },
+    { icon: '📊', text: 'Real-time dashboard for every affiliate' },
+    { icon: '🎨', text: 'Branded marketing materials provided' },
+    { icon: '💳', text: 'Monthly payouts, no minimum' },
+  ]
+
+  return (
+    <div className="relative bg-gradient-to-r from-violet-600/30 via-purple-600/20 to-violet-600/30 border border-violet-500/30 rounded-xl p-6 overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 via-purple-500/5 to-violet-500/0 pointer-events-none" />
+
+      <div className="relative z-10">
+        <h3 className="text-lg font-semibold text-white mb-4">Why Join Liftori Affiliates?</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {highlights.map((item, idx) => (
+            <div key={idx} className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-navy-800/60 border border-violet-500/20 hover:border-violet-500/40 transition-colors">
+              <span className="text-lg flex-shrink-0">{item.icon}</span>
+              <span className="text-sm text-gray-200">{item.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Tier Rewards Card Row ────────────────────────────────────────────────────
+
+function TierRewardsSection() {
+  const tiers = [
+    {
+      key: 'bronze',
+      label: 'Bronze',
+      minRefs: '1+',
+      commission: '8%',
+      bg: 'bg-orange-800/20',
+      border: 'border-orange-600/30',
+      text: 'text-orange-400',
+      perks: ['Basic dashboard', 'Email support'],
+    },
+    {
+      key: 'silver',
+      label: 'Silver',
+      minRefs: '5+',
+      commission: '10%',
+      bg: 'bg-gray-400/20',
+      border: 'border-gray-500/30',
+      text: 'text-gray-300',
+      perks: ['Priority support', 'Co-branded materials'],
+    },
+    {
+      key: 'gold',
+      label: 'Gold',
+      minRefs: '15+',
+      commission: '15%',
+      bg: 'bg-yellow-500/20',
+      border: 'border-yellow-500/30',
+      text: 'text-yellow-400',
+      perks: ['Dedicated manager', 'Custom landing pages', 'Early access'],
+    },
+    {
+      key: 'diamond',
+      label: 'Diamond',
+      minRefs: '30+',
+      commission: '20%',
+      bg: 'bg-violet-500/20',
+      border: 'border-violet-500/30',
+      text: 'text-violet-400',
+      perks: ['Revenue share', 'White-label option', 'VIP events', 'Direct Slack channel'],
+    },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-white">Performance Tiers</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {tiers.map(tier => (
+          <div
+            key={tier.key}
+            className={`${tier.bg} border ${tier.border} rounded-xl p-5 hover:border-opacity-60 transition-all hover:shadow-lg`}
+          >
+            <div className="space-y-3">
+              <div>
+                <p className={`text-sm font-bold ${tier.text} mb-0.5`}>{tier.label}</p>
+                <p className="text-xs text-gray-500">{tier.minRefs} referrals</p>
+              </div>
+              <div className="bg-navy-800/60 border border-navy-700/40 rounded-lg p-2.5">
+                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-0.5">Commission</p>
+                <p className={`text-xl font-bold ${tier.text}`}>{tier.commission}</p>
+              </div>
+              <div className="space-y-1.5">
+                {tier.perks.map((perk, idx) => (
+                  <div key={idx} className="flex items-start gap-2">
+                    <span className="text-brand-blue mt-0.5">✓</span>
+                    <p className="text-xs text-gray-300">{perk}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Marketing Assets Preview ─────────────────────────────────────────────────
+
+function MarketingAssetsSection() {
+  const assets = [
+    { icon: '📱', name: 'Social Media Kit', tag: 'Coming Soon' },
+    { icon: '✉️', name: 'Email Templates', tag: 'Coming Soon' },
+    { icon: '🌐', name: 'Landing Page Builder', tag: 'Coming Soon' },
+    { icon: '🎯', name: 'Banner Ads', tag: 'Coming Soon' },
+    { icon: '📋', name: 'Case Studies', tag: 'Coming Soon' },
+    { icon: '📖', name: 'Brand Guidelines', tag: 'Coming Soon' },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-white">Marketing Assets</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {assets.map((asset, idx) => (
+          <div
+            key={idx}
+            className="bg-navy-800/50 border border-navy-700/40 rounded-lg p-4 hover:border-brand-blue/40 transition-colors text-center"
+          >
+            <div className="text-3xl mb-2">{asset.icon}</div>
+            <p className="text-xs font-medium text-white mb-1.5">{asset.name}</p>
+            <span className="inline-block px-2 py-0.5 bg-brand-blue/10 border border-brand-blue/20 rounded text-xs text-brand-light">
+              {asset.tag}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -499,6 +644,15 @@ export default function Affiliates() {
         </div>
       </div>
 
+      {/* NEW: Highlights Banner */}
+      <HighlightsBanner />
+
+      {/* NEW: Tier Rewards Section */}
+      <TierRewardsSection />
+
+      {/* NEW: Marketing Assets Section */}
+      <MarketingAssetsSection />
+
       {/* Filter Bar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1 relative">
@@ -528,6 +682,7 @@ export default function Affiliates() {
           className="bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40 min-w-[140px]"
         >
           <option value="all">All Tiers</option>
+          <option value="diamond">Diamond (30+ refs)</option>
           <option value="gold">Gold (15+ refs)</option>
           <option value="silver">Silver (5+ refs)</option>
           <option value="bronze">Bronze (1+ refs)</option>

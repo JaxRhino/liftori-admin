@@ -33,6 +33,7 @@ import ComingSoon from './pages/ComingSoon'
 import CallCenter from './pages/CallCenter'
 import InHouseBuilds from './pages/InHouseBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
+import OpsDashboard from './pages/OpsDashboard'
 import PortalProjects from './pages/portal/PortalProjects'
 import PortalSettings from './pages/portal/PortalSettings'
 import PortalMessages from './pages/portal/PortalMessages'
@@ -169,6 +170,8 @@ export default function App() {
             <Route path="eos/meetings/:meetingId" element={<EOSL10MeetingRoom />} />
             <Route path="eos/accountability" element={<EOSAccountabilityChart />} />
             <Route path="eos/vto" element={<EOSVTO />} />
+            {/* Operations */}
+            <Route path="ops-dashboard" element={<OpsDashboard />} />
             {/* In-House Builds */}
             <Route path="builds" element={<InHouseBuilds />} />
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
