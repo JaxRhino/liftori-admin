@@ -509,7 +509,7 @@ export default function Projects() {
   const statusCounts = {}
   projects.forEach(p => { statusCounts[p.status] = (statusCounts[p.status] || 0) + 1 })
 
-  const activePipelineStatuses = STATUS_PIPELINE.filter(s => statusCounts[s])
+  const activePipelineStatuses = STATUS_PIPELINE
 
   function formatDate(d) {
     if (!d) return '—'
