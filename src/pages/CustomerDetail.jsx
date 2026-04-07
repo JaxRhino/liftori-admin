@@ -66,6 +66,196 @@ function getInitials(name, email) {
   return (n || email || '?')[0].toUpperCase()
 }
 
+// ─── Overview Tab ─────────────────────────────────────────────────────────────
+function OverviewTab({ customer, projects, messages, invoices, updates }) {
+  const c = customer
+  const activeProjects = projects.filter(p => p.status && p.status !== 'Launched' && p.status !== 'Cancelled')
+  const launchedProjects = projects.filter(p => p.status === 'Launched')
+  const totalInvoiced = invoices.reduce((s, i) => s + (i.amount || 0), 0)
+  const totalPaid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0)
+  const totalOutstanding = invoices.filter(i => i.status === 'pending' || i.status === 'overdue').reduce((s, i) => s + (i.amount || 0), 0)
+  const totalMRR = projects.reduce((s, p) => s + (p.mrr || 0), 0)
+  const recentMessages = messages.slice(0, 3)
+  const recentUpdates = updates.slice(0, 3)
+  const recentInvoices = invoices.slice(0, 3)
+
+  const statusColor =
+    c.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+    c.status === 'Prospect' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+    c.status === 'Onboarding' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
+    c.status === 'In Build' ? 'bg-brand-blue/20 text-brand-blue border-brand-blue/30' :
+    c.status === 'Launched' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+    c.status === 'Churned' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+    'bg-gray-500/20 text-gray-400 border-gray-500/30'
+
+  return (
+    <div className="space-y-6">
+      {/* Top metrics row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-4">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Projects</p>
+          <p className="text-3xl font-bold text-white mt-1">{projects.length}</p>
+          <div className="flex items-center gap-2 mt-1">
+            {activeProjects.length > 0 && <span className="text-xs text-brand-blue">{activeProjects.length} active</span>}
+            {launchedProjects.length > 0 && <span className="text-xs text-emerald-400">{launchedProjects.length} launched</span>}
+          </div>
+        </div>
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-4">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Revenue</p>
+          <p className="text-3xl font-bold text-emerald-400 mt-1">{formatCurrency(totalPaid)}</p>
+          {totalOutstanding > 0 && <p className="text-xs text-yellow-400 mt-1">{formatCurrency(totalOutstanding)} outstanding</p>}
+          {totalOutstanding === 0 && totalPaid > 0 && <p className="text-xs text-emerald-400/60 mt-1">Fully paid</p>}
+        </div>
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-4">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">MRR</p>
+          <p className="text-3xl font-bold text-brand-blue mt-1">
+            {totalMRR > 0 ? `$${totalMRR.toLocaleString()}` : '$0'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">/month</p>
+        </div>
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-4">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Engagement</p>
+          <p className="text-3xl font-bold text-white mt-1">{messages.length}</p>
+          <p className="text-xs text-gray-500 mt-1">{messages.length === 1 ? 'message' : 'messages'} · {updates.length} updates</p>
+        </div>
+      </div>
+
+      {/* Customer snapshot + status */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5 sm:col-span-2">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Customer Snapshot</h3>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+            {c.company_name && (
+              <div><p className="text-[10px] text-gray-500 uppercase">Company</p><p className="text-sm text-white">{c.company_name}</p></div>
+            )}
+            {c.company_industry && (
+              <div><p className="text-[10px] text-gray-500 uppercase">Industry</p><p className="text-sm text-white">{c.company_industry}</p></div>
+            )}
+            {c.phone && (
+              <div><p className="text-[10px] text-gray-500 uppercase">Phone</p><p className="text-sm text-white">{c.phone}</p></div>
+            )}
+            {c.plan_tier && (
+              <div><p className="text-[10px] text-gray-500 uppercase">Plan</p><p className="text-sm text-white capitalize">{c.plan_tier}</p></div>
+            )}
+            {c.referral_source && (
+              <div><p className="text-[10px] text-gray-500 uppercase">Referral</p><p className="text-sm text-white">{c.referral_source}</p></div>
+            )}
+            {c.preferred_domain && (
+              <div><p className="text-[10px] text-gray-500 uppercase">Domain</p><p className="text-sm text-brand-blue">{c.preferred_domain}</p></div>
+            )}
+            <div><p className="text-[10px] text-gray-500 uppercase">Joined</p><p className="text-sm text-white">{formatDate(c.created_at)}</p></div>
+            <div><p className="text-[10px] text-gray-500 uppercase">Last Updated</p><p className="text-sm text-white">{formatDate(c.updated_at)}</p></div>
+          </div>
+        </div>
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5 flex flex-col items-center justify-center">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mb-2">Account Status</p>
+          <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border ${statusColor}`}>
+            <span className="w-2 h-2 rounded-full bg-current" />
+            {c.status || 'Active'}
+          </span>
+          {c.plan_status && (
+            <span className={`mt-2 inline-flex items-center px-2.5 py-1 rounded text-xs font-medium capitalize ${
+              c.plan_status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
+              c.plan_status === 'trial' ? 'bg-purple-500/20 text-purple-400' :
+              c.plan_status === 'past_due' ? 'bg-red-500/20 text-red-400' :
+              'bg-gray-500/20 text-gray-400'
+            }`}>{c.plan_status.replace('_', ' ')} plan</span>
+          )}
+          <p className="text-[10px] text-gray-600 mt-2">{invoices.length} invoice{invoices.length !== 1 ? 's' : ''}</p>
+        </div>
+      </div>
+
+      {/* Three-column recent activity */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Recent Projects */}
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Projects</h3>
+          {projects.length === 0 ? (
+            <p className="text-xs text-gray-600">No projects yet</p>
+          ) : (
+            <div className="space-y-2.5">
+              {projects.slice(0, 4).map(p => {
+                const sc = STATUS_COLORS[p.status] || 'bg-gray-500/20 text-gray-400'
+                return (
+                  <div key={p.id} className="flex items-center justify-between gap-2">
+                    <p className="text-sm text-white truncate flex-1">{p.name || 'Untitled'}</p>
+                    <StatusBadge status={p.status} />
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Invoices */}
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Invoices</h3>
+          {invoices.length === 0 ? (
+            <p className="text-xs text-gray-600">No invoices yet</p>
+          ) : (
+            <div className="space-y-2.5">
+              {recentInvoices.map(inv => (
+                <div key={inv.id} className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-white truncate flex-1">{inv.invoice_number || inv.title || `INV-${inv.id.slice(0, 8).toUpperCase()}`}</p>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-white font-medium">{formatCurrency(inv.amount)}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      inv.status === 'paid' ? 'bg-emerald-400' :
+                      inv.status === 'overdue' ? 'bg-red-400' :
+                      'bg-yellow-400'
+                    }`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Activity</h3>
+          {updates.length === 0 && messages.length === 0 ? (
+            <p className="text-xs text-gray-600">No activity yet</p>
+          ) : (
+            <div className="space-y-2.5">
+              {recentUpdates.map(u => (
+                <div key={u.id}>
+                  <p className="text-sm text-white truncate">{u.title || 'Update'}</p>
+                  <p className="text-[10px] text-gray-500">{formatDate(u.created_at)}</p>
+                </div>
+              ))}
+              {recentUpdates.length === 0 && recentMessages.slice(0, 3).map(m => (
+                <div key={m.id}>
+                  <p className="text-sm text-gray-300 truncate">{m.body || m.content || 'Message'}</p>
+                  <p className="text-[10px] text-gray-500">{formatDate(m.created_at)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Social presence quick view */}
+      {(c.social_website || c.social_facebook || c.social_instagram || c.social_linkedin || c.social_twitter || c.social_google_business) && (
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Web Presence</h3>
+          <div className="flex flex-wrap gap-2">
+            {c.social_website && <a href={c.social_website} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg bg-navy-700/50 text-xs text-brand-blue hover:bg-navy-700 transition-colors">Website</a>}
+            {c.social_google_business && <a href={c.social_google_business} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg bg-navy-700/50 text-xs text-brand-blue hover:bg-navy-700 transition-colors">Google Business</a>}
+            {c.social_facebook && <a href={c.social_facebook} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg bg-navy-700/50 text-xs text-blue-400 hover:bg-navy-700 transition-colors">Facebook</a>}
+            {c.social_instagram && <a href={c.social_instagram} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg bg-navy-700/50 text-xs text-pink-400 hover:bg-navy-700 transition-colors">Instagram</a>}
+            {c.social_twitter && <a href={c.social_twitter} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg bg-navy-700/50 text-xs text-gray-300 hover:bg-navy-700 transition-colors">X / Twitter</a>}
+            {c.social_linkedin && <a href={c.social_linkedin} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg bg-navy-700/50 text-xs text-blue-300 hover:bg-navy-700 transition-colors">LinkedIn</a>}
+            {c.social_tiktok && <a href={c.social_tiktok} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg bg-navy-700/50 text-xs text-gray-300 hover:bg-navy-700 transition-colors">TikTok</a>}
+            {c.social_youtube && <a href={c.social_youtube} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg bg-navy-700/50 text-xs text-red-400 hover:bg-navy-700 transition-colors">YouTube</a>}
+            {c.social_yelp && <a href={c.social_yelp} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg bg-navy-700/50 text-xs text-red-300 hover:bg-navy-700 transition-colors">Yelp</a>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Projects Tab ──────────────────────────────────────────────────────────────
 function ProjectsTab({ projects }) {
   if (projects.length === 0) {
@@ -1031,7 +1221,7 @@ export default function CustomerDetail() {
   const [invoices, setInvoices] = useState([])
   const [updates, setUpdates] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('details')
+  const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
     fetchAll()
@@ -1120,6 +1310,7 @@ export default function CustomerDetail() {
   const totalPaid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0)
 
   const TABS = [
+    { key: 'overview', label: 'Overview' },
     { key: 'details', label: 'Details' },
     { key: 'projects', label: `Projects (${projects.length})` },
     { key: 'messages', label: `Messages (${messages.length})` },
@@ -1217,6 +1408,7 @@ export default function CustomerDetail() {
 
       {/* Tab content */}
       <div>
+        {activeTab === 'overview' && <OverviewTab customer={customer} projects={projects} messages={messages} invoices={invoices} updates={updates} />}
         {activeTab === 'details' && <DetailsTab customer={customer} />}
         {activeTab === 'projects' && <ProjectsTab projects={projects} />}
         {activeTab === 'messages' && <MessagesTab messages={messages} />}
