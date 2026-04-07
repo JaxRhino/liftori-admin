@@ -665,7 +665,7 @@ export default function AdminLayout() {
       {/* Main content */}
       <main className="flex-1 overflow-auto bg-navy-950">
         <div className="p-0">
-          <Outlet />
+          <Outlet context={{ sidebarOpen }} />
         </div>
       </main>
     </div>

@@ -41,7 +41,7 @@ export default function EOSDashboard() {
       value: stats?.nextL10Meeting || 'None scheduled',
       icon: Calendar,
       color: 'text-blue-400',
-      onClick: () => navigate('/eos/l10-meetings')
+      onClick: () => navigate('/admin/eos/l10-meetings')
     },
     {
       id: 'scorecard',
@@ -50,7 +50,7 @@ export default function EOSDashboard() {
       subtext: 'metrics on track',
       icon: BarChart3,
       color: 'text-green-400',
-      onClick: () => navigate('/eos/scorecard')
+      onClick: () => navigate('/admin/eos/scorecard')
     },
     {
       id: 'rocks',
@@ -59,7 +59,7 @@ export default function EOSDashboard() {
       subtext: 'on track',
       icon: Target,
       color: 'text-purple-400',
-      onClick: () => navigate('/eos/rocks')
+      onClick: () => navigate('/admin/eos/rocks')
     },
     {
       id: 'issues',
@@ -67,7 +67,7 @@ export default function EOSDashboard() {
       value: stats?.openIssues || 0,
       icon: AlertCircle,
       color: 'text-orange-400',
-      onClick: () => navigate('/eos/issues')
+      onClick: () => navigate('/admin/eos/issues')
     }
   ];
 
@@ -76,49 +76,49 @@ export default function EOSDashboard() {
       title: 'Dashboard',
       description: 'EOS Hub overview',
       icon: BarChart3,
-      path: '/eos/dashboard'
+      path: '/admin/eos/dashboard'
     },
     {
       title: 'Scorecard',
       description: 'Track key metrics',
       icon: CheckSquare,
-      path: '/eos/scorecard'
+      path: '/admin/eos/scorecard'
     },
     {
       title: 'Rocks',
       description: 'Quarterly objectives',
       icon: Target,
-      path: '/eos/rocks'
+      path: '/admin/eos/rocks'
     },
     {
       title: 'Issues',
       description: 'Problems to solve',
       icon: AlertCircle,
-      path: '/eos/issues'
+      path: '/admin/eos/issues'
     },
     {
       title: 'To-Dos',
       description: 'Action items',
       icon: ListTodo,
-      path: '/eos/todos'
+      path: '/admin/eos/todos'
     },
     {
       title: 'Headlines',
       description: 'Weekly updates',
       icon: FileText,
-      path: '/eos/headlines'
+      path: '/admin/eos/headlines'
     },
     {
       title: 'L10 Meetings',
       description: 'Weekly meetings',
       icon: Users,
-      path: '/eos/l10-meetings'
+      path: '/admin/eos/l10-meetings'
     },
     {
       title: 'Accountability Chart',
       description: 'Org structure',
       icon: Users,
-      path: '/eos/accountability-chart'
+      path: '/admin/eos/accountability-chart'
     }
   ];
 
@@ -196,7 +196,7 @@ export default function EOSDashboard() {
                 variant="outline"
                 size="sm"
                 className="w-full mt-4 border-brand-blue text-brand-blue hover:bg-brand-blue hover:text-white"
-                onClick={() => navigate('/eos/todos')}
+                onClick={() => navigate('/admin/eos/todos')}
               >
                 View All
               </Button>
@@ -224,7 +224,7 @@ export default function EOSDashboard() {
                 variant="outline"
                 size="sm"
                 className="w-full mt-4 border-brand-blue text-brand-blue hover:bg-brand-blue hover:text-white"
-                onClick={() => navigate('/eos/headlines')}
+                onClick={() => navigate('/admin/eos/headlines')}
               >
                 View All Headlines
               </Button>
