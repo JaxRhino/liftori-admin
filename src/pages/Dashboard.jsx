@@ -258,7 +258,7 @@ export default function Dashboard() {
       <div className="card mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Project Pipeline</h2>
-          <Link to="/projects" className="text-brand-blue text-sm hover:underline">Manage →</Link>
+          <Link to="/admin/projects" className="text-brand-blue text-sm hover:underline">Manage →</Link>
         </div>
         <div className="flex flex-wrap gap-3">
           {PIPELINE_STATUSES.map(status => {
@@ -287,7 +287,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Recent Signups</h2>
-            <Link to="/waitlist" className="text-brand-blue text-sm hover:underline">View all</Link>
+            <Link to="/admin/waitlist" className="text-brand-blue text-sm hover:underline">View all</Link>
           </div>
           {recentSignups.length === 0 ? (
             <p className="text-gray-500 text-sm">No signups yet</p>
@@ -315,12 +315,12 @@ export default function Dashboard() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Recent Projects</h2>
-            <Link to="/projects" className="text-brand-blue text-sm hover:underline">View all</Link>
+            <Link to="/admin/projects" className="text-brand-blue text-sm hover:underline">View all</Link>
           </div>
           {recentProjects.length === 0 ? (
             <p className="text-gray-500 text-sm">
               No projects yet.{' '}
-              <Link to="/waitlist" className="text-brand-blue hover:underline">Convert a waitlist signup</Link> to get started.
+              <Link to="/admin/waitlist" className="text-brand-blue hover:underline">Convert a waitlist signup</Link> to get started.
             </p>
           ) : (
             <div className="space-y-3">
