@@ -1203,7 +1203,7 @@ export const Chat = () => {
                         setPendingCallTarget({
                           type: 'one_on_one',
                           participantIds: [selectedChannel.other_user_id],
-                          channelId: null
+                          channelId: selectedChannel.id
                         });
                       } else if (selectedChannel) {
                         setPendingCallTarget({

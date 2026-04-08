@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Mic,
   MicOff,
@@ -58,19 +58,24 @@ const VideoCallRoom = () => {
     return () => clearInterval(interval);
   }, [activeCall]);
 
-  // Set local video stream — use callback ref pattern to handle timing
-  // (localStream is set before activeCall, so the video element doesn't exist yet)
-  const setLocalVideoRef = (el) => {
-    localVideoRef.current = el;
-    if (el && localStream) {
-      el.srcObject = localStream;
+  // Stable callback ref — only set srcObject when element or stream actually changes
+  const setLocalVideoRef = useCallback((el) => {
+    if (el && el !== localVideoRef.current) {
+      localVideoRef.current = el;
+      if (localStream) {
+        el.srcObject = localStream;
+      }
+    } else if (!el) {
+      localVideoRef.current = null;
     }
-  };
+  }, [localStream]);
 
-  // Also re-bind if localStream changes after mount
+  // Re-bind if localStream changes after mount
   useEffect(() => {
     if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
+      if (localVideoRef.current.srcObject !== localStream) {
+        localVideoRef.current.srcObject = localStream;
+      }
     }
   }, [localStream]);
 
