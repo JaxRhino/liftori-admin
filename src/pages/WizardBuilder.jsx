@@ -6,13 +6,15 @@ const FLOW_TYPES = [
   { value: 'book', label: 'Book', desc: 'Book Writing App', color: 'amber', steps: 11 },
   { value: 'crm', label: 'CRM', desc: 'CRM Builder', color: 'violet', steps: 9 },
   { value: 'website', label: 'Website', desc: 'Website Builder', color: 'emerald', steps: 9 },
+  { value: 'consulting', label: 'Consulting', desc: 'Business Audit & AI Automation', color: 'rose', steps: 7 },
 ]
 
 const FLOW_COLOR = {
-  standard: { pill: 'bg-blue-500/10 text-blue-400 border-blue-500/20', active: 'bg-blue-600 text-white', badge: 'bg-blue-600/20 border-blue-500/30 text-blue-400' },
-  book:     { pill: 'bg-amber-500/10 text-amber-400 border-amber-500/20', active: 'bg-amber-600 text-white', badge: 'bg-amber-600/20 border-amber-500/30 text-amber-400' },
-  crm:      { pill: 'bg-violet-500/10 text-violet-400 border-violet-500/20', active: 'bg-violet-600 text-white', badge: 'bg-violet-600/20 border-violet-500/30 text-violet-400' },
-  website:  { pill: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', active: 'bg-emerald-600 text-white', badge: 'bg-emerald-600/20 border-emerald-500/30 text-emerald-400' },
+  standard:    { pill: 'bg-blue-500/10 text-blue-400 border-blue-500/20', active: 'bg-blue-600 text-white', badge: 'bg-blue-600/20 border-blue-500/30 text-blue-400' },
+  book:        { pill: 'bg-amber-500/10 text-amber-400 border-amber-500/20', active: 'bg-amber-600 text-white', badge: 'bg-amber-600/20 border-amber-500/30 text-amber-400' },
+  crm:         { pill: 'bg-violet-500/10 text-violet-400 border-violet-500/20', active: 'bg-violet-600 text-white', badge: 'bg-violet-600/20 border-violet-500/30 text-violet-400' },
+  website:     { pill: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', active: 'bg-emerald-600 text-white', badge: 'bg-emerald-600/20 border-emerald-500/30 text-emerald-400' },
+  consulting:  { pill: 'bg-rose-500/10 text-rose-400 border-rose-500/20', active: 'bg-rose-600 text-white', badge: 'bg-rose-600/20 border-rose-500/30 text-rose-400' },
 }
 
 const FIELD_TYPES = [
