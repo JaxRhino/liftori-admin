@@ -2042,7 +2042,7 @@ export const Chat = () => {
                 await videoCall.startCallWithStream(
                   pendingCallTarget.participantIds,
                   pendingCallTarget.channelId,
-                  pendingCallTarget.type,
+                  'video',
                   settings.stream
                 );
               } catch (error) {
