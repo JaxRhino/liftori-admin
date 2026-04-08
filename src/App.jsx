@@ -40,6 +40,7 @@ import PortalSettings from './pages/portal/PortalSettings'
 import PortalMessages from './pages/portal/PortalMessages'
 import PortalDocuments from './pages/portal/PortalDocuments'
 import PortalInvoices from './pages/portal/PortalInvoices'
+import PortalCommissions from './pages/portal/PortalCommissions'
 import PortalWizard from './pages/portal/PortalWizard'
 // Freight AI — BIH Logistics
 import FreightDashboard from './pages/freight/FreightDashboard'
@@ -254,6 +255,7 @@ export default function App() {
             <Route path="messages" element={<PortalMessages />} />
             <Route path="documents" element={<PortalDocuments />} />
             <Route path="invoices" element={<PortalInvoices />} />
+            <Route path="commissions" element={<PortalCommissions />} />
             <Route path="settings" element={<PortalSettings />} />
             <Route path="new-project" element={<PortalWizard />} />
           </Route>
