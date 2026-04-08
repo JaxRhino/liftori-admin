@@ -163,7 +163,11 @@ const VideoCallRoom = () => {
     return null;
   }
 
-  // Get all participants including self
+  // Get all participants including self — filter out current user from remote list
+  // to avoid showing ourselves twice (once as "You" + once from DB participants)
+  const remoteParticipants = participants.filter(
+    (p) => p.peerId !== 'local' && p.peerId !== currentUserId && p.user_id !== currentUserId
+  );
   const allParticipants = [
     {
       peerId: 'local',
@@ -171,7 +175,7 @@ const VideoCallRoom = () => {
       is_self: true,
       media_state: mediaState,
     },
-    ...participants.filter((p) => p.peerId !== 'local'),
+    ...remoteParticipants,
   ];
 
   // Determine which video to show as large (shared screen or first remote)
