@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 
 // DB uses Title Case status values
 const STATUS_COLORS = {
+  'Waitlist':         { bg: 'bg-sky-500/20',     text: 'text-sky-400' },
   'Wizard Complete':  { bg: 'bg-gray-500/20',    text: 'text-gray-400' },
   'Brief Review':     { bg: 'bg-yellow-500/20',  text: 'text-yellow-400' },
   'Design Approval':  { bg: 'bg-purple-500/20',  text: 'text-purple-400' },
@@ -28,6 +29,7 @@ const TIER_LABELS = {
 
 // All pipeline statuses for filter dropdown
 const STATUS_PIPELINE = [
+  'Waitlist',
   'Wizard Complete',
   'Brief Review',
   'Design Approval',

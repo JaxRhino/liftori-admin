@@ -254,7 +254,7 @@ export default function OnboardingWizard() {
           customer_id: uid,
           name: isConsulting ? 'Business Consulting' : `${projectType} Project`,
           project_type: projectType,
-          status: isConsulting ? 'Consultation Scheduled' : 'Wizard Complete',
+          status: 'Waitlist',
           tier: isConsulting ? 'Growth' : budgetTier,
           brief: isConsulting ? formData.consulting_description : formData.product_description,
           features: formData.features,
@@ -420,7 +420,16 @@ export default function OnboardingWizard() {
                 <h1 className="text-4xl font-bold text-white mb-2" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                   LIFTORI
                 </h1>
-                <p className="text-gray-400 mb-8">What can we build for you?</p>
+                <div className="mb-6">
+                  <p className="text-sky-400 font-semibold text-lg mb-1">Get added to the waitlist now!</p>
+                  <p className="text-gray-400 mb-2">We're launching soon — be the first to know.</p>
+                  <div className="inline-flex items-center gap-2 bg-sky-500/10 border border-sky-500/20 rounded-full px-4 py-1.5 text-sky-300 text-sm">
+                    <Sparkles className="h-4 w-4" />
+                    Some may win a free platform, on us!
+                  </div>
+                </div>
+
+                <p className="text-gray-500 text-sm mb-6">Tell us what you're looking for and we'll be in touch with more information.</p>
 
                 <div className="space-y-3">
                   <WizardButton
@@ -1172,20 +1181,27 @@ export default function OnboardingWizard() {
             {/* ═══════════════════════════════════════════════ */}
             {step === STEPS.COMPLETE && (
               <div className="text-center py-6">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <CheckCircle2 className="h-10 w-10 text-green-400" />
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-sky-500/20 flex items-center justify-center">
+                  <Sparkles className="h-10 w-10 text-sky-400" />
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-2">
-                  {formData.path === 'callback' ? 'We\'ll Be in Touch!' : 'You\'re All Set!'}
+                  You're on the Waitlist!
                 </h2>
-                <p className="text-gray-400 mb-6">
+                <p className="text-gray-400 mb-2">
+                  Thanks, {formData.full_name?.split(' ')[0] || 'there'}! We've got your details and you're officially on the list.
+                </p>
+                <p className="text-gray-500 text-sm mb-6">
                   {formData.path === 'consulting'
-                    ? `Your consultation with ${formData.consultant === 'ryan' ? 'Ryan' : 'Mike'} is booked for ${formData.appointment_date} at ${formData.appointment_time}. Check your email for confirmation.`
+                    ? 'One of our consultants will reach out to schedule a conversation with you.'
                     : formData.path === 'callback'
                     ? 'A member of our team will reach out to you shortly.'
-                    : 'Our team is reviewing your project details. We\'ll reach out within 24 hours with next steps and an estimate.'
+                    : 'We\'ll be in touch soon with more information about your project and next steps.'
                   }
                 </p>
+                <div className="inline-flex items-center gap-2 bg-sky-500/10 border border-sky-500/20 rounded-full px-4 py-1.5 text-sky-300 text-sm mb-6">
+                  <Sparkles className="h-4 w-4" />
+                  You could be one of our free platform winners!
+                </div>
                 <div className="space-y-3">
                   <Button
                     className="w-full h-12 bg-sky-500 hover:bg-sky-600 text-white font-semibold"
