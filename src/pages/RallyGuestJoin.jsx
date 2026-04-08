@@ -207,11 +207,11 @@ export default function RallyGuestJoin() {
 
       setActiveCall(call);
 
-      // Add ourselves as a guest participant
+      // Add ourselves as a guest participant (guest_id, not user_id — guests aren't in auth.users)
       const guestId = guestIdRef.current;
       await supabase.from('video_call_participants').insert({
         call_id: call.id,
-        user_id: guestId,
+        guest_id: guestId,
         display_name: guestName.trim(),
         is_audio_on: audioEnabled,
         is_video_on: videoEnabled,
@@ -257,24 +257,28 @@ export default function RallyGuestJoin() {
         table: 'video_call_participants',
         filter: `call_id=eq.${callId}`,
       }, (payload) => {
-        if (payload.eventType === 'INSERT' && payload.new.user_id !== guestId) {
-          // New participant joined — initiate WebRTC
+        if (payload.eventType === 'INSERT') {
+          // Identify the participant — use guest_id if present, otherwise user_id
           const p = payload.new;
+          const peerId = p.guest_id || p.user_id;
+          if (peerId === guestId) return; // Skip our own insert
+
+          // New participant joined — initiate WebRTC
           setParticipants(prev => {
-            if (prev.find(x => x.user_id === p.user_id)) return prev;
-            return [...prev, { user_id: p.user_id, user_name: p.display_name, status: 'connected', role: p.role }];
+            if (prev.find(x => x.peerId === peerId)) return prev;
+            return [...prev, { peerId, user_name: p.display_name, status: 'connected', role: p.role }];
           });
-          initiateConnection(callId, guestId, p.user_id);
+          initiateConnection(callId, guestId, peerId);
         } else if (payload.eventType === 'DELETE') {
-          const userId = payload.old.user_id;
-          setParticipants(prev => prev.filter(x => x.user_id !== userId));
-          if (peerConnections.current[userId]) {
-            peerConnections.current[userId].close();
-            delete peerConnections.current[userId];
+          const peerId = payload.old.guest_id || payload.old.user_id;
+          setParticipants(prev => prev.filter(x => x.peerId !== peerId));
+          if (peerConnections.current[peerId]) {
+            peerConnections.current[peerId].close();
+            delete peerConnections.current[peerId];
           }
           setRemoteStreams(prev => {
             const copy = { ...prev };
-            delete copy[userId];
+            delete copy[peerId];
             return copy;
           });
         }
@@ -395,13 +399,13 @@ export default function RallyGuestJoin() {
     subscriptionsRef.current.forEach(ch => supabase.removeChannel(ch));
     subscriptionsRef.current = [];
 
-    // Remove ourselves from participants
+    // Remove ourselves from participants (use guest_id, not user_id)
     if (activeCall) {
       supabase
         .from('video_call_participants')
         .delete()
         .eq('call_id', activeCall.id)
-        .eq('user_id', guestIdRef.current)
+        .eq('guest_id', guestIdRef.current)
         .then(() => {});
     }
 
@@ -578,10 +582,10 @@ export default function RallyGuestJoin() {
   // ─── RENDER: In call ───
   if (phase === 'in_call') {
     const allParticipants = [
-      { user_id: guestIdRef.current, user_name: guestName, status: 'connected' },
+      { peerId: guestIdRef.current, user_name: guestName, status: 'connected' },
       ...participants,
     ];
-    const remoteParticipants = participants.filter(p => p.user_id !== guestIdRef.current);
+    const remoteParticipants = participants.filter(p => p.peerId !== guestIdRef.current);
     const gridCols =
       allParticipants.length <= 1 ? 'grid-cols-1' :
       allParticipants.length <= 2 ? 'grid-cols-2' :
@@ -642,9 +646,9 @@ export default function RallyGuestJoin() {
 
             {/* Remote participants */}
             {remoteParticipants.map(p => {
-              const stream = remoteStreams[p.user_id];
+              const stream = remoteStreams[p.peerId];
               return (
-                <div key={p.user_id} className="relative bg-slate-800 rounded-xl overflow-hidden aspect-video">
+                <div key={p.peerId} className="relative bg-slate-800 rounded-xl overflow-hidden aspect-video">
                   {stream ? (
                     <video
                       autoPlay

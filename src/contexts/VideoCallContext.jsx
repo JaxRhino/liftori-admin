@@ -203,47 +203,51 @@ export const VideoCallProvider = ({ children }) => {
     });
     subscriptionsRef.current.push(signalChannel);
 
-    // Subscribe to participant changes
+    // Subscribe to participant changes (supports both auth users and guests)
     const participantChannel = videoSvc.subscribeToCallParticipants(callId, (payload) => {
-      if (payload.eventType === 'INSERT' && payload.new.user_id !== user.id) {
-        // New participant joined
+      if (payload.eventType === 'INSERT') {
         const p = payload.new;
+        // Use guest_id for guests, user_id for authenticated users
+        const peerId = p.guest_id || p.user_id;
+        if (peerId === user.id) return; // Skip our own insert
+
         toast.info(`${p.display_name || 'Someone'} joined the call`);
 
         setParticipants(prev => {
-          const exists = prev.find(x => x.user_id === p.user_id);
-          if (exists) return prev.map(x => x.user_id === p.user_id ? { ...x, ...p, status: 'connected' } : x);
-          return [...prev, { ...p, status: 'connected', media_state: { audio_enabled: p.is_audio_on, video_enabled: p.is_video_on } }];
+          const exists = prev.find(x => x.peerId === peerId);
+          if (exists) return prev.map(x => x.peerId === peerId ? { ...x, ...p, peerId, status: 'connected' } : x);
+          return [...prev, { ...p, peerId, status: 'connected', media_state: { audio_enabled: p.is_audio_on, video_enabled: p.is_video_on } }];
         });
 
         // Create offer for new participant
         const stream = localStreamRef.current;
         if (stream) {
-          const pc = createPeerConnection(p.user_id, stream);
+          const pc = createPeerConnection(peerId, stream);
           pc.createOffer().then(offer => {
             pc.setLocalDescription(offer);
-            sendSignalToUser('offer', p.user_id, { sdp: pc.localDescription });
+            sendSignalToUser('offer', peerId, { sdp: pc.localDescription });
           }).catch(err => console.error('Error creating offer:', err));
         }
       } else if (payload.eventType === 'UPDATE') {
         const p = payload.new;
-        if (p.left_at && p.user_id !== user.id) {
+        const peerId = p.guest_id || p.user_id;
+        if (p.left_at && peerId !== user.id) {
           // Participant left
           toast.info(`${p.display_name || 'Someone'} left the call`);
-          setParticipants(prev => prev.filter(x => x.user_id !== p.user_id));
+          setParticipants(prev => prev.filter(x => x.peerId !== peerId));
 
-          if (peerConnections.current[p.user_id]) {
-            peerConnections.current[p.user_id].close();
-            delete peerConnections.current[p.user_id];
+          if (peerConnections.current[peerId]) {
+            peerConnections.current[peerId].close();
+            delete peerConnections.current[peerId];
           }
           setRemoteStreams(prev => {
             const updated = { ...prev };
-            delete updated[p.user_id];
+            delete updated[peerId];
             return updated;
           });
         } else if (!p.left_at) {
           // Media state update
-          setParticipants(prev => prev.map(x => x.user_id === p.user_id ? {
+          setParticipants(prev => prev.map(x => x.peerId === peerId ? {
             ...x,
             media_state: { audio_enabled: p.is_audio_on, video_enabled: p.is_video_on, screen_sharing: p.is_screen_sharing }
           } : x));
