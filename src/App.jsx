@@ -92,6 +92,7 @@ import AutomationsPage from './pages/communications/AutomationsPage'
 import OnboardingWizard from './pages/OnboardingWizard'
 import SupportTickets from './pages/SupportTickets'
 import PortalSupport from './pages/portal/PortalSupport'
+import RallyGuestJoin from './pages/RallyGuestJoin'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -142,6 +143,8 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           {/* Public onboarding wizard — no auth required */}
           <Route path="/onboard" element={<OnboardingWizard />} />
+          {/* Public Rally guest join — no auth required */}
+          <Route path="/rally/join/:code" element={<RallyGuestJoin />} />
 
           {/* Root redirect based on role */}
           <Route path="/" element={

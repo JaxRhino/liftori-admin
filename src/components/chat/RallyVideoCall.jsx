@@ -39,6 +39,7 @@ import {
   TooltipTrigger,
 } from '../ui/tooltip';
 import { cn } from '../../lib/utils';
+import { supabase } from '../../lib/supabase';
 
 // ========================
 // Rally Icon Component
@@ -670,8 +671,9 @@ export const RallyVideoCallWindow = ({
   // Screen share view mode
   const [screenShareMode, setScreenShareMode] = useState(SCREEN_SHARE_MODES.SCREEN_WITH_PARTICIPANTS);
   
-  // Chat State
+  // Chat State — uses Supabase Realtime broadcast for in-call messaging
   const [chatMessages, setChatMessages] = useState([]);
+  const chatChannelRef = useRef(null);
   
   // Position for dragging (when not fullscreen)
   // Default position at bottom-right corner when minimized for better screen interaction
@@ -755,14 +757,48 @@ export const RallyVideoCallWindow = ({
     }
   };
   
+  // ─── In-call chat via Supabase Realtime broadcast ───
+  useEffect(() => {
+    if (!activeCall?.id) return;
+
+    const channel = supabase.channel(`rally-chat-${activeCall.id}`, {
+      config: { broadcast: { self: false } },
+    });
+
+    channel
+      .on('broadcast', { event: 'chat_message' }, (payload) => {
+        setChatMessages(prev => [...prev, payload.payload]);
+      })
+      .subscribe();
+
+    chatChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      chatChannelRef.current = null;
+    };
+  }, [activeCall?.id]);
+
   // Handle send chat message
   const handleSendChatMessage = (text) => {
-    setChatMessages(prev => [...prev, {
-      sender: 'You',
+    const msg = {
+      sender: currentUserName || 'You',
       text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }]);
-    // TODO: Send via Supabase Realtime broadcast channel for in-call chat
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      userId: currentUserId,
+    };
+
+    // Add locally immediately
+    setChatMessages(prev => [...prev, { ...msg, sender: 'You' }]);
+
+    // Broadcast to other participants
+    if (chatChannelRef.current) {
+      chatChannelRef.current.send({
+        type: 'broadcast',
+        event: 'chat_message',
+        payload: msg,
+      });
+    }
   };
   
   // Grid layout classes based on participant count and view mode
