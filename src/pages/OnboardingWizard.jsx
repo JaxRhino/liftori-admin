@@ -309,20 +309,33 @@ export default function OnboardingWizard() {
   const requestCallback = async () => {
     setCallbackRequested(true);
     // If we have contact info, save it immediately
-    if (formData.email) {
+    if (formData.email || formData.phone) {
       try {
+        // Pipe into Call Center — Speed to Lead
+        await supabase.from('cc_speed_to_lead').insert({
+          lead_name: formData.full_name || formData.email || 'Onboarding Callback',
+          phone_number: formData.phone || '',
+          email: formData.email || '',
+          source: 'onboarding_wizard',
+          status: 'new',
+          notes: `Callback requested during onboarding wizard at step: ${step}.\nPath: ${formData.path || 'not yet chosen'}\nCompany: ${formData.company_name || 'N/A'}`,
+          received_at: new Date().toISOString(),
+        });
+
+        // Also save to waitlist for backup tracking
         await supabase.from('waitlist_signups').insert({
           full_name: formData.full_name || 'Callback Request',
           email: formData.email,
           build_idea: 'CALLBACK REQUESTED - Customer wants to speak with a human',
         });
-        // Notify ops
+
+        // Notify ops via email
         await supabase.functions.invoke('welcome-email', {
           body: {
             name: 'Liftori Ops',
             email: 'ryan@liftori.ai',
             subject: `CALLBACK REQUEST: ${formData.full_name || formData.email}`,
-            custom_message: `Customer requested a callback.\n\nName: ${formData.full_name}\nEmail: ${formData.email}\nPhone: ${formData.phone}\nStep: ${step}`,
+            custom_message: `Customer requested a callback.\n\nName: ${formData.full_name}\nEmail: ${formData.email}\nPhone: ${formData.phone}\nStep: ${step}\n\nThis lead has been added to the Call Center queue.`,
           }
         });
       } catch (err) {
