@@ -37,6 +37,27 @@ const ACTIVITY_DOT = {
   orange: 'bg-orange-400',
 }
 
+const TASK_PRIORITIES = {
+  high:   { color: 'text-red-400',   bg: 'bg-red-500/10' },
+  medium: { color: 'text-amber-400', bg: 'bg-amber-500/10' },
+  low:    { color: 'text-slate-400', bg: 'bg-slate-500/10' },
+}
+const TASK_STATUS_DOTS = {
+  todo:        'bg-slate-500',
+  in_progress: 'bg-blue-500',
+  done:        'bg-emerald-500',
+}
+const TASK_STATUS_NEXT = { todo: 'in_progress', in_progress: 'done', done: 'todo' }
+const NOTE_COLOR_DOTS = {
+  default: 'bg-slate-400', blue: 'bg-blue-400', green: 'bg-emerald-400',
+  amber: 'bg-amber-400', red: 'bg-red-400', violet: 'bg-violet-400',
+}
+const CAL_COLOR_DOTS = {
+  blue: 'bg-blue-500', green: 'bg-emerald-500', amber: 'bg-amber-500',
+  red: 'bg-red-500', violet: 'bg-violet-500', slate: 'bg-slate-400',
+}
+const WIDGET_INPUT = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500'
+
 export default function Dashboard() {
   const { user } = useAuth()
   const [eosStats, setEosStats] = useState(null)
@@ -56,6 +77,11 @@ export default function Dashboard() {
   const [activityFeed, setActivityFeed] = useState([])
   const [pipelineCounts, setPipelineCounts] = useState({})
   const [loading, setLoading] = useState(true)
+
+  // Widget state
+  const [widgetTasks, setWidgetTasks] = useState([])
+  const [widgetNotes, setWidgetNotes] = useState([])
+  const [widgetEvents, setWidgetEvents] = useState([])
 
   useEffect(() => {
     fetchDashboardData()
@@ -166,6 +192,20 @@ export default function Dashboard() {
           link: '/chat',
         })),
       ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 20)
+
+      // Fetch widget data (tasks, notes, calendar)
+      const [
+        { data: wTasks },
+        { data: wNotes },
+        { data: wEvents },
+      ] = await Promise.all([
+        supabase.from('admin_tasks').select('*').neq('status', 'done').order('due_date', { ascending: true, nullsFirst: false }).limit(6),
+        supabase.from('admin_notes').select('*').order('pinned', { ascending: false }).order('updated_at', { ascending: false }).limit(5),
+        supabase.from('admin_calendar_events').select('*').gte('start_date', new Date().toISOString().split('T')[0]).order('start_date', { ascending: true }).limit(5),
+      ])
+      setWidgetTasks(wTasks || [])
+      setWidgetNotes(wNotes || [])
+      setWidgetEvents(wEvents || [])
 
       setActivityFeed(feed)
       setStats({
@@ -284,6 +324,13 @@ export default function Dashboard() {
             )
           })}
         </div>
+      </div>
+
+      {/* Tools Row: Tasks | Notes | Calendar */}
+      <div className="grid lg:grid-cols-3 gap-6 mb-6">
+        <TasksWidget tasks={widgetTasks} onRefresh={fetchDashboardData} />
+        <NotesWidget notes={widgetNotes} onRefresh={fetchDashboardData} />
+        <CalendarWidget events={widgetEvents} onRefresh={fetchDashboardData} />
       </div>
 
       {/* EOS Widget */}
@@ -566,5 +613,357 @@ function StatusBadge({ status }) {
     <span className={`badge ${statusColors[status] || 'bg-gray-500/20 text-gray-400'}`}>
       {status}
     </span>
+  )
+}
+
+/* ────────────────────────────────────────
+   DASHBOARD WIDGETS: Tasks, Notes, Calendar
+   ──────────────────────────────────────── */
+
+function TasksWidget({ tasks, onRefresh }) {
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({ title: '', priority: 'medium', due_date: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    if (!form.title.trim()) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('admin_tasks').insert({
+        title: form.title.trim(),
+        status: 'todo',
+        priority: form.priority,
+        due_date: form.due_date || null,
+      })
+      if (error) throw error
+      setForm({ title: '', priority: 'medium', due_date: '' })
+      setAdding(false)
+      onRefresh()
+    } catch (err) { console.error('Add task error:', err) }
+    finally { setSaving(false) }
+  }
+
+  async function cycleStatus(task) {
+    const next = TASK_STATUS_NEXT[task.status] || 'todo'
+    try {
+      await supabase.from('admin_tasks').update({ status: next, updated_at: new Date().toISOString() }).eq('id', task.id)
+      onRefresh()
+    } catch (err) { console.error(err) }
+  }
+
+  function dueLabel(d) {
+    if (!d) return null
+    const today = new Date(new Date().toDateString())
+    const due = new Date(d + 'T00:00:00')
+    const diff = Math.round((due - today) / 86400000)
+    if (diff < 0) return { text: `${Math.abs(diff)}d overdue`, cls: 'text-red-400' }
+    if (diff === 0) return { text: 'Today', cls: 'text-amber-400' }
+    if (diff === 1) return { text: 'Tomorrow', cls: 'text-sky-400' }
+    return { text: due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), cls: 'text-gray-500' }
+  }
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <svg className="w-5 h-5 text-brand-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Tasks
+        </h2>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setAdding(!adding)} className="text-brand-blue text-sm hover:underline">
+            {adding ? 'Cancel' : '+ Add'}
+          </button>
+          <Link to="/admin/tasks" className="text-gray-500 text-sm hover:text-white">View all →</Link>
+        </div>
+      </div>
+
+      {adding && (
+        <form onSubmit={handleAdd} className="mb-4 p-3 bg-navy-800/50 rounded-lg border border-navy-700/50 space-y-2">
+          <input
+            className={WIDGET_INPUT}
+            placeholder="Task title..."
+            value={form.title}
+            onChange={e => setForm({ ...form, title: e.target.value })}
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <select
+              className={WIDGET_INPUT}
+              value={form.priority}
+              onChange={e => setForm({ ...form, priority: e.target.value })}
+            >
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <input
+              type="date"
+              className={WIDGET_INPUT}
+              value={form.due_date}
+              onChange={e => setForm({ ...form, due_date: e.target.value })}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saving || !form.title.trim()}
+            className="w-full bg-brand-blue text-white text-sm py-2 rounded-lg hover:bg-sky-600 disabled:opacity-40 transition-colors"
+          >
+            {saving ? 'Adding...' : 'Add Task'}
+          </button>
+        </form>
+      )}
+
+      {tasks.length === 0 ? (
+        <p className="text-gray-500 text-sm">No open tasks — nice work!</p>
+      ) : (
+        <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+          {tasks.map(t => {
+            const due = dueLabel(t.due_date)
+            const priStyle = TASK_PRIORITIES[t.priority] || TASK_PRIORITIES.medium
+            return (
+              <div key={t.id} className="flex items-center gap-3 py-2 px-2 -mx-2 rounded-lg hover:bg-navy-700/20 transition-colors">
+                <button
+                  onClick={() => cycleStatus(t)}
+                  className={`w-3 h-3 rounded-full flex-shrink-0 ${TASK_STATUS_DOTS[t.status] || 'bg-slate-500'} hover:ring-2 hover:ring-white/20 transition-all`}
+                  title={`Click to change status (${t.status})`}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white truncate">{t.title}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`text-xs ${priStyle.color}`}>{t.priority}</span>
+                    {due && <span className={`text-xs ${due.cls}`}>{due.text}</span>}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NotesWidget({ notes, onRefresh }) {
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({ title: '', body: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    if (!form.title.trim()) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('admin_notes').insert({
+        title: form.title.trim(),
+        body: form.body.trim(),
+        color: 'default',
+        pinned: false,
+        tags: [],
+      })
+      if (error) throw error
+      setForm({ title: '', body: '' })
+      setAdding(false)
+      onRefresh()
+    } catch (err) { console.error('Add note error:', err) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+          </svg>
+          Notes
+        </h2>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setAdding(!adding)} className="text-amber-400 text-sm hover:underline">
+            {adding ? 'Cancel' : '+ Add'}
+          </button>
+          <Link to="/admin/notes" className="text-gray-500 text-sm hover:text-white">View all →</Link>
+        </div>
+      </div>
+
+      {adding && (
+        <form onSubmit={handleAdd} className="mb-4 p-3 bg-navy-800/50 rounded-lg border border-navy-700/50 space-y-2">
+          <input
+            className={WIDGET_INPUT}
+            placeholder="Note title..."
+            value={form.title}
+            onChange={e => setForm({ ...form, title: e.target.value })}
+            autoFocus
+          />
+          <textarea
+            className={WIDGET_INPUT + ' resize-y'}
+            placeholder="Note body (optional)..."
+            rows={2}
+            value={form.body}
+            onChange={e => setForm({ ...form, body: e.target.value })}
+          />
+          <button
+            type="submit"
+            disabled={saving || !form.title.trim()}
+            className="w-full bg-amber-500 text-white text-sm py-2 rounded-lg hover:bg-amber-600 disabled:opacity-40 transition-colors"
+          >
+            {saving ? 'Saving...' : 'Save Note'}
+          </button>
+        </form>
+      )}
+
+      {notes.length === 0 ? (
+        <p className="text-gray-500 text-sm">No notes yet — jot something down!</p>
+      ) : (
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+          {notes.map(n => (
+            <Link
+              key={n.id}
+              to="/admin/notes"
+              className="block p-3 bg-navy-800/50 border border-navy-700/50 rounded-lg hover:border-amber-500/30 transition-colors"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-2 h-2 rounded-full ${NOTE_COLOR_DOTS[n.color] || 'bg-slate-400'}`} />
+                <p className="text-sm font-medium text-white truncate flex-1">{n.title}</p>
+                {n.pinned && <span className="text-xs text-amber-400">📌</span>}
+              </div>
+              {n.body && (
+                <p className="text-xs text-gray-500 line-clamp-2 ml-4">{n.body}</p>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CalendarWidget({ events, onRefresh }) {
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({ title: '', start_date: new Date().toISOString().split('T')[0], start_time: '', all_day: true })
+  const [saving, setSaving] = useState(false)
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    if (!form.title.trim()) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('admin_calendar_events').insert({
+        title: form.title.trim(),
+        start_date: form.start_date,
+        all_day: form.all_day,
+        start_time: form.all_day ? null : form.start_time || null,
+        color: 'blue',
+      })
+      if (error) throw error
+      setForm({ title: '', start_date: new Date().toISOString().split('T')[0], start_time: '', all_day: true })
+      setAdding(false)
+      onRefresh()
+    } catch (err) { console.error('Add event error:', err) }
+    finally { setSaving(false) }
+  }
+
+  function formatEventDate(d) {
+    const today = new Date(new Date().toDateString())
+    const date = new Date(d + 'T00:00:00')
+    const diff = Math.round((date - today) / 86400000)
+    if (diff === 0) return 'Today'
+    if (diff === 1) return 'Tomorrow'
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  }
+
+  function formatTime(t) {
+    if (!t) return 'All day'
+    const [h, m] = t.split(':')
+    const hour = parseInt(h)
+    return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`
+  }
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+          </svg>
+          Calendar
+        </h2>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setAdding(!adding)} className="text-emerald-400 text-sm hover:underline">
+            {adding ? 'Cancel' : '+ Add'}
+          </button>
+          <Link to="/admin/calendar" className="text-gray-500 text-sm hover:text-white">View all →</Link>
+        </div>
+      </div>
+
+      {adding && (
+        <form onSubmit={handleAdd} className="mb-4 p-3 bg-navy-800/50 rounded-lg border border-navy-700/50 space-y-2">
+          <input
+            className={WIDGET_INPUT}
+            placeholder="Event title..."
+            value={form.title}
+            onChange={e => setForm({ ...form, title: e.target.value })}
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <input
+              type="date"
+              className={WIDGET_INPUT}
+              value={form.start_date}
+              onChange={e => setForm({ ...form, start_date: e.target.value })}
+            />
+            {!form.all_day && (
+              <input
+                type="time"
+                className={WIDGET_INPUT}
+                value={form.start_time}
+                onChange={e => setForm({ ...form, start_time: e.target.value })}
+              />
+            )}
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.all_day}
+              onChange={e => setForm({ ...form, all_day: e.target.checked })}
+              className="rounded border-white/10"
+            />
+            All day
+          </label>
+          <button
+            type="submit"
+            disabled={saving || !form.title.trim()}
+            className="w-full bg-emerald-500 text-white text-sm py-2 rounded-lg hover:bg-emerald-600 disabled:opacity-40 transition-colors"
+          >
+            {saving ? 'Adding...' : 'Add Event'}
+          </button>
+        </form>
+      )}
+
+      {events.length === 0 ? (
+        <p className="text-gray-500 text-sm">No upcoming events</p>
+      ) : (
+        <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+          {events.map(ev => (
+            <Link
+              key={ev.id}
+              to="/admin/calendar"
+              className="flex items-center gap-3 py-2 px-2 -mx-2 rounded-lg hover:bg-navy-700/20 transition-colors"
+            >
+              <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${CAL_COLOR_DOTS[ev.color] || 'bg-blue-500'}`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white truncate">{ev.title}</p>
+                <p className="text-xs text-gray-500">
+                  {formatEventDate(ev.start_date)}
+                  {!ev.all_day && ev.start_time ? ` · ${formatTime(ev.start_time)}` : ev.all_day ? ' · All day' : ''}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
