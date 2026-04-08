@@ -277,7 +277,8 @@ export const PreCallSettings = ({ onStart, onCancel, callType = 'video' }) => {
   }, []);
 
   const handleStart = () => {
-    // Don't stop preview stream - pass it to the call
+    // Clear the ref so cleanup doesn't kill the stream we're passing to the call
+    currentStreamRef.current = null;
     onStart({
       stream: previewStream,
       cameraId: selectedCamera,
