@@ -34,6 +34,7 @@ import CallCenter from './pages/CallCenter'
 import InHouseBuilds from './pages/InHouseBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import OpsDashboard from './pages/OpsDashboard'
+import WizardBuilder from './pages/WizardBuilder'
 import PortalProjects from './pages/portal/PortalProjects'
 import PortalSettings from './pages/portal/PortalSettings'
 import PortalMessages from './pages/portal/PortalMessages'
@@ -210,7 +211,7 @@ export default function App() {
             <Route path="marketing/utm-builder" element={<UTMBuilder />} />
             <Route path="marketing/ab-testing" element={<ABTesting />} />
             <Route path="marketing/audience-segments" element={<AudienceSegments />} />
-            <Route path="wizard" element={<ComingSoon />} />
+            <Route path="wizard" element={<WizardBuilder />} />
             <Route path="tasks" element={<ComingSoon />} />
             <Route path="notes" element={<ComingSoon />} />
             <Route path="calendar" element={<ComingSoon />} />
