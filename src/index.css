@@ -8,17 +8,25 @@
   }
 
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-navy-800;
+    background: #0A1628;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-navy-600 rounded-full;
+    background: #334155;
+    border-radius: 5px;
+    border: 2px solid #0A1628;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-navy-500;
+    background: #475569;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: #334155 #0A1628;
   }
 }
 

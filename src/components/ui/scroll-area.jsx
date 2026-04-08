@@ -14,28 +14,10 @@ const ScrollArea = React.forwardRef(
             : 'overflow-x-auto overflow-y-hidden'
         }
         style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'rgb(55, 65, 81) transparent',
+          scrollbarWidth: 'auto',
+          scrollbarColor: '#334155 transparent',
         }}
       >
-        <style>
-          {`
-            ::-webkit-scrollbar {
-              width: 8px;
-              height: 8px;
-            }
-            ::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            ::-webkit-scrollbar-thumb {
-              background: rgb(55, 65, 81);
-              border-radius: 4px;
-            }
-            ::-webkit-scrollbar-thumb:hover {
-              background: rgb(75, 85, 99);
-            }
-          `}
-        </style>
         {children}
       </div>
     </div>
