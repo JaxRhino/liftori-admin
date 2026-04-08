@@ -387,6 +387,7 @@ export const VideoCallProvider = ({ children }) => {
       const fullCall = await videoSvc.getCall(call.id);
       setParticipants((fullCall.video_call_participants || []).map(p => ({
         ...p,
+        peerId: p.guest_id || p.user_id,
         status: 'connected',
         media_state: { audio_enabled: p.is_audio_on, video_enabled: p.is_video_on }
       })));
@@ -418,6 +419,7 @@ export const VideoCallProvider = ({ children }) => {
         .filter(p => !p.left_at)
         .map(p => ({
           ...p,
+          peerId: p.guest_id || p.user_id,
           status: 'connected',
           media_state: { audio_enabled: p.is_audio_on, video_enabled: p.is_video_on }
         })));
