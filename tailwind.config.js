@@ -19,6 +19,15 @@ export default {
           light: '#7DD3FC',
           ice: '#E0F7FF',
           cyan: '#00E5CC'
+        },
+        gray: {
+          300: '#D1D5DB',
+          400: '#A6B1BF',
+          500: '#8E9BAB',
+          600: '#7A8999',
+          700: '#64748B',
+          800: '#475569',
+          900: '#334155',
         }
       },
       fontFamily: {
