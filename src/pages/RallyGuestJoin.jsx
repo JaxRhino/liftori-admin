@@ -122,9 +122,8 @@ export default function RallyGuestJoin() {
 
     return () => {
       cancelled = true;
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-      }
+      // Only stop tracks if we're NOT transitioning into the call
+      // (joining/in_call need the stream alive for WebRTC)
     };
   }, [phase]);
 
