@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { toast } from 'sonner'
 
 export default function NotificationBell() {
   const { user } = useAuth()
@@ -14,6 +15,39 @@ export default function NotificationBell() {
     if (user) fetchNotifications()
   }, [user])
 
+  // Play notification sound
+  const playAlert = useCallback((isRally = false) => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      gain.gain.value = 0.3
+
+      if (isRally) {
+        // Urgent double-chime for Rally calls
+        osc.frequency.value = 880
+        osc.type = 'sine'
+        osc.start(ctx.currentTime)
+        osc.frequency.setValueAtTime(880, ctx.currentTime)
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.15)
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3)
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.45)
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + 0.55)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7)
+        osc.stop(ctx.currentTime + 0.7)
+      } else {
+        // Single soft chime for regular notifications
+        osc.frequency.value = 660
+        osc.type = 'sine'
+        osc.start(ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+        osc.stop(ctx.currentTime + 0.35)
+      }
+    } catch (e) { /* audio context not available */ }
+  }, [])
+
   // Real-time subscription for new notifications
   useEffect(() => {
     if (!user) return
@@ -25,13 +59,34 @@ export default function NotificationBell() {
         table: 'notifications',
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
-        setNotifications(prev => [payload.new, ...prev])
+        const notif = payload.new
+        setNotifications(prev => [notif, ...prev])
         setUnreadCount(prev => prev + 1)
+
+        // Check if this is a Rally notification
+        const isRally = notif.title?.toLowerCase().includes('rally') || notif.link?.includes('rally')
+
+        // Play sound
+        playAlert(isRally)
+
+        // Show toast
+        if (isRally) {
+          toast.warning(notif.title, {
+            description: notif.body,
+            duration: 15000,
+            action: notif.link ? { label: 'Open Rally', onClick: () => { window.location.href = notif.link } } : undefined,
+          })
+        } else {
+          toast(notif.title, {
+            description: notif.body,
+            duration: 5000,
+          })
+        }
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [user])
+  }, [user, playAlert])
 
   // Close dropdown on outside click
   useEffect(() => {
