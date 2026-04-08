@@ -86,6 +86,8 @@ import AudienceSegments from './pages/marketing/AudienceSegments'
 import CommunicationsHub from './pages/communications/CommunicationsHub'
 import ChannelsSettings from './pages/communications/ChannelsSettings'
 import AutomationsPage from './pages/communications/AutomationsPage'
+// Onboarding Wizard — public customer-facing
+import OnboardingWizard from './pages/OnboardingWizard'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -134,6 +136,8 @@ export default function App() {
             <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          {/* Public onboarding wizard — no auth required */}
+          <Route path="/onboard" element={<OnboardingWizard />} />
 
           {/* Root redirect based on role */}
           <Route path="/" element={
