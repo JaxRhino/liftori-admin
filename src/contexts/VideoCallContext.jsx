@@ -132,12 +132,28 @@ export const VideoCallProvider = ({ children }) => {
     return pc;
   }, [sendSignalToUser]);
 
-  // Handle WebRTC offer
+  // Handle WebRTC offer (with glare resolution — both sides may send offers)
   const handleOffer = useCallback(async (signal) => {
     const stream = localStreamRef.current;
     if (!stream) {
       pendingOffersRef.current.push(signal);
       return;
+    }
+
+    // Glare resolution: if we already have a connection with a local offer,
+    // the user with the lower ID yields (accepts the incoming offer instead)
+    const existingPc = peerConnections.current[signal.from_user];
+    if (existingPc && existingPc.signalingState === 'have-local-offer') {
+      // Both sides sent offers — lower ID yields
+      if (user.id > signal.from_user) {
+        // We have higher ID, ignore their offer (they'll accept ours)
+        console.log('Glare: ignoring offer from', signal.from_user, '(we have higher ID)');
+        return;
+      }
+      // We have lower ID — close our connection and accept theirs
+      console.log('Glare: accepting offer from', signal.from_user, '(we have lower ID)');
+      existingPc.close();
+      delete peerConnections.current[signal.from_user];
     }
 
     const pc = createPeerConnection(signal.from_user, stream);
@@ -150,7 +166,7 @@ export const VideoCallProvider = ({ children }) => {
     } catch (error) {
       console.error('Error handling offer:', error);
     }
-  }, [createPeerConnection, sendSignalToUser]);
+  }, [user, createPeerConnection, sendSignalToUser]);
 
   // Process pending offers when stream becomes available
   useEffect(() => {
@@ -223,8 +239,8 @@ export const VideoCallProvider = ({ children }) => {
         const stream = localStreamRef.current;
         if (stream) {
           const pc = createPeerConnection(peerId, stream);
-          pc.createOffer().then(offer => {
-            pc.setLocalDescription(offer);
+          pc.createOffer().then(async (offer) => {
+            await pc.setLocalDescription(offer);
             sendSignalToUser('offer', peerId, { sdp: pc.localDescription });
           }).catch(err => console.error('Error creating offer:', err));
         }
@@ -408,13 +424,32 @@ export const VideoCallProvider = ({ children }) => {
       // Subscribe to Realtime events
       subscribeToCall(sessionId);
 
+      // Initiate WebRTC offers to all existing participants
+      // This avoids the race condition where the host's offer arrives
+      // before our signal subscription is active
+      const existingParticipants = (fullCall.video_call_participants || [])
+        .filter(p => !p.left_at && p.user_id !== user.id);
+
+      for (const p of existingParticipants) {
+        const peerId = p.guest_id || p.user_id;
+        try {
+          const pc = createPeerConnection(peerId, existingStream);
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await sendSignalToUser('offer', peerId, { sdp: pc.localDescription });
+          console.log('Sent offer to existing participant:', peerId);
+        } catch (err) {
+          console.error('Error creating offer for existing participant:', err);
+        }
+      }
+
       return { session: fullCall, participants: fullCall.video_call_participants };
     } catch (error) {
       console.error('Error joining call:', error);
       cleanup();
       throw error;
     }
-  }, [user, cleanup, subscribeToCall]);
+  }, [user, cleanup, subscribeToCall, createPeerConnection, sendSignalToUser]);
 
   // Start call (original method)
   const startCall = useCallback(async (participantIds, channelId = null, callType = 'video') => {
