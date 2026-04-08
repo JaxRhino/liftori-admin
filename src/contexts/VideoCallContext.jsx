@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import { useWS } from './WebSocketContext';
-import axios from 'axios';
+import { supabase } from '../lib/supabase';
+import * as videoSvc from '../lib/videoService';
 import { toast } from 'sonner';
-
-const API_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 // WebRTC Configuration
 const RTC_CONFIG = {
@@ -26,8 +24,7 @@ export const useVideoCallContext = () => {
 };
 
 export const VideoCallProvider = ({ children }) => {
-  const { token, user } = useAuth();
-  const ws = useWS();
+  const { user } = useAuth();
 
   // Call state
   const [activeCall, setActiveCall] = useState(null);
@@ -48,7 +45,8 @@ export const VideoCallProvider = ({ children }) => {
   const activeCallRef = useRef(null);
   const localStreamRef = useRef(null);
   const pollingRef = useRef(null);
-  const pendingOffersRef = useRef([]); // Queue for offers that arrive before stream is ready
+  const pendingOffersRef = useRef([]);
+  const subscriptionsRef = useRef([]);
 
   // Keep refs synced
   useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
@@ -56,7 +54,6 @@ export const VideoCallProvider = ({ children }) => {
 
   // Cleanup function
   const cleanup = useCallback(() => {
-    console.log('🧹 Cleaning up video call');
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
     }
@@ -64,7 +61,11 @@ export const VideoCallProvider = ({ children }) => {
 
     Object.values(peerConnections.current).forEach(pc => pc.close());
     peerConnections.current = {};
-    pendingOffersRef.current = []; // Clear pending offers
+    pendingOffersRef.current = [];
+
+    // Unsubscribe from all Supabase channels
+    subscriptionsRef.current.forEach(ch => supabase.removeChannel(ch));
+    subscriptionsRef.current = [];
 
     setActiveCall(null);
     setParticipants([]);
@@ -73,253 +74,183 @@ export const VideoCallProvider = ({ children }) => {
     setIncomingCall(null);
   }, []);
 
-  // Send WebRTC signal via API
-  const sendSignal = useCallback(async (type, toUserId, data) => {
+  // Send WebRTC signal via Supabase
+  const sendSignalToUser = useCallback(async (type, toUserId, data) => {
     const call = activeCallRef.current;
-    if (!call) return;
+    if (!call || !user) return;
 
     try {
-      console.log(`📤 Sending ${type} signal to ${toUserId}`);
-      await axios.post(`${API_URL}/api/video/calls/${call.id}/signal`, data, {
-        params: { signal_type: type, to_user_id: toUserId },
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await videoSvc.sendSignal(call.id, user.id, toUserId, type, data);
     } catch (error) {
       console.error('Signal error:', error);
     }
-  }, [token]);
+  }, [user]);
 
   // Create peer connection
   const createPeerConnection = useCallback((userId, stream) => {
-    console.log(`🔗 Creating peer connection for: ${userId}`);
-
     if (peerConnections.current[userId]) {
-      console.log('  Closing existing connection');
       peerConnections.current[userId].close();
     }
 
     const pc = new RTCPeerConnection(RTC_CONFIG);
     peerConnections.current[userId] = pc;
 
-    // Add local tracks
     if (stream) {
       stream.getTracks().forEach(track => {
-        console.log(`  Adding ${track.kind} track`);
         pc.addTrack(track, stream);
       });
     }
 
-    // Handle incoming tracks
     pc.ontrack = (event) => {
-      console.log(`📺 Received remote ${event.track.kind} from ${userId}`);
       setRemoteStreams(prev => ({ ...prev, [userId]: event.streams[0] }));
     };
 
-    // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log(`🧊 ICE candidate for ${userId}`);
-        sendSignal('ice-candidate', userId, { candidate: event.candidate });
+        sendSignalToUser('ice-candidate', userId, { candidate: event.candidate });
       }
     };
 
-    // Log connection state
     pc.onconnectionstatechange = () => {
       console.log(`Connection state with ${userId}: ${pc.connectionState}`);
     };
 
-    pc.oniceconnectionstatechange = () => {
-      console.log(`ICE state with ${userId}: ${pc.iceConnectionState}`);
-    };
-
     return pc;
-  }, [sendSignal]);
+  }, [sendSignalToUser]);
 
   // Handle WebRTC offer
-  const handleOffer = useCallback(async (event) => {
+  const handleOffer = useCallback(async (signal) => {
     const stream = localStreamRef.current;
     if (!stream) {
-      console.warn('No local stream yet, queuing offer from', event.from_user_id);
-      pendingOffersRef.current.push(event);
+      pendingOffersRef.current.push(signal);
       return;
     }
 
-    console.log(`📥 Handling offer from ${event.from_user_id}`);
-    const pc = createPeerConnection(event.from_user_id, stream);
+    const pc = createPeerConnection(signal.from_user, stream);
 
     try {
-      await pc.setRemoteDescription(new RTCSessionDescription(event.signal_data.sdp));
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.payload.sdp));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      sendSignal('answer', event.from_user_id, { sdp: pc.localDescription });
-      console.log(`📤 Sent answer to ${event.from_user_id}`);
+      sendSignalToUser('answer', signal.from_user, { sdp: pc.localDescription });
     } catch (error) {
       console.error('Error handling offer:', error);
     }
-  }, [createPeerConnection, sendSignal]);
+  }, [createPeerConnection, sendSignalToUser]);
 
   // Process pending offers when stream becomes available
   useEffect(() => {
     if (localStream && pendingOffersRef.current.length > 0) {
-      console.log(`📥 Processing ${pendingOffersRef.current.length} pending offers`);
       const offersToProcess = [...pendingOffersRef.current];
       pendingOffersRef.current = [];
-      offersToProcess.forEach(event => {
-        handleOffer(event);
-      });
+      offersToProcess.forEach(signal => handleOffer(signal));
     }
   }, [localStream, handleOffer]);
 
   // Handle WebRTC answer
-  const handleAnswer = useCallback(async (event) => {
-    const pc = peerConnections.current[event.from_user_id];
-    if (!pc) {
-      console.warn('No peer connection for answer');
-      return;
-    }
+  const handleAnswer = useCallback(async (signal) => {
+    const pc = peerConnections.current[signal.from_user];
+    if (!pc) return;
 
-    console.log(`📥 Handling answer from ${event.from_user_id}`);
     try {
-      await pc.setRemoteDescription(new RTCSessionDescription(event.signal_data.sdp));
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.payload.sdp));
     } catch (error) {
       console.error('Error handling answer:', error);
     }
   }, []);
 
   // Handle ICE candidate
-  const handleIceCandidate = useCallback(async (event) => {
-    const pc = peerConnections.current[event.from_user_id];
-    if (!pc || !event.signal_data?.candidate) return;
+  const handleIceCandidate = useCallback(async (signal) => {
+    const pc = peerConnections.current[signal.from_user];
+    if (!pc || !signal.payload?.candidate) return;
 
     try {
-      await pc.addIceCandidate(new RTCIceCandidate(event.signal_data.candidate));
+      await pc.addIceCandidate(new RTCIceCandidate(signal.payload.candidate));
     } catch (error) {
       console.error('Error adding ICE candidate:', error);
     }
   }, []);
 
-  // Handle participant joined - create offer for new participant
-  const handleParticipantJoined = useCallback(async (event) => {
-    console.log(`👤 Participant joined: ${event.user_name} (${event.user_id})`);
-    toast.info(`${event.user_name} joined the call`);
-
-    setParticipants(prev => {
-      const exists = prev.find(p => p.user_id === event.user_id);
-      if (exists) {
-        return prev.map(p => p.user_id === event.user_id ? { ...p, status: 'connected', ...event } : p);
+  // Subscribe to Supabase Realtime for active call events
+  const subscribeToCall = useCallback((callId) => {
+    // Subscribe to WebRTC signals for this user
+    const signalChannel = videoSvc.subscribeToSignals(callId, user.id, (signal) => {
+      switch (signal.signal_type) {
+        case 'offer':
+          handleOffer(signal);
+          break;
+        case 'answer':
+          handleAnswer(signal);
+          break;
+        case 'ice-candidate':
+          handleIceCandidate(signal);
+          break;
       }
-      return [...prev, {
-        user_id: event.user_id,
-        user_name: event.user_name,
-        status: 'connected',
-        media_state: event.media_state
-      }];
     });
+    subscriptionsRef.current.push(signalChannel);
 
-    // Create peer connection and send offer
-    const stream = localStreamRef.current;
-    if (stream && activeCallRef.current) {
-      console.log(`Creating offer for new participant ${event.user_id}`);
-      const pc = createPeerConnection(event.user_id, stream);
-      try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        sendSignal('offer', event.user_id, { sdp: pc.localDescription });
-        console.log(`📤 Sent offer to ${event.user_id}`);
-      } catch (error) {
-        console.error('Error creating offer:', error);
-      }
-    }
-  }, [createPeerConnection, sendSignal]);
+    // Subscribe to participant changes
+    const participantChannel = videoSvc.subscribeToCallParticipants(callId, (payload) => {
+      if (payload.eventType === 'INSERT' && payload.new.user_id !== user.id) {
+        // New participant joined
+        const p = payload.new;
+        toast.info(`${p.display_name || 'Someone'} joined the call`);
 
-  // Handle participant left
-  const handleParticipantLeft = useCallback((event) => {
-    console.log(`👤 Participant left: ${event.user_name}`);
-    toast.info(`${event.user_name} left the call`);
+        setParticipants(prev => {
+          const exists = prev.find(x => x.user_id === p.user_id);
+          if (exists) return prev.map(x => x.user_id === p.user_id ? { ...x, ...p, status: 'connected' } : x);
+          return [...prev, { ...p, status: 'connected', media_state: { audio_enabled: p.is_audio_on, video_enabled: p.is_video_on } }];
+        });
 
-    setParticipants(prev => prev.filter(p => p.user_id !== event.user_id));
+        // Create offer for new participant
+        const stream = localStreamRef.current;
+        if (stream) {
+          const pc = createPeerConnection(p.user_id, stream);
+          pc.createOffer().then(offer => {
+            pc.setLocalDescription(offer);
+            sendSignalToUser('offer', p.user_id, { sdp: pc.localDescription });
+          }).catch(err => console.error('Error creating offer:', err));
+        }
+      } else if (payload.eventType === 'UPDATE') {
+        const p = payload.new;
+        if (p.left_at && p.user_id !== user.id) {
+          // Participant left
+          toast.info(`${p.display_name || 'Someone'} left the call`);
+          setParticipants(prev => prev.filter(x => x.user_id !== p.user_id));
 
-    if (peerConnections.current[event.user_id]) {
-      peerConnections.current[event.user_id].close();
-      delete peerConnections.current[event.user_id];
-    }
-
-    setRemoteStreams(prev => {
-      const updated = { ...prev };
-      delete updated[event.user_id];
-      return updated;
-    });
-  }, []);
-
-  // Handle media state changes
-  const handleMediaChanged = useCallback((event) => {
-    setParticipants(prev => prev.map(p => {
-      if (p.user_id === event.user_id) {
-        return {
-          ...p,
-          media_state: {
-            ...p.media_state,
-            audio_enabled: event.audio_enabled ?? p.media_state?.audio_enabled,
-            video_enabled: event.video_enabled ?? p.media_state?.video_enabled,
-            screen_sharing: event.screen_sharing ?? p.media_state?.screen_sharing
+          if (peerConnections.current[p.user_id]) {
+            peerConnections.current[p.user_id].close();
+            delete peerConnections.current[p.user_id];
           }
-        };
-      }
-      return p;
-    }));
-  }, []);
-
-  // Process WebSocket events
-  useEffect(() => {
-    if (!ws.videoCallEvents || ws.videoCallEvents.length === 0) return;
-
-    // Process all pending events
-    const eventsToProcess = [...ws.videoCallEvents];
-    ws.clearVideoCallEvents(); // Clear immediately to prevent duplicate processing
-
-    eventsToProcess.forEach(event => {
-      console.log(`📨 WS Event: ${event.type}`, event);
-
-      switch (event.type) {
-        case 'call:participant_joined':
-          handleParticipantJoined(event);
-          break;
-        case 'call:participant_left':
-          handleParticipantLeft(event);
-          break;
-        case 'call:ended':
-          toast.info('Call ended');
-          cleanup();
-          break;
-        case 'call:media_changed':
-          handleMediaChanged(event);
-          break;
-        case 'webrtc:offer':
-          handleOffer(event);
-          break;
-        case 'webrtc:answer':
-          handleAnswer(event);
-          break;
-        case 'webrtc:ice-candidate':
-          handleIceCandidate(event);
-          break;
-        default:
-          break;
+          setRemoteStreams(prev => {
+            const updated = { ...prev };
+            delete updated[p.user_id];
+            return updated;
+          });
+        } else if (!p.left_at) {
+          // Media state update
+          setParticipants(prev => prev.map(x => x.user_id === p.user_id ? {
+            ...x,
+            media_state: { audio_enabled: p.is_audio_on, video_enabled: p.is_video_on, screen_sharing: p.is_screen_sharing }
+          } : x));
+        }
       }
     });
-  }, [ws.videoCallEvents, ws.clearVideoCallEvents, handleParticipantJoined, handleParticipantLeft, handleOffer, handleAnswer, handleIceCandidate, handleMediaChanged, cleanup]);
+    subscriptionsRef.current.push(participantChannel);
 
-  // Handle incoming call from WebSocket
-  useEffect(() => {
-    if (ws.incomingCall && !activeCall && !incomingCall) {
-      console.log('📞 Incoming call via WebSocket:', ws.incomingCall);
-      setIncomingCall(ws.incomingCall);
-    }
-  }, [ws.incomingCall, activeCall, incomingCall]);
+    // Subscribe to call status changes
+    const statusChannel = videoSvc.subscribeToCallStatus(callId, (call) => {
+      if (call.status === 'ended') {
+        toast.info('Call ended');
+        cleanup();
+      }
+    });
+    subscriptionsRef.current.push(statusChannel);
+  }, [user, handleOffer, handleAnswer, handleIceCandidate, createPeerConnection, sendSignalToUser, cleanup]);
 
-  // Poll for incoming calls (backup)
+  // Poll for incoming calls
   useEffect(() => {
-    if (!token || !user || activeCall) {
+    if (!user || activeCall) {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
@@ -329,40 +260,35 @@ export const VideoCallProvider = ({ children }) => {
 
     const checkForCalls = async () => {
       try {
-        const response = await axios.get(`${API_URL}/api/video/calls/active`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (response.data.incoming_calls?.length > 0 && !incomingCall) {
-          const call = response.data.incoming_calls[0];
-
-          // Only show calls created within the last 60 seconds
-          const createdAt = new Date(call.created_at);
-          const ageSeconds = (Date.now() - createdAt.getTime()) / 1000;
-
+        const calls = await videoSvc.getIncomingCalls(user.id);
+        if (calls.length > 0 && !incomingCall) {
+          const call = calls[0];
+          const ageSeconds = (Date.now() - new Date(call.created_at).getTime()) / 1000;
           if (ageSeconds > 60) return;
 
-          console.log('📞 Incoming call via polling:', call.id);
+          // Find caller name from participants
+          const caller = call.video_call_participants?.find(p => p.user_id === call.created_by);
+
           setIncomingCall({
             session_id: call.id,
             call_type: call.call_type,
-            caller_id: call.initiated_by,
-            caller_name: call.initiated_by_name || 'Unknown',
-            video_enabled: call.settings?.video_enabled ?? true
+            caller_id: call.created_by,
+            caller_name: caller?.display_name || 'Unknown',
+            video_enabled: call.call_type === 'video'
           });
         }
       } catch (error) {
-        // Ignore
+        // Ignore polling errors
       }
     };
 
     checkForCalls();
-    pollingRef.current = setInterval(checkForCalls, 2000);
+    pollingRef.current = setInterval(checkForCalls, 3000);
 
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, [token, user, activeCall, incomingCall]);
+  }, [user, activeCall, incomingCall]);
 
   // Get stored device preferences
   const getStoredDevices = useCallback(() => {
@@ -380,7 +306,6 @@ export const VideoCallProvider = ({ children }) => {
       const { cameraId, microphoneId } = options;
       const storedDevices = getStoredDevices();
 
-      // Build constraints with specific devices if provided
       const videoConstraint = video ? (
         cameraId ? { deviceId: { exact: cameraId } } :
         storedDevices.cameraId ? { deviceId: { ideal: storedDevices.cameraId } } :
@@ -393,14 +318,11 @@ export const VideoCallProvider = ({ children }) => {
         true
       ) : false;
 
-      console.log(`📹 Requesting media with constraints:`, { video: videoConstraint, audio: audioConstraint });
-
       const stream = await navigator.mediaDevices.getUserMedia({
         video: videoConstraint,
         audio: audioConstraint
       });
 
-      console.log('✅ Got media stream, tracks:', stream.getTracks().map(t => `${t.kind}:${t.label}:${t.enabled}`));
       setLocalStream(stream);
       setMediaState({ audioEnabled: audio, videoEnabled: video, screenSharing: false });
       return stream;
@@ -414,166 +336,129 @@ export const VideoCallProvider = ({ children }) => {
   // Start call with existing stream (from PreCallSettings)
   const startCallWithStream = useCallback(async (participantIds, channelId, callType, existingStream) => {
     try {
-      console.log('📞 Starting call with existing stream:', { participantIds, callType });
-
       setLocalStream(existingStream);
       localStreamRef.current = existingStream;
       setMediaState({ audioEnabled: true, videoEnabled: true, screenSharing: false });
 
-      const response = await axios.post(`${API_URL}/api/video/calls`, {
-        call_type: callType,
-        channel_id: channelId,
-        participant_user_ids: participantIds,
-        video_enabled: true,
-        audio_enabled: true
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const call = await videoSvc.createCall({
+        channelId,
+        callType,
+        participants: participantIds,
+      }, user);
 
-      console.log('✅ Call created:', response.data.session.id);
-      setActiveCall(response.data.session);
-      setParticipants(response.data.participants);
+      setActiveCall(call);
 
-      return response.data;
+      // Fetch participants
+      const fullCall = await videoSvc.getCall(call.id);
+      setParticipants((fullCall.video_call_participants || []).map(p => ({
+        ...p,
+        status: 'connected',
+        media_state: { audio_enabled: p.is_audio_on, video_enabled: p.is_video_on }
+      })));
+
+      // Subscribe to Realtime events
+      subscribeToCall(call.id);
+
+      return { session: call, participants: fullCall.video_call_participants };
     } catch (error) {
       console.error('Error starting call:', error);
       cleanup();
       throw error;
     }
-  }, [token, cleanup]);
+  }, [user, cleanup, subscribeToCall]);
 
   // Join call with existing stream (from PreCallSettings)
   const joinCallWithStream = useCallback(async (sessionId, existingStream) => {
     try {
-      console.log('📞 Joining call with existing stream:', sessionId);
-
       setLocalStream(existingStream);
       localStreamRef.current = existingStream;
       setMediaState({ audioEnabled: true, videoEnabled: true, screenSharing: false });
 
-      const response = await axios.post(`${API_URL}/api/video/calls/${sessionId}/join`, {
-        video_enabled: true,
-        audio_enabled: true
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await videoSvc.joinCall(sessionId, user);
 
-      console.log('✅ Joined call');
-      setActiveCall(response.data.session);
-      setParticipants(response.data.participants);
+      const fullCall = await videoSvc.getCall(sessionId);
+      setActiveCall(fullCall);
+      setParticipants((fullCall.video_call_participants || [])
+        .filter(p => !p.left_at)
+        .map(p => ({
+          ...p,
+          status: 'connected',
+          media_state: { audio_enabled: p.is_audio_on, video_enabled: p.is_video_on }
+        })));
       setIncomingCall(null);
-      ws.clearIncomingCall();
 
-      return response.data;
+      // Subscribe to Realtime events
+      subscribeToCall(sessionId);
+
+      return { session: fullCall, participants: fullCall.video_call_participants };
     } catch (error) {
       console.error('Error joining call:', error);
       cleanup();
       throw error;
     }
-  }, [token, cleanup, ws]);
+  }, [user, cleanup, subscribeToCall]);
 
-  // Start call (original method - now uses stored device preferences)
-  const startCall = useCallback(async (participantIds, channelId = null, callType = 'one_on_one') => {
+  // Start call (original method)
+  const startCall = useCallback(async (participantIds, channelId = null, callType = 'video') => {
     try {
-      console.log('📞 Starting call:', { participantIds, callType });
       const stream = await getMedia(true, true);
-
-      const response = await axios.post(`${API_URL}/api/video/calls`, {
-        call_type: callType,
-        channel_id: channelId,
-        participant_user_ids: participantIds,
-        video_enabled: true,
-        audio_enabled: true
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      console.log('✅ Call created:', response.data.session.id);
-      setActiveCall(response.data.session);
-      setParticipants(response.data.participants);
-
-      return response.data;
+      return await startCallWithStream(participantIds, channelId, callType, stream);
     } catch (error) {
       console.error('Error starting call:', error);
       cleanup();
       throw error;
     }
-  }, [token, getMedia, cleanup]);
+  }, [getMedia, startCallWithStream, cleanup]);
 
   // Join call
   const joinCall = useCallback(async (sessionId) => {
     try {
-      console.log('📞 Joining call:', sessionId);
       const stream = await getMedia(true, true);
-
-      const response = await axios.post(`${API_URL}/api/video/calls/${sessionId}/join`, {
-        video_enabled: true,
-        audio_enabled: true
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      console.log('✅ Joined call');
-      setActiveCall(response.data.session);
-      setParticipants(response.data.participants);
-      setIncomingCall(null);
-      ws.clearIncomingCall();
-
-      // The host will send us an offer via WebSocket when they receive the participant_joined event
-      // We just need to be ready to respond
-
-      return response.data;
+      return await joinCallWithStream(sessionId, stream);
     } catch (error) {
       console.error('Error joining call:', error);
       cleanup();
       throw error;
     }
-  }, [token, getMedia, cleanup, ws]);
+  }, [getMedia, joinCallWithStream, cleanup]);
 
   // Leave call
   const leaveCall = useCallback(async () => {
     const call = activeCallRef.current;
-    if (call) {
+    if (call && user) {
       try {
-        await axios.post(`${API_URL}/api/video/calls/${call.id}/leave`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await videoSvc.leaveCall(call.id, user.id);
       } catch (error) {
         console.error('Error leaving call:', error);
       }
     }
     cleanup();
-  }, [token, cleanup]);
+  }, [user, cleanup]);
 
   // End call
   const endCall = useCallback(async () => {
     const call = activeCallRef.current;
     if (call) {
       try {
-        await axios.post(`${API_URL}/api/video/calls/${call.id}/end`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await videoSvc.endCall(call.id);
       } catch (error) {
         console.error('Error ending call:', error);
       }
     }
     cleanup();
-  }, [token, cleanup]);
+  }, [cleanup]);
 
   // Decline call
   const declineCall = useCallback(async () => {
-    if (!incomingCall) return;
+    if (!incomingCall || !user) return;
 
     try {
-      await axios.post(`${API_URL}/api/video/calls/${incomingCall.session_id}/decline`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await videoSvc.declineCall(incomingCall.session_id, user.id);
     } catch (error) {
       console.error('Error declining call:', error);
     }
     setIncomingCall(null);
-    ws.clearIncomingCall();
-  }, [incomingCall, token, ws]);
+  }, [incomingCall, user]);
 
   // Toggle audio
   const toggleAudio = useCallback(async () => {
@@ -586,14 +471,11 @@ export const VideoCallProvider = ({ children }) => {
       setMediaState(prev => ({ ...prev, audioEnabled: track.enabled }));
 
       const call = activeCallRef.current;
-      if (call) {
-        await axios.patch(`${API_URL}/api/video/calls/${call.id}/media`,
-          { audio_enabled: track.enabled },
-          { headers: { Authorization: `Bearer ${token}` } }
-        ).catch(() => {});
+      if (call && user) {
+        videoSvc.updateMediaState(call.id, user.id, { isAudioOn: track.enabled }).catch(() => {});
       }
     }
-  }, [token]);
+  }, [user]);
 
   // Toggle video
   const toggleVideo = useCallback(async () => {
@@ -606,21 +488,17 @@ export const VideoCallProvider = ({ children }) => {
       setMediaState(prev => ({ ...prev, videoEnabled: track.enabled }));
 
       const call = activeCallRef.current;
-      if (call) {
-        await axios.patch(`${API_URL}/api/video/calls/${call.id}/media`,
-          { video_enabled: track.enabled },
-          { headers: { Authorization: `Bearer ${token}` } }
-        ).catch(() => {});
+      if (call && user) {
+        videoSvc.updateMediaState(call.id, user.id, { isVideoOn: track.enabled }).catch(() => {});
       }
     }
-  }, [token]);
+  }, [user]);
 
   // Toggle screen share
   const toggleScreenShare = useCallback(async () => {
     const call = activeCallRef.current;
 
     if (mediaState.screenSharing) {
-      // Stop screen sharing, go back to camera
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         const videoTrack = stream.getVideoTracks()[0];
@@ -636,9 +514,7 @@ export const VideoCallProvider = ({ children }) => {
           currentStream.removeTrack(oldTrack);
           oldTrack.stop();
         }
-        currentStream?.addTrack(videoTrack);
 
-        // Create new MediaStream to trigger React update
         const newStream = new MediaStream([
           ...currentStream.getAudioTracks(),
           videoTrack
@@ -647,12 +523,13 @@ export const VideoCallProvider = ({ children }) => {
         setLocalStream(newStream);
         setMediaState(prev => ({ ...prev, screenSharing: false }));
 
-        console.log('📹 Switched back to camera');
+        if (call && user) {
+          videoSvc.updateMediaState(call.id, user.id, { isScreenSharing: false }).catch(() => {});
+        }
       } catch (error) {
         console.error('Error stopping screen share:', error);
       }
     } else {
-      // Start screen sharing
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         const screenTrack = screenStream.getVideoTracks()[0];
@@ -671,7 +548,6 @@ export const VideoCallProvider = ({ children }) => {
           oldTrack.stop();
         }
 
-        // Create new MediaStream with screen track
         const newStream = new MediaStream([
           ...currentStream.getAudioTracks(),
           screenTrack
@@ -680,21 +556,16 @@ export const VideoCallProvider = ({ children }) => {
         setLocalStream(newStream);
         setMediaState(prev => ({ ...prev, screenSharing: true }));
 
-        if (call) {
-          await axios.patch(`${API_URL}/api/video/calls/${call.id}/media`,
-            { screen_sharing: true },
-            { headers: { Authorization: `Bearer ${token}` } }
-          ).catch(() => {});
+        if (call && user) {
+          videoSvc.updateMediaState(call.id, user.id, { isScreenSharing: true }).catch(() => {});
         }
-
-        console.log('📺 Started screen sharing');
       } catch (error) {
         if (error.name !== 'NotAllowedError') {
           toast.error('Could not start screen sharing');
         }
       }
     }
-  }, [mediaState.screenSharing, token]);
+  }, [mediaState.screenSharing, user]);
 
   const value = {
     activeCall,
@@ -713,6 +584,8 @@ export const VideoCallProvider = ({ children }) => {
     toggleAudio,
     toggleVideo,
     toggleScreenShare,
+    getMedia,
+    getStoredDevices,
     currentUserId: user?.id
   };
 

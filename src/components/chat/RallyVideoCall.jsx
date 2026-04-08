@@ -762,7 +762,7 @@ export const RallyVideoCallWindow = ({
       text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }]);
-    // TODO: Send via WebSocket
+    // TODO: Send via Supabase Realtime broadcast channel for in-call chat
   };
   
   // Grid layout classes based on participant count and view mode

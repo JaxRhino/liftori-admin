@@ -23,11 +23,8 @@ export const WebSocketProvider = ({ children }) => {
   // Get current user ID for filtering own messages
   const currentUserId = user?.id;
 
-  // Video call state
-  const [incomingCall, setIncomingCall] = useState(null);
-  const [videoCallEvents, setVideoCallEvents] = useState([]);
-
   // Handle incoming WebSocket messages
+  // NOTE: Video call events are now handled via Supabase Realtime in VideoCallContext.
   useEffect(() => {
     if (!ws.lastMessage) return;
 
@@ -39,7 +36,6 @@ export const WebSocketProvider = ({ children }) => {
         setMessages(prev => [...prev, data.message]);
 
         // Update unread count if message is not from current user
-        // Only increment if the sender is different from the current user
         if (data.channel_id && data.message?.sender_id !== currentUserId) {
           setUnreadCounts(prev => ({
             ...prev,
@@ -49,7 +45,7 @@ export const WebSocketProvider = ({ children }) => {
         break;
 
       case 'typing':
-        // Update typing status - data.typing_users contains names of all users currently typing in channel
+        // Update typing status
         if (data.channel_id && data.typing_users) {
           setTypingUsers(prev => {
             const updated = { ...prev };
@@ -58,7 +54,6 @@ export const WebSocketProvider = ({ children }) => {
                 typing_users: data.typing_users
               };
             } else {
-              // No one is typing, remove the entry
               delete updated[data.channel_id];
             }
             return updated;
@@ -94,25 +89,6 @@ export const WebSocketProvider = ({ children }) => {
         // Heartbeat response
         break;
 
-      // Video call events
-      case 'incoming_call':
-        setIncomingCall({ type, ...data });
-        break;
-
-      case 'call_declined':
-      case 'call:participant_joined':
-      case 'call:participant_left':
-      case 'call:ended':
-      case 'call:media_changed':
-      case 'call:screen_share_started':
-      case 'call:screen_share_stopped':
-      case 'webrtc:offer':
-      case 'webrtc:answer':
-      case 'webrtc:ice-candidate':
-        // Add to video call events queue for VideoCallWindow to handle
-        setVideoCallEvents(prev => [...prev, { type, ...data }]);
-        break;
-
       default:
         console.log('Unknown WebSocket message type:', type);
     }
@@ -130,21 +106,6 @@ export const WebSocketProvider = ({ children }) => {
     setMessages([]);
   };
 
-  const clearIncomingCall = useCallback(() => {
-    setIncomingCall(null);
-  }, []);
-
-  const consumeVideoCallEvent = useCallback(() => {
-    if (videoCallEvents.length === 0) return null;
-    const [event, ...rest] = videoCallEvents;
-    setVideoCallEvents(rest);
-    return event;
-  }, [videoCallEvents]);
-
-  const clearVideoCallEvents = useCallback(() => {
-    setVideoCallEvents([]);
-  }, []);
-
   const value = {
     ...ws,
     messages,
@@ -152,13 +113,7 @@ export const WebSocketProvider = ({ children }) => {
     onlineUsers,
     unreadCounts,
     clearUnreadCount,
-    clearMessages,
-    // Video call
-    incomingCall,
-    clearIncomingCall,
-    videoCallEvents,
-    consumeVideoCallEvent,
-    clearVideoCallEvents
+    clearMessages
   };
 
   return (

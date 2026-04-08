@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import axios from 'axios';
+import * as videoSvc from '../lib/videoService';
 import {
   Video, Plus, Copy, Trash2, Link2, ExternalLink, Users,
   Clock, RefreshCw, Loader2, Calendar, Shield, CheckCircle2
@@ -36,10 +36,8 @@ import {
 import { toast } from 'sonner';
 import { RallyIcon } from '../components/chat/RallyVideoCall';
 
-const API = import.meta.env.VITE_BACKEND_URL || '';
-
 export default function Rally({ embedded = false }) {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [links, setLinks] = useState([]);
   const [callHistory, setCallHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,25 +50,24 @@ export default function Rally({ embedded = false }) {
   const [maxGuests, setMaxGuests] = useState(10);
   const [creating, setCreating] = useState(false);
 
-  const headers = { Authorization: `Bearer ${token}` };
-
   const fetchLinks = useCallback(async () => {
+    if (!user) return;
     try {
-      const res = await axios.get(`${API}/api/video/rally-links`, { headers });
-      setLinks(res.data.links || []);
+      const data = await videoSvc.getRallyLinks(user.id);
+      setLinks(data);
     } catch (err) {
       console.error('Error fetching rally links:', err);
     }
-  }, [token]);
+  }, [user]);
 
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/api/video/calls?limit=10`, { headers });
-      setCallHistory(res.data.calls || []);
+      const data = await videoSvc.getCallHistory(10);
+      setCallHistory(data);
     } catch (err) {
       console.error('Error fetching call history:', err);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -82,19 +79,18 @@ export default function Rally({ embedded = false }) {
   }, [fetchLinks, fetchHistory]);
 
   const handleCreateLink = async () => {
-    if (!newTitle.trim()) {
+    if (!newTitle.trim() || !user) {
       toast.error('Please enter a meeting title');
       return;
     }
     setCreating(true);
     try {
-      const res = await axios.post(`${API}/api/video/rally-links`, {
-        title: newTitle.trim(),
-        is_recurring: isRecurring,
-        max_guests: maxGuests,
-      }, { headers });
+      const link = await videoSvc.createRallyLink({
+        label: newTitle.trim(),
+        linkType: isRecurring ? 'recurring' : 'one_time',
+        maxGuests,
+      }, user.id);
 
-      const link = res.data.link;
       setLinks(prev => [link, ...prev]);
       setCreateDialogOpen(false);
       setNewTitle('');
@@ -102,7 +98,7 @@ export default function Rally({ embedded = false }) {
       setMaxGuests(10);
 
       // Copy to clipboard
-      const guestUrl = `${window.location.origin}/rally/join/${link.id}`;
+      const guestUrl = `${window.location.origin}/rally/join/${link.code}`;
       await navigator.clipboard?.writeText(guestUrl);
       toast.success('Guest link created and copied!');
     } catch (err) {
@@ -112,17 +108,17 @@ export default function Rally({ embedded = false }) {
     }
   };
 
-  const handleCopyLink = async (linkId) => {
-    const guestUrl = `${window.location.origin}/rally/join/${linkId}`;
+  const handleCopyLink = async (link) => {
+    const guestUrl = `${window.location.origin}/rally/join/${link.code}`;
     await navigator.clipboard?.writeText(guestUrl);
-    setCopiedId(linkId);
+    setCopiedId(link.id);
     toast.success('Link copied!');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleRevokeLink = async (linkId) => {
     try {
-      await axios.delete(`${API}/api/video/rally-links/${linkId}`, { headers });
+      await videoSvc.revokeRallyLink(linkId);
       setLinks(prev => prev.filter(l => l.id !== linkId));
       toast.success('Link revoked');
     } catch (err) {
@@ -212,7 +208,7 @@ export default function Rally({ embedded = false }) {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                        link.status === 'active'
+                        link.is_active
                           ? 'bg-green-500/10 text-green-600'
                           : 'bg-muted text-muted-foreground'
                       }`}>
@@ -220,15 +216,15 @@ export default function Rally({ embedded = false }) {
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-medium truncate">{link.title}</p>
-                          {link.is_recurring && (
+                          <p className="font-medium truncate">{link.label}</p>
+                          {link.link_type === 'recurring' && (
                             <Badge variant="secondary" className="text-xs">
                               <RefreshCw className="h-3 w-3 mr-1" />
                               Recurring
                             </Badge>
                           )}
-                          <Badge variant={link.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                            {link.status}
+                          <Badge variant={link.is_active ? 'default' : 'secondary'} className="text-xs">
+                            {link.is_active ? 'active' : 'revoked'}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
@@ -254,7 +250,7 @@ export default function Rally({ embedded = false }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleCopyLink(link.id)}
+                        onClick={() => handleCopyLink(link)}
                         className="gap-1.5"
                       >
                         {copiedId === link.id ? (
@@ -316,7 +312,7 @@ export default function Rally({ embedded = false }) {
                       </div>
                       <div>
                         <p className="text-sm font-medium">
-                          {call.title || `${call.call_type === 'one_on_one' ? '1:1' : 'Group'} Call`}
+                          {`${call.call_type === 'audio' ? 'Audio' : 'Video'} Call`}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatDate(call.created_at)}
@@ -326,7 +322,7 @@ export default function Rally({ embedded = false }) {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Users className="h-3.5 w-3.5" />
-                        {call.participant_ids?.length || 0}
+                        {call.video_call_participants?.length || 0}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5" />
