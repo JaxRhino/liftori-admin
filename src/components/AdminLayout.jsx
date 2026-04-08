@@ -2,6 +2,8 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import React, { useState, useEffect, useRef } from 'react'
 import NotificationBell from './NotificationBell'
+import IncomingCallModal from './IncomingCallModal'
+import VideoCallRoom from './VideoCallRoom'
 
 const freightNavItems = [
   {
@@ -856,6 +858,10 @@ export default function AdminLayout() {
           <Outlet context={{ sidebarOpen }} />
         </div>
       </main>
+
+      {/* Global video call overlays */}
+      <IncomingCallModal />
+      <VideoCallRoom />
     </div>
   )
 }
