@@ -58,7 +58,16 @@ const VideoCallRoom = () => {
     return () => clearInterval(interval);
   }, [activeCall]);
 
-  // Set local video stream
+  // Set local video stream — use callback ref pattern to handle timing
+  // (localStream is set before activeCall, so the video element doesn't exist yet)
+  const setLocalVideoRef = (el) => {
+    localVideoRef.current = el;
+    if (el && localStream) {
+      el.srcObject = localStream;
+    }
+  };
+
+  // Also re-bind if localStream changes after mount
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
@@ -219,7 +228,7 @@ const VideoCallRoom = () => {
           <div className="flex-1 bg-slate-900 rounded-lg overflow-hidden relative">
             {largeVideoParticipant.is_self ? (
               <video
-                ref={localVideoRef}
+                ref={setLocalVideoRef}
                 autoPlay
                 muted
                 playsInline
@@ -261,7 +270,7 @@ const VideoCallRoom = () => {
                 >
                   {participant.is_self ? (
                     <video
-                      ref={localVideoRef}
+                      ref={setLocalVideoRef}
                       autoPlay
                       muted
                       playsInline
@@ -306,7 +315,7 @@ const VideoCallRoom = () => {
                 >
                   {participant.is_self ? (
                     <video
-                      ref={localVideoRef}
+                      ref={setLocalVideoRef}
                       autoPlay
                       muted
                       playsInline
