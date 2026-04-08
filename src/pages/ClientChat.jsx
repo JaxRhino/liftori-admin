@@ -80,14 +80,39 @@ export default function ClientChat() {
   async function sendMessage() {
     if (!newMessage.trim() || !channel) return
     setSending(true)
+    const msgContent = newMessage.trim()
     try {
       await supabase.from('chat_messages').insert({
         channel_id: channel.id,
         sender_id: user.id,
-        content: newMessage.trim()
+        content: msgContent
       })
       setNewMessage('')
       inputRef.current?.focus()
+
+      // Notify channel members (admins) about new client message
+      try {
+        const { data: members } = await supabase
+          .from('chat_channel_members')
+          .select('user_id')
+          .eq('channel_id', channel.id)
+          .neq('user_id', user.id)
+
+        if (members && members.length > 0) {
+          const senderName = profile?.full_name || user.email || 'Client'
+          const preview = msgContent.length > 80 ? msgContent.substring(0, 80) + '...' : msgContent
+          const notifs = members.map(m => ({
+            user_id: m.user_id,
+            type: 'message',
+            title: `Message from ${senderName}`,
+            body: preview,
+            link: '/admin/chat',
+          }))
+          await supabase.from('notifications').insert(notifs)
+        }
+      } catch (notifErr) {
+        console.error('Notification error:', notifErr)
+      }
     } catch (err) {
       console.error('Send error:', err)
     } finally {

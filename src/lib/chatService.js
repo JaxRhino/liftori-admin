@@ -115,6 +115,65 @@ export async function sendMessage(channelId, { content, attachments = [], thread
     .single()
 
   if (error) throw error
+
+  // ─── Chat Notifications ───────────────────────────────────
+  // Notify all channel members except the sender
+  try {
+    const { data: members } = await supabase
+      .from('chat_channel_members')
+      .select('user_id')
+      .eq('channel_id', channelId)
+      .neq('user_id', user.id)
+
+    if (members && members.length > 0) {
+      // Check for muted channels
+      const memberIds = members.map(m => m.user_id)
+      const { data: prefs } = await supabase
+        .from('chat_user_preferences')
+        .select('user_id, muted_channels')
+        .in('user_id', memberIds)
+
+      const mutedMap = new Map()
+      if (prefs) {
+        prefs.forEach(p => {
+          if (p.muted_channels && p.muted_channels.includes(channelId)) {
+            mutedMap.set(p.user_id, true)
+          }
+        })
+      }
+
+      // Get channel name for notification
+      const { data: channel } = await supabase
+        .from('chat_channels')
+        .select('name, type')
+        .eq('id', channelId)
+        .single()
+
+      const channelLabel = channel?.type === 'direct'
+        ? (profile?.full_name || senderName)
+        : `#${channel?.name || 'chat'}`
+
+      const preview = content.length > 80 ? content.substring(0, 80) + '...' : content
+
+      const notifs = memberIds
+        .filter(id => !mutedMap.get(id))
+        .map(uid => ({
+          user_id: uid,
+          type: 'message',
+          title: `New message in ${channelLabel}`,
+          body: `${profile?.full_name || senderName}: ${preview}`,
+          link: '/admin/chat',
+        }))
+
+      if (notifs.length > 0) {
+        await supabase.from('notifications').insert(notifs)
+      }
+    }
+  } catch (notifErr) {
+    // Don't block message sending if notification fails
+    console.error('Chat notification error:', notifErr)
+  }
+
   return data
 }
 
