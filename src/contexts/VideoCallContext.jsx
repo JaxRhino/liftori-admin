@@ -381,6 +381,7 @@ export const VideoCallProvider = ({ children }) => {
       }, user);
 
       setActiveCall(call);
+      activeCallRef.current = call; // Sync ref immediately (useEffect runs after render)
 
       // Fetch participants
       const fullCall = await videoSvc.getCall(call.id);
@@ -412,6 +413,7 @@ export const VideoCallProvider = ({ children }) => {
 
       const fullCall = await videoSvc.getCall(sessionId);
       setActiveCall(fullCall);
+      activeCallRef.current = fullCall; // Sync ref immediately (useEffect runs after render)
       setParticipants((fullCall.video_call_participants || [])
         .filter(p => !p.left_at)
         .map(p => ({

@@ -187,7 +187,11 @@ const VideoCallRoom = () => {
       peerId: 'local',
       display_name: 'You',
       is_self: true,
-      media_state: mediaState,
+      media_state: {
+        audio_enabled: mediaState.audioEnabled,
+        video_enabled: mediaState.videoEnabled,
+        screen_sharing: mediaState.screenSharing,
+      },
     },
     ...remoteParticipants,
   ];
@@ -229,7 +233,8 @@ const VideoCallRoom = () => {
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
         {/* Video Area */}
         <div className="flex-1 flex flex-col gap-4">
-          {/* Large Video */}
+          {/* Large Video — only show when screen sharing or solo call */}
+          {(screenShareParticipant || allParticipants.length <= 1) && (
           <div className="flex-1 bg-slate-900 rounded-lg overflow-hidden relative">
             {largeVideoParticipant.is_self ? (
               <video
@@ -264,6 +269,7 @@ const VideoCallRoom = () => {
               </div>
             )}
           </div>
+          )}
 
           {/* Small Videos Grid (if screen sharing) */}
           {screenShareParticipant && smallVideoParticipants.length > 0 && (
@@ -302,10 +308,10 @@ const VideoCallRoom = () => {
             </div>
           )}
 
-          {/* Grid Videos (if not screen sharing) */}
+          {/* Grid Videos (if not screen sharing) — primary layout for multi-participant calls */}
           {!screenShareParticipant && allParticipants.length > 1 && (
             <div
-              className={`grid gap-2 ${
+              className={`flex-1 grid gap-4 ${
                 allParticipants.length === 2
                   ? 'grid-cols-2'
                   : allParticipants.length === 3 || allParticipants.length === 4
@@ -316,7 +322,7 @@ const VideoCallRoom = () => {
               {allParticipants.map((participant) => (
                 <div
                   key={participant.peerId}
-                  className="bg-slate-900 rounded-lg overflow-hidden relative aspect-video"
+                  className="bg-slate-900 rounded-lg overflow-hidden relative"
                 >
                   {participant.is_self ? (
                     <video
