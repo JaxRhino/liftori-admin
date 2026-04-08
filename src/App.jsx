@@ -90,6 +90,8 @@ import ChannelsSettings from './pages/communications/ChannelsSettings'
 import AutomationsPage from './pages/communications/AutomationsPage'
 // Onboarding Wizard — public customer-facing
 import OnboardingWizard from './pages/OnboardingWizard'
+import SupportTickets from './pages/SupportTickets'
+import PortalSupport from './pages/portal/PortalSupport'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -229,6 +231,7 @@ export default function App() {
             <Route path="comms" element={<CommunicationsHub />} />
             <Route path="comms/channels" element={<ChannelsSettings />} />
             <Route path="comms/automations" element={<AutomationsPage />} />
+            <Route path="support-tickets" element={<SupportTickets />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
@@ -255,6 +258,7 @@ export default function App() {
             <Route path="messages" element={<PortalMessages />} />
             <Route path="documents" element={<PortalDocuments />} />
             <Route path="invoices" element={<PortalInvoices />} />
+            <Route path="support" element={<PortalSupport />} />
             <Route path="commissions" element={<PortalCommissions />} />
             <Route path="settings" element={<PortalSettings />} />
             <Route path="new-project" element={<PortalWizard />} />
