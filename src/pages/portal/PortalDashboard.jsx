@@ -66,6 +66,7 @@ export default function PortalDashboard() {
 
   function getStatusColor(status) {
     const colors = {
+      'Waitlist': 'bg-sky-500/20 text-sky-400',
       'Wizard Complete': 'bg-gray-500/20 text-gray-400',
       'Brief Review': 'bg-yellow-500/20 text-yellow-400',
       'Design Approval': 'bg-purple-500/20 text-purple-400',

@@ -5,6 +5,7 @@ import { useAuth } from '../lib/AuthContext'
 
 const STATUS_PIPELINE = [
   'New Lead',
+  'Waitlist',
   'Acct Created',
   'Wizard Started',
   'Wizard Complete',
@@ -20,6 +21,7 @@ const STATUS_ALL = [...STATUS_PIPELINE, 'On Hold', 'Cancelled']
 
 const STATUS_COLORS = {
   'New Lead': { bg: 'bg-sky-500/20', text: 'text-sky-400', dot: 'bg-sky-400', ring: 'ring-sky-500/40' },
+  'Waitlist': { bg: 'bg-cyan-500/20', text: 'text-cyan-400', dot: 'bg-cyan-400', ring: 'ring-cyan-500/40' },
   'Acct Created': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', dot: 'bg-indigo-400', ring: 'ring-indigo-500/40' },
   'Wizard Started': { bg: 'bg-violet-500/20', text: 'text-violet-400', dot: 'bg-violet-400', ring: 'ring-violet-500/40' },
   'Wizard Complete': { bg: 'bg-gray-500/20', text: 'text-gray-400', dot: 'bg-gray-400', ring: 'ring-gray-500/40' },
@@ -34,7 +36,8 @@ const STATUS_COLORS = {
 }
 
 const NEXT_STATUS = {
-  'New Lead': 'Acct Created',
+  'New Lead': 'Waitlist',
+  'Waitlist': 'Acct Created',
   'Acct Created': 'Wizard Started',
   'Wizard Started': 'Wizard Complete',
   'Wizard Complete': 'Brief Review',

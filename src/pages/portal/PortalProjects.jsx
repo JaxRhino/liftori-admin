@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/AuthContext'
 
 const statusColors = {
+  'Waitlist': 'bg-sky-500/20 text-sky-400',
   'Wizard Complete': 'bg-yellow-500/20 text-yellow-400',
   'Brief Review': 'bg-blue-500/20 text-blue-400',
   'Design Approval': 'bg-purple-500/20 text-purple-400',
