@@ -777,8 +777,7 @@ export const Chat = () => {
 
   // Reply in thread
   const handleReplyInThread = (message) => {
-    setThreadParentMessage(message);
-    setThreadOpen(true);
+    openThread(message);
   };
 
   // Pin message
