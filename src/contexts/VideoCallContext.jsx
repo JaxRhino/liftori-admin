@@ -450,10 +450,21 @@ export const VideoCallProvider = ({ children }) => {
       return { session: fullCall, participants: fullCall.video_call_participants };
     } catch (error) {
       console.error('Error joining call:', error);
-      cleanup();
+      // Don't call full cleanup() here — it nukes incomingCall which hides the modal
+      // Only clean up what we started (stream, connections)
+      if (existingStream) {
+        existingStream.getTracks().forEach(track => track.stop());
+      }
+      localStreamRef.current = null;
+      setLocalStream(null);
+      Object.values(peerConnections.current).forEach(pc => pc.close());
+      peerConnections.current = {};
+      setActiveCall(null);
+      activeCallRef.current = null;
+      toast.error('Failed to join call. Please try again.');
       throw error;
     }
-  }, [user, cleanup, subscribeToCall, createPeerConnection, sendSignalToUser]);
+  }, [user, subscribeToCall, createPeerConnection, sendSignalToUser]);
 
   // Start call (original method)
   const startCall = useCallback(async (participantIds, channelId = null, callType = 'video') => {
@@ -624,6 +635,62 @@ export const VideoCallProvider = ({ children }) => {
     }
   }, [mediaState.screenSharing, user]);
 
+  // Switch camera or microphone mid-call
+  const switchDevice = useCallback(async (kind, deviceId) => {
+    // kind: 'videoinput' or 'audioinput'
+    const currentStream = localStreamRef.current;
+    if (!currentStream) return;
+
+    try {
+      const constraints = kind === 'videoinput'
+        ? { video: { deviceId: { exact: deviceId } } }
+        : { audio: { deviceId: { exact: deviceId } } };
+
+      const newDeviceStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const newTrack = kind === 'videoinput'
+        ? newDeviceStream.getVideoTracks()[0]
+        : newDeviceStream.getAudioTracks()[0];
+
+      if (!newTrack) return;
+
+      // Replace track in all peer connections
+      const trackKind = kind === 'videoinput' ? 'video' : 'audio';
+      Object.values(peerConnections.current).forEach(pc => {
+        const sender = pc.getSenders().find(s => s.track?.kind === trackKind);
+        if (sender) sender.replaceTrack(newTrack);
+      });
+
+      // Replace track in local stream
+      const oldTrack = kind === 'videoinput'
+        ? currentStream.getVideoTracks()[0]
+        : currentStream.getAudioTracks()[0];
+
+      if (oldTrack) {
+        currentStream.removeTrack(oldTrack);
+        oldTrack.stop();
+      }
+      currentStream.addTrack(newTrack);
+
+      // Update stream refs to trigger re-render
+      const updatedStream = new MediaStream(currentStream.getTracks());
+      localStreamRef.current = updatedStream;
+      setLocalStream(updatedStream);
+
+      // Save preference
+      try {
+        const stored = JSON.parse(localStorage.getItem('videoCallDeviceSettings') || '{}');
+        if (kind === 'videoinput') stored.cameraId = deviceId;
+        else stored.microphoneId = deviceId;
+        localStorage.setItem('videoCallDeviceSettings', JSON.stringify(stored));
+      } catch {}
+
+      toast.success(`${kind === 'videoinput' ? 'Camera' : 'Microphone'} switched`);
+    } catch (error) {
+      console.error('Error switching device:', error);
+      toast.error(`Failed to switch ${kind === 'videoinput' ? 'camera' : 'microphone'}`);
+    }
+  }, []);
+
   const value = {
     activeCall,
     incomingCall,
@@ -641,6 +708,7 @@ export const VideoCallProvider = ({ children }) => {
     toggleAudio,
     toggleVideo,
     toggleScreenShare,
+    switchDevice,
     getMedia,
     getStoredDevices,
     currentUserId: user?.id

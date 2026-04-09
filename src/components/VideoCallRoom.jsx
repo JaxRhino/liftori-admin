@@ -462,7 +462,7 @@ const VideoCallRoom = () => {
       </div>
 
       {/* Bottom Control Bar */}
-      <div className="bg-slate-900/80 border-t border-slate-700 px-6 py-4 flex items-center justify-center gap-4">
+      <div className="relative z-50 bg-slate-900/80 border-t border-slate-700 px-6 py-4 flex items-center justify-center gap-4">
         {/* Mic Toggle + Device Picker */}
         <div className="relative flex items-center" ref={devicePickerOpen === 'mic' ? devicePickerRef : null}>
           <button
@@ -486,7 +486,7 @@ const VideoCallRoom = () => {
 
           {/* Mic Device Picker Dropdown */}
           {devicePickerOpen === 'mic' && (
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 py-1">
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl z-[100] py-1 pointer-events-auto">
               <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Microphone</div>
               {availableDevices.filter(d => d.kind === 'audioinput').map(device => {
                 const isActive = localStream?.getAudioTracks()[0]?.getSettings().deviceId === device.deviceId;
@@ -530,7 +530,7 @@ const VideoCallRoom = () => {
 
           {/* Camera Device Picker Dropdown */}
           {devicePickerOpen === 'camera' && (
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 py-1">
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl z-[100] py-1 pointer-events-auto">
               <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Camera</div>
               {availableDevices.filter(d => d.kind === 'videoinput').map(device => {
                 const isActive = localStream?.getVideoTracks()[0]?.getSettings().deviceId === device.deviceId;
