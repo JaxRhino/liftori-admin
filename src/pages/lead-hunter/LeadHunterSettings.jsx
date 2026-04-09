@@ -88,8 +88,20 @@ export default function LeadHunterSettings() {
       if (data) {
         setSettings(data);
         const sendWindow = data.default_send_window || {};
+        const dbIcp = data.icp_definition || {};
         setFormData({
-          icp_definition: data.icp_definition || formData.icp_definition,
+          icp_definition: {
+            industries: dbIcp.industries || [],
+            employee_ranges: dbIcp.employee_ranges || [],
+            revenue_ranges: dbIcp.revenue_ranges || [],
+            scoring_weights: {
+              icp_fit: 0.25,
+              digital_need: 0.25,
+              budget_signal: 0.25,
+              timing_signal: 0.25,
+              ...(dbIcp.scoring_weights || {})
+            }
+          },
           daily_search_limit: data.daily_search_limit || 100,
           daily_enrichment_limit: data.daily_enrichment_limit || 500,
           daily_email_limit: data.daily_email_limit || 100,
@@ -233,7 +245,8 @@ export default function LeadHunterSettings() {
     });
   };
 
-  const totalWeight = Object.values(formData.icp_definition.scoring_weights).reduce((a, b) => a + b, 0);
+  const scoringWeights = formData.icp_definition?.scoring_weights || {};
+  const totalWeight = Object.values(scoringWeights).reduce((a, b) => a + b, 0);
 
   const toggleIndustry = (industry) => {
     const industries = formData.icp_definition.industries.includes(industry)
@@ -379,7 +392,7 @@ export default function LeadHunterSettings() {
                   </span>
                 </div>
                 <div className="space-y-3">
-                  {Object.entries(formData.icp_definition.scoring_weights).map(([key, value]) => (
+                  {Object.entries(scoringWeights).map(([key, value]) => (
                     <div key={key}>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-gray-400 text-sm">{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</label>
@@ -456,8 +469,8 @@ export default function LeadHunterSettings() {
 
               <div className="bg-slate-700/30 border border-slate-600/30 rounded p-3">
                 <p className="text-gray-400 text-sm mb-1">Current Month Spend</p>
-                <p className="text-white text-lg font-semibold">${(currentMonthSpend / 100).toFixed(2)}</p>
-                <p className="text-gray-500 text-xs mt-1">Remaining: ${((formData.monthly_budget_cents - currentMonthSpend) / 100).toFixed(2)}</p>
+                <p className="text-white text-lg font-semibold">${currentMonthSpend.toFixed(2)}</p>
+                <p className="text-gray-500 text-xs mt-1">Remaining: ${((formData.monthly_budget_cents / 100) - currentMonthSpend).toFixed(2)}</p>
               </div>
             </div>
           </div>
