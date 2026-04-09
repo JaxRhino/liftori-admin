@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { toast } from 'sonner'
 
 export default function NotificationBell() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
@@ -74,7 +76,7 @@ export default function NotificationBell() {
           toast.warning(notif.title, {
             description: notif.body,
             duration: 15000,
-            action: notif.link ? { label: 'Open Rally', onClick: () => { window.location.href = notif.link } } : undefined,
+            action: notif.link ? { label: 'Open Rally', onClick: () => { navigate(notif.link) } } : undefined,
           })
         } else {
           toast(notif.title, {
@@ -143,7 +145,7 @@ export default function NotificationBell() {
 
   function handleClick(notif) {
     if (!notif.read) markAsRead(notif.id)
-    if (notif.link) window.location.href = notif.link
+    if (notif.link) navigate(notif.link)
     setOpen(false)
   }
 

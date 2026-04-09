@@ -45,7 +45,7 @@ export async function createCall({ channelId, callType = 'video', participants =
         type: 'general',
         title: 'Incoming Rally Call',
         body: `${profile?.full_name || 'Someone'} is calling you`,
-        link: '/admin/chat',
+        link: `/admin/chat?callId=${call.id}`,
       }))
     if (notifs.length > 0) {
       await supabase.from('notifications').insert(notifs)

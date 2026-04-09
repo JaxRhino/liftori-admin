@@ -324,6 +324,37 @@ export const VideoCallProvider = ({ children }) => {
     };
   }, [user, activeCall, incomingCall]);
 
+  // Auto-detect incoming call from URL param (e.g. ?callId=xxx from notification link)
+  useEffect(() => {
+    if (!user || activeCall || incomingCall) return;
+    const params = new URLSearchParams(window.location.search);
+    const callId = params.get('callId');
+    if (!callId) return;
+
+    // Clear the param from URL so it doesn't re-trigger
+    const url = new URL(window.location.href);
+    url.searchParams.delete('callId');
+    window.history.replaceState({}, '', url.pathname + url.search);
+
+    // Fetch the call and set it as incoming
+    (async () => {
+      try {
+        const call = await videoSvc.getCall(callId);
+        if (!call || call.status === 'ended') return;
+        const caller = call.video_call_participants?.find(p => p.user_id === call.created_by);
+        setIncomingCall({
+          session_id: call.id,
+          call_type: call.call_type,
+          caller_id: call.created_by,
+          caller_name: caller?.display_name || 'Unknown',
+          video_enabled: call.call_type === 'video'
+        });
+      } catch (err) {
+        console.error('Failed to load call from URL:', err);
+      }
+    })();
+  }, [user, activeCall, incomingCall]);
+
   // Get stored device preferences
   const getStoredDevices = useCallback(() => {
     try {
