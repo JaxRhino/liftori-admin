@@ -48,7 +48,6 @@ const VideoCallRoom = () => {
   const [availableDevices, setAvailableDevices] = useState([]);
   const localVideoRef = useRef(null);
   const fileInputRef = useRef(null);
-  const devicePickerRef = useRef(null);
 
   // Timer effect
   useEffect(() => {
@@ -72,17 +71,7 @@ const VideoCallRoom = () => {
     });
   }, [devicePickerOpen]);
 
-  // Close device picker on outside click
-  useEffect(() => {
-    if (!devicePickerOpen) return;
-    const handleClick = (e) => {
-      if (devicePickerRef.current && !devicePickerRef.current.contains(e.target)) {
-        setDevicePickerOpen(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [devicePickerOpen]);
+  // No outside-click handler needed — using a backdrop overlay instead
 
   // Stable callback ref — only set srcObject when element or stream actually changes
   const setLocalVideoRef = useCallback((el) => {
@@ -463,8 +452,13 @@ const VideoCallRoom = () => {
 
       {/* Bottom Control Bar */}
       <div className="relative z-50 bg-slate-900/80 border-t border-slate-700 px-6 py-4 flex items-center justify-center gap-4">
+        {/* Invisible backdrop to close device picker */}
+        {devicePickerOpen && (
+          <div className="fixed inset-0 z-[90]" onClick={() => setDevicePickerOpen(null)} />
+        )}
+
         {/* Mic Toggle + Device Picker */}
-        <div className="relative flex items-center" ref={devicePickerOpen === 'mic' ? devicePickerRef : null}>
+        <div className="relative flex items-center">
           <button
             onClick={toggleAudio}
             className={`p-3 rounded-l-full transition ${
@@ -477,7 +471,7 @@ const VideoCallRoom = () => {
             {mediaState.audioEnabled ? <Mic size={20} /> : <MicOff size={20} />}
           </button>
           <button
-            onClick={() => setDevicePickerOpen(devicePickerOpen === 'mic' ? null : 'mic')}
+            onClick={(e) => { e.stopPropagation(); setDevicePickerOpen(devicePickerOpen === 'mic' ? null : 'mic'); }}
             className="p-3 pr-2 rounded-r-full bg-slate-800 hover:bg-slate-700 text-white/60 hover:text-white transition border-l border-slate-700"
             title="Select microphone"
           >
@@ -486,15 +480,15 @@ const VideoCallRoom = () => {
 
           {/* Mic Device Picker Dropdown */}
           {devicePickerOpen === 'mic' && (
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl z-[100] py-1 pointer-events-auto">
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl z-[100] py-1">
               <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Microphone</div>
               {availableDevices.filter(d => d.kind === 'audioinput').map(device => {
                 const isActive = localStream?.getAudioTracks()[0]?.getSettings().deviceId === device.deviceId;
                 return (
                   <button
                     key={device.deviceId}
-                    onClick={() => { switchDevice('audioinput', device.deviceId); setDevicePickerOpen(null); }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition truncate ${
+                    onClick={(e) => { e.stopPropagation(); switchDevice('audioinput', device.deviceId); setDevicePickerOpen(null); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition truncate cursor-pointer ${
                       isActive ? 'text-sky-400 font-medium' : 'text-slate-200'
                     }`}
                   >
@@ -508,7 +502,7 @@ const VideoCallRoom = () => {
         </div>
 
         {/* Camera Toggle + Device Picker */}
-        <div className="relative flex items-center" ref={devicePickerOpen === 'camera' ? devicePickerRef : null}>
+        <div className="relative flex items-center">
           <button
             onClick={toggleVideo}
             className={`p-3 rounded-l-full transition ${
@@ -521,7 +515,7 @@ const VideoCallRoom = () => {
             {mediaState.videoEnabled ? <Video size={20} /> : <VideoOff size={20} />}
           </button>
           <button
-            onClick={() => setDevicePickerOpen(devicePickerOpen === 'camera' ? null : 'camera')}
+            onClick={(e) => { e.stopPropagation(); setDevicePickerOpen(devicePickerOpen === 'camera' ? null : 'camera'); }}
             className="p-3 pr-2 rounded-r-full bg-slate-800 hover:bg-slate-700 text-white/60 hover:text-white transition border-l border-slate-700"
             title="Select camera"
           >
@@ -530,15 +524,15 @@ const VideoCallRoom = () => {
 
           {/* Camera Device Picker Dropdown */}
           {devicePickerOpen === 'camera' && (
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl z-[100] py-1 pointer-events-auto">
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl z-[100] py-1">
               <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Camera</div>
               {availableDevices.filter(d => d.kind === 'videoinput').map(device => {
                 const isActive = localStream?.getVideoTracks()[0]?.getSettings().deviceId === device.deviceId;
                 return (
                   <button
                     key={device.deviceId}
-                    onClick={() => { switchDevice('videoinput', device.deviceId); setDevicePickerOpen(null); }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition truncate ${
+                    onClick={(e) => { e.stopPropagation(); switchDevice('videoinput', device.deviceId); setDevicePickerOpen(null); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition truncate cursor-pointer ${
                       isActive ? 'text-sky-400 font-medium' : 'text-slate-200'
                     }`}
                   >
