@@ -448,7 +448,7 @@ export default function LeadHunterDashboard() {
                     <span className="mt-0.5">{getSignalIcon(signal.signal_type)}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white truncate">
-                        {signal.signal_name || 'Signal'}
+                        {signal.title || 'Signal'}
                       </p>
                       <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                         <Clock className="w-3 h-3" />

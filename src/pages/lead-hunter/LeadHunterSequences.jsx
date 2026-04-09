@@ -178,6 +178,66 @@ export default function LeadHunterSequences() {
     }
   };
 
+  const [processing, setProcessing] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  // Process all due steps in a sequence via edge function
+  const handleProcessSequence = async (sequenceId) => {
+    if (processing) return;
+    setProcessing(sequenceId);
+    try {
+      const response = await supabase.functions.invoke('lh-outreach', {
+        body: { action: 'process_sequence', sequence_id: sequenceId }
+      });
+      if (response.error) throw response.error;
+      const result = response.data;
+      showToast(`Processed ${result.processed} enrollment(s), ${result.skipped} waiting on delay`, 'success');
+      // Refresh enrollments for this sequence
+      await fetchEnrollments(sequenceId);
+    } catch (err) {
+      console.error('Process sequence error:', err);
+      showToast(`Error: ${err.message}`, 'error');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  // Execute next step for a single enrollment
+  const handleExecuteStep = async (enrollmentId, sequenceId) => {
+    try {
+      const response = await supabase.functions.invoke('lh-outreach', {
+        body: { action: 'execute_step', enrollment_id: enrollmentId }
+      });
+      if (response.error) throw response.error;
+      const result = response.data;
+      showToast(`Step ${result.step_number}/${result.total_steps} (${result.channel}): ${result.mode || 'executed'}`, 'success');
+      await fetchEnrollments(sequenceId);
+    } catch (err) {
+      console.error('Execute step error:', err);
+      showToast(`Error: ${err.message}`, 'error');
+    }
+  };
+
+  // Unenroll a contact from sequence
+  const handleUnenroll = async (enrollmentId, sequenceId) => {
+    try {
+      const response = await supabase.functions.invoke('lh-outreach', {
+        body: { action: 'unenroll', enrollment_id: enrollmentId }
+      });
+      if (response.error) throw response.error;
+      showToast('Contact unenrolled', 'success');
+      await fetchEnrollments(sequenceId);
+    } catch (err) {
+      console.error('Unenroll error:', err);
+      showToast(`Error: ${err.message}`, 'error');
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -557,13 +617,23 @@ export default function LeadHunterSequences() {
                     </button>
                   )}
                   {sequence.status === 'active' && (
-                    <button
-                      onClick={() => handleStatusChange(sequence.id, 'paused')}
-                      className="flex-1 flex items-center justify-center gap-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 py-2 rounded text-sm transition"
-                    >
-                      <Pause size={14} />
-                      Pause
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleProcessSequence(sequence.id)}
+                        disabled={processing === sequence.id}
+                        className="flex-1 flex items-center justify-center gap-1 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 py-2 rounded text-sm transition disabled:opacity-50"
+                      >
+                        <Play size={14} />
+                        {processing === sequence.id ? 'Processing...' : 'Run Now'}
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange(sequence.id, 'paused')}
+                        className="flex-1 flex items-center justify-center gap-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 py-2 rounded text-sm transition"
+                      >
+                        <Pause size={14} />
+                        Pause
+                      </button>
+                    </>
                   )}
                   {sequence.status !== 'archived' && (
                     <button
@@ -591,9 +661,29 @@ export default function LeadHunterSequences() {
                     ) : (
                       <div className="space-y-2">
                         {enrollments[sequence.id]?.map(enrollment => (
-                          <div key={enrollment.id} className="p-2 bg-slate-700/30 rounded border border-slate-600/30 text-xs">
-                            <p className="text-white font-medium">{enrollment.lh_companies?.name}</p>
-                            <p className="text-gray-400">Status: {enrollment.status} • Step {enrollment.current_step}</p>
+                          <div key={enrollment.id} className="p-2 bg-slate-700/30 rounded border border-slate-600/30 text-xs flex items-center justify-between">
+                            <div>
+                              <p className="text-white font-medium">{enrollment.lh_companies?.name || 'Unknown'}</p>
+                              <p className="text-gray-400">Status: {enrollment.status} • Step {enrollment.current_step || 0}/{sequence.steps?.length || 0}</p>
+                            </div>
+                            {enrollment.status === 'active' && (
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleExecuteStep(enrollment.id, sequence.id)}
+                                  className="px-2 py-1 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 rounded text-xs transition"
+                                  title="Execute next step"
+                                >
+                                  <Play size={12} />
+                                </button>
+                                <button
+                                  onClick={() => handleUnenroll(enrollment.id, sequence.id)}
+                                  className="px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-xs transition"
+                                  title="Unenroll"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -605,6 +695,17 @@ export default function LeadHunterSequences() {
           </div>
         )}
       </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'error' ? 'bg-red-600 text-white' :
+          'bg-sky-600 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

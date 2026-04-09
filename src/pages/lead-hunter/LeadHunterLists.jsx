@@ -127,6 +127,47 @@ export default function LeadHunterLists() {
     }
   };
 
+  const [enrichingList, setEnrichingList] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  // Bulk enrich all companies in a list
+  const handleEnrichList = async (listId) => {
+    const listMembers = members[listId] || [];
+    const companyIds = listMembers
+      .filter(m => m.lh_companies?.id)
+      .map(m => m.lh_companies.id);
+
+    if (companyIds.length === 0) {
+      showToast('No companies in this list to enrich', 'error');
+      return;
+    }
+
+    setEnrichingList(listId);
+    try {
+      // Enrich in batches of 10
+      for (let i = 0; i < companyIds.length; i += 10) {
+        const batch = companyIds.slice(i, i + 10);
+        await supabase.functions.invoke('lh-enrich', {
+          body: { company_ids: batch }
+        });
+        await supabase.functions.invoke('lh-score', {
+          body: { company_ids: batch }
+        });
+      }
+      showToast(`Enriched & scored ${companyIds.length} companies`, 'success');
+    } catch (err) {
+      console.error('List enrich error:', err);
+      showToast(`Error: ${err.message}`, 'error');
+    } finally {
+      setEnrichingList(null);
+    }
+  };
+
   const handleExportCSV = async (listId) => {
     try {
       const listMembers = members[listId] || [];
@@ -378,7 +419,14 @@ export default function LeadHunterLists() {
                         ))
                       )}
                     </div>
-                    <div className="border-t border-slate-700/50 p-4 flex justify-end">
+                    <div className="border-t border-slate-700/50 p-4 flex justify-end gap-2">
+                      <button
+                        onClick={() => handleEnrichList(list.id)}
+                        disabled={enrichingList === list.id}
+                        className="flex items-center gap-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 px-3 py-2 rounded text-sm transition disabled:opacity-50"
+                      >
+                        {enrichingList === list.id ? 'Enriching...' : 'Enrich All'}
+                      </button>
                       <button
                         onClick={() => handleExportCSV(list.id)}
                         className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-gray-300 px-3 py-2 rounded text-sm transition"
@@ -394,6 +442,17 @@ export default function LeadHunterLists() {
           </div>
         )}
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'error' ? 'bg-red-600 text-white' :
+          'bg-sky-600 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

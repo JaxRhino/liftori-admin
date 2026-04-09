@@ -4,11 +4,14 @@ import { supabase } from '../../lib/supabase';
 
 const SIGNAL_ICONS = {
   website_change: TrendingUp,
+  website_down: AlertCircle,
   funding_announcement: Zap,
   job_posting: Target,
+  hiring: Target,
   tech_stack_change: AlertCircle,
   revenue_signal: Heart,
-  partnership_announcement: CheckCircle
+  review_growth: Heart,
+  partnership_announcement: CheckCircle,
 };
 
 export default function LeadHunterSignals() {
@@ -23,6 +26,41 @@ export default function LeadHunterSignals() {
     total: 0,
     byStrength: { low: 0, medium: 0, high: 0, critical: 0 }
   });
+  const [scanning, setScanning] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleRunScan = async () => {
+    if (scanning) return;
+    setScanning(true);
+    try {
+      // Run website scan
+      const scanResult = await supabase.functions.invoke('lh-signals', {
+        body: { action: 'scan_websites', limit: 25 }
+      });
+      if (scanResult.error) throw scanResult.error;
+
+      // Run change detection
+      const changeResult = await supabase.functions.invoke('lh-signals', {
+        body: { action: 'detect_changes', limit: 50 }
+      });
+
+      const totalSignals = (scanResult.data?.signals_created || 0) + (changeResult.data?.signals_created || 0);
+      const totalScanned = (scanResult.data?.scanned || 0) + (changeResult.data?.checked || 0);
+
+      showToast(`Scanned ${totalScanned} companies, found ${totalSignals} new signal(s)`, totalSignals > 0 ? 'success' : 'info');
+      await fetchSignals();
+    } catch (err) {
+      console.error('Signal scan error:', err);
+      showToast(`Scan failed: ${err.message}`, 'error');
+    } finally {
+      setScanning(false);
+    }
+  };
 
   useEffect(() => {
     fetchSignals();
@@ -44,12 +82,12 @@ export default function LeadHunterSignals() {
         query = query.eq('signal_type', filters.signalType);
       }
       if (filters.strength !== 'all') {
-        query = query.eq('strength', filters.strength);
+        query = query.eq('signal_strength', filters.strength);
       }
       if (filters.actioned === 'true') {
-        query = query.eq('actioned', true);
+        query = query.eq('is_actioned', true);
       } else if (filters.actioned === 'false') {
-        query = query.eq('actioned', false);
+        query = query.eq('is_actioned', false);
       }
 
       const { data, error } = await query.order('detected_at', { ascending: false });
@@ -59,10 +97,10 @@ export default function LeadHunterSignals() {
       setSignals(data || []);
 
       // Calculate stats
-      const totalLow = (data || []).filter(s => s.strength === 'low').length;
-      const totalMedium = (data || []).filter(s => s.strength === 'medium').length;
-      const totalHigh = (data || []).filter(s => s.strength === 'high').length;
-      const totalCritical = (data || []).filter(s => s.strength === 'critical').length;
+      const totalLow = (data || []).filter(s => s.signal_strength === 'low').length;
+      const totalMedium = (data || []).filter(s => s.signal_strength === 'medium').length;
+      const totalHigh = (data || []).filter(s => s.signal_strength === 'high').length;
+      const totalCritical = (data || []).filter(s => s.signal_strength === 'critical').length;
 
       setStats({
         total: (data || []).length,
@@ -84,11 +122,11 @@ export default function LeadHunterSignals() {
     try {
       const { error } = await supabase
         .from('lh_signals')
-        .update({ actioned: true, actioned_at: new Date().toISOString() })
+        .update({ is_actioned: true, actioned_at: new Date().toISOString() })
         .eq('id', signalId);
 
       if (error) throw error;
-      setSignals(signals.map(s => s.id === signalId ? { ...s, actioned: true, actioned_at: new Date().toISOString() } : s));
+      setSignals(signals.map(s => s.id === signalId ? { ...s, is_actioned: true, actioned_at: new Date().toISOString() } : s));
     } catch (err) {
       console.error('Error marking signal as actioned:', err);
     }
@@ -144,9 +182,22 @@ export default function LeadHunterSignals() {
     <div className="min-h-screen bg-slate-900 p-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Signal Monitor</h1>
-          <p className="text-gray-400">Intent & trigger signals detected across your prospect database</p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Signal Monitor</h1>
+            <p className="text-gray-400">Intent & trigger signals detected across your prospect database</p>
+          </div>
+          <button
+            onClick={handleRunScan}
+            disabled={scanning}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-800 text-white font-medium rounded-lg transition-colors disabled:cursor-wait"
+          >
+            {scanning ? (
+              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Scanning...</>
+            ) : (
+              <><Zap size={16} /> Run Signal Scan</>
+            )}
+          </button>
         </div>
 
         {/* Stats Bar */}
@@ -231,16 +282,16 @@ export default function LeadHunterSignals() {
                 <div
                   key={signal.id}
                   className={`bg-slate-800/50 border border-slate-700/50 rounded-lg p-4 flex items-start gap-4 hover:border-slate-600/50 transition ${
-                    signal.actioned ? 'opacity-60' : ''
+                    signal.is_actioned ? 'opacity-60' : ''
                   }`}
                 >
                   {/* Icon & Strength */}
                   <div className="flex flex-col items-center gap-2 pt-1 flex-shrink-0">
-                    <div className={`p-2 rounded-lg ${getStrengthColor(signal.strength)}`}>
+                    <div className={`p-2 rounded-lg ${getStrengthColor(signal.signal_strength)}`}>
                       <Icon size={18} />
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-semibold border ${getStrengthColor(signal.strength)}`}>
-                      {signal.strength.charAt(0).toUpperCase() + signal.strength.slice(1)}
+                    <span className={`px-2 py-1 rounded text-xs font-semibold border ${getStrengthColor(signal.signal_strength)}`}>
+                      {signal.signal_strength.charAt(0).toUpperCase() + signal.signal_strength.slice(1)}
                     </span>
                   </div>
 
@@ -249,7 +300,7 @@ export default function LeadHunterSignals() {
                     <div className="mb-1">
                       <h3 className="text-white font-semibold">{signal.lh_companies?.name}</h3>
                       <p className="text-sky-400 text-sm hover:underline cursor-pointer">
-                        {signal.signal_title}
+                        {signal.title}
                       </p>
                     </div>
                     {signal.description && (
@@ -259,7 +310,7 @@ export default function LeadHunterSignals() {
                       <span>{signal.lh_companies?.industry}</span>
                       <span>•</span>
                       <span>{formatRelativeTime(signal.detected_at)}</span>
-                      {signal.actioned && (
+                      {signal.is_actioned && (
                         <>
                           <span>•</span>
                           <span className="text-green-400">Actioned</span>
@@ -270,7 +321,7 @@ export default function LeadHunterSignals() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {!signal.actioned && (
+                    {!signal.is_actioned && (
                       <button
                         onClick={() => handleMarkActioned(signal.id)}
                         className="px-3 py-1 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 rounded text-xs font-medium transition"
@@ -293,6 +344,17 @@ export default function LeadHunterSignals() {
           </div>
         )}
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'error' ? 'bg-red-600 text-white' :
+          'bg-sky-600 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

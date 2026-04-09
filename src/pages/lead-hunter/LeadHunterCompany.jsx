@@ -55,8 +55,8 @@ export default function LeadHunterCompany() {
   const [newTag, setNewTag] = useState('');
   const [showAddSignal, setShowAddSignal] = useState(false);
   const [newSignal, setNewSignal] = useState({
-    type: 'website_change',
-    strength: 'medium',
+    signal_type: 'website_change',
+    signal_strength: 'medium',
     title: '',
     description: '',
     source_url: '',
@@ -272,8 +272,8 @@ export default function LeadHunterCompany() {
       setSignals(data || []);
       setShowAddSignal(false);
       setNewSignal({
-        type: 'website_change',
-        strength: 'medium',
+        signal_type: 'website_change',
+        signal_strength: 'medium',
         title: '',
         description: '',
         source_url: '',
@@ -875,14 +875,14 @@ function SignalsTab({ signals, onAddClick, formatDate }) {
           <div key={signal.id} className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-lg">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-start gap-3">
-                <div className="mt-1 text-slate-400">{getSignalIcon(signal.type)}</div>
+                <div className="mt-1 text-slate-400">{getSignalIcon(signal.signal_type)}</div>
                 <div className="flex-1">
                   <h3 className="font-medium">{signal.title}</h3>
                   <p className="text-sm text-slate-400">{signal.description}</p>
                 </div>
               </div>
-              <span className={`px-2 py-1 text-xs rounded border whitespace-nowrap ${getStrengthBadge(signal.strength)}`}>
-                {signal.strength}
+              <span className={`px-2 py-1 text-xs rounded border whitespace-nowrap ${getStrengthBadge(signal.signal_strength)}`}>
+                {signal.signal_strength}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs text-slate-400">
@@ -1154,8 +1154,8 @@ function AddSignalModal({ signal, onChange, onSave, onClose }) {
 
         <div className="space-y-4">
           <select
-            value={signal.type}
-            onChange={(e) => onChange({ ...signal, type: e.target.value })}
+            value={signal.signal_type}
+            onChange={(e) => onChange({ ...signal, signal_type: e.target.value })}
             className="w-full bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500/50"
           >
             <option value="website_change">Website Change</option>
@@ -1180,13 +1180,14 @@ function AddSignalModal({ signal, onChange, onSave, onClose }) {
           />
 
           <select
-            value={signal.strength}
-            onChange={(e) => onChange({ ...signal, strength: e.target.value })}
+            value={signal.signal_strength}
+            onChange={(e) => onChange({ ...signal, signal_strength: e.target.value })}
             className="w-full bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500/50"
           >
-            <option value="weak">Weak</option>
+            <option value="low">Low</option>
             <option value="medium">Medium</option>
-            <option value="strong">Strong</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
           </select>
 
           <input
