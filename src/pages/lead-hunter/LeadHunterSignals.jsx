@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertCircle, TrendingUp, Zap, Target, Heart, CheckCircle, ExternalLink, Filter } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenantId } from '../../lib/useTenantId';
+import { useToast } from '../../lib/useToast';
 
 const SIGNAL_ICONS = {
   website_change: TrendingUp,
@@ -29,14 +30,9 @@ export default function LeadHunterSignals() {
     byStrength: { low: 0, medium: 0, high: 0, critical: 0 }
   });
   const [scanning, setScanning] = useState(false);
-  const [toast, setToast] = useState(null);
+  const { showToast, ToastContainer } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
   const signalsPerPage = 25;
-
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
 
   const handleRunScan = async () => {
     if (scanning) return;
@@ -103,19 +99,15 @@ export default function LeadHunterSignals() {
 
       setSignals(data || []);
 
-      // Calculate stats from the full count
-      const totalLow = (data || []).filter(s => s.signal_strength === 'low').length;
-      const totalMedium = (data || []).filter(s => s.signal_strength === 'medium').length;
-      const totalHigh = (data || []).filter(s => s.signal_strength === 'high').length;
-      const totalCritical = (data || []).filter(s => s.signal_strength === 'critical').length;
-
+      // Stats: total from count, breakdowns from page data (approximate on page)
+      const pageData = data || [];
       setStats({
         total: count || 0,
         byStrength: {
-          low: totalLow,
-          medium: totalMedium,
-          high: totalHigh,
-          critical: totalCritical
+          low: pageData.filter(s => s.signal_strength === 'low').length,
+          medium: pageData.filter(s => s.signal_strength === 'medium').length,
+          high: pageData.filter(s => s.signal_strength === 'high').length,
+          critical: pageData.filter(s => s.signal_strength === 'critical').length
         }
       });
     } catch (err) {
@@ -380,16 +372,7 @@ export default function LeadHunterSignals() {
         </div>
       )}
 
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
-          toast.type === 'success' ? 'bg-emerald-600 text-white' :
-          toast.type === 'error' ? 'bg-red-600 text-white' :
-          'bg-sky-600 text-white'
-        }`}>
-          {toast.message}
-        </div>
-      )}
+      <ToastContainer />
     </div>
   );
 }

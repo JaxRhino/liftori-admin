@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Play, Pause, Archive, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenantId } from '../../lib/useTenantId';
+import { useToast } from '../../lib/useToast';
 
 export default function LeadHunterSequences() {
   const { tenantId, tenantFilter } = useTenantId();
@@ -153,10 +154,9 @@ export default function LeadHunterSequences() {
 
   const handleStatusChange = async (sequenceId, newStatus) => {
     try {
-      const { error } = await supabase
-        .from('lh_sequences')
-        .update({ status: newStatus })
-        .eq('id', sequenceId);
+      const { error } = await tenantFilter(
+        supabase.from('lh_sequences').update({ status: newStatus }).eq('id', sequenceId)
+      );
 
       if (error) throw error;
       setSequences(sequences.map(s => s.id === sequenceId ? { ...s, status: newStatus } : s));
@@ -168,10 +168,9 @@ export default function LeadHunterSequences() {
   const handleDeleteSequence = async (sequenceId) => {
     if (!confirm('Are you sure? This will delete the sequence and all enrollments.')) return;
     try {
-      const { error } = await supabase
-        .from('lh_sequences')
-        .delete()
-        .eq('id', sequenceId);
+      const { error } = await tenantFilter(
+        supabase.from('lh_sequences').delete().eq('id', sequenceId)
+      );
 
       if (error) throw error;
       setSequences(sequences.filter(s => s.id !== sequenceId));
@@ -181,12 +180,7 @@ export default function LeadHunterSequences() {
   };
 
   const [processing, setProcessing] = useState(null);
-  const [toast, setToast] = useState(null);
-
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
+  const { showToast, ToastContainer } = useToast();
 
   // Process all due steps in a sequence via edge function
   const handleProcessSequence = async (sequenceId) => {
@@ -699,15 +693,7 @@ export default function LeadHunterSequences() {
       </div>
 
       {/* Toast Notification */}
-      {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
-          toast.type === 'success' ? 'bg-emerald-600 text-white' :
-          toast.type === 'error' ? 'bg-red-600 text-white' :
-          'bg-sky-600 text-white'
-        }`}>
-          {toast.message}
-        </div>
-      )}
+      <ToastContainer />
     </div>
   );
 }

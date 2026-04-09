@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ChevronDown, Plus, Trash2, ArrowRight, Download } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenantId } from '../../lib/useTenantId';
+import { useToast } from '../../lib/useToast';
 
 export default function LeadHunterLists() {
   const { tenantId, tenantFilter } = useTenantId();
@@ -97,10 +98,9 @@ export default function LeadHunterLists() {
     if (memberIds.length === 0) return;
 
     try {
-      const { error } = await supabase
-        .from('lh_list_members')
-        .delete()
-        .in('id', memberIds);
+      const { error } = await tenantFilter(
+        supabase.from('lh_list_members').delete().in('id', memberIds)
+      );
 
       if (error) throw error;
       setSelectedMembers({});
@@ -115,10 +115,9 @@ export default function LeadHunterLists() {
     if (memberIds.length === 0) return;
 
     try {
-      const { error } = await supabase
-        .from('lh_list_members')
-        .update({ list_id: toListId })
-        .in('id', memberIds);
+      const { error } = await tenantFilter(
+        supabase.from('lh_list_members').update({ list_id: toListId }).in('id', memberIds)
+      );
 
       if (error) throw error;
       setSelectedMembers({});
@@ -130,12 +129,7 @@ export default function LeadHunterLists() {
   };
 
   const [enrichingList, setEnrichingList] = useState(null);
-  const [toast, setToast] = useState(null);
-
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
+  const { showToast, ToastContainer } = useToast();
 
   // Bulk enrich all companies in a list
   const handleEnrichList = async (listId) => {
@@ -154,12 +148,15 @@ export default function LeadHunterLists() {
       // Enrich in batches of 10
       for (let i = 0; i < companyIds.length; i += 10) {
         const batch = companyIds.slice(i, i + 10);
-        await supabase.functions.invoke('lh-enrich', {
+        const enrichResult = await supabase.functions.invoke('lh-enrich', {
           body: { company_ids: batch, tenant_id: tenantId }
         });
-        await supabase.functions.invoke('lh-score', {
+        if (enrichResult.error) throw enrichResult.error;
+
+        const scoreResult = await supabase.functions.invoke('lh-score', {
           body: { company_ids: batch, tenant_id: tenantId }
         });
+        if (scoreResult.error) throw scoreResult.error;
       }
       showToast(`Enriched & scored ${companyIds.length} companies`, 'success');
     } catch (err) {
@@ -446,15 +443,7 @@ export default function LeadHunterLists() {
       </div>
 
       {/* Toast */}
-      {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
-          toast.type === 'success' ? 'bg-emerald-600 text-white' :
-          toast.type === 'error' ? 'bg-red-600 text-white' :
-          'bg-sky-600 text-white'
-        }`}>
-          {toast.message}
-        </div>
-      )}
+      <ToastContainer />
     </div>
   );
 }

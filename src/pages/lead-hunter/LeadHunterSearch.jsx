@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useTenantId } from '../../lib/useTenantId'
+import { useToast } from '../../lib/useToast'
 
 // Score badge colors
 function ScoreBadge({ score }) {
@@ -247,15 +248,10 @@ export default function LeadHunterSearch() {
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [filterExpanded, setFilterExpanded] = useState(true)
   const [discoveryCount, setDiscoveryCount] = useState(null)
-  const [toast, setToast] = useState(null)
+  const { showToast, ToastContainer } = useToast()
 
   const resultsPerPage = 25
   const totalPages = Math.ceil(totalCount / resultsPerPage)
-
-  function showToast(message, type = 'info') {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 4000)
-  }
 
   function handleFilterChange(field, value) {
     setFilters(prev => ({ ...prev, [field]: value }))
@@ -477,12 +473,18 @@ export default function LeadHunterSearch() {
         const enrichResponse = await supabase.functions.invoke('lh-enrich', {
           body: { company_ids: batch, tenant_id: tenantId }
         })
-        if (enrichResponse.error) console.error('Batch enrich error:', enrichResponse.error)
+        if (enrichResponse.error) {
+          console.error('Batch enrich error:', enrichResponse.error)
+          showToast(`Batch ${Math.floor(i / 10) + 1} enrich failed: ${enrichResponse.error.message}`, 'error')
+        }
 
         const scoreResponse = await supabase.functions.invoke('lh-score', {
           body: { company_ids: batch, tenant_id: tenantId }
         })
-        if (scoreResponse.error) console.error('Batch score error:', scoreResponse.error)
+        if (scoreResponse.error) {
+          console.error('Batch score error:', scoreResponse.error)
+          showToast(`Batch ${Math.floor(i / 10) + 1} score failed: ${scoreResponse.error.message}`, 'error')
+        }
       }
 
       // Refresh all enriched companies
@@ -982,15 +984,7 @@ export default function LeadHunterSearch() {
       )}
 
       {/* Toast Notification */}
-      {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
-          toast.type === 'success' ? 'bg-emerald-600 text-white' :
-          toast.type === 'error' ? 'bg-red-600 text-white' :
-          'bg-sky-600 text-white'
-        }`}>
-          {toast.message}
-        </div>
-      )}
+      <ToastContainer />
     </div>
   )
 }

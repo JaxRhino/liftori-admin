@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenantId } from '../../lib/useTenantId';
+import { useToast } from '../../lib/useToast';
 import {
   ArrowLeft,
   ExternalLink,
@@ -27,6 +28,7 @@ export default function LeadHunterCompany() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { tenantId } = useTenantId();
+  const { showToast, ToastContainer } = useToast();
 
   // State management
   const [company, setCompany] = useState(null);
@@ -166,7 +168,7 @@ export default function LeadHunterCompany() {
       setCompany({ ...company, notes: editingNotes });
       setShowNotes(false);
     } catch (err) {
-      alert('Error saving notes: ' + err.message);
+      showToast('Error saving notes: ' + err.message, 'error');
     } finally {
       setNotesSaving(false);
     }
@@ -186,7 +188,7 @@ export default function LeadHunterCompany() {
       setTags(updatedTags);
       setNewTag('');
     } catch (err) {
-      alert('Error adding tag: ' + err.message);
+      showToast('Error adding tag: ' + err.message, 'error');
     }
   };
 
@@ -202,14 +204,14 @@ export default function LeadHunterCompany() {
       if (error) throw error;
       setTags(updatedTags);
     } catch (err) {
-      alert('Error removing tag: ' + err.message);
+      showToast('Error removing tag: ' + err.message, 'error');
     }
   };
 
   // Add contact
   const addContact = async () => {
     if (!newContact.email || !newContact.first_name) {
-      alert('Please fill in at least name and email');
+      showToast('Please fill in at least name and email', 'error');
       return;
     }
 
@@ -243,14 +245,14 @@ export default function LeadHunterCompany() {
         linkedin_url: '',
       });
     } catch (err) {
-      alert('Error adding contact: ' + err.message);
+      showToast('Error adding contact: ' + err.message, 'error');
     }
   };
 
   // Add signal
   const addSignal = async () => {
     if (!newSignal.title) {
-      alert('Please enter a signal title');
+      showToast('Please enter a signal title', 'error');
       return;
     }
 
@@ -283,7 +285,7 @@ export default function LeadHunterCompany() {
         source_url: '',
       });
     } catch (err) {
-      alert('Error adding signal: ' + err.message);
+      showToast('Error adding signal: ' + err.message, 'error');
     }
   };
 
@@ -329,7 +331,7 @@ export default function LeadHunterCompany() {
         .order('created_at', { ascending: false });
       if (newLogs) setEnrichmentLogs(newLogs);
     } catch (err) {
-      alert('Enrichment error: ' + err.message);
+      showToast('Enrichment error: ' + err.message, 'error');
       console.error('Enrich error:', err);
     } finally {
       setEnrichingCompany(false);
@@ -1035,6 +1037,8 @@ function NotesTab({
           </select>
         </Card>
       </div>
+
+      <ToastContainer />
     </div>
   );
 }
