@@ -285,24 +285,31 @@ export const VideoCallProvider = ({ children }) => {
   // Poll for incoming calls
   useEffect(() => {
     if (!user || activeCall) {
+      console.log('[Rally Poll] Polling STOPPED:', { user: !!user, activeCall: !!activeCall });
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
       }
       return;
     }
+    console.log('[Rally Poll] Polling ACTIVE');
 
     const checkForCalls = async () => {
       try {
         const calls = await videoSvc.getIncomingCalls(user.id);
+        console.log('[Rally Poll]', { found: calls.length, activeCall: !!activeCall, incomingCall: !!incomingCall, calls: calls.map(c => ({ id: c.id, status: c.status, age: Math.round((Date.now() - new Date(c.created_at).getTime()) / 1000) + 's', channel: c.channel_id })) });
         if (calls.length > 0 && !incomingCall) {
           const call = calls[0];
           const ageSeconds = (Date.now() - new Date(call.created_at).getTime()) / 1000;
-          if (ageSeconds > 60) return;
+          if (ageSeconds > 60) {
+            console.log('[Rally Poll] Call too old:', ageSeconds + 's');
+            return;
+          }
 
           // Find caller name from participants
           const caller = call.video_call_participants?.find(p => p.user_id === call.created_by);
 
+          console.log('[Rally Poll] Setting incoming call:', call.id);
           setIncomingCall({
             session_id: call.id,
             call_type: call.call_type,
@@ -312,7 +319,7 @@ export const VideoCallProvider = ({ children }) => {
           });
         }
       } catch (error) {
-        // Ignore polling errors
+        console.error('[Rally Poll] Error:', error);
       }
     };
 
