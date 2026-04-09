@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, TrendingUp, Zap, Target, Heart, CheckCircle, ExternalLink, Filter } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useTenantId } from '../../lib/useTenantId';
 
 const SIGNAL_ICONS = {
   website_change: TrendingUp,
@@ -15,6 +16,7 @@ const SIGNAL_ICONS = {
 };
 
 export default function LeadHunterSignals() {
+  const { tenantId, tenantFilter } = useTenantId();
   const [signals, setSignals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -40,13 +42,13 @@ export default function LeadHunterSignals() {
     try {
       // Run website scan
       const scanResult = await supabase.functions.invoke('lh-signals', {
-        body: { action: 'scan_websites', limit: 25 }
+        body: { action: 'scan_websites', limit: 25, tenant_id: tenantId }
       });
       if (scanResult.error) throw scanResult.error;
 
       // Run change detection
       const changeResult = await supabase.functions.invoke('lh-signals', {
-        body: { action: 'detect_changes', limit: 50 }
+        body: { action: 'detect_changes', limit: 50, tenant_id: tenantId }
       });
 
       const totalSignals = (scanResult.data?.signals_created || 0) + (changeResult.data?.signals_created || 0);
@@ -69,13 +71,12 @@ export default function LeadHunterSignals() {
   const fetchSignals = async () => {
     try {
       setLoading(true);
-      let query = supabase
-        .from('lh_signals')
-        .select(`
+      let query = tenantFilter(
+        supabase.from('lh_signals').select(`
           *,
           lh_companies(id, name, website, industry)
         `)
-        .gte('detected_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+      ).gte('detected_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
       // Apply filters
       if (filters.signalType !== 'all') {

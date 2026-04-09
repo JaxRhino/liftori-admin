@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useTenantId } from '../../lib/useTenantId';
 import {
   ArrowLeft,
   ExternalLink,
@@ -25,6 +26,7 @@ import {
 export default function LeadHunterCompany() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { tenantId } = useTenantId();
 
   // State management
   const [company, setCompany] = useState(null);
@@ -217,6 +219,7 @@ export default function LeadHunterCompany() {
           ...newContact,
           company_id: id,
           email_status: 'unverified',
+          tenant_id: tenantId,
         },
       ]);
 
@@ -257,6 +260,7 @@ export default function LeadHunterCompany() {
           ...newSignal,
           company_id: id,
           detected_at: new Date().toISOString(),
+          tenant_id: tenantId,
         },
       ]);
 
@@ -291,13 +295,13 @@ export default function LeadHunterCompany() {
     try {
       // Step 1: Enrich
       const enrichResult = await supabase.functions.invoke('lh-enrich', {
-        body: { company_ids: [id] }
+        body: { company_ids: [id], tenant_id: tenantId }
       });
       if (enrichResult.error) throw enrichResult.error;
 
       // Step 2: Score
       const scoreResult = await supabase.functions.invoke('lh-score', {
-        body: { company_ids: [id] }
+        body: { company_ids: [id], tenant_id: tenantId }
       });
       if (scoreResult.error) throw scoreResult.error;
 

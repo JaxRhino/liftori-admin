@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, Plus, Trash2, ArrowRight, Download } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useTenantId } from '../../lib/useTenantId';
 
 export default function LeadHunterLists() {
+  const { tenantId, tenantFilter } = useTenantId();
   const [lists, setLists] = useState([]);
   const [expandedList, setExpandedList] = useState(null);
   const [members, setMembers] = useState({});
@@ -23,10 +25,9 @@ export default function LeadHunterLists() {
   const fetchLists = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('lh_lists')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await tenantFilter(
+        supabase.from('lh_lists').select('*')
+      ).order('created_at', { ascending: false });
 
       if (error) throw error;
       setLists(data || []);
@@ -76,7 +77,8 @@ export default function LeadHunterLists() {
             type: formData.type,
             company_count: 0,
             contact_count: 0,
-            avg_lead_score: 0
+            avg_lead_score: 0,
+            tenant_id: tenantId,
           }
         ])
         .select();
@@ -153,10 +155,10 @@ export default function LeadHunterLists() {
       for (let i = 0; i < companyIds.length; i += 10) {
         const batch = companyIds.slice(i, i + 10);
         await supabase.functions.invoke('lh-enrich', {
-          body: { company_ids: batch }
+          body: { company_ids: batch, tenant_id: tenantId }
         });
         await supabase.functions.invoke('lh-score', {
-          body: { company_ids: batch }
+          body: { company_ids: batch, tenant_id: tenantId }
         });
       }
       showToast(`Enriched & scored ${companyIds.length} companies`, 'success');

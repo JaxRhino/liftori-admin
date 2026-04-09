@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useTenantId } from '../../lib/useTenantId';
 import {
   Crosshair,
   Plus,
@@ -23,6 +24,7 @@ import {
 
 export default function LeadHunterDashboard() {
   const navigate = useNavigate();
+  const { tenantFilter } = useTenantId();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalCompanies: 0,
@@ -48,27 +50,24 @@ export default function LeadHunterDashboard() {
     const fetchStats = async () => {
       try {
         // Total Companies
-        const { count: companiesCount } = await supabase
-          .from('lh_companies')
-          .select('*', { count: 'exact', head: true });
+        const { count: companiesCount } = await tenantFilter(
+          supabase.from('lh_companies').select('*', { count: 'exact', head: true })
+        );
 
         // Enriched Leads
-        const { count: enrichedCount } = await supabase
-          .from('lh_companies')
-          .select('*', { count: 'exact', head: true })
-          .eq('enrichment_status', 'enriched');
+        const { count: enrichedCount } = await tenantFilter(
+          supabase.from('lh_companies').select('*', { count: 'exact', head: true }).eq('enrichment_status', 'enriched')
+        );
 
         // Hot Leads
-        const { count: hotCount } = await supabase
-          .from('lh_companies')
-          .select('*', { count: 'exact', head: true })
-          .gte('lead_score', 80);
+        const { count: hotCount } = await tenantFilter(
+          supabase.from('lh_companies').select('*', { count: 'exact', head: true }).gte('lead_score', 80)
+        );
 
         // Active Sequences
-        const { count: sequencesCount } = await supabase
-          .from('lh_sequences')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'active');
+        const { count: sequencesCount } = await tenantFilter(
+          supabase.from('lh_sequences').select('*', { count: 'exact', head: true }).eq('status', 'active')
+        );
 
         setStats({
           totalCompanies: companiesCount || 0,
@@ -91,12 +90,9 @@ export default function LeadHunterDashboard() {
     const fetchHotLeads = async () => {
       setLoadingHotLeads(true);
       try {
-        const { data, error } = await supabase
-          .from('lh_companies')
-          .select('*')
-          .gte('lead_score', 80)
-          .order('lead_score', { ascending: false })
-          .limit(10);
+        const { data, error } = await tenantFilter(
+          supabase.from('lh_companies').select('*').gte('lead_score', 80)
+        ).order('lead_score', { ascending: false }).limit(10);
 
         if (error) throw error;
         setHotLeadsData(data || []);
@@ -116,11 +112,9 @@ export default function LeadHunterDashboard() {
     const fetchSignals = async () => {
       setLoadingSignals(true);
       try {
-        const { data, error } = await supabase
-          .from('lh_signals')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(5);
+        const { data, error } = await tenantFilter(
+          supabase.from('lh_signals').select('*')
+        ).order('created_at', { ascending: false }).limit(5);
 
         if (error) throw error;
         setSignals(data || []);
@@ -140,11 +134,9 @@ export default function LeadHunterDashboard() {
     const fetchEnrichmentLog = async () => {
       setLoadingLog(true);
       try {
-        const { data, error } = await supabase
-          .from('lh_enrichment_log')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(10);
+        const { data, error } = await tenantFilter(
+          supabase.from('lh_enrichment_log').select('*')
+        ).order('created_at', { ascending: false }).limit(10);
 
         if (error) throw error;
         setEnrichmentLog(data || []);
@@ -164,14 +156,12 @@ export default function LeadHunterDashboard() {
     const fetchPipeline = async () => {
       setLoadingPipeline(true);
       try {
-        const { data, error } = await supabase
-          .from('lh_pipeline_conversions')
-          .select(`
+        const { data, error } = await tenantFilter(
+          supabase.from('lh_pipeline_conversions').select(`
             *,
             lh_companies(id, name, industry, lead_score)
           `)
-          .order('created_at', { ascending: false })
-          .limit(10);
+        ).order('created_at', { ascending: false }).limit(10);
 
         if (error) throw error;
 

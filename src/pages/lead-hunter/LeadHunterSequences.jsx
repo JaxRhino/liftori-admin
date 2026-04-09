@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Play, Pause, Archive, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useTenantId } from '../../lib/useTenantId';
 
 export default function LeadHunterSequences() {
+  const { tenantId, tenantFilter } = useTenantId();
   const [sequences, setSequences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -27,10 +29,9 @@ export default function LeadHunterSequences() {
   const fetchSequences = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('lh_sequences')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await tenantFilter(
+        supabase.from('lh_sequences').select('*')
+      ).order('created_at', { ascending: false });
 
       if (error) throw error;
       setSequences(data || []);
@@ -79,7 +80,8 @@ export default function LeadHunterSequences() {
         total_enrolled: 0,
         total_replied: 0,
         reply_rate: 0,
-        total_meetings: 0
+        total_meetings: 0,
+        tenant_id: tenantId,
       };
 
       const { data, error } = await supabase
@@ -192,7 +194,7 @@ export default function LeadHunterSequences() {
     setProcessing(sequenceId);
     try {
       const response = await supabase.functions.invoke('lh-outreach', {
-        body: { action: 'process_sequence', sequence_id: sequenceId }
+        body: { action: 'process_sequence', sequence_id: sequenceId, tenant_id: tenantId }
       });
       if (response.error) throw response.error;
       const result = response.data;
@@ -211,7 +213,7 @@ export default function LeadHunterSequences() {
   const handleExecuteStep = async (enrollmentId, sequenceId) => {
     try {
       const response = await supabase.functions.invoke('lh-outreach', {
-        body: { action: 'execute_step', enrollment_id: enrollmentId }
+        body: { action: 'execute_step', enrollment_id: enrollmentId, tenant_id: tenantId }
       });
       if (response.error) throw response.error;
       const result = response.data;
@@ -227,7 +229,7 @@ export default function LeadHunterSequences() {
   const handleUnenroll = async (enrollmentId, sequenceId) => {
     try {
       const response = await supabase.functions.invoke('lh-outreach', {
-        body: { action: 'unenroll', enrollment_id: enrollmentId }
+        body: { action: 'unenroll', enrollment_id: enrollmentId, tenant_id: tenantId }
       });
       if (response.error) throw response.error;
       showToast('Contact unenrolled', 'success');

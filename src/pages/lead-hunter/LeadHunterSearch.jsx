@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { useTenantId } from '../../lib/useTenantId'
 
 // Score badge colors
 function ScoreBadge({ score }) {
@@ -223,6 +224,7 @@ function ActionDropdown({ company, onEnrich, onAddToList }) {
 
 export default function LeadHunterSearch() {
   const navigate = useNavigate()
+  const { tenantId, tenantFilter } = useTenantId()
   const [filters, setFilters] = useState({
     industry_keyword: '',
     location_city: '',
@@ -260,7 +262,7 @@ export default function LeadHunterSearch() {
   }
 
   function buildQuery() {
-    let query = supabase.from('lh_companies').select('*', { count: 'exact' })
+    let query = tenantFilter(supabase.from('lh_companies').select('*', { count: 'exact' }))
 
     if (filters.industry_keyword.trim()) {
       query = query.ilike('industry', `%${filters.industry_keyword.trim()}%`)
@@ -351,6 +353,7 @@ export default function LeadHunterSearch() {
           industry_keyword: filters.industry_keyword.trim(),
           location: `${filters.location_city.trim()}${filters.location_state.trim() ? ', ' + filters.location_state.trim() : ''}`,
           radius_miles: filters.radius_miles,
+          tenant_id: tenantId,
         }
       })
 
@@ -420,13 +423,13 @@ export default function LeadHunterSearch() {
     try {
       // Step 1: Enrich (website scan, Hunter.io, email patterns)
       const enrichResponse = await supabase.functions.invoke('lh-enrich', {
-        body: { company_ids: [companyId] }
+        body: { company_ids: [companyId], tenant_id: tenantId }
       })
       if (enrichResponse.error) throw enrichResponse.error
 
       // Step 2: Score (AI or rule-based)
       const scoreResponse = await supabase.functions.invoke('lh-score', {
-        body: { company_ids: [companyId] }
+        body: { company_ids: [companyId], tenant_id: tenantId }
       })
       if (scoreResponse.error) throw scoreResponse.error
 
@@ -472,12 +475,12 @@ export default function LeadHunterSearch() {
         const batch = ids.slice(i, i + 10)
 
         const enrichResponse = await supabase.functions.invoke('lh-enrich', {
-          body: { company_ids: batch }
+          body: { company_ids: batch, tenant_id: tenantId }
         })
         if (enrichResponse.error) console.error('Batch enrich error:', enrichResponse.error)
 
         const scoreResponse = await supabase.functions.invoke('lh-score', {
-          body: { company_ids: batch }
+          body: { company_ids: batch, tenant_id: tenantId }
         })
         if (scoreResponse.error) console.error('Batch score error:', scoreResponse.error)
       }

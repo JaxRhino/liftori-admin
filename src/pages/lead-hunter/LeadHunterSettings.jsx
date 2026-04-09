@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Save, Eye, EyeOff, Check, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useTenantId } from '../../lib/useTenantId';
 
 const INDUSTRIES = [
   'Technology',
@@ -33,6 +34,7 @@ const REVENUE_RANGES = [
 ];
 
 export default function LeadHunterSettings() {
+  const { tenantId, tenantFilter } = useTenantId();
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState(null);
   const [formData, setFormData] = useState({
@@ -77,11 +79,9 @@ export default function LeadHunterSettings() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('lh_settings')
-        .select('*')
-        .is('tenant_id', null)
-        .single();
+      const { data, error } = await tenantFilter(
+        supabase.from('lh_settings').select('*')
+      ).single();
 
       if (error && error.code !== 'PGRST116') throw error;
 
@@ -119,14 +119,13 @@ export default function LeadHunterSettings() {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-      const { data, error } = await supabase
-        .from('lh_enrichment_log')
-        .select('cost')
-        .gte('created_at', monthStart);
+      const { data, error } = await tenantFilter(
+        supabase.from('lh_enrichment_log').select('cost_cents')
+      ).gte('created_at', monthStart);
 
       if (error) throw error;
-      const total = (data || []).reduce((sum, log) => sum + (log.cost || 0), 0);
-      setCurrentMonthSpend(total);
+      const totalCents = (data || []).reduce((sum, log) => sum + (log.cost_cents || 0), 0);
+      setCurrentMonthSpend(totalCents / 100);
     } catch (err) {
       console.error('Error fetching spend:', err);
     }
@@ -165,7 +164,7 @@ export default function LeadHunterSettings() {
       } else {
         const response = await supabase
           .from('lh_settings')
-          .insert([{ ...settingsData, tenant_id: null }]);
+          .insert([{ ...settingsData, tenant_id: tenantId }]);
         error = response.error;
       }
 
