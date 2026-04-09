@@ -2,11 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { useVideoCallContext } from '../contexts/VideoCallContext'
 import { toast } from 'sonner'
 
 export default function NotificationBell() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { triggerIncomingCall } = useVideoCallContext()
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
@@ -73,10 +75,22 @@ export default function NotificationBell() {
 
         // Show toast
         if (isRally) {
+          // Extract callId from link (e.g. /admin/chat?callId=xxx)
+          const callIdMatch = notif.link?.match(/callId=([^&]+)/);
           toast.warning(notif.title, {
             description: notif.body,
             duration: 15000,
-            action: notif.link ? { label: 'Open Rally', onClick: () => { navigate(notif.link) } } : undefined,
+            action: callIdMatch ? {
+              label: 'Join Call',
+              onClick: () => {
+                // Directly trigger the incoming call modal
+                triggerIncomingCall(callIdMatch[1]);
+                // Navigate to chat if not already there
+                if (!window.location.pathname.includes('/chat')) {
+                  navigate('/admin/chat');
+                }
+              }
+            } : notif.link ? { label: 'Open Rally', onClick: () => { navigate(notif.link) } } : undefined,
           })
         } else {
           toast(notif.title, {
@@ -145,7 +159,16 @@ export default function NotificationBell() {
 
   function handleClick(notif) {
     if (!notif.read) markAsRead(notif.id)
-    if (notif.link) navigate(notif.link)
+    // If it's a Rally call notification, trigger the incoming call modal directly
+    const callIdMatch = notif.link?.match(/callId=([^&]+)/);
+    if (callIdMatch) {
+      triggerIncomingCall(callIdMatch[1]);
+      if (!window.location.pathname.includes('/chat')) {
+        navigate('/admin/chat');
+      }
+    } else if (notif.link) {
+      navigate(notif.link)
+    }
     setOpen(false)
   }
 

@@ -729,6 +729,32 @@ export const VideoCallProvider = ({ children }) => {
     }
   }, []);
 
+  // Direct trigger for incoming call (called from NotificationBell)
+  const triggerIncomingCall = useCallback(async (callId) => {
+    if (activeCall || incomingCall) {
+      console.log('[Rally] triggerIncomingCall skipped — already in call or have incoming');
+      return;
+    }
+    try {
+      console.log('[Rally] triggerIncomingCall:', callId);
+      const call = await videoSvc.getCall(callId);
+      if (!call || call.status === 'ended') {
+        console.log('[Rally] Call not found or ended');
+        return;
+      }
+      const caller = call.video_call_participants?.find(p => p.user_id === call.created_by);
+      setIncomingCall({
+        session_id: call.id,
+        call_type: call.call_type,
+        caller_id: call.created_by,
+        caller_name: caller?.display_name || 'Unknown',
+        video_enabled: call.call_type === 'video'
+      });
+    } catch (err) {
+      console.error('[Rally] triggerIncomingCall error:', err);
+    }
+  }, [activeCall, incomingCall]);
+
   const value = {
     activeCall,
     incomingCall,
@@ -749,6 +775,7 @@ export const VideoCallProvider = ({ children }) => {
     switchDevice,
     getMedia,
     getStoredDevices,
+    triggerIncomingCall,
     currentUserId: user?.id
   };
 
