@@ -43,6 +43,7 @@ import InHouseBuilds from './pages/InHouseBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import OpsDashboard from './pages/OpsDashboard'
 import WizardBuilder from './pages/WizardBuilder'
+import Team from './pages/Team'
 import PortalProjects from './pages/portal/PortalProjects'
 import PortalSettings from './pages/portal/PortalSettings'
 import PortalMessages from './pages/portal/PortalMessages'
@@ -212,6 +213,7 @@ export default function App() {
             <Route path="eos/vto" element={<EOSVTO />} />
             {/* Operations */}
             <Route path="ops-dashboard" element={<OpsDashboard />} />
+            <Route path="team" element={<Team />} />
             {/* In-House Builds */}
             <Route path="builds" element={<InHouseBuilds />} />
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
