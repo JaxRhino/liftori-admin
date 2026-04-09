@@ -12,6 +12,8 @@ import {
   X,
   Send,
   Download,
+  ChevronUp,
+  Settings,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVideoCallContext } from '../contexts/VideoCallContext';
@@ -28,6 +30,7 @@ const VideoCallRoom = () => {
     toggleAudio,
     toggleVideo,
     toggleScreenShare,
+    switchDevice,
     leaveCall,
     endCall,
     currentUserId,
@@ -41,8 +44,11 @@ const VideoCallRoom = () => {
   const [messageInput, setMessageInput] = useState('');
   const [duration, setDuration] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [devicePickerOpen, setDevicePickerOpen] = useState(null); // 'mic' | 'camera' | null
+  const [availableDevices, setAvailableDevices] = useState([]);
   const localVideoRef = useRef(null);
   const fileInputRef = useRef(null);
+  const devicePickerRef = useRef(null);
 
   // Timer effect
   useEffect(() => {
@@ -57,6 +63,26 @@ const VideoCallRoom = () => {
 
     return () => clearInterval(interval);
   }, [activeCall]);
+
+  // Load available devices when picker opens
+  useEffect(() => {
+    if (!devicePickerOpen) return;
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+      setAvailableDevices(devices);
+    });
+  }, [devicePickerOpen]);
+
+  // Close device picker on outside click
+  useEffect(() => {
+    if (!devicePickerOpen) return;
+    const handleClick = (e) => {
+      if (devicePickerRef.current && !devicePickerRef.current.contains(e.target)) {
+        setDevicePickerOpen(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [devicePickerOpen]);
 
   // Stable callback ref — only set srcObject when element or stream actually changes
   const setLocalVideoRef = useCallback((el) => {
@@ -233,82 +259,86 @@ const VideoCallRoom = () => {
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
         {/* Video Area */}
         <div className="flex-1 flex flex-col gap-4">
-          {/* Large Video — only show when screen sharing or solo call */}
-          {(screenShareParticipant || allParticipants.length <= 1) && (
-          <div className="flex-1 bg-slate-900 rounded-lg overflow-hidden relative">
-            {largeVideoParticipant.is_self ? (
-              <video
-                ref={setLocalVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className="w-full h-full object-cover scale-x-[-1]"
-              />
-            ) : largeVideoParticipant.media_state?.video_enabled &&
-              remoteStreams[largeVideoParticipant.peerId] ? (
-              <RemoteVideo
-                stream={remoteStreams[largeVideoParticipant.peerId]}
-              />
-            ) : (
-              <VideoPlaceholder name={largeVideoParticipant.display_name} />
-            )}
 
-            {/* Name Overlay */}
-            <div className="absolute bottom-4 left-4 bg-black/50 px-3 py-1 rounded text-sm text-white flex items-center gap-2">
-              <span>{largeVideoParticipant.display_name}</span>
-              {!largeVideoParticipant.media_state?.audio_enabled && (
-                <MicOff size={14} className="text-red-500" />
-              )}
-            </div>
+          {/* ═══ SCREEN SHARE LAYOUT ═══ */}
+          {screenShareParticipant && (
+            <div className="flex-1 flex flex-col gap-3 min-h-0">
+              {/* Screen share takes most of the space */}
+              <div className="flex-1 bg-black rounded-lg overflow-hidden relative min-h-0">
+                {screenShareParticipant.is_self ? (
+                  <video
+                    ref={setLocalVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-contain"
+                  />
+                ) : remoteStreams[screenShareParticipant.peerId] ? (
+                  <RemoteVideo
+                    stream={remoteStreams[screenShareParticipant.peerId]}
+                    contain
+                  />
+                ) : (
+                  <VideoPlaceholder name={screenShareParticipant.display_name} />
+                )}
 
-            {/* Screen Share Indicator */}
-            {screenShareParticipant && (
-              <div className="absolute top-4 right-4 bg-sky-500 px-3 py-1 rounded text-xs text-white font-medium flex items-center gap-1">
-                <Monitor size={12} />
-                Sharing screen
+                <div className="absolute top-4 right-4 bg-sky-500 px-3 py-1 rounded text-xs text-white font-medium flex items-center gap-1">
+                  <Monitor size={12} />
+                  {screenShareParticipant.display_name} is sharing
+                </div>
               </div>
-            )}
+
+              {/* Participant video strip — fixed height, side by side */}
+              <div className="flex gap-2 h-36 shrink-0">
+                {allParticipants.map((participant) => (
+                  <div
+                    key={participant.peerId}
+                    className="bg-slate-900 rounded-lg overflow-hidden relative w-48 shrink-0"
+                  >
+                    {participant.is_self ? (
+                      <video
+                        ref={!screenShareParticipant.is_self || participant.peerId !== screenShareParticipant.peerId ? setLocalVideoRef : undefined}
+                        autoPlay
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover scale-x-[-1]"
+                      />
+                    ) : participant.media_state?.video_enabled &&
+                      remoteStreams[participant.peerId] ? (
+                      <RemoteVideo stream={remoteStreams[participant.peerId]} />
+                    ) : (
+                      <VideoPlaceholder name={participant.display_name} size="sm" />
+                    )}
+
+                    <div className="absolute bottom-1 left-1 bg-black/50 px-2 py-0.5 rounded text-xs text-white flex items-center gap-1">
+                      <span>{participant.display_name}</span>
+                      {!participant.media_state?.audio_enabled && (
+                        <MicOff size={10} className="text-red-500" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ═══ SOLO CALL LAYOUT ═══ */}
+          {!screenShareParticipant && allParticipants.length <= 1 && (
+          <div className="flex-1 bg-slate-900 rounded-lg overflow-hidden relative">
+            <video
+              ref={setLocalVideoRef}
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-full object-cover scale-x-[-1]"
+            />
+            <div className="absolute bottom-4 left-4 bg-black/50 px-3 py-1 rounded text-sm text-white">
+              You
+            </div>
           </div>
           )}
 
-          {/* Small Videos Grid (if screen sharing) */}
-          {screenShareParticipant && smallVideoParticipants.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 h-24">
-              {smallVideoParticipants.map((participant) => (
-                <div
-                  key={participant.peerId}
-                  className="bg-slate-900 rounded-lg overflow-hidden relative"
-                >
-                  {participant.is_self ? (
-                    <video
-                      ref={setLocalVideoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover scale-x-[-1]"
-                    />
-                  ) : participant.media_state?.video_enabled &&
-                    remoteStreams[participant.peerId] ? (
-                    <RemoteVideo stream={remoteStreams[participant.peerId]} />
-                  ) : (
-                    <VideoPlaceholder name={participant.display_name} size="sm" />
-                  )}
-
-                  <div className="absolute bottom-1 left-1 bg-black/50 px-2 py-0.5 rounded text-xs text-white">
-                    {participant.display_name}
-                  </div>
-
-                  {!participant.media_state?.audio_enabled && (
-                    <div className="absolute top-1 right-1 bg-red-500 p-1 rounded">
-                      <MicOff size={10} className="text-white" />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Grid Videos (if not screen sharing) — primary layout for multi-participant calls */}
+          {/* ═══ GRID LAYOUT (multi-participant, no screen share) ═══ */}
           {!screenShareParticipant && allParticipants.length > 1 && (
             <div
               className={`flex-1 grid gap-4 ${
@@ -433,39 +463,93 @@ const VideoCallRoom = () => {
 
       {/* Bottom Control Bar */}
       <div className="bg-slate-900/80 border-t border-slate-700 px-6 py-4 flex items-center justify-center gap-4">
-        {/* Mic Toggle */}
-        <button
-          onClick={toggleAudio}
-          className={`p-3 rounded-full transition ${
-            mediaState.audioEnabled
-              ? 'bg-slate-800 hover:bg-slate-700 text-white'
-              : 'bg-red-600/20 hover:bg-red-600/30 text-red-500'
-          }`}
-          title={mediaState.audioEnabled ? 'Mute' : 'Unmute'}
-        >
-          {mediaState.audioEnabled ? (
-            <Mic size={20} />
-          ) : (
-            <MicOff size={20} />
-          )}
-        </button>
+        {/* Mic Toggle + Device Picker */}
+        <div className="relative flex items-center" ref={devicePickerOpen === 'mic' ? devicePickerRef : null}>
+          <button
+            onClick={toggleAudio}
+            className={`p-3 rounded-l-full transition ${
+              mediaState.audioEnabled
+                ? 'bg-slate-800 hover:bg-slate-700 text-white'
+                : 'bg-red-600/20 hover:bg-red-600/30 text-red-500'
+            }`}
+            title={mediaState.audioEnabled ? 'Mute' : 'Unmute'}
+          >
+            {mediaState.audioEnabled ? <Mic size={20} /> : <MicOff size={20} />}
+          </button>
+          <button
+            onClick={() => setDevicePickerOpen(devicePickerOpen === 'mic' ? null : 'mic')}
+            className="p-3 pr-2 rounded-r-full bg-slate-800 hover:bg-slate-700 text-white/60 hover:text-white transition border-l border-slate-700"
+            title="Select microphone"
+          >
+            <ChevronUp size={14} />
+          </button>
 
-        {/* Camera Toggle */}
-        <button
-          onClick={toggleVideo}
-          className={`p-3 rounded-full transition ${
-            mediaState.videoEnabled
-              ? 'bg-slate-800 hover:bg-slate-700 text-white'
-              : 'bg-red-600/20 hover:bg-red-600/30 text-red-500'
-          }`}
-          title={mediaState.videoEnabled ? 'Stop video' : 'Start video'}
-        >
-          {mediaState.videoEnabled ? (
-            <Video size={20} />
-          ) : (
-            <VideoOff size={20} />
+          {/* Mic Device Picker Dropdown */}
+          {devicePickerOpen === 'mic' && (
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 py-1">
+              <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Microphone</div>
+              {availableDevices.filter(d => d.kind === 'audioinput').map(device => {
+                const isActive = localStream?.getAudioTracks()[0]?.getSettings().deviceId === device.deviceId;
+                return (
+                  <button
+                    key={device.deviceId}
+                    onClick={() => { switchDevice('audioinput', device.deviceId); setDevicePickerOpen(null); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition truncate ${
+                      isActive ? 'text-sky-400 font-medium' : 'text-slate-200'
+                    }`}
+                  >
+                    {device.label || `Microphone ${device.deviceId.slice(0, 8)}`}
+                    {isActive && ' ✓'}
+                  </button>
+                );
+              })}
+            </div>
           )}
-        </button>
+        </div>
+
+        {/* Camera Toggle + Device Picker */}
+        <div className="relative flex items-center" ref={devicePickerOpen === 'camera' ? devicePickerRef : null}>
+          <button
+            onClick={toggleVideo}
+            className={`p-3 rounded-l-full transition ${
+              mediaState.videoEnabled
+                ? 'bg-slate-800 hover:bg-slate-700 text-white'
+                : 'bg-red-600/20 hover:bg-red-600/30 text-red-500'
+            }`}
+            title={mediaState.videoEnabled ? 'Stop video' : 'Start video'}
+          >
+            {mediaState.videoEnabled ? <Video size={20} /> : <VideoOff size={20} />}
+          </button>
+          <button
+            onClick={() => setDevicePickerOpen(devicePickerOpen === 'camera' ? null : 'camera')}
+            className="p-3 pr-2 rounded-r-full bg-slate-800 hover:bg-slate-700 text-white/60 hover:text-white transition border-l border-slate-700"
+            title="Select camera"
+          >
+            <ChevronUp size={14} />
+          </button>
+
+          {/* Camera Device Picker Dropdown */}
+          {devicePickerOpen === 'camera' && (
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 py-1">
+              <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Camera</div>
+              {availableDevices.filter(d => d.kind === 'videoinput').map(device => {
+                const isActive = localStream?.getVideoTracks()[0]?.getSettings().deviceId === device.deviceId;
+                return (
+                  <button
+                    key={device.deviceId}
+                    onClick={() => { switchDevice('videoinput', device.deviceId); setDevicePickerOpen(null); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition truncate ${
+                      isActive ? 'text-sky-400 font-medium' : 'text-slate-200'
+                    }`}
+                  >
+                    {device.label || `Camera ${device.deviceId.slice(0, 8)}`}
+                    {isActive && ' ✓'}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Screen Share Toggle */}
         <button
@@ -556,7 +640,7 @@ const VideoCallRoom = () => {
 /**
  * RemoteVideo component - renders a remote participant's video stream
  */
-const RemoteVideo = ({ stream }) => {
+const RemoteVideo = ({ stream, contain }) => {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -570,7 +654,7 @@ const RemoteVideo = ({ stream }) => {
       ref={videoRef}
       autoPlay
       playsInline
-      className="w-full h-full object-cover"
+      className={`w-full h-full ${contain ? 'object-contain' : 'object-cover'}`}
     />
   );
 };
