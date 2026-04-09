@@ -98,10 +98,9 @@ export default function LeadHunterCompany() {
             .eq('company_id', id)
             .order('detected_at', { ascending: false }),
           supabase
-            .from('enrichment_log')
+            .from('lh_enrichment_log')
             .select('*')
-            .eq('entity_type', 'company')
-            .eq('entity_id', id)
+            .eq('company_id', id)
             .order('created_at', { ascending: false }),
           supabase
             .from('lh_enrollments')
@@ -284,6 +283,55 @@ export default function LeadHunterCompany() {
     }
   };
 
+  // Enrich & Score this company
+  const [enrichingCompany, setEnrichingCompany] = useState(false);
+  const handleEnrichCompany = async () => {
+    if (enrichingCompany) return;
+    setEnrichingCompany(true);
+    try {
+      // Step 1: Enrich
+      const enrichResult = await supabase.functions.invoke('lh-enrich', {
+        body: { company_ids: [id] }
+      });
+      if (enrichResult.error) throw enrichResult.error;
+
+      // Step 2: Score
+      const scoreResult = await supabase.functions.invoke('lh-score', {
+        body: { company_ids: [id] }
+      });
+      if (scoreResult.error) throw scoreResult.error;
+
+      // Refresh company data
+      const { data: refreshed } = await supabase
+        .from('lh_companies')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (refreshed) setCompany(refreshed);
+
+      // Refresh contacts (Hunter.io may have found new ones)
+      const { data: newContacts } = await supabase
+        .from('lh_contacts')
+        .select('*')
+        .eq('company_id', id)
+        .order('created_at', { ascending: false });
+      if (newContacts) setContacts(newContacts);
+
+      // Refresh enrichment logs
+      const { data: newLogs } = await supabase
+        .from('lh_enrichment_log')
+        .select('*')
+        .eq('company_id', id)
+        .order('created_at', { ascending: false });
+      if (newLogs) setEnrichmentLogs(newLogs);
+    } catch (err) {
+      alert('Enrichment error: ' + err.message);
+      console.error('Enrich error:', err);
+    } finally {
+      setEnrichingCompany(false);
+    }
+  };
+
   // Format timestamp
   const formatDate = (timestamp) => {
     return new Date(timestamp).toLocaleDateString('en-US', {
@@ -336,7 +384,7 @@ export default function LeadHunterCompany() {
 
         <div className="flex items-start justify-between mb-6">
           <div className="flex-1">
-            <h1 className="text-4xl font-bold mb-2">{company.company_name}</h1>
+            <h1 className="text-4xl font-bold mb-2">{company.name}</h1>
             <div className="flex items-center gap-4 mb-4">
               {company.domain && (
                 <a
@@ -369,29 +417,36 @@ export default function LeadHunterCompany() {
 
         {/* Action Buttons */}
         <div className="flex gap-3 flex-wrap">
-          <button className="px-4 py-2 bg-sky-500 hover:bg-sky-600 rounded-lg font-medium flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            Enrich
+          <button
+            onClick={handleEnrichCompany}
+            disabled={enrichingCompany}
+            className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:bg-sky-800 disabled:cursor-wait rounded-lg font-medium flex items-center gap-2"
+          >
+            {enrichingCompany ? (
+              <><Loader className="w-4 h-4 animate-spin" /> Enriching &amp; Scoring...</>
+            ) : (
+              <><TrendingUp className="w-4 h-4" /> Enrich &amp; Score</>
+            )}
           </button>
-          <button className="px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-lg font-medium">
-            Re-Score
-          </button>
-          <button className="px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-lg font-medium">
+          <button
+            onClick={() => navigate('/admin/lead-hunter/lists')}
+            className="px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-lg font-medium"
+          >
             Add to List
           </button>
-          <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-medium flex items-center gap-2">
+          <button
+            onClick={() => navigate('/admin/lead-hunter/sequences')}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-medium flex items-center gap-2"
+          >
             <Mail className="w-4 h-4" />
             Start Sequence
           </button>
-          <button className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg font-medium">
-            Convert to Project
-          </button>
         </div>
 
-        {company.enrichment_status === 'enriching' && (
+        {(enrichingCompany || company.enrichment_status === 'enriching') && (
           <div className="mt-4 flex items-center gap-2 text-sky-500">
             <Loader className="w-4 h-4 animate-spin" />
-            <span>Enriching company data...</span>
+            <span>Enriching &amp; scoring company data — scanning website, finding contacts, generating score...</span>
           </div>
         )}
       </div>
@@ -547,10 +602,10 @@ function OverviewTab({ company, scoreBreakdown }) {
                 </span>
               ))}
             </div>
-            {company.cms_platform && (
+            {company.cms_detected && (
               <div className="mt-4 px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-sm">
                 <span className="text-slate-400">CMS: </span>
-                <span className="font-medium">{company.cms_platform}</span>
+                <span className="font-medium">{company.cms_detected}</span>
               </div>
             )}
           </Card>

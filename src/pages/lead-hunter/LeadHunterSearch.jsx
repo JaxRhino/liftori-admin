@@ -30,7 +30,8 @@ function ScoreBadge({ score }) {
 function EnrichmentBadge({ status }) {
   const statuses = {
     'not_enriched': { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Not Enriched' },
-    'enriching': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: 'Enriching...' },
+    'enriching': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: 'Enriching…' },
+    'scored': { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Scored' },
     'enriched': { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Enriched' },
     'failed': { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Failed' },
   }
@@ -231,19 +232,28 @@ export default function LeadHunterSearch() {
     revenue_range: 'any',
     has_website: 'any',
     website_quality_max: 100,
-    cms_platform: 'any',
+    cms_detected: 'any',
     tags: [],
   })
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
+  const [discovering, setDiscovering] = useState(false)
+  const [enriching, setEnriching] = useState(new Set())
   const [selectedRows, setSelectedRows] = useState(new Set())
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [filterExpanded, setFilterExpanded] = useState(true)
+  const [discoveryCount, setDiscoveryCount] = useState(null)
+  const [toast, setToast] = useState(null)
 
   const resultsPerPage = 25
   const totalPages = Math.ceil(totalCount / resultsPerPage)
+
+  function showToast(message, type = 'info') {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 4000)
+  }
 
   function handleFilterChange(field, value) {
     setFilters(prev => ({ ...prev, [field]: value }))
@@ -284,19 +294,23 @@ export default function LeadHunterSearch() {
       query = query.gte('annual_revenue', min).lte('annual_revenue', max)
     }
     if (filters.has_website !== 'any') {
-      const hasWebsite = filters.has_website === 'yes'
-      query = query.eq('has_website', hasWebsite)
+      if (filters.has_website === 'yes') {
+        query = query.not('website', 'is', null)
+      } else {
+        query = query.is('website', null)
+      }
     }
     if (filters.website_quality_max < 100) {
       query = query.lte('website_quality_score', filters.website_quality_max)
     }
-    if (filters.cms_platform !== 'any') {
-      query = query.eq('cms_platform', filters.cms_platform)
+    if (filters.cms_detected !== 'any') {
+      query = query.eq('cms_detected', filters.cms_detected)
     }
 
     return query
   }
 
+  // Search existing database
   async function handleSearch() {
     setCurrentPage(1)
     setSelectedRows(new Set())
@@ -304,7 +318,7 @@ export default function LeadHunterSearch() {
     try {
       const query = buildQuery()
       const { data, count, error } = await query
-        .order('fit_score', { ascending: false })
+        .order('lead_score', { ascending: false, nullsFirst: false })
         .range(0, resultsPerPage - 1)
 
       if (error) throw error
@@ -319,6 +333,43 @@ export default function LeadHunterSearch() {
     }
   }
 
+  // Discover NEW companies via Google Places edge function
+  async function handleDiscover() {
+    if (!filters.industry_keyword.trim() || !filters.location_city.trim()) {
+      showToast('Industry keyword and City are required for discovery', 'error')
+      return
+    }
+    setDiscovering(true)
+    setDiscoveryCount(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Not authenticated')
+
+      const response = await supabase.functions.invoke('lh-search', {
+        body: {
+          action: 'discover',
+          industry_keyword: filters.industry_keyword.trim(),
+          location: `${filters.location_city.trim()}${filters.location_state.trim() ? ', ' + filters.location_state.trim() : ''}`,
+          radius_miles: filters.radius_miles,
+        }
+      })
+
+      if (response.error) throw response.error
+
+      const result = response.data
+      setDiscoveryCount(result.new_discoveries || 0)
+      showToast(`Discovered ${result.new_discoveries} new companies! ${result.companies?.length || 0} total results.`, 'success')
+
+      // Now search the DB to show the results
+      await handleSearch()
+    } catch (err) {
+      console.error('Discovery error:', err)
+      showToast(`Discovery failed: ${err.message}`, 'error')
+    } finally {
+      setDiscovering(false)
+    }
+  }
+
   async function handlePageChange(page) {
     setCurrentPage(page)
     setSelectedRows(new Set())
@@ -327,7 +378,7 @@ export default function LeadHunterSearch() {
       const offset = (page - 1) * resultsPerPage
       const query = buildQuery()
       const { data, error } = await query
-        .order('fit_score', { ascending: false })
+        .order('lead_score', { ascending: false, nullsFirst: false })
         .range(offset, offset + resultsPerPage - 1)
 
       if (error) throw error
@@ -358,14 +409,106 @@ export default function LeadHunterSearch() {
     }
   }
 
+  // Enrich a single company (website scan + Hunter.io + email patterns + AI scoring)
   async function handleEnrich(companyId) {
-    // Placeholder: in real implementation, would call enrichment edge function
-    console.log('Enrich company:', companyId)
+    if (enriching.has(companyId)) return
+    setEnriching(prev => new Set([...prev, companyId]))
+
+    // Optimistic UI: set enriching status
+    setResults(prev => prev.map(c => c.id === companyId ? { ...c, enrichment_status: 'enriching' } : c))
+
+    try {
+      // Step 1: Enrich (website scan, Hunter.io, email patterns)
+      const enrichResponse = await supabase.functions.invoke('lh-enrich', {
+        body: { company_ids: [companyId] }
+      })
+      if (enrichResponse.error) throw enrichResponse.error
+
+      // Step 2: Score (AI or rule-based)
+      const scoreResponse = await supabase.functions.invoke('lh-score', {
+        body: { company_ids: [companyId] }
+      })
+      if (scoreResponse.error) throw scoreResponse.error
+
+      // Refresh the company data from DB
+      const { data: updated } = await supabase
+        .from('lh_companies')
+        .select('*')
+        .eq('id', companyId)
+        .single()
+
+      if (updated) {
+        setResults(prev => prev.map(c => c.id === companyId ? updated : c))
+      }
+
+      showToast(`Enriched & scored: ${updated?.name || 'company'}`, 'success')
+    } catch (err) {
+      console.error('Enrich error:', err)
+      setResults(prev => prev.map(c => c.id === companyId ? { ...c, enrichment_status: 'failed' } : c))
+      showToast(`Enrichment failed: ${err.message}`, 'error')
+    } finally {
+      setEnriching(prev => {
+        const next = new Set(prev)
+        next.delete(companyId)
+        return next
+      })
+    }
+  }
+
+  // Bulk enrich selected companies
+  async function handleBulkEnrich() {
+    const ids = [...selectedRows]
+    if (ids.length === 0) return
+
+    showToast(`Enriching ${ids.length} companies...`, 'info')
+    setEnriching(prev => new Set([...prev, ...ids]))
+
+    // Optimistic UI
+    setResults(prev => prev.map(c => ids.includes(c.id) ? { ...c, enrichment_status: 'enriching' } : c))
+
+    try {
+      // Enrich in batches of 10
+      for (let i = 0; i < ids.length; i += 10) {
+        const batch = ids.slice(i, i + 10)
+
+        const enrichResponse = await supabase.functions.invoke('lh-enrich', {
+          body: { company_ids: batch }
+        })
+        if (enrichResponse.error) console.error('Batch enrich error:', enrichResponse.error)
+
+        const scoreResponse = await supabase.functions.invoke('lh-score', {
+          body: { company_ids: batch }
+        })
+        if (scoreResponse.error) console.error('Batch score error:', scoreResponse.error)
+      }
+
+      // Refresh all enriched companies
+      const { data: updated } = await supabase
+        .from('lh_companies')
+        .select('*')
+        .in('id', ids)
+
+      if (updated) {
+        const updateMap = Object.fromEntries(updated.map(c => [c.id, c]))
+        setResults(prev => prev.map(c => updateMap[c.id] || c))
+      }
+
+      showToast(`Successfully enriched ${ids.length} companies`, 'success')
+      setSelectedRows(new Set())
+    } catch (err) {
+      console.error('Bulk enrich error:', err)
+      showToast(`Bulk enrichment failed: ${err.message}`, 'error')
+    } finally {
+      setEnriching(prev => {
+        const next = new Set(prev)
+        ids.forEach(id => next.delete(id))
+        return next
+      })
+    }
   }
 
   function handleAddToList(companyId) {
-    // Placeholder: would open modal to select or create list
-    console.log('Add to list:', companyId)
+    navigate(`/admin/lead-hunter/lists`)
   }
 
   function buildCriteriaObject() {
@@ -378,7 +521,7 @@ export default function LeadHunterSearch() {
       revenue_range: filters.revenue_range !== 'any' ? filters.revenue_range : null,
       has_website: filters.has_website !== 'any' ? (filters.has_website === 'yes') : null,
       website_quality_max: filters.website_quality_max,
-      cms_platform: filters.cms_platform !== 'any' ? filters.cms_platform : null,
+      cms_detected: filters.cms_detected !== 'any' ? filters.cms_detected : null,
       tags: filters.tags && filters.tags.length > 0 ? filters.tags : null,
     }
   }
@@ -541,8 +684,8 @@ export default function LeadHunterSearch() {
               <div>
                 <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">CMS Platform</label>
                 <select
-                  value={filters.cms_platform}
-                  onChange={e => handleFilterChange('cms_platform', e.target.value)}
+                  value={filters.cms_detected}
+                  onChange={e => handleFilterChange('cms_detected', e.target.value)}
                   className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                 >
                   <option value="any">Any</option>
@@ -565,26 +708,52 @@ export default function LeadHunterSearch() {
               </div>
             </div>
 
-            {/* Search Button */}
-            <button
-              onClick={handleSearch}
-              disabled={loading}
-              className="w-full px-4 py-3 bg-sky-500 hover:bg-sky-400 disabled:bg-gray-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Searching...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  Search
-                </>
-              )}
-            </button>
+            {/* Search Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleSearch}
+                disabled={loading || discovering}
+                className="flex-1 px-4 py-3 bg-sky-500 hover:bg-sky-400 disabled:bg-gray-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Searching DB...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Search Database
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleDiscover}
+                disabled={loading || discovering}
+                className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {discovering ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Discovering...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Discover New (Google Places)
+                  </>
+                )}
+              </button>
+            </div>
+            {discoveryCount !== null && (
+              <p className="text-sm text-emerald-400 text-center">
+                {discoveryCount} new companies discovered and added to your database
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -604,13 +773,23 @@ export default function LeadHunterSearch() {
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3 flex items-center justify-between">
               <span className="text-sm text-gray-400">{selectedRows.size} selected</span>
               <div className="flex gap-2">
-                <button className="px-3 py-1 text-sm font-medium text-white bg-sky-500/20 border border-sky-500/50 rounded-lg hover:bg-sky-500/30 transition-colors">
-                  Enrich Selected
+                <button
+                  onClick={handleBulkEnrich}
+                  disabled={enriching.size > 0}
+                  className="px-3 py-1 text-sm font-medium text-white bg-sky-500/20 border border-sky-500/50 rounded-lg hover:bg-sky-500/30 disabled:opacity-50 transition-colors"
+                >
+                  {enriching.size > 0 ? 'Enriching...' : 'Enrich Selected'}
                 </button>
-                <button className="px-3 py-1 text-sm font-medium text-white bg-sky-500/20 border border-sky-500/50 rounded-lg hover:bg-sky-500/30 transition-colors">
+                <button
+                  onClick={() => navigate('/admin/lead-hunter/lists')}
+                  className="px-3 py-1 text-sm font-medium text-white bg-sky-500/20 border border-sky-500/50 rounded-lg hover:bg-sky-500/30 transition-colors"
+                >
                   Add to List
                 </button>
-                <button className="px-3 py-1 text-sm font-medium text-white bg-sky-500/20 border border-sky-500/50 rounded-lg hover:bg-sky-500/30 transition-colors">
+                <button
+                  onClick={() => navigate('/admin/lead-hunter/sequences')}
+                  className="px-3 py-1 text-sm font-medium text-white bg-sky-500/20 border border-sky-500/50 rounded-lg hover:bg-sky-500/30 transition-colors"
+                >
                   Start Sequence
                 </button>
               </div>
@@ -665,14 +844,14 @@ export default function LeadHunterSearch() {
                       <td className="px-4 py-3 text-sm text-gray-300">{company.city && company.state ? `${company.city}, ${company.state}` : '—'}</td>
                       <td className="px-4 py-3 text-sm text-gray-300">{company.employee_count ? company.employee_count.toLocaleString() : '—'}</td>
                       <td className="px-4 py-3 text-sm">
-                        {company.has_website ? (
-                          <span className="text-gray-300">Score: {company.website_quality_score || '—'}</span>
+                        {company.website ? (
+                          <span className="text-gray-300">Score: {company.website_quality_score ?? '—'}</span>
                         ) : (
                           <span className="text-red-400">No website</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <ScoreBadge score={company.fit_score} />
+                        <ScoreBadge score={company.lead_score} />
                       </td>
                       <td className="px-4 py-3">
                         <EnrichmentBadge status={company.enrichment_status || 'not_enriched'} />
@@ -740,10 +919,21 @@ export default function LeadHunterSearch() {
           onClose={() => setShowSaveModal(false)}
           criteria={buildCriteriaObject()}
           onSaved={(data) => {
-            console.log('Search saved:', data)
+            showToast(`Search "${data.name}" saved!`, 'success')
             setShowSaveModal(false)
           }}
         />
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'error' ? 'bg-red-600 text-white' :
+          'bg-sky-600 text-white'
+        }`}>
+          {toast.message}
+        </div>
       )}
     </div>
   )

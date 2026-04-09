@@ -352,7 +352,7 @@ export default function LeadHunterDashboard() {
                         className="border-b border-slate-700/30 hover:bg-slate-700/20 transition-colors"
                       >
                         <td className="py-4 px-4 text-white font-medium">
-                          {company.company_name || 'N/A'}
+                          {company.name || 'N/A'}
                         </td>
                         <td className="py-4 px-4 text-slate-300">
                           {company.industry || 'N/A'}
@@ -508,7 +508,7 @@ export default function LeadHunterDashboard() {
                     className="border-b border-slate-700/30 hover:bg-slate-700/20 transition-colors"
                   >
                     <td className="py-4 px-4 text-white font-medium">
-                      {entry.company_name || 'N/A'}
+                      {entry.source || 'N/A'}
                     </td>
                     <td className="py-4 px-4 text-slate-300">
                       {entry.enrichment_source || 'N/A'}
