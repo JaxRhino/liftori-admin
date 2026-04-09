@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Clock,
   Loader,
+  GitMerge,
 } from 'lucide-react';
 
 export default function LeadHunterDashboard() {
@@ -35,6 +36,12 @@ export default function LeadHunterDashboard() {
   const [loadingHotLeads, setLoadingHotLeads] = useState(false);
   const [loadingSignals, setLoadingSignals] = useState(false);
   const [loadingLog, setLoadingLog] = useState(false);
+  const [pipelineStats, setPipelineStats] = useState({
+    totalConversions: 0,
+    recentConversions: [],
+    avgScoreAtConversion: 0,
+  });
+  const [loadingPipeline, setLoadingPipeline] = useState(false);
 
   // Fetch stats
   useEffect(() => {
@@ -150,6 +157,42 @@ export default function LeadHunterDashboard() {
     };
 
     fetchEnrichmentLog();
+  }, []);
+
+  // Fetch Pipeline Conversions
+  useEffect(() => {
+    const fetchPipeline = async () => {
+      setLoadingPipeline(true);
+      try {
+        const { data, error } = await supabase
+          .from('lh_pipeline_conversions')
+          .select(`
+            *,
+            lh_companies(id, name, industry, lead_score)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+
+        const conversions = data || [];
+        const avgScore = conversions.length > 0
+          ? Math.round(conversions.reduce((sum, c) => sum + (c.lead_score_at_conversion || 0), 0) / conversions.length)
+          : 0;
+
+        setPipelineStats({
+          totalConversions: conversions.length,
+          recentConversions: conversions,
+          avgScoreAtConversion: avgScore,
+        });
+      } catch (error) {
+        console.error('Error fetching pipeline:', error);
+      } finally {
+        setLoadingPipeline(false);
+      }
+    };
+
+    fetchPipeline();
   }, []);
 
   const getScoreBadgeColor = (score) => {
@@ -485,16 +528,16 @@ export default function LeadHunterDashboard() {
               <thead>
                 <tr className="border-b border-slate-700/50">
                   <th className="text-left py-3 px-4 font-medium text-slate-300">
-                    Company
+                    Provider
                   </th>
                   <th className="text-left py-3 px-4 font-medium text-slate-300">
-                    Enrichment Source
+                    Action
                   </th>
                   <th className="text-left py-3 px-4 font-medium text-slate-300">
                     Status
                   </th>
                   <th className="text-left py-3 px-4 font-medium text-slate-300">
-                    Fields Updated
+                    Cost
                   </th>
                   <th className="text-left py-3 px-4 font-medium text-slate-300">
                     Timestamp
@@ -508,26 +551,24 @@ export default function LeadHunterDashboard() {
                     className="border-b border-slate-700/30 hover:bg-slate-700/20 transition-colors"
                   >
                     <td className="py-4 px-4 text-white font-medium">
-                      {entry.source || 'N/A'}
+                      {entry.provider ? entry.provider.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}
                     </td>
                     <td className="py-4 px-4 text-slate-300">
-                      {entry.enrichment_source || 'N/A'}
+                      {entry.action ? entry.action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}
                     </td>
                     <td className="py-4 px-4">
                       <span
                         className={`px-2 py-1 rounded text-xs font-medium ${
-                          entry.enrichment_status === 'success'
+                          entry.success
                             ? 'bg-green-500/20 text-green-400'
-                            : entry.enrichment_status === 'failed'
-                              ? 'bg-red-500/20 text-red-400'
-                              : 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-red-500/20 text-red-400'
                         }`}
                       >
-                        {entry.enrichment_status || 'Pending'}
+                        {entry.success ? 'Success' : 'Failed'}
                       </span>
                     </td>
                     <td className="py-4 px-4 text-slate-300 text-xs">
-                      {entry.fields_updated || '—'}
+                      {entry.cost_cents ? `$${(entry.cost_cents / 100).toFixed(2)}` : 'Free'}
                     </td>
                     <td className="py-4 px-4 text-slate-400 text-xs">
                       {formatDate(entry.created_at)}
@@ -538,6 +579,112 @@ export default function LeadHunterDashboard() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Pipeline Conversion Funnel */}
+      <div className="grid grid-cols-3 gap-8 mt-8">
+        {/* Funnel Stats */}
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <GitMerge className="w-5 h-5 text-sky-500" />
+            Pipeline Funnel
+          </h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm">Total Companies</span>
+              <span className="text-white font-bold">{stats.totalCompanies}</span>
+            </div>
+            <div className="w-full bg-slate-700/50 rounded-full h-2">
+              <div className="bg-sky-500 h-2 rounded-full" style={{ width: '100%' }} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm">Enriched</span>
+              <span className="text-white font-bold">{stats.enrichedLeads}</span>
+            </div>
+            <div className="w-full bg-slate-700/50 rounded-full h-2">
+              <div className="bg-yellow-500 h-2 rounded-full" style={{ width: stats.totalCompanies > 0 ? `${(stats.enrichedLeads / stats.totalCompanies * 100)}%` : '0%' }} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm">Hot Leads (80+)</span>
+              <span className="text-white font-bold">{stats.hotLeads}</span>
+            </div>
+            <div className="w-full bg-slate-700/50 rounded-full h-2">
+              <div className="bg-orange-500 h-2 rounded-full" style={{ width: stats.totalCompanies > 0 ? `${(stats.hotLeads / stats.totalCompanies * 100)}%` : '0%' }} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm">Converted to Project</span>
+              <span className="text-white font-bold">{pipelineStats.totalConversions}</span>
+            </div>
+            <div className="w-full bg-slate-700/50 rounded-full h-2">
+              <div className="bg-green-500 h-2 rounded-full" style={{ width: stats.totalCompanies > 0 ? `${(pipelineStats.totalConversions / stats.totalCompanies * 100)}%` : '0%' }} />
+            </div>
+
+            {pipelineStats.avgScoreAtConversion > 0 && (
+              <div className="pt-2 border-t border-slate-700/50">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-sm">Avg Score at Conversion</span>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${getScoreBadgeColor(pipelineStats.avgScoreAtConversion)}`}>
+                    {pipelineStats.avgScoreAtConversion}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Conversions */}
+        <div className="col-span-2 bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <ArrowRight className="w-5 h-5 text-green-500" />
+            Recent Conversions
+          </h2>
+
+          {loadingPipeline ? (
+            <div className="flex justify-center py-12">
+              <Loader className="w-6 h-6 text-sky-500 animate-spin" />
+            </div>
+          ) : pipelineStats.recentConversions.length === 0 ? (
+            <div className="text-center py-12">
+              <GitMerge className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400 mb-2">No conversions yet</p>
+              <p className="text-slate-500 text-sm">
+                When leads are converted to projects, they'll appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pipelineStats.recentConversions.map((conversion) => (
+                <div
+                  key={conversion.id}
+                  className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-700/20 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+                      <GitMerge className="w-4 h-4 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm">
+                        {conversion.lh_companies?.name || 'Unknown Company'}
+                      </p>
+                      <p className="text-slate-500 text-xs">
+                        {conversion.lh_companies?.industry || 'N/A'} • Score: {conversion.lead_score_at_conversion || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-slate-400 text-xs">{formatDate(conversion.created_at)}</p>
+                    {conversion.conversion_notes && (
+                      <p className="text-slate-500 text-xs truncate max-w-[200px]">{conversion.conversion_notes}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

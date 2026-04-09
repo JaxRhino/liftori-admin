@@ -87,18 +87,24 @@ export default function LeadHunterSettings() {
 
       if (data) {
         setSettings(data);
+        const sendWindow = data.default_send_window || {};
         setFormData({
           icp_definition: data.icp_definition || formData.icp_definition,
           daily_search_limit: data.daily_search_limit || 100,
           daily_enrichment_limit: data.daily_enrichment_limit || 500,
           daily_email_limit: data.daily_email_limit || 100,
           monthly_budget_cents: data.monthly_budget_cents || 50000,
-          send_window_start: data.send_window_start || '09:00',
-          send_window_end: data.send_window_end || '17:00',
-          send_window_timezone: data.send_window_timezone || 'America/New_York',
-          from_name: data.from_name || 'Sales Team',
-          from_email: data.from_email || 'sales@company.com',
-          api_keys: data.api_keys || formData.api_keys
+          send_window_start: sendWindow.start || '09:00',
+          send_window_end: sendWindow.end || '17:00',
+          send_window_timezone: sendWindow.timezone || 'America/New_York',
+          from_name: data.email_from_name || 'Liftori Sales',
+          from_email: data.email_from_address || 'hello@liftori.ai',
+          api_keys: {
+            google_places: data.google_places_api_key || '',
+            hunter_io: data.hunter_api_key || '',
+            people_data_labs: data.pdl_api_key || '',
+            abstract: data.abstract_api_key || '',
+          }
         });
       }
     } catch (err) {
@@ -136,12 +142,17 @@ export default function LeadHunterSettings() {
         daily_enrichment_limit: formData.daily_enrichment_limit,
         daily_email_limit: formData.daily_email_limit,
         monthly_budget_cents: formData.monthly_budget_cents,
-        send_window_start: formData.send_window_start,
-        send_window_end: formData.send_window_end,
-        send_window_timezone: formData.send_window_timezone,
-        from_name: formData.from_name,
-        from_email: formData.from_email,
-        api_keys: formData.api_keys
+        default_send_window: {
+          start: formData.send_window_start,
+          end: formData.send_window_end,
+          timezone: formData.send_window_timezone,
+        },
+        email_from_name: formData.from_name,
+        email_from_address: formData.from_email,
+        google_places_api_key: formData.api_keys.google_places || null,
+        hunter_api_key: formData.api_keys.hunter_io || null,
+        pdl_api_key: formData.api_keys.people_data_labs || null,
+        abstract_api_key: formData.api_keys.abstract || null,
       };
 
       let error;
