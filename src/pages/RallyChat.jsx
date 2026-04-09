@@ -16,6 +16,7 @@ import ChannelSettings from '../components/chat/ChannelSettings';
 import UserStatusSelector from '../components/chat/UserStatusSelector';
 import NotificationSettings from '../components/chat/NotificationSettings';
 import PresenceIndicator from '../components/chat/PresenceIndicator';
+import { usePresence } from '../hooks/usePresence';
 import AdminPanel from '../components/chat/AdminPanel';
 import AdvancedSearch from '../components/chat/AdvancedSearch';
 import SavedMessages from '../components/chat/SavedMessages';
@@ -68,6 +69,7 @@ export const Chat = () => {
   const { user, profile, token } = useAuth();
   const { sidebarOpen } = useOutletContext() || {};
   const [searchParams, setSearchParams] = useSearchParams();
+  const onlineUsers = usePresence();
   
   // Check if user is viewing as another user (impersonation mode)
   const isImpersonating = localStorage.getItem('is_impersonating') === 'true';
@@ -1028,6 +1030,9 @@ export const Chat = () => {
                               {userName.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
+                          {!isPrimeChannel && dm.other_user_id && onlineUsers.has(dm.other_user_id) && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#060B18]" title="Online" />
+                          )}
                         </div>
                         <span className="flex-1 text-left truncate">{userName}</span>
                         {dm.unread_count > 0 && (
@@ -1079,6 +1084,9 @@ export const Chat = () => {
                               {customerName.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
+                          {dm.other_user_id && onlineUsers.has(dm.other_user_id) && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#060B18]" title="Online" />
+                          )}
                         </div>
                         <span className="flex-1 text-left truncate">{customerName}</span>
                         {dm.unread_count > 0 && (
