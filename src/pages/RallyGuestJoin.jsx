@@ -178,6 +178,14 @@ export default function RallyGuestJoin() {
 
       if (activeCalls && activeCalls.length > 0) {
         call = activeCalls[0];
+        // Notify the host that a guest joined the existing call
+        await supabase.from('notifications').insert({
+          user_id: rallyLink.created_by,
+          type: 'general',
+          title: 'Incoming Rally Call',
+          body: `${guestName.trim()} joined via "${rallyLink.label}"`,
+          link: `/admin/chat?callId=${call.id}`,
+        });
       } else {
         // Create a new call linked to this rally link
         const { data: newCall, error } = await supabase
@@ -194,13 +202,13 @@ export default function RallyGuestJoin() {
         if (error) throw error;
         call = newCall;
 
-        // Notify the host that a guest joined
+        // Notify the host that a guest joined — include callId so incoming call modal triggers
         await supabase.from('notifications').insert({
           user_id: rallyLink.created_by,
           type: 'general',
-          title: 'Guest joined Rally',
+          title: 'Incoming Rally Call',
           body: `${guestName.trim()} joined via "${rallyLink.label}"`,
-          link: '/admin/rally',
+          link: `/admin/chat?callId=${call.id}`,
         });
       }
 
