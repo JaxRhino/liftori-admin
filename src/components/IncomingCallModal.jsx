@@ -3,126 +3,133 @@ import { Phone, PhoneOff } from 'lucide-react';
 import { useVideoCallContext } from '../contexts/VideoCallContext';
 
 export default function IncomingCallModal() {
-  const { incomingCall, joinCallWithStream, declineCall, getMedia } =
+  const { incomingCall, joinCallWithStream, declineCall } =
     useVideoCallContext();
 
-  const [cameraStream, setCameraStream] = useState(null);
-  const [audioContext, setAudioContext] = useState(null);
+  const [previewStream, setPreviewStream] = useState(null);
   const [ringingIntervalId, setRingingIntervalId] = useState(null);
+  const [joining, setJoining] = useState(false);
   const videoPreviewRef = useRef(null);
   const oscillatorRef = useRef(null);
-  const gainRef = useRef(null);
+  const streamRef = useRef(null);
 
-  // Initialize camera and ringing sound when modal appears
+  // Initialize camera+mic and ringing sound when modal appears
   useEffect(() => {
     if (!incomingCall) return;
+    let cancelled = false;
 
-    // Start camera preview
-    const startCamera = async () => {
+    // Start camera AND mic upfront so we can hand off the stream directly
+    const startMedia = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
+          audio: true,
         });
-        setCameraStream(stream);
+        if (cancelled) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        setPreviewStream(stream);
         if (videoPreviewRef.current) {
           videoPreviewRef.current.srcObject = stream;
         }
       } catch (err) {
-        console.error('Failed to access camera:', err);
+        console.error('Failed to access camera/mic:', err);
       }
     };
 
-    startCamera();
+    startMedia();
 
     // Initialize Web Audio API for ringing
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    setAudioContext(audioCtx);
 
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    osc.frequency.value = 440; // A4 note
-    gain.gain.value = 0; // Start silent
+    osc.frequency.value = 440;
+    gain.gain.value = 0;
 
     osc.start();
     oscillatorRef.current = osc;
-    gainRef.current = gain;
 
-    // Ring pattern: 0.5s on, 0.2s off, 0.5s on, 1.8s off (2.5s total, repeats)
+    // Ring pattern
     let ringPhase = 0;
-    const startRinging = () => {
-      const interval = setInterval(() => {
-        const time = audioCtx.currentTime;
+    const interval = setInterval(() => {
+      const time = audioCtx.currentTime;
+      if (ringPhase === 0) {
+        gain.gain.setValueAtTime(0.3, time);
+        ringPhase = 1;
+      } else if (ringPhase === 1) {
+        gain.gain.setValueAtTime(0, time);
+        ringPhase = 2;
+      } else if (ringPhase === 2) {
+        gain.gain.setValueAtTime(0.3, time);
+        ringPhase = 3;
+      } else {
+        gain.gain.setValueAtTime(0, time);
+        ringPhase = 0;
+      }
+    }, 250);
 
-        if (ringPhase === 0) {
-          // 0-0.5s: tone on
-          gain.gain.setValueAtTime(0.3, time);
-          ringPhase = 1;
-        } else if (ringPhase === 1) {
-          // 0.5-0.7s: silence
-          gain.gain.setValueAtTime(0, time);
-          ringPhase = 2;
-        } else if (ringPhase === 2) {
-          // 0.7-1.2s: tone on
-          gain.gain.setValueAtTime(0.3, time);
-          ringPhase = 3;
-        } else {
-          // 1.2-2.5s: silence
-          gain.gain.setValueAtTime(0, time);
-          ringPhase = 0;
-        }
-      }, 250); // Phase changes every 250ms
+    setRingingIntervalId(interval);
 
-      return interval;
-    };
-
-    const intervalId = startRinging();
-    setRingingIntervalId(intervalId);
-
-    // Cleanup on unmount or when call ends
     return () => {
-      if (intervalId) clearInterval(intervalId);
-      try { if (osc) osc.stop(); } catch(e) {}
-      if (cameraStream) {
-        cameraStream.getTracks().forEach((track) => track.stop());
+      cancelled = true;
+      clearInterval(interval);
+      try { osc.stop(); } catch (e) {}
+      try { audioCtx.close(); } catch (e) {}
+      // Only stop stream if we didn't hand it off to the call
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
       }
     };
   }, [incomingCall]);
 
-  // Handle accept
+  // Handle accept — hand off existing stream, don't re-request camera
   const handleAccept = async () => {
-    try {
-      // Stop ringing and camera preview
-      if (ringingIntervalId) clearInterval(ringingIntervalId);
-      if (cameraStream) {
-        cameraStream.getTracks().forEach((track) => track.stop());
-      }
-      if (oscillatorRef.current) oscillatorRef.current.stop();
+    if (joining) return;
+    setJoining(true);
 
-      // Get full media stream with audio
-      const stream = await getMedia(true, true);
-      await joinCallWithStream(incomingCall.session_id, stream);
+    try {
+      // Stop ringing
+      if (ringingIntervalId) clearInterval(ringingIntervalId);
+      try { if (oscillatorRef.current) oscillatorRef.current.stop(); } catch (e) {}
+
+      // Hand off stream — null out ref so cleanup doesn't kill it
+      const stream = streamRef.current;
+      streamRef.current = null;
+
+      if (!stream) {
+        // Fallback: try getting a new stream if preview failed
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+        await joinCallWithStream(incomingCall.session_id, fallbackStream);
+      } else {
+        await joinCallWithStream(incomingCall.session_id, stream);
+      }
     } catch (err) {
       console.error('Failed to join call:', err);
+      // Restore stream ref so cleanup can stop tracks
+      if (streamRef.current === null && previewStream) {
+        previewStream.getTracks().forEach(t => t.stop());
+      }
+      setJoining(false);
     }
   };
 
   // Handle decline
   const handleDecline = () => {
-    // Stop ringing and camera preview
     if (ringingIntervalId) clearInterval(ringingIntervalId);
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop());
-    }
-    if (oscillatorRef.current) oscillatorRef.current.stop();
-
+    try { if (oscillatorRef.current) oscillatorRef.current.stop(); } catch (e) {}
     declineCall();
   };
 
-  // Auto-dismiss if incomingCall becomes null
   if (!incomingCall) return null;
 
   return (
@@ -131,7 +138,6 @@ export default function IncomingCallModal() {
         {/* Caller Avatar with Pulsing Ring */}
         <div className="mb-6 flex justify-center">
           <div className="relative inline-block">
-            {/* Pulsing ring animation */}
             <div className="absolute inset-0 rounded-full bg-green-500 opacity-0 animate-pulse" />
             <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-green-500 bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white text-4xl font-bold">
               {incomingCall.caller_name?.[0]?.toUpperCase() || '?'}
@@ -160,22 +166,22 @@ export default function IncomingCallModal() {
 
         {/* Action Buttons */}
         <div className="flex gap-3">
-          {/* Decline Button */}
           <button
             onClick={handleDecline}
-            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 transition-colors"
+            disabled={joining}
+            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 transition-colors disabled:opacity-50"
           >
             <PhoneOff size={20} />
             Decline
           </button>
 
-          {/* Accept Button */}
           <button
             onClick={handleAccept}
-            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 transition-colors"
+            disabled={joining}
+            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 transition-colors disabled:opacity-50"
           >
             <Phone size={20} />
-            Accept
+            {joining ? 'Joining...' : 'Accept'}
           </button>
         </div>
       </div>
