@@ -270,12 +270,13 @@ export default function RallyGuestJoin() {
           const peerId = p.guest_id || p.user_id;
           if (peerId === guestId) return; // Skip our own insert
 
-          // New participant joined — initiate WebRTC
+          // New participant joined — add them to the list
+          // DON'T initiate WebRTC here — the auth user (VideoCallContext) will
+          // send us an offer. This prevents double-offer glare.
           setParticipants(prev => {
             if (prev.find(x => x.peerId === peerId)) return prev;
             return [...prev, { peerId, user_name: p.display_name, status: 'connected', role: p.role }];
           });
-          initiateConnection(callId, guestId, peerId);
         } else if (payload.eventType === 'DELETE') {
           const peerId = payload.old.guest_id || payload.old.user_id;
           setParticipants(prev => prev.filter(x => x.peerId !== peerId));
