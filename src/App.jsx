@@ -8,6 +8,14 @@ import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import LeadHunter from './pages/LeadHunter'
+// Lead Hunter sub-pages
+import LeadHunterDashboard from './pages/lead-hunter/LeadHunterDashboard'
+import LeadHunterSearch from './pages/lead-hunter/LeadHunterSearch'
+import LeadHunterCompany from './pages/lead-hunter/LeadHunterCompany'
+import LeadHunterLists from './pages/lead-hunter/LeadHunterLists'
+import LeadHunterSequences from './pages/lead-hunter/LeadHunterSequences'
+import LeadHunterSignals from './pages/lead-hunter/LeadHunterSignals'
+import LeadHunterSettings from './pages/lead-hunter/LeadHunterSettings'
 import Estimates from './pages/Estimates'
 import Agreements from './pages/Agreements'
 import Commissions from './pages/Commissions'
@@ -170,7 +178,13 @@ export default function App() {
             <Route path="customers/convert/:signupId" element={<ConvertSignup />} />
             <Route path="platforms" element={<Platforms />} />
             <Route path="platforms/:id" element={<PlatformDetail />} />
-            <Route path="lead-hunter" element={<LeadHunter />} />
+            <Route path="lead-hunter" element={<LeadHunterDashboard />} />
+            <Route path="lead-hunter/search" element={<LeadHunterSearch />} />
+            <Route path="lead-hunter/company/:id" element={<LeadHunterCompany />} />
+            <Route path="lead-hunter/lists" element={<LeadHunterLists />} />
+            <Route path="lead-hunter/sequences" element={<LeadHunterSequences />} />
+            <Route path="lead-hunter/signals" element={<LeadHunterSignals />} />
+            <Route path="lead-hunter/settings" element={<LeadHunterSettings />} />
             <Route path="estimates" element={<Estimates />} />
             <Route path="agreements" element={<Agreements />} />
             <Route path="commissions" element={<Commissions />} />
