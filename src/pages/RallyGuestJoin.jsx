@@ -59,6 +59,7 @@ export default function RallyGuestJoin() {
 
   // In-call state
   const [activeCall, setActiveCall] = useState(null);
+  const activeCallRef = useRef(null); // Ref to avoid stale closures in callbacks
   const [participants, setParticipants] = useState([]);
   const [remoteStreams, setRemoteStreams] = useState({});
   const peerConnections = useRef({});
@@ -213,6 +214,7 @@ export default function RallyGuestJoin() {
       }
 
       setActiveCall(call);
+      activeCallRef.current = call; // Sync ref immediately for callbacks
 
       // Add ourselves as a guest participant (guest_id, not user_id — guests aren't in auth.users)
       const guestId = guestIdRef.current;
@@ -328,11 +330,12 @@ export default function RallyGuestJoin() {
       setRemoteStreams(prev => ({ ...prev, [remoteUserId]: event.streams[0] }));
     };
 
-    // Handle ICE candidates
+    // Handle ICE candidates — use ref to avoid stale closure
     pc.onicecandidate = async (event) => {
-      if (event.candidate && activeCall) {
+      const call = activeCallRef.current;
+      if (event.candidate && call) {
         await supabase.from('video_signals').insert({
-          call_id: activeCall.id,
+          call_id: call.id,
           from_user: guestIdRef.current,
           to_user: remoteUserId,
           signal_type: 'ice-candidate',
@@ -373,7 +376,7 @@ export default function RallyGuestJoin() {
       await pc.setLocalDescription(answer);
 
       await supabase.from('video_signals').insert({
-        call_id: activeCall?.id || signal.call_id,
+        call_id: activeCallRef.current?.id || signal.call_id,
         from_user: guestIdRef.current,
         to_user: from_user,
         signal_type: 'answer',
@@ -408,11 +411,12 @@ export default function RallyGuestJoin() {
     subscriptionsRef.current = [];
 
     // Remove ourselves from participants (use guest_id, not user_id)
-    if (activeCall) {
+    const call = activeCallRef.current;
+    if (call) {
       supabase
         .from('video_call_participants')
         .delete()
-        .eq('call_id', activeCall.id)
+        .eq('call_id', call.id)
         .eq('guest_id', guestIdRef.current)
         .then(() => {});
     }
@@ -421,6 +425,7 @@ export default function RallyGuestJoin() {
     setRemoteStreams({});
     setParticipants([]);
     setActiveCall(null);
+    activeCallRef.current = null;
     setPhase('ended');
   }, [activeCall]);
 
