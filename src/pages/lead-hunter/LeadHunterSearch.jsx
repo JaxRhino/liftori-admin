@@ -514,6 +514,45 @@ export default function LeadHunterSearch() {
     navigate(`/admin/lead-hunter/lists`)
   }
 
+  function handleExportCSV() {
+    const rows = selectedRows.size > 0
+      ? results.filter(c => selectedRows.has(c.id))
+      : results;
+
+    if (rows.length === 0) {
+      showToast('No results to export', 'error');
+      return;
+    }
+
+    const csv = [
+      ['Company', 'Website', 'Industry', 'City', 'State', 'Phone', 'Employee Count', 'Lead Score', 'Enrichment Status', 'CMS', 'Website Quality'],
+      ...rows.map(c => [
+        c.name || '',
+        c.website || '',
+        c.industry || '',
+        c.city || '',
+        c.state || '',
+        c.phone || '',
+        c.employee_count || '',
+        c.lead_score || '',
+        c.enrichment_status || '',
+        c.cms_detected || '',
+        c.website_quality_score || '',
+      ])
+    ]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lead-hunter-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${rows.length} companies to CSV`, 'success');
+  }
+
   function buildCriteriaObject() {
     return {
       industry_keyword: filters.industry_keyword || null,
@@ -769,6 +808,14 @@ export default function LeadHunterSearch() {
             <h2 className="text-lg font-semibold text-white">
               Showing {results.length > 0 ? (currentPage - 1) * resultsPerPage + 1 : 0}-{Math.min(currentPage * resultsPerPage, totalCount)} of {totalCount} companies
             </h2>
+            {results.length > 0 && selectedRows.size === 0 && (
+              <button
+                onClick={handleExportCSV}
+                className="px-3 py-1 text-sm font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/20 transition-colors"
+              >
+                Export All to CSV
+              </button>
+            )}
           </div>
 
           {/* Bulk Action Bar */}
@@ -794,6 +841,12 @@ export default function LeadHunterSearch() {
                   className="px-3 py-1 text-sm font-medium text-white bg-sky-500/20 border border-sky-500/50 rounded-lg hover:bg-sky-500/30 transition-colors"
                 >
                   Start Sequence
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  className="px-3 py-1 text-sm font-medium text-white bg-emerald-500/20 border border-emerald-500/50 rounded-lg hover:bg-emerald-500/30 transition-colors"
+                >
+                  Export CSV
                 </button>
               </div>
             </div>

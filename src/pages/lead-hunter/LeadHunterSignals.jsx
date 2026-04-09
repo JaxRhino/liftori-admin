@@ -30,6 +30,8 @@ export default function LeadHunterSignals() {
   });
   const [scanning, setScanning] = useState(false);
   const [toast, setToast] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const signalsPerPage = 25;
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
@@ -66,7 +68,7 @@ export default function LeadHunterSignals() {
 
   useEffect(() => {
     fetchSignals();
-  }, [filters]);
+  }, [filters, currentPage]);
 
   const fetchSignals = async () => {
     try {
@@ -75,8 +77,8 @@ export default function LeadHunterSignals() {
         supabase.from('lh_signals').select(`
           *,
           lh_companies(id, name, website, industry)
-        `)
-      ).gte('detected_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+        `, { count: 'exact' })
+      ).gte('detected_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
       // Apply filters
       if (filters.signalType !== 'all') {
@@ -91,20 +93,24 @@ export default function LeadHunterSignals() {
         query = query.eq('is_actioned', false);
       }
 
-      const { data, error } = await query.order('detected_at', { ascending: false });
+      const from = (currentPage - 1) * signalsPerPage;
+      const to = from + signalsPerPage - 1;
+      const { data, count, error } = await query
+        .order('detected_at', { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
 
       setSignals(data || []);
 
-      // Calculate stats
+      // Calculate stats from the full count
       const totalLow = (data || []).filter(s => s.signal_strength === 'low').length;
       const totalMedium = (data || []).filter(s => s.signal_strength === 'medium').length;
       const totalHigh = (data || []).filter(s => s.signal_strength === 'high').length;
       const totalCritical = (data || []).filter(s => s.signal_strength === 'critical').length;
 
       setStats({
-        total: (data || []).length,
+        total: count || 0,
         byStrength: {
           low: totalLow,
           medium: totalMedium,
@@ -345,6 +351,34 @@ export default function LeadHunterSignals() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {stats.total > signalsPerPage && (
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-sm text-gray-400">
+            Showing {(currentPage - 1) * signalsPerPage + 1}-{Math.min(currentPage * signalsPerPage, stats.total)} of {stats.total} signals
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-sm bg-slate-800 border border-slate-700/50 rounded-lg text-gray-300 hover:bg-slate-700 disabled:opacity-40 transition-colors"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1 text-sm text-gray-400">
+              Page {currentPage} of {Math.ceil(stats.total / signalsPerPage)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(Math.ceil(stats.total / signalsPerPage), p + 1))}
+              disabled={currentPage >= Math.ceil(stats.total / signalsPerPage)}
+              className="px-3 py-1 text-sm bg-slate-800 border border-slate-700/50 rounded-lg text-gray-300 hover:bg-slate-700 disabled:opacity-40 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (

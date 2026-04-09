@@ -35,6 +35,7 @@ export default function LeadHunterDashboard() {
   const [hotLeadsData, setHotLeadsData] = useState([]);
   const [signals, setSignals] = useState([]);
   const [enrichmentLog, setEnrichmentLog] = useState([]);
+  const [usageStats, setUsageStats] = useState({ monthlySpend: 0, monthlyEnrichments: 0 });
   const [loadingHotLeads, setLoadingHotLeads] = useState(false);
   const [loadingSignals, setLoadingSignals] = useState(false);
   const [loadingLog, setLoadingLog] = useState(false);
@@ -83,6 +84,31 @@ export default function LeadHunterDashboard() {
     };
 
     fetchStats();
+  }, []);
+
+  // Fetch Usage Stats (this month)
+  useEffect(() => {
+    const fetchUsage = async () => {
+      try {
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+        const { data, error } = await tenantFilter(
+          supabase.from('lh_enrichment_log').select('cost_cents', { count: 'exact' })
+        ).gte('created_at', monthStart);
+
+        if (error) throw error;
+        const totalCents = (data || []).reduce((sum, log) => sum + (log.cost_cents || 0), 0);
+        setUsageStats({
+          monthlySpend: totalCents / 100,
+          monthlyEnrichments: data?.length || 0,
+        });
+      } catch (error) {
+        console.error('Error fetching usage:', error);
+      }
+    };
+
+    fetchUsage();
   }, []);
 
   // Fetch Hot Leads
@@ -293,7 +319,7 @@ export default function LeadHunterDashboard() {
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-4 mb-8">
         {/* Total Companies */}
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6 hover:border-slate-600/50 transition-colors">
           <div className="flex items-center justify-between mb-2">
@@ -328,6 +354,24 @@ export default function LeadHunterDashboard() {
             <Activity className="w-5 h-5 text-green-500" />
           </div>
           <p className="text-3xl font-bold text-white">{stats.activeSequences}</p>
+        </div>
+
+        {/* Monthly Enrichments */}
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6 hover:border-slate-600/50 transition-colors">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-slate-400 text-sm font-medium">Enrichments (MTD)</p>
+            <ArrowRight className="w-5 h-5 text-purple-500" />
+          </div>
+          <p className="text-3xl font-bold text-white">{usageStats.monthlyEnrichments}</p>
+        </div>
+
+        {/* Monthly Spend */}
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6 hover:border-slate-600/50 transition-colors">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-slate-400 text-sm font-medium">API Spend (MTD)</p>
+            <TrendingUp className="w-5 h-5 text-emerald-500" />
+          </div>
+          <p className="text-3xl font-bold text-white">${usageStats.monthlySpend.toFixed(2)}</p>
         </div>
       </div>
 
