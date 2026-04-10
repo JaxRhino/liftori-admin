@@ -193,11 +193,14 @@ export default function OnboardingWizard({ onComplete, previewMode = false }) {
               <div className="bg-slate-700/30 border border-slate-600/30 rounded-lg p-5 mb-6 max-h-64 overflow-y-auto">
                 <h3 className="text-white font-semibold mb-3">Key Terms</h3>
                 <div className="space-y-3 text-sm text-gray-400">
-                  <p><span className="text-white font-medium">Confidential Information:</span> All proprietary information including source code, algorithms, client data, business strategies, pricing models, and platform architecture.</p>
-                  <p><span className="text-white font-medium">Non-Solicitation:</span> You agree not to solicit Liftori clients or team members for 2 years after leaving.</p>
-                  <p><span className="text-white font-medium">Non-Compete:</span> 1-year restriction within the AI/SaaS web development agency space post-termination.</p>
-                  <p><span className="text-white font-medium">IP Protection:</span> All work product created during engagement belongs exclusively to Liftori AI LLC.</p>
-                  <p><span className="text-white font-medium">Duration:</span> Obligations survive for 5 years after termination of the relationship.</p>
+                  <p><span className="text-white font-medium">Confidential Information:</span> All non-public, proprietary, or trade secret information — including source code, algorithms, system architecture, APIs, database schemas, client data, business strategies, pricing models, financial data, product roadmaps, and internal communications.</p>
+                  <p><span className="text-white font-medium">Non-Disclosure:</span> You may not disclose, publish, or reveal any Confidential Information to any third party at any time during or after your engagement. Violations may result in immediate legal action.</p>
+                  <p><span className="text-white font-medium">No Reverse Engineering:</span> You may not reverse engineer, decompile, or derive source code from any Company software, prototypes, or materials.</p>
+                  <p><span className="text-white font-medium">IP Ownership:</span> All work product, code, designs, and documentation created during your engagement are the sole and exclusive property of Liftori AI LLC, including all intellectual property rights. You irrevocably assign all rights to the Company.</p>
+                  <p><span className="text-white font-medium">Non-Solicitation (24 months):</span> You may not solicit, recruit, or divert any Liftori clients, prospective clients, employees, or contractors for 24 months after termination.</p>
+                  <p><span className="text-white font-medium">Non-Compete (12 months):</span> You may not engage in, own, or provide services to any directly competing AI-powered web development agency or substantially similar business within the United States for 12 months after termination.</p>
+                  <p><span className="text-white font-medium">Remedies:</span> Breach may result in injunctive relief, $50,000 liquidated damages per occurrence, plus actual damages and attorney's fees.</p>
+                  <p><span className="text-white font-medium">Duration:</span> Confidentiality obligations survive for 5 years. Dispute resolution via mediation then binding arbitration in Florida.</p>
                 </div>
               </div>
 
@@ -273,12 +276,14 @@ export default function OnboardingWizard({ onComplete, previewMode = false }) {
               <div className="bg-slate-700/30 border border-slate-600/30 rounded-lg p-5 mb-6 max-h-64 overflow-y-auto">
                 <h3 className="text-white font-semibold mb-3">Key Terms</h3>
                 <div className="space-y-3 text-sm text-gray-400">
-                  <p><span className="text-white font-medium">Contractor Status:</span> You are an independent contractor, not an employee. You are responsible for your own taxes and do not receive employee benefits.</p>
-                  <p><span className="text-white font-medium">Compensation:</span> Payment terms, rates, and schedules will be outlined in your role-specific addendum.</p>
-                  <p><span className="text-white font-medium">Intellectual Property:</span> All work product, code, designs, and documentation created during engagement are owned by Liftori AI LLC.</p>
-                  <p><span className="text-white font-medium">Tax Obligations:</span> You will provide a W-9 and will receive a 1099-NEC for tax purposes.</p>
-                  <p><span className="text-white font-medium">Termination:</span> Either party may terminate with 14 days notice. Immediate termination for breach of NDA or misconduct.</p>
-                  <p><span className="text-white font-medium">Dispute Resolution:</span> Mediation first, then binding arbitration in Florida.</p>
+                  <p><span className="text-white font-medium">Independent Contractor Status:</span> You are an independent contractor, not an employee, partner, or agent. You are solely responsible for all federal, state, and local taxes including self-employment taxes. You are not entitled to any employee benefits.</p>
+                  <p><span className="text-white font-medium">Compensation & Invoicing:</span> Rates, payment schedule, and scope are defined in Exhibit A. Invoices must be submitted bi-weekly/monthly. Payment within 15 business days of approved invoice. Expenses over $100 require pre-approval.</p>
+                  <p><span className="text-white font-medium">W-9 & 1099-NEC:</span> You must provide a completed W-9 before receiving any payment. A 1099-NEC will be issued for annual compensation exceeding $600.</p>
+                  <p><span className="text-white font-medium">Intellectual Property:</span> All work product, code, designs, inventions, and documentation created during engagement are the sole and exclusive property of Liftori AI LLC as "work made for hire." You irrevocably assign all rights including copyrights, patents, and trade secrets.</p>
+                  <p><span className="text-white font-medium">Confidentiality:</span> The NDA executed alongside this agreement is incorporated by reference. You must not use Company systems for personal purposes, must encrypt any Company data on personal devices, and must delete all Company data from personal devices within 5 business days of termination.</p>
+                  <p><span className="text-white font-medium">Termination:</span> Either party may terminate with 14 days' written notice. Immediate termination for: breach of agreement/NDA, gross negligence, fraud, dishonesty, or felony conviction. You must provide up to 10 days of transition assistance upon termination.</p>
+                  <p><span className="text-white font-medium">Indemnification:</span> You agree to indemnify and hold harmless Liftori AI LLC from claims arising from your breach, negligence, or IP infringement.</p>
+                  <p><span className="text-white font-medium">Dispute Resolution:</span> Good faith negotiation, then mediation, then binding arbitration in Florida. Prevailing party recovers attorney's fees.</p>
                 </div>
               </div>
 
