@@ -88,7 +88,7 @@ function DetailPanel({ signup, onClose, onStatusChange }) {
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-navy-900 border-l border-navy-700 z-50 overflow-y-auto shadow-2xl">
+      <div className="fixed right-0 top-12 bottom-0 w-full max-w-lg bg-navy-900 border-l border-navy-700 z-50 overflow-y-auto shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-navy-700">
           <div>

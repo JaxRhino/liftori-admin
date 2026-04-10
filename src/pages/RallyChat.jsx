@@ -868,7 +868,7 @@ export const Chat = () => {
   return (
     <div>
 
-      <div className={`fixed right-0 bottom-0 top-0 flex bg-navy-900 transition-all duration-200 ${sidebarOpen !== false ? 'left-60' : 'left-16'}`}>
+      <div className={`fixed right-0 bottom-0 top-12 flex bg-navy-900 transition-all duration-200 ${sidebarOpen !== false ? 'left-60' : 'left-16'}`}>
         {/* Channel Sidebar */}
         <div className="w-64 border-r bg-card flex flex-col h-full overflow-hidden">
           {/* Search */}
@@ -1657,7 +1657,7 @@ export const Chat = () => {
 
       {/* Thread Sidebar */}
       {threadOpen && threadParentMessage && (
-        <div className="fixed right-0 top-0 bottom-0 w-96 bg-background border-l shadow-xl z-50 flex flex-col">
+        <div className="fixed right-0 top-12 bottom-0 w-96 bg-background border-l shadow-xl z-50 flex flex-col">
           {/* Thread Header */}
           <div className="border-b p-4 flex items-center justify-between">
             <h3 className="font-semibold flex items-center gap-2">
