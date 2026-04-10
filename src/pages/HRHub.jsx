@@ -103,6 +103,11 @@ export default function HRHub() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [approvingId, setApprovingId] = useState(null);
 
+  // Approve dialog state
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [approveTarget, setApproveTarget] = useState(null);
+  const [companyEmail, setCompanyEmail] = useState('');
+
   useEffect(() => {
     fetchApplicants();
     fetchReferrals();
@@ -258,38 +263,64 @@ export default function HRHub() {
   }
 
   // ─── Approve + Send Platform Login ──────────────────────────
-  async function handleApprove(applicant) {
-    setApprovingId(applicant.id);
-    try {
-      // Update applicant to hired + approved
-      const { error: updateErr } = await supabase
-        .from('applicants')
-        .update({
-          stage: 'hired',
-          approved_at: new Date().toISOString(),
-          approved_by: user.id,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', applicant.id);
-      if (updateErr) throw updateErr;
+  function generateCompanyEmail(fullName) {
+    const parts = fullName.trim().split(/\s+/);
+    const first = parts[0] || '';
+    const last = parts[parts.length - 1] || '';
+    return `${first[0]?.toLowerCase() || ''}${last.toLowerCase()}@liftori.ai`;
+  }
 
-      // Send approval email with platform login
-      await sendApprovalEmail(applicant);
+  function handleApprove(applicant) {
+    setApproveTarget(applicant);
+    setCompanyEmail(generateCompanyEmail(applicant.full_name));
+    setApproveDialogOpen(true);
+  }
+
+  async function confirmApprove() {
+    if (!approveTarget || !companyEmail) return;
+    const applicant = approveTarget;
+    setApprovingId(applicant.id);
+    setApproveDialogOpen(false);
+
+    try {
+      const SUPABASE_URL = 'https://qlerfkdyslndjbaltkwo.supabase.co';
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/create-team-member`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
+        },
+        body: JSON.stringify({
+          applicant_id: applicant.id,
+          company_email: companyEmail,
+          full_name: applicant.full_name,
+          position: applicant.position,
+          personal_email: applicant.email,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.details || 'Approval failed');
 
       setApplicants(prev => prev.map(a => a.id === applicant.id ? {
-        ...a, stage: 'hired', approved_at: new Date().toISOString(), approved_by: user.id, onboarding_triggered_at: new Date().toISOString()
+        ...a, stage: 'hired', approved_at: new Date().toISOString(), approved_by: user.id,
+        onboarding_triggered_at: new Date().toISOString(), company_email: companyEmail,
+        auth_user_id: data.user_id,
       } : a));
       if (selectedApplicant?.id === applicant.id) {
         setSelectedApplicant(prev => ({
-          ...prev, stage: 'hired', approved_at: new Date().toISOString(), approved_by: user.id, onboarding_triggered_at: new Date().toISOString()
+          ...prev, stage: 'hired', approved_at: new Date().toISOString(), approved_by: user.id,
+          onboarding_triggered_at: new Date().toISOString(), company_email: companyEmail,
+          auth_user_id: data.user_id,
         }));
       }
-      toast.success(`${applicant.full_name} approved! Platform login sent.`);
+      toast.success(`${applicant.full_name} approved! Login sent to ${companyEmail} and ${applicant.email}`);
     } catch (err) {
       console.error('Approval error:', err);
       toast.error('Failed to approve: ' + err.message);
     } finally {
       setApprovingId(null);
+      setApproveTarget(null);
     }
   }
 
@@ -1395,6 +1426,12 @@ export default function HRHub() {
                           Approved {new Date(selectedApplicant.approved_at).toLocaleDateString()}
                         </div>
                       )}
+                      {selectedApplicant.company_email && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-sky-500/10 rounded text-xs text-sky-300">
+                          <Mail className="h-3.5 w-3.5" />
+                          {selectedApplicant.company_email}
+                        </div>
+                      )}
                       {selectedApplicant.onboarding_triggered_at && (
                         <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 rounded text-xs text-green-300">
                           <Check className="h-3.5 w-3.5" />
@@ -1468,6 +1505,71 @@ export default function HRHub() {
             <Button variant="ghost" onClick={() => setScoreDialogOpen(false)}>Cancel</Button>
             <Button onClick={submitScore} className="bg-sky-500 hover:bg-sky-600">Submit Score</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Approve & Onboard Dialog ──────────────────────────── */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-green-400" />
+              Approve & Create Account
+            </DialogTitle>
+          </DialogHeader>
+          {approveTarget && (
+            <div className="space-y-4">
+              <div className="bg-navy-800/30 rounded-lg p-4 border border-white/10">
+                <div className="flex items-center gap-3 mb-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-green-500/20 text-green-400">
+                      {approveTarget.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="text-sm font-medium text-white">{approveTarget.full_name}</div>
+                    <div className="text-xs text-gray-400">{approveTarget.position}</div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400">
+                  Personal email: <span className="text-gray-300">{approveTarget.email}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Company Email (login credential)</label>
+                <Input
+                  value={companyEmail}
+                  onChange={e => setCompanyEmail(e.target.value)}
+                  className="bg-navy-800/50 border-white/10"
+                  placeholder="jcillo@liftori.ai"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">This becomes their login email. A temp password will be generated and emailed.</p>
+              </div>
+
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                <h4 className="text-xs font-semibold text-green-400 mb-2">This will:</h4>
+                <ul className="text-xs text-gray-300 space-y-1">
+                  <li className="flex items-center gap-2"><Check className="h-3 w-3 text-green-400" /> Create Supabase auth account with {companyEmail || '...'}</li>
+                  <li className="flex items-center gap-2"><Check className="h-3 w-3 text-green-400" /> Create team member profile</li>
+                  <li className="flex items-center gap-2"><Check className="h-3 w-3 text-green-400" /> Send login credentials from Sage to both emails</li>
+                  <li className="flex items-center gap-2"><Check className="h-3 w-3 text-green-400" /> Move applicant to Hired stage</li>
+                </ul>
+              </div>
+
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setApproveDialogOpen(false)}>Cancel</Button>
+                <Button
+                  onClick={confirmApprove}
+                  disabled={!companyEmail || approvingId}
+                  className="bg-green-600 hover:bg-green-700 text-white gap-2"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  {approvingId ? 'Creating Account...' : 'Approve & Send Login'}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
