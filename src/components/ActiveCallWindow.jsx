@@ -306,8 +306,9 @@ export default function ActiveCallWindow({ callData, onClose }) {
   async function loadChannels() {
     if (!user) return;
     try {
-      const ch = await fetchChannels(user.id);
-      setChannels(ch.filter(c => c.type !== 'direct'));
+      const result = await fetchChannels(user.id);
+      const allChannels = result?.channels || result || [];
+      setChannels(allChannels.filter(c => c.type !== 'direct'));
     } catch {}
   }
 
@@ -328,8 +329,9 @@ export default function ActiveCallWindow({ callData, onClose }) {
   // DM
   async function loadTeamUsers() {
     try {
-      const users = await fetchChatUsers();
-      setTeamUsers(users.filter(u => u.id !== user?.id));
+      const result = await fetchChatUsers();
+      const allUsers = result?.users || result || [];
+      setTeamUsers(allUsers.filter(u => u.id !== user?.id));
     } catch {}
   }
 
@@ -411,15 +413,14 @@ export default function ActiveCallWindow({ callData, onClose }) {
       const callerName = customer?.full_name || callData?.callerName || callerPhone || 'Unknown Caller';
       const callerEmail = customer?.email || '';
 
-      // 1. Add to speed-to-lead queue
+      // 1. Add to speed-to-lead queue (columns: lead_name, lead_phone, lead_email, lead_source)
       await createSpeedToLead({
         lead_name: callerName,
-        phone_number: callerPhone,
-        email: callerEmail,
-        source: 'hot_lead_call',
+        lead_phone: callerPhone,
+        lead_email: callerEmail,
+        lead_source: 'hot_lead_call',
         status: 'new',
         notes: `HOT LEAD - Flagged during active call by ${profile?.full_name || 'agent'}. Needs immediate follow-up or appointment.`,
-        priority: 'urgent',
       });
 
       // 2. Post to sales channel
@@ -795,7 +796,7 @@ export default function ActiveCallWindow({ callData, onClose }) {
                     className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-sky-500">
                     <option value="">Select team member...</option>
                     {teamUsers.map(u => (
-                      <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
+                      <option key={u.id} value={u.id}>{u.name || u.full_name || u.email}</option>
                     ))}
                   </select>
                   <textarea value={dmMsg} onChange={e => setDmMsg(e.target.value)}
