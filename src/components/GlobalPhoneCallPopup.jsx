@@ -82,16 +82,34 @@ export default function GlobalPhoneCallPopup() {
     };
   }, [user]);
 
+  // Destroy Twilio device when agent goes offline (only GlobalPhoneCallPopup owns this)
+  useEffect(() => {
+    if (agentStatus === 'offline' && isDeviceReady()) {
+      console.log('[GlobalPhone] Agent offline — destroying device');
+      destroyTwilioDevice();
+    }
+  }, [agentStatus]);
+
   // Initialize Twilio device when agent goes available
   useEffect(() => {
     if (!user || agentStatus !== 'available') return;
 
-    // Only init if not already ready (CallCenter might have already done it)
+    // Init device if not already ready
     if (!isDeviceReady()) {
       initializeTwilioDevice(user.id).catch(err => {
         console.error('[GlobalPhone] Failed to init Twilio:', err);
       });
     }
+
+    // Health check: re-init device if it dies (e.g. token expiry, network issue)
+    const healthCheck = setInterval(() => {
+      if (agentStatus === 'available' && !isDeviceReady()) {
+        console.log('[GlobalPhone] Device not ready — reinitializing...');
+        initializeTwilioDevice(user.id).catch(err => {
+          console.error('[GlobalPhone] Health-check reinit failed:', err);
+        });
+      }
+    }, 10000); // check every 10s
 
     // Wire up incoming call events
     let ringTimeout = null;
@@ -159,6 +177,7 @@ export default function GlobalPhoneCallPopup() {
       unsubs.forEach(fn => { try { fn(); } catch(e) {} });
       cleanupRef.current = [];
       if (ringTimeout) { clearTimeout(ringTimeout); ringTimeout = null; }
+      clearInterval(healthCheck);
       stopIncomingAlert();
     };
   }, [user, agentStatus]);

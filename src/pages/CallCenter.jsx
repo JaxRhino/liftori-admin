@@ -1932,37 +1932,32 @@ export default function CallCenter() {
     };
 
     initializeAgent();
-    return () => {
-      destroyTwilioDevice();
-    };
+    // NOTE: Do NOT destroy Twilio device on unmount.
+    // Device lifecycle is owned by GlobalPhoneCallPopup (in AdminLayout),
+    // which persists across all pages. Destroying here would kill incoming
+    // call capability when the user navigates away from CallCenter.
   }, [user]);
 
-  // Initialize / destroy Twilio device when agent goes active/offline
+  // Subscribe to Twilio events for CallCenter-specific state.
+  // Device init is handled by GlobalPhoneCallPopup in AdminLayout.
   useEffect(() => {
-    if (agentStatus === 'available' && !twilioReady) {
-      initializeTwilioDevice()
-        .then(({ identity }) => {
-          setTwilioIdentity(identity);
-          console.log('[CallCenter] Twilio device ready, identity:', identity);
-        })
-        .catch(err => {
-          console.error('[CallCenter] Twilio init failed:', err);
-          toast.error('Voice connection failed — calls may not ring in browser');
-        });
+    if (agentStatus === 'available') {
+      // If device is already ready (initialized by GlobalPhoneCallPopup), sync state
+      if (isDeviceReady()) {
+        setTwilioReady(true);
+      }
 
-      // Subscribe to Twilio events
+      // Subscribe to Twilio events for local CallCenter state
       const unsubs = [
         onTwilioEvent('ready', () => {
           setTwilioReady(true);
-          toast.success('Phone line connected');
         }),
         onTwilioEvent('incoming', ({ from, call, isInternal, callerUserId, callerName, callerAvatar }) => {
           setTwilioIncoming({ from, call, isInternal, callerUserId, callerName, callerAvatar });
-          // Audio handled by GlobalPhoneCallPopup — no playIncomingAlert() here
+          // Audio + popup handled by GlobalPhoneCallPopup
         }),
         onTwilioEvent('accepted', () => {
           setTwilioIncoming(null);
-          // Audio handled by GlobalPhoneCallPopup — no stopIncomingAlert() here
         }),
         onTwilioEvent('disconnected', () => {
           setActiveCall(null);
@@ -1987,12 +1982,17 @@ export default function CallCenter() {
       // Clean up event listeners FIRST to prevent state updates during teardown
       twilioCleanupRef.current.forEach(unsub => { try { unsub(); } catch(e) {} });
       twilioCleanupRef.current = [];
-      destroyTwilioDevice();
+      // Device destruction is now handled by GlobalPhoneCallPopup when agent goes offline
       stopIncomingAlert();
       setTwilioReady(false);
       setTwilioIdentity(null);
       setTwilioIncoming(null);
     }
+
+    return () => {
+      twilioCleanupRef.current.forEach(unsub => { try { unsub(); } catch(e) {} });
+      twilioCleanupRef.current = [];
+    };
   }, [agentStatus]);
 
   // Poll for incoming calls
