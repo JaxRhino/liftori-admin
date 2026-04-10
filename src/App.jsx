@@ -107,6 +107,8 @@ import OnboardingWizard from './pages/OnboardingWizard'
 import SupportTickets from './pages/SupportTickets'
 import PortalSupport from './pages/portal/PortalSupport'
 import RallyGuestJoin from './pages/RallyGuestJoin'
+import SalesCall from './pages/SalesCall'
+import ConsultingAppointments from './pages/ConsultingAppointments'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -262,6 +264,9 @@ export default function App() {
             <Route path="comms" element={<CommunicationsHub />} />
             <Route path="comms/channels" element={<ChannelsSettings />} />
             <Route path="comms/automations" element={<AutomationsPage />} />
+            {/* Consulting */}
+            <Route path="consulting" element={<ConsultingAppointments />} />
+            <Route path="sales-call/:roomId" element={<SalesCall />} />
             <Route path="support-tickets" element={<SupportTickets />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
