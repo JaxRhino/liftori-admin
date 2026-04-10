@@ -14,7 +14,7 @@ import {
   AlertTriangle, Bell, Check, Plus, Edit2, Trash2, ArrowRight, Eye,
   MessageSquare, PhoneCall, Video, FileText, Activity, Filter, RefreshCw,
   Flame, Thermometer, Snowflake, Target, Flag, Send, ExternalLink,
-  CheckCircle, XCircle, AlertCircle, Zap, Timer, CircleDot
+  CheckCircle, XCircle, AlertCircle, Zap, Timer, CircleDot, Cpu, Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -106,9 +106,16 @@ export default function Customers() {
   const [activityForm, setActivityForm] = useState({ type: 'note', title: '', description: '' });
   const [followUpForm, setFollowUpForm] = useState({ type: 'follow_up', title: '', description: '', due_at: '', priority: 'normal' });
 
+  // LABOS Leads
+  const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'labos'
+  const [labosLeads, setLabosLeads] = useState([]);
+  const [labosLoading, setLabosLoading] = useState(false);
+  const [labosSearch, setLabosSearch] = useState('');
+
   useEffect(() => {
     fetchCustomers();
     fetchAllFollowUps();
+    fetchLabosLeads();
   }, []);
 
   async function fetchCustomers() {
@@ -164,6 +171,84 @@ export default function Customers() {
       .order('due_at', { ascending: true });
     setCustomerFollowUps(data || []);
   }
+
+  // ─── LABOS Leads ──────────────────────────────────────────────
+  async function fetchLabosLeads() {
+    setLabosLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('labos_signups')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setLabosLeads(data || []);
+    } catch (err) {
+      console.error('Error fetching LABOS leads:', err);
+    } finally {
+      setLabosLoading(false);
+    }
+  }
+
+  async function importLabosToCRM(lead) {
+    try {
+      // Check if already imported (email match)
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', lead.email)
+        .eq('role', 'customer')
+        .maybeSingle();
+
+      if (existing) {
+        toast.error(`${lead.email} is already in CRM`);
+        return;
+      }
+
+      const tierValues = { starter: 49, growth: 149, business: 299, enterprise: 499 };
+      const estValue = tierValues[lead.interest_tier] || 0;
+
+      const { data: newCustomer, error } = await supabase.from('profiles').insert({
+        full_name: lead.full_name,
+        email: lead.email,
+        phone: lead.phone || null,
+        company_name: lead.company_name || null,
+        source: 'LABOS Signup',
+        estimated_value: estValue,
+        crm_stage: 'prospect',
+        lead_temperature: 'hot',
+        role: 'customer',
+      }).select().single();
+      if (error) throw error;
+
+      // Log activity with LABOS context
+      const deptList = (lead.departments_needed || []).join(', ');
+      await logActivity(newCustomer.id, 'system', 'Imported from LABOS signup',
+        `Company: ${lead.company_name || 'N/A'} | Size: ${lead.company_size || 'N/A'} | Tier: ${lead.interest_tier || 'Undecided'} | Departments: ${deptList || 'N/A'} | Tools: ${lead.current_tools || 'N/A'} | Pain: ${lead.biggest_pain || 'N/A'}`
+      );
+
+      // Update LABOS signup status
+      await supabase.from('labos_signups')
+        .update({ status: 'imported_to_crm', updated_at: new Date().toISOString() })
+        .eq('id', lead.id);
+
+      toast.success(`${lead.full_name} imported to CRM as Hot Prospect`);
+      fetchCustomers();
+      fetchLabosLeads();
+    } catch (err) {
+      console.error('Error importing LABOS lead:', err);
+      toast.error('Failed to import lead');
+    }
+  }
+
+  const filteredLabosLeads = useMemo(() => {
+    if (!labosSearch) return labosLeads;
+    const q = labosSearch.toLowerCase();
+    return labosLeads.filter(l =>
+      l.full_name?.toLowerCase().includes(q) ||
+      l.email?.toLowerCase().includes(q) ||
+      l.company_name?.toLowerCase().includes(q)
+    );
+  }, [labosLeads, labosSearch]);
 
   // ─── Add Customer ─────────────────────────────────────────────
   async function handleAddCustomer(e) {
@@ -392,6 +477,172 @@ export default function Customers() {
         </div>
       </div>
 
+      {/* ── Tab Toggle ────────────────────────────────────────── */}
+      <div className="flex gap-1 bg-white/5 rounded-lg p-1 w-fit">
+        <button
+          onClick={() => setActiveTab('crm')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'crm' ? 'bg-sky-500 text-white' : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <Users className="h-4 w-4" /> CRM Pipeline
+          <span className="ml-1 text-xs opacity-70">({customers.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('labos')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'labos' ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <Cpu className="h-4 w-4" /> LABOS Leads
+          <span className="ml-1 text-xs opacity-70">({labosLeads.length})</span>
+          {labosLeads.filter(l => l.status === 'new').length > 0 && (
+            <span className="bg-emerald-400 text-emerald-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
+              {labosLeads.filter(l => l.status === 'new').length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {activeTab === 'labos' ? (
+        /* ═══ LABOS LEADS TAB ═══════════════════════════════════ */
+        <div className="space-y-4">
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Signups', value: labosLeads.length, color: 'text-emerald-400', icon: Cpu },
+              { label: 'New (Unreviewed)', value: labosLeads.filter(l => l.status === 'new').length, color: 'text-sky-400', icon: Bell },
+              { label: 'Imported to CRM', value: labosLeads.filter(l => l.status === 'imported_to_crm').length, color: 'text-green-400', icon: CheckCircle },
+              { label: 'Enterprise Interest', value: labosLeads.filter(l => l.interest_tier === 'enterprise').length, color: 'text-purple-400', icon: Star },
+            ].map(stat => (
+              <Card key={stat.label} className="bg-navy-800/50 border-white/10 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400">{stat.label}</span>
+                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                </div>
+                <div className="text-2xl font-bold text-white mt-1">{stat.value}</div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Search */}
+          <div className="flex gap-3 items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search LABOS leads..."
+                value={labosSearch}
+                onChange={e => setLabosSearch(e.target.value)}
+                className="pl-10 bg-white/5 border-white/10 text-white"
+              />
+            </div>
+            <Button variant="outline" size="sm" className="border-white/10 text-gray-300" onClick={fetchLabosLeads}>
+              <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+            </Button>
+          </div>
+
+          {/* Table */}
+          {labosLoading ? (
+            <div className="text-gray-400 text-sm p-8 text-center">Loading LABOS leads...</div>
+          ) : filteredLabosLeads.length === 0 ? (
+            <Card className="bg-navy-800/50 border-white/10 p-12 text-center">
+              <Cpu className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400">No LABOS signups yet.</p>
+              <p className="text-gray-500 text-sm mt-1">Leads from the Business OS signup form will appear here.</p>
+            </Card>
+          ) : (
+            <Card className="bg-navy-800/50 border-white/10 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10 text-left">
+                      <th className="px-4 py-3 text-gray-400 font-medium">Name</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Company</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Size</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Tier</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Departments</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Status</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Signed Up</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLabosLeads.map(lead => {
+                      const tierColors = { starter: 'bg-blue-100 text-blue-800', growth: 'bg-purple-100 text-purple-800', business: 'bg-emerald-100 text-emerald-800', enterprise: 'bg-amber-100 text-amber-800' };
+                      const statusColors = { new: 'bg-sky-100 text-sky-800', contacted: 'bg-amber-100 text-amber-800', imported_to_crm: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
+                      return (
+                        <tr key={lead.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="text-white font-medium">{lead.full_name}</div>
+                            <div className="text-gray-500 text-xs">{lead.email}</div>
+                            {lead.phone && <div className="text-gray-500 text-xs">{lead.phone}</div>}
+                          </td>
+                          <td className="px-4 py-3 text-gray-300">{lead.company_name || <span className="text-gray-600">—</span>}</td>
+                          <td className="px-4 py-3 text-gray-300">{lead.company_size || <span className="text-gray-600">—</span>}</td>
+                          <td className="px-4 py-3">
+                            {lead.interest_tier ? (
+                              <Badge className={`text-xs ${tierColors[lead.interest_tier] || 'bg-gray-100 text-gray-800'}`}>
+                                {lead.interest_tier.charAt(0).toUpperCase() + lead.interest_tier.slice(1)}
+                              </Badge>
+                            ) : <span className="text-gray-600">—</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              {(lead.departments_needed || []).slice(0, 3).map(d => (
+                                <span key={d} className="text-xs bg-white/10 text-gray-300 px-2 py-0.5 rounded">{d}</span>
+                              ))}
+                              {(lead.departments_needed || []).length > 3 && (
+                                <span className="text-xs text-gray-500">+{lead.departments_needed.length - 3}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge className={`text-xs ${statusColors[lead.status] || statusColors.new}`}>
+                              {(lead.status || 'new').replace(/_/g, ' ')}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">{formatRelative(lead.created_at)}</td>
+                          <td className="px-4 py-3">
+                            {lead.status !== 'imported_to_crm' ? (
+                              <Button
+                                size="sm"
+                                onClick={() => importLabosToCRM(lead)}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs gap-1"
+                              >
+                                <Download className="h-3 w-3" /> Import to CRM
+                              </Button>
+                            ) : (
+                              <span className="text-green-400 text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3" /> In CRM</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
+          {/* Pain Points Summary */}
+          {labosLeads.filter(l => l.biggest_pain).length > 0 && (
+            <Card className="bg-navy-800/50 border-white/10 p-5">
+              <h3 className="text-white font-semibold text-sm flex items-center gap-2 mb-3">
+                <AlertCircle className="h-4 w-4 text-amber-400" /> Common Pain Points
+              </h3>
+              <div className="space-y-2">
+                {labosLeads.filter(l => l.biggest_pain).slice(0, 5).map(l => (
+                  <div key={l.id} className="text-sm text-gray-400 flex gap-2">
+                    <span className="text-gray-600 flex-shrink-0">{l.company_name || l.full_name}:</span>
+                    <span className="text-gray-300">{l.biggest_pain}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      ) : (
+      <>
       {/* ── Alert Bar ─────────────────────────────────────────── */}
       {(overdueFollowUps.length > 0 || todayFollowUps.length > 0 || staleCustomers.length > 0) && (
         <div className="flex flex-wrap gap-3">
@@ -605,6 +856,9 @@ export default function Customers() {
             })}
           </div>
         </Card>
+      )}
+
+      </>
       )}
 
       {/* ── Add Customer Dialog ───────────────────────────────── */}
