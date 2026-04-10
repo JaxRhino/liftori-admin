@@ -46,6 +46,8 @@ import WizardBuilder from './pages/WizardBuilder'
 import Team from './pages/Team'
 import WorkQueue from './pages/WorkQueue'
 import CompanyDocs from './pages/CompanyDocs'
+import HRHub from './pages/HRHub'
+import Apply from './pages/Apply'
 import PortalProjects from './pages/portal/PortalProjects'
 import PortalSettings from './pages/portal/PortalSettings'
 import PortalMessages from './pages/portal/PortalMessages'
@@ -156,6 +158,8 @@ export default function App() {
           <Route path="/onboard" element={<OnboardingWizard />} />
           {/* Public Rally guest join — no auth required */}
           <Route path="/rally/join/:code" element={<RallyGuestJoin />} />
+          {/* Public job application — no auth required */}
+          <Route path="/apply" element={<Apply />} />
 
           {/* Root redirect based on role */}
           <Route path="/" element={
@@ -218,6 +222,7 @@ export default function App() {
             <Route path="team" element={<Team />} />
             <Route path="work-queue" element={<WorkQueue />} />
             <Route path="company-docs" element={<CompanyDocs />} />
+            <Route path="hr-hub" element={<HRHub />} />
             {/* In-House Builds */}
             <Route path="builds" element={<InHouseBuilds />} />
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
