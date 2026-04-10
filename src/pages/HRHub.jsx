@@ -1147,145 +1147,236 @@ export default function HRHub() {
 
       {/* ─── Applicant Detail Panel ─────────────────────────────── */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-5xl max-h-[90vh] overflow-y-auto p-0">
           {selectedApplicant && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="bg-sky-500/20 text-sky-400">
+            <div className="flex flex-col">
+              {/* ── Hero Header ──────────────────────────────────── */}
+              <div className="px-8 pt-8 pb-6 border-b border-white/10 bg-gradient-to-r from-navy-800/80 to-[#0B1120]">
+                <div className="flex items-start gap-5">
+                  <Avatar className="h-16 w-16 ring-2 ring-sky-500/30">
+                    <AvatarFallback className="bg-sky-500/20 text-sky-400 text-xl font-bold">
                       {selectedApplicant.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <div className="text-lg">{selectedApplicant.full_name}</div>
-                    <div className="text-sm text-gray-400 font-normal">{selectedApplicant.position}</div>
-                  </div>
-                  <Badge className={`ml-auto ${STAGE_MAP[selectedApplicant.stage]?.badge}`}>
-                    {STAGE_MAP[selectedApplicant.stage]?.icon} {STAGE_MAP[selectedApplicant.stage]?.label}
-                  </Badge>
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-                {/* Left: Info + AI */}
-                <div className="md:col-span-2 space-y-4">
-                  {/* Contact Info */}
-                  <Card className="bg-navy-800/30 border-white/10 p-4">
-                    <h3 className="text-sm font-semibold text-white mb-3">Contact & Details</h3>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <Mail className="h-3.5 w-3.5 text-gray-500" />
-                        {selectedApplicant.email}
-                      </div>
-                      {selectedApplicant.phone && (
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <Phone className="h-3.5 w-3.5 text-gray-500" />
-                          {selectedApplicant.phone}
-                        </div>
-                      )}
-                      {selectedApplicant.source && (
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <Briefcase className="h-3.5 w-3.5 text-gray-500" />
-                          Source: {selectedApplicant.source}
-                        </div>
-                      )}
-                      {selectedApplicant.salary_expectation && (
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <BarChart3 className="h-3.5 w-3.5 text-gray-500" />
-                          {selectedApplicant.salary_expectation}
-                        </div>
-                      )}
-                      {selectedApplicant.availability && (
-                        <div className="flex items-center gap-2 text-gray-300 col-span-2">
-                          <Clock className="h-3.5 w-3.5 text-gray-500" />
-                          {selectedApplicant.availability}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h2 className="text-2xl font-bold text-white">{selectedApplicant.full_name}</h2>
+                      <Badge className={`${STAGE_MAP[selectedApplicant.stage]?.badge} text-xs`}>
+                        {STAGE_MAP[selectedApplicant.stage]?.icon} {STAGE_MAP[selectedApplicant.stage]?.label}
+                      </Badge>
+                      {selectedApplicant.ai_score != null && (
+                        <div className={`flex items-center gap-1 text-sm font-bold ${selectedApplicant.ai_score >= 80 ? 'text-green-400' : selectedApplicant.ai_score >= 60 ? 'text-yellow-400' : selectedApplicant.ai_score >= 40 ? 'text-orange-400' : 'text-red-400'}`}>
+                          <Brain className="h-4 w-4" /> {Math.round(selectedApplicant.ai_score)}
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2 mt-3">
+                    <div className="text-sm text-gray-400 mt-1">{selectedApplicant.position}</div>
+                    {/* Quick info pills */}
+                    <div className="flex flex-wrap items-center gap-3 mt-3">
+                      <span className="flex items-center gap-1.5 text-xs text-gray-300 bg-white/5 px-3 py-1.5 rounded-full">
+                        <Mail className="h-3 w-3 text-gray-500" /> {selectedApplicant.email}
+                      </span>
+                      {selectedApplicant.phone && (
+                        <span className="flex items-center gap-1.5 text-xs text-gray-300 bg-white/5 px-3 py-1.5 rounded-full">
+                          <Phone className="h-3 w-3 text-gray-500" /> {selectedApplicant.phone}
+                        </span>
+                      )}
+                      {selectedApplicant.company_email && (
+                        <span className="flex items-center gap-1.5 text-xs text-sky-300 bg-sky-500/10 px-3 py-1.5 rounded-full border border-sky-500/20">
+                          <Mail className="h-3 w-3" /> {selectedApplicant.company_email}
+                        </span>
+                      )}
+                      {selectedApplicant.source && (
+                        <span className="flex items-center gap-1.5 text-xs text-gray-300 bg-white/5 px-3 py-1.5 rounded-full">
+                          <Briefcase className="h-3 w-3 text-gray-500" /> {selectedApplicant.source}
+                        </span>
+                      )}
                       {selectedApplicant.linkedin_url && (
-                        <a href={selectedApplicant.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                        <a href={selectedApplicant.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 bg-sky-500/10 px-3 py-1.5 rounded-full">
                           <ExternalLink className="h-3 w-3" /> LinkedIn
                         </a>
                       )}
                       {selectedApplicant.portfolio_url && (
-                        <a href={selectedApplicant.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                        <a href={selectedApplicant.portfolio_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 bg-sky-500/10 px-3 py-1.5 rounded-full">
                           <ExternalLink className="h-3 w-3" /> Portfolio
                         </a>
                       )}
+                      <span className="flex items-center gap-1.5 text-xs text-gray-400 bg-white/5 px-3 py-1.5 rounded-full">
+                        <Clock className="h-3 w-3 text-gray-500" /> Applied {new Date(selectedApplicant.created_at).toLocaleDateString()}
+                      </span>
                     </div>
-                  </Card>
+                  </div>
+                  {/* Close button area — the Dialog's X handles it */}
+                </div>
 
-                  {/* Resume */}
-                  <Card className="bg-navy-800/30 border-white/10 p-4">
-                    <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-sky-400" /> Resume
-                    </h3>
-                    {selectedApplicant.resume_url ? (
-                      <div className="flex items-center gap-3">
-                        <Badge className="bg-green-100 text-green-800 text-xs">Uploaded</Badge>
-                        <a href={selectedApplicant.resume_url} target="_blank" rel="noopener noreferrer" className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
-                          <Eye className="h-3 w-3" /> View
-                        </a>
-                        <a href={selectedApplicant.resume_url} download className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
-                          <Download className="h-3 w-3" /> Download
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <Badge className="bg-yellow-100 text-yellow-800 text-xs">No resume</Badge>
-                        <label className="text-xs text-sky-400 hover:text-sky-300 cursor-pointer flex items-center gap-1">
-                          <Upload className="h-3 w-3" /> Upload
-                          <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={e => {
-                            if (e.target.files[0]) handleResumeUpload(selectedApplicant.id, e.target.files[0]);
-                          }} />
-                        </label>
-                      </div>
+                {/* ── Stage Progress Bar ──────────────────────────── */}
+                <div className="flex items-center gap-1 mt-5">
+                  {STAGES.filter(s => s.key !== 'rejected').map((s, i) => {
+                    const stageOrder = ['applied', 'screening', 'interview', 'offer', 'hired'];
+                    const currentIdx = stageOrder.indexOf(selectedApplicant.stage);
+                    const thisIdx = stageOrder.indexOf(s.key);
+                    const isActive = thisIdx <= currentIdx;
+                    const isCurrent = s.key === selectedApplicant.stage;
+                    return (
+                      <button
+                        key={s.key}
+                        onClick={() => moveStage(selectedApplicant.id, s.key)}
+                        className={`flex-1 group relative`}
+                        title={`Move to ${s.label}`}
+                      >
+                        <div className={`h-2 rounded-full transition-colors ${isActive ? s.color : 'bg-gray-700/50'} ${!isCurrent ? 'hover:opacity-80' : ''}`} />
+                        <span className={`text-[10px] mt-1 block text-center transition-colors ${isCurrent ? 'text-white font-semibold' : isActive ? 'text-gray-400' : 'text-gray-600'} group-hover:text-white`}>
+                          {s.icon} {s.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Main Content Grid ────────────────────────────── */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 p-8">
+
+                {/* ── Left Column (3/5) ───────────────────────────── */}
+                <div className="lg:col-span-3 space-y-5">
+
+                  {/* Details Row */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedApplicant.salary_expectation && (
+                      <Card className="bg-navy-800/30 border-white/10 p-4">
+                        <div className="text-xs text-gray-500 mb-1">Salary Expectation</div>
+                        <div className="text-sm text-white font-medium">{selectedApplicant.salary_expectation}</div>
+                      </Card>
                     )}
-                  </Card>
+                    {selectedApplicant.availability && (
+                      <Card className="bg-navy-800/30 border-white/10 p-4">
+                        <div className="text-xs text-gray-500 mb-1">Availability</div>
+                        <div className="text-sm text-white font-medium">{selectedApplicant.availability}</div>
+                      </Card>
+                    )}
+                  </div>
 
-                  {/* AI Assessment */}
-                  <Card className="bg-navy-800/30 border-white/10 p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-sky-400" /> AI Assessment
+                  {/* Resume + AI Assessment Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Resume */}
+                    <Card className="bg-navy-800/30 border-white/10 p-5">
+                      <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-sky-400" /> Resume
                       </h3>
-                      <Button size="sm" variant="ghost" className="text-xs text-sky-400" onClick={() => runAIScore(selectedApplicant)}>
-                        <Brain className="h-3.5 w-3.5 mr-1" />
-                        {selectedApplicant.ai_score != null ? 'Re-score' : 'Run AI Score'}
+                      {selectedApplicant.resume_url ? (
+                        <div className="flex items-center gap-3">
+                          <Badge className="bg-green-100 text-green-800 text-xs">Uploaded</Badge>
+                          <a href={selectedApplicant.resume_url} target="_blank" rel="noopener noreferrer" className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                            <Eye className="h-3 w-3" /> View
+                          </a>
+                          <a href={selectedApplicant.resume_url} download className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                            <Download className="h-3 w-3" /> Download
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <Badge className="bg-yellow-100 text-yellow-800 text-xs">No resume</Badge>
+                          <label className="text-xs text-sky-400 hover:text-sky-300 cursor-pointer flex items-center gap-1">
+                            <Upload className="h-3 w-3" /> Upload
+                            <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={e => {
+                              if (e.target.files[0]) handleResumeUpload(selectedApplicant.id, e.target.files[0]);
+                            }} />
+                          </label>
+                        </div>
+                      )}
+                    </Card>
+
+                    {/* AI Assessment */}
+                    <Card className="bg-navy-800/30 border-white/10 p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-sky-400" /> AI Score
+                        </h3>
+                        <Button size="sm" variant="ghost" className="text-xs text-sky-400 h-7" onClick={() => runAIScore(selectedApplicant)}>
+                          <Brain className="h-3.5 w-3.5 mr-1" />
+                          {selectedApplicant.ai_score != null ? 'Re-score' : 'Run'}
+                        </Button>
+                      </div>
+                      {selectedApplicant.ai_score != null ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <div className={`text-2xl font-bold ${selectedApplicant.ai_score >= 80 ? 'text-green-400' : selectedApplicant.ai_score >= 60 ? 'text-yellow-400' : selectedApplicant.ai_score >= 40 ? 'text-orange-400' : 'text-red-400'}`}>
+                              {Math.round(selectedApplicant.ai_score)}/100
+                            </div>
+                            <div className="flex-1 bg-gray-700 rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full transition-all ${selectedApplicant.ai_score >= 80 ? 'bg-green-400' : selectedApplicant.ai_score >= 60 ? 'bg-yellow-400' : selectedApplicant.ai_score >= 40 ? 'bg-orange-400' : 'bg-red-400'}`}
+                                style={{ width: `${selectedApplicant.ai_score}%` }}
+                              />
+                            </div>
+                          </div>
+                          {selectedApplicant.ai_summary && (
+                            <p className="text-xs text-gray-400 leading-relaxed">{selectedApplicant.ai_summary}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500">Click Run to generate an AI assessment.</p>
+                      )}
+                    </Card>
+                  </div>
+
+                  {/* Scorecards */}
+                  <Card className="bg-navy-800/30 border-white/10 p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                        <Star className="h-4 w-4 text-yellow-400" /> Scorecards ({scores.length})
+                      </h3>
+                      <Button size="sm" variant="ghost" className="text-xs text-sky-400 h-7" onClick={() => setScoreDialogOpen(true)}>
+                        <Plus className="h-3 w-3 mr-1" /> Add Score
                       </Button>
                     </div>
-                    {selectedApplicant.ai_score != null ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3">
-                          <div className={`text-3xl font-bold ${selectedApplicant.ai_score >= 80 ? 'text-green-400' : selectedApplicant.ai_score >= 60 ? 'text-yellow-400' : selectedApplicant.ai_score >= 40 ? 'text-orange-400' : 'text-red-400'}`}>
-                            {Math.round(selectedApplicant.ai_score)}/100
+                    {scores.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {scores.map(s => (
+                          <div key={s.id} className="bg-navy-900/50 rounded-lg p-4 space-y-2">
+                            <div className="text-xs font-medium text-white">{s.reviewer_name}</div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">Technical</span>
+                                <ScoreStars value={s.technical_skills} />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">Communication</span>
+                                <ScoreStars value={s.communication} />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">Experience</span>
+                                <ScoreStars value={s.experience} />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">Culture Fit</span>
+                                <ScoreStars value={s.culture_fit} />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+                              <span className="text-xs text-gray-400 font-medium">Overall</span>
+                              <ScoreStars value={s.overall} />
+                            </div>
+                            {s.notes && <p className="text-xs text-gray-500 mt-1">{s.notes}</p>}
                           </div>
-                          <div className="flex-1 bg-gray-700 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${selectedApplicant.ai_score >= 80 ? 'bg-green-400' : selectedApplicant.ai_score >= 60 ? 'bg-yellow-400' : selectedApplicant.ai_score >= 40 ? 'bg-orange-400' : 'bg-red-400'}`}
-                              style={{ width: `${selectedApplicant.ai_score}%` }}
-                            />
-                          </div>
-                        </div>
-                        {selectedApplicant.ai_summary && (
-                          <p className="text-xs text-gray-400">{selectedApplicant.ai_summary}</p>
-                        )}
+                        ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-gray-500">Click "Run AI Score" to generate an assessment.</p>
+                      <div className="text-center py-6 border border-dashed border-white/10 rounded-lg">
+                        <Star className="h-6 w-6 text-gray-600 mx-auto mb-2" />
+                        <p className="text-xs text-gray-500">No scorecards yet. Be the first to review.</p>
+                      </div>
                     )}
                   </Card>
 
                   {/* Notes */}
-                  <Card className="bg-navy-800/30 border-white/10 p-4">
+                  <Card className="bg-navy-800/30 border-white/10 p-5">
                     <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                       <MessageSquare className="h-4 w-4 text-sky-400" /> Notes ({notes.length})
                     </h3>
-                    <div className="space-y-2 max-h-48 overflow-y-auto mb-3">
+                    <div className="space-y-2 max-h-52 overflow-y-auto mb-3">
                       {notes.map(note => (
-                        <div key={note.id} className="bg-navy-900/50 rounded p-2">
+                        <div key={note.id} className="bg-navy-900/50 rounded-lg p-3">
                           <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
                             <span className="font-medium text-gray-300">{note.user_name}</span>
                             <span>{new Date(note.created_at).toLocaleString()}</span>
@@ -1293,7 +1384,7 @@ export default function HRHub() {
                           <p className="text-sm text-gray-300">{note.content}</p>
                         </div>
                       ))}
-                      {notes.length === 0 && <p className="text-xs text-gray-500">No notes yet.</p>}
+                      {notes.length === 0 && <p className="text-xs text-gray-500 text-center py-4">No notes yet.</p>}
                     </div>
                     <div className="flex gap-2">
                       <Input
@@ -1308,101 +1399,35 @@ export default function HRHub() {
                   </Card>
                 </div>
 
-                {/* Right: Stage Actions + Scorecard */}
-                <div className="space-y-4">
-                  {/* Stage Actions */}
-                  <Card className="bg-navy-800/30 border-white/10 p-4">
-                    <h3 className="text-sm font-semibold text-white mb-3">Move Stage</h3>
-                    <div className="space-y-1.5">
-                      {STAGES.map(s => (
-                        <button
-                          key={s.key}
-                          onClick={() => moveStage(selectedApplicant.id, s.key)}
-                          disabled={selectedApplicant.stage === s.key}
-                          className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors ${
-                            selectedApplicant.stage === s.key
-                              ? 'bg-sky-500/20 text-sky-400 font-medium'
-                              : 'text-gray-400 hover:text-white hover:bg-white/5'
-                          }`}
-                        >
-                          <div className={`w-2 h-2 rounded-full ${s.color}`} />
-                          {s.icon} {s.label}
-                          {selectedApplicant.stage === s.key && <Check className="h-3 w-3 ml-auto" />}
-                        </button>
-                      ))}
-                    </div>
-                  </Card>
+                {/* ── Right Column (2/5) ──────────────────────────── */}
+                <div className="lg:col-span-2 space-y-5">
 
-                  {/* Scorecard Summary */}
-                  <Card className="bg-navy-800/30 border-white/10 p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-white">Scorecards ({scores.length})</h3>
-                      <Button size="sm" variant="ghost" className="text-xs text-sky-400" onClick={() => setScoreDialogOpen(true)}>
-                        <Plus className="h-3 w-3 mr-1" /> Score
-                      </Button>
-                    </div>
-                    {scores.length > 0 ? (
-                      <div className="space-y-3">
-                        {scores.map(s => (
-                          <div key={s.id} className="bg-navy-900/50 rounded p-2 space-y-1">
-                            <div className="text-xs font-medium text-gray-300">{s.reviewer_name}</div>
-                            <div className="grid grid-cols-2 gap-1 text-xs">
-                              <div className="flex items-center justify-between">
-                                <span className="text-gray-500">Technical</span>
-                                <ScoreStars value={s.technical_skills} />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-gray-500">Comm</span>
-                                <ScoreStars value={s.communication} />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-gray-500">Experience</span>
-                                <ScoreStars value={s.experience} />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-gray-500">Culture</span>
-                                <ScoreStars value={s.culture_fit} />
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 pt-1 border-t border-white/5">
-                              <span className="text-xs text-gray-500">Overall</span>
-                              <ScoreStars value={s.overall} />
-                            </div>
-                            {s.notes && <p className="text-xs text-gray-500 mt-1">{s.notes}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-500">No scores yet. Be the first to review.</p>
-                    )}
-                  </Card>
-
-                  {/* ─── Actions ──────────────────────────────────── */}
-                  <Card className="bg-navy-800/30 border-white/10 p-4">
-                    <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                  {/* Actions Card */}
+                  <Card className="bg-navy-800/30 border-white/10 p-5">
+                    <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
                       <Send className="h-4 w-4 text-sky-400" /> Actions
                     </h3>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {/* Send / Resend Welcome Email */}
                       <Button
-                        variant="ghost"
-                        className="w-full justify-start text-xs text-sky-400 hover:text-sky-300 hover:bg-sky-500/10"
+                        variant="outline"
+                        className="w-full justify-start text-sm border-white/10 hover:bg-sky-500/10 hover:border-sky-500/30 text-sky-400 h-10"
                         disabled={sendingEmail}
                         onClick={() => handleSendWelcomeEmail(selectedApplicant)}
                       >
-                        <Mail className="h-3.5 w-3.5 mr-2" />
+                        <Mail className="h-4 w-4 mr-2" />
                         {sendingEmail ? 'Sending...' : selectedApplicant.welcome_email_sent_at ? 'Resend Welcome Email' : 'Send Welcome Email'}
                       </Button>
                       {selectedApplicant.welcome_email_sent_at && (
-                        <div className="text-[10px] text-gray-500 pl-6">
+                        <div className="text-[10px] text-gray-500 pl-1 -mt-1">
                           Sent {new Date(selectedApplicant.welcome_email_sent_at).toLocaleString()}
                         </div>
                       )}
 
                       {/* Interview Info */}
                       {selectedApplicant.interview_scheduled_at && (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 rounded text-xs text-purple-300">
-                          <Calendar className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-2 px-4 py-3 bg-purple-500/10 rounded-lg border border-purple-500/20 text-sm text-purple-300">
+                          <Calendar className="h-4 w-4 flex-shrink-0" />
                           Interview scheduled {new Date(selectedApplicant.interview_scheduled_at).toLocaleDateString()}
                         </div>
                       )}
@@ -1410,34 +1435,61 @@ export default function HRHub() {
                       {/* Approve + Send Login */}
                       {selectedApplicant.stage !== 'hired' && selectedApplicant.stage !== 'rejected' && (
                         <Button
-                          className="w-full bg-green-600 hover:bg-green-700 text-white text-xs gap-2"
+                          className="w-full bg-green-600 hover:bg-green-700 text-white text-sm gap-2 h-11"
                           disabled={approvingId === selectedApplicant.id}
                           onClick={() => handleApprove(selectedApplicant)}
                         >
-                          <ShieldCheck className="h-3.5 w-3.5" />
+                          <ShieldCheck className="h-4 w-4" />
                           {approvingId === selectedApplicant.id ? 'Approving...' : 'Approve & Send Login'}
                         </Button>
                       )}
+                    </div>
 
-                      {/* Already approved badge */}
-                      {selectedApplicant.approved_at && (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 rounded text-xs text-green-300">
-                          <UserCheck className="h-3.5 w-3.5" />
-                          Approved {new Date(selectedApplicant.approved_at).toLocaleDateString()}
-                        </div>
-                      )}
-                      {selectedApplicant.company_email && (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-sky-500/10 rounded text-xs text-sky-300">
-                          <Mail className="h-3.5 w-3.5" />
-                          {selectedApplicant.company_email}
-                        </div>
-                      )}
-                      {selectedApplicant.onboarding_triggered_at && (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 rounded text-xs text-green-300">
-                          <Check className="h-3.5 w-3.5" />
-                          Platform login sent
-                        </div>
-                      )}
+                    {/* Status badges */}
+                    {(selectedApplicant.approved_at || selectedApplicant.company_email || selectedApplicant.onboarding_triggered_at) && (
+                      <div className="mt-4 pt-4 border-t border-white/5 space-y-2">
+                        {selectedApplicant.approved_at && (
+                          <div className="flex items-center gap-2 px-3 py-2.5 bg-green-500/10 rounded-lg border border-green-500/20 text-xs text-green-300">
+                            <UserCheck className="h-4 w-4 flex-shrink-0" />
+                            Approved {new Date(selectedApplicant.approved_at).toLocaleDateString()}
+                          </div>
+                        )}
+                        {selectedApplicant.company_email && (
+                          <div className="flex items-center gap-2 px-3 py-2.5 bg-sky-500/10 rounded-lg border border-sky-500/20 text-xs text-sky-300">
+                            <Mail className="h-4 w-4 flex-shrink-0" />
+                            {selectedApplicant.company_email}
+                          </div>
+                        )}
+                        {selectedApplicant.onboarding_triggered_at && (
+                          <div className="flex items-center gap-2 px-3 py-2.5 bg-green-500/10 rounded-lg border border-green-500/20 text-xs text-green-300">
+                            <Check className="h-4 w-4 flex-shrink-0" />
+                            Platform login sent
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+
+                  {/* Move Stage */}
+                  <Card className="bg-navy-800/30 border-white/10 p-5">
+                    <h3 className="text-sm font-semibold text-white mb-3">Move Stage</h3>
+                    <div className="space-y-1.5">
+                      {STAGES.map(s => (
+                        <button
+                          key={s.key}
+                          onClick={() => moveStage(selectedApplicant.id, s.key)}
+                          disabled={selectedApplicant.stage === s.key}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                            selectedApplicant.stage === s.key
+                              ? 'bg-sky-500/20 text-sky-400 font-medium border border-sky-500/30'
+                              : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                          }`}
+                        >
+                          <div className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
+                          {s.icon} {s.label}
+                          {selectedApplicant.stage === s.key && <Check className="h-3.5 w-3.5 ml-auto" />}
+                        </button>
+                      ))}
                     </div>
                   </Card>
 
@@ -1453,7 +1505,7 @@ export default function HRHub() {
                   </Card>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>
