@@ -48,6 +48,7 @@ import WorkQueue from './pages/WorkQueue'
 import CompanyDocs from './pages/CompanyDocs'
 import HRHub from './pages/HRHub'
 import LeadershipQC from './pages/LeadershipQC'
+import CostTracker from './pages/CostTracker'
 import Apply from './pages/Apply'
 import ScheduleInterview from './pages/ScheduleInterview'
 import PortalProjects from './pages/portal/PortalProjects'
@@ -232,6 +233,7 @@ export default function App() {
             <Route path="company-docs" element={<CompanyDocs />} />
             <Route path="hr-hub" element={<HRHub />} />
             <Route path="leadership-qc" element={<LeadershipQC />} />
+            <Route path="cost-tracker" element={<CostTracker />} />
             {/* In-House Builds */}
             <Route path="builds" element={<InHouseBuilds />} />
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
