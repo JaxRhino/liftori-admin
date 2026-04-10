@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
+import { supabase } from '../lib/supabase';
 import { useWS } from '../contexts/WebSocketContext';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -84,6 +85,8 @@ export const Chat = () => {
   const [channelDialogOpen, setChannelDialogOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
+  const [typingUsers, setTypingUsers] = useState([]);
+  const typingChannelRef = useRef(null);
   const messagesEndRef = useRef(null);
   const previousChannelRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -207,6 +210,7 @@ export const Chat = () => {
 
     fetchMessages(selectedChannel.id);
     fetchThreadCounts();
+    setTypingUsers([]); // Clear typing users when switching channels
     markChannelNotificationsRead(selectedChannel.id);
 
     const msgSub = chatSvc.subscribeToChannel(
@@ -214,7 +218,15 @@ export const Chat = () => {
       // onNewMessage
       (newMsg) => {
         setMessages(prev => {
+          // Dedup: already in list by ID
           if (prev.some(m => m.id === newMsg.id)) return prev;
+          // Check if this is our own message arriving via realtime — replace the optimistic version
+          const pendingIdx = prev.findIndex(m => m.pending && m.sender_id === newMsg.sender_id);
+          if (pendingIdx !== -1) {
+            const updated = [...prev];
+            updated[pendingIdx] = { ...newMsg, reactions: [] };
+            return updated;
+          }
           return [...prev, { ...newMsg, reactions: [] }];
         });
       },
@@ -230,7 +242,38 @@ export const Chat = () => {
 
     previousChannelRef.current = selectedChannel;
 
-    return () => chatSvc.unsubscribe(msgSub);
+    // Typing indicator via Supabase Realtime broadcast
+    if (typingChannelRef.current) {
+      supabase.removeChannel(typingChannelRef.current);
+    }
+    const typingChannel = supabase.channel(`typing:${selectedChannel.id}`)
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (payload.user_id === user.id) return; // ignore own typing
+        setTypingUsers(prev => {
+          if (payload.is_typing) {
+            if (prev.some(u => u.id === payload.user_id)) return prev;
+            return [...prev, { id: payload.user_id, name: payload.user_name }];
+          } else {
+            return prev.filter(u => u.id !== payload.user_id);
+          }
+        });
+        // Auto-clear after 4 seconds in case stop event is missed
+        if (payload.is_typing) {
+          setTimeout(() => {
+            setTypingUsers(prev => prev.filter(u => u.id !== payload.user_id));
+          }, 4000);
+        }
+      })
+      .subscribe();
+    typingChannelRef.current = typingChannel;
+
+    return () => {
+      chatSvc.unsubscribe(msgSub);
+      if (typingChannelRef.current) {
+        supabase.removeChannel(typingChannelRef.current);
+        typingChannelRef.current = null;
+      }
+    };
   }, [selectedChannel]);
 
   useEffect(() => {
@@ -294,7 +337,7 @@ export const Chat = () => {
 
     // Stop typing indicator
     if (isTyping) {
-      ws?.sendTyping?.(selectedChannel.id, (profile?.full_name || user?.email || 'User'), false);
+      broadcastTyping(selectedChannel.id, false);
       setIsTyping(false);
     }
 
@@ -337,6 +380,19 @@ export const Chat = () => {
     }
   };
 
+  const broadcastTyping = (channelId, isTypingNow) => {
+    if (!typingChannelRef.current) return;
+    typingChannelRef.current.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: {
+        user_id: user.id,
+        user_name: profile?.full_name || user?.email || 'User',
+        is_typing: isTypingNow,
+      }
+    });
+  };
+
   const handleTyping = (e) => {
     const value = e.target.value;
     setNewMessage(value);
@@ -344,9 +400,7 @@ export const Chat = () => {
     // Check for mentions
     handleMentionInput(value);
 
-    if (!selectedChannel || !ws?.isConnected) return;
-
-    const userName = (profile?.full_name || user?.email || 'User');
+    if (!selectedChannel) return;
 
     // Clear existing timeout
     if (typingTimeout) {
@@ -356,13 +410,13 @@ export const Chat = () => {
     // Send typing start
     if (!isTyping && value.length > 0) {
       setIsTyping(true);
-      ws?.sendTyping?.(selectedChannel.id, userName, true);
+      broadcastTyping(selectedChannel.id, true);
     }
 
     // Set timeout to send typing stop
     const timeout = setTimeout(() => {
       setIsTyping(false);
-      ws?.sendTyping?.(selectedChannel.id, userName, false);
+      broadcastTyping(selectedChannel.id, false);
     }, 3000);
 
     setTypingTimeout(timeout);
@@ -1457,7 +1511,7 @@ export const Chat = () => {
                             onEdit={handleEditMessage}
                             onDelete={handleDeleteMessage}
                             onReply={handleReplyInThread}
-                            onReact={(msg) => {}} // Handled by emoji picker
+                            onReact={(msg) => setEmojiPickerOpenFor(msg.id)}
                             onPin={handlePinMessage}
                             onCopyLink={handleCopyLink}
                           />
@@ -1486,21 +1540,21 @@ export const Chat = () => {
             {/* Original message input section continues below... */}
             {!threadOpen && (
               <>
-                {/* Typing Indicator - keep existing code */}
-                {ws?.typingUsers && ws.typingUsers[selectedChannel.id] && ws.typingUsers[selectedChannel.id].typing_users && ws.typingUsers[selectedChannel.id].typing_users.length > 0 && (
+                {/* Typing Indicator */}
+                {typingUsers.length > 0 && (
                   <div className="px-4 py-2 bg-muted/30 border-t">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <div className="flex gap-1">
-                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        <span className="w-2 h-2 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                        <span className="w-2 h-2 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                        <span className="w-2 h-2 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                       </div>
                       <span>
-                        {ws.typingUsers[selectedChannel.id].typing_users.length === 1
-                          ? `${ws.typingUsers[selectedChannel.id].typing_users[0]} is typing...`
-                          : ws.typingUsers[selectedChannel.id].typing_users.length === 2
-                          ? `${ws.typingUsers[selectedChannel.id].typing_users[0]} and ${ws.typingUsers[selectedChannel.id].typing_users[1]} are typing...`
-                          : `${ws.typingUsers[selectedChannel.id].typing_users[0]} and ${ws.typingUsers[selectedChannel.id].typing_users.length - 1} others are typing...`
+                        {typingUsers.length === 1
+                          ? `${typingUsers[0].name} is typing...`
+                          : typingUsers.length === 2
+                          ? `${typingUsers[0].name} and ${typingUsers[1].name} are typing...`
+                          : `${typingUsers[0].name} and ${typingUsers.length - 1} others are typing...`
                         }
                       </span>
                     </div>
@@ -1570,15 +1624,14 @@ export const Chat = () => {
                       <Paperclip className="h-4 w-4" />
                     )}
                   </Button>
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8"
-                    title="Add emoji"
-                  >
-                    <Smile className="h-4 w-4" />
-                  </Button>
+                  <EmojiPicker
+                    onSelect={(emoji) => setNewMessage(prev => prev + emoji)}
+                    trigger={
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Add emoji">
+                        <Smile className="h-4 w-4" />
+                      </Button>
+                    }
+                  />
                   <Button type="submit" size="icon" className="h-8 w-8">
                     <Send className="h-4 w-4" />
                   </Button>
