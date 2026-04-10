@@ -449,7 +449,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       {/* Sidebar */}
       <aside className={`${sidebarOpen ? 'w-60' : 'w-16'} bg-navy-800 border-r border-navy-700/50 flex flex-col transition-all duration-200`}>
         {/* Logo */}
