@@ -73,7 +73,7 @@ export default function Apply() {
         }
       }
 
-      const { error: insertErr } = await supabase.from('applicants').insert({
+      const { data: newApplicant, error: insertErr } = await supabase.from('applicants').insert({
         full_name: form.full_name,
         email: form.email,
         phone: form.phone || null,
@@ -86,14 +86,48 @@ export default function Apply() {
         source: referralCode ? `Referral (${referrerName || referralCode})` : 'Website',
         referral_code: referralCode || null,
         stage: 'applied',
-      });
+      }).select().single();
 
       if (insertErr) throw insertErr;
+
+      // Send welcome email with interview scheduling link from Sage
+      try {
+        // Create interview token
+        const interviewToken = crypto.randomUUID().replace(/-/g, '') + Date.now().toString(36);
+        const expires = new Date();
+        expires.setDate(expires.getDate() + 7);
+
+        await supabase.from('interview_tokens').insert({
+          applicant_id: newApplicant.id,
+          token: interviewToken,
+          expires_at: expires.toISOString(),
+        });
+
+        const schedulingUrl = `${window.location.origin}/schedule-interview/${interviewToken}`;
+        const SUPABASE_URL = 'https://qlerfkdyslndjbaltkwo.supabase.co';
+
+        await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: form.email,
+            subject: `Welcome to Liftori, ${form.full_name.split(' ')[0]}! Let's schedule your interview`,
+            from: 'Sage from Liftori <sage@liftori.ai>',
+            html: buildWelcomeEmail(form.full_name, form.position, schedulingUrl),
+          }),
+        });
+
+        // Mark email sent
+        await supabase.from('applicants')
+          .update({ welcome_email_sent_at: new Date().toISOString() })
+          .eq('id', newApplicant.id);
+      } catch (emailErr) {
+        console.error('Welcome email failed (non-blocking):', emailErr);
+      }
 
       // Update referral stats if applicable
       if (referralCode) {
         await supabase.rpc('increment_referral_count', { code: referralCode }).catch(() => {
-          // Non-critical — just log it
           console.log('Referral count increment skipped (RPC may not exist yet)');
         });
       }
@@ -328,4 +362,56 @@ export default function Apply() {
       </div>
     </div>
   );
+}
+
+function buildWelcomeEmail(fullName, position, schedulingUrl) {
+  const firstName = fullName.split(' ')[0];
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#0B1120;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+  <div style="text-align:center;margin-bottom:32px;">
+    <div style="display:inline-block;background:linear-gradient(135deg,#0ea5e9,#6366f1);padding:12px 24px;border-radius:12px;">
+      <span style="color:white;font-size:24px;font-weight:700;letter-spacing:-0.5px;">Liftori</span>
+    </div>
+  </div>
+  <div style="background-color:#1a2332;border-radius:16px;border:1px solid rgba(255,255,255,0.1);padding:40px;margin-bottom:24px;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;">
+        <span style="color:white;font-size:28px;">&#10024;</span>
+      </div>
+      <h1 style="color:white;font-size:24px;margin:0 0 4px;">Welcome, ${fullName}!</h1>
+      <p style="color:#94a3b8;font-size:14px;margin:0;">A message from Sage, your AI assistant at Liftori</p>
+    </div>
+    <div style="color:#cbd5e1;font-size:15px;line-height:1.7;">
+      <p style="margin:0 0 16px;">Hi ${firstName},</p>
+      <p style="margin:0 0 16px;">I am so excited to welcome you to the Liftori application process! I am Sage, the AI that helps power everything at Liftori, and I will be your guide through this journey.</p>
+      <p style="margin:0 0 16px;">We received your application for <strong style="color:white;">${position}</strong> and we are genuinely thrilled about your interest. At Liftori, we are building the future of AI-powered business solutions, and every person who joins our team plays a critical role in that mission.</p>
+      <p style="margin:0 0 16px;">Here is what happens next:</p>
+      <div style="background-color:rgba(14,165,233,0.1);border-left:3px solid #0ea5e9;border-radius:0 8px 8px 0;padding:16px;margin:0 0 24px;">
+        <div style="display:flex;align-items:flex-start;margin-bottom:12px;">
+          <span style="background:#0ea5e9;color:white;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-right:12px;flex-shrink:0;">1</span>
+          <span style="color:#e2e8f0;"><strong style="color:white;">Schedule Your Interview</strong> — Pick a time that works for you</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;margin-bottom:12px;">
+          <span style="background:#6366f1;color:white;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-right:12px;flex-shrink:0;">2</span>
+          <span style="color:#e2e8f0;"><strong style="color:white;">Meet the Team</strong> — Have a conversation with our leadership</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;">
+          <span style="background:#10b981;color:white;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-right:12px;flex-shrink:0;">3</span>
+          <span style="color:#e2e8f0;"><strong style="color:white;">Get Started</strong> — If approved, you will receive your platform access</span>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin:32px 0 16px;">
+      <a href="${schedulingUrl}" style="display:inline-block;background:linear-gradient(135deg,#0ea5e9,#6366f1);color:white;font-size:16px;font-weight:600;text-decoration:none;padding:14px 40px;border-radius:10px;">Schedule Your Interview</a>
+    </div>
+    <p style="text-align:center;color:#64748b;font-size:12px;margin:0;">This link expires in 7 days</p>
+  </div>
+  <div style="text-align:center;color:#475569;font-size:12px;line-height:1.6;">
+    <p style="margin:0 0 4px;">Sent with care by Sage</p>
+    <p style="margin:0 0 4px;">Liftori — AI-Powered Business Solutions</p>
+    <p style="margin:0;"><a href="https://liftori.ai" style="color:#0ea5e9;text-decoration:none;">liftori.ai</a></p>
+  </div>
+</div>
+</body></html>`;
 }

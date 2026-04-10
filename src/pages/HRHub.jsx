@@ -12,9 +12,11 @@ import {
   Users, UserPlus, Search, Filter, ChevronRight, ChevronDown, Star,
   FileText, Upload, ExternalLink, Briefcase, Mail, Phone, MapPin,
   Clock, Brain, MessageSquare, BarChart3, X, Plus, Edit2, Trash2,
-  ArrowRight, GripVertical, Eye, Download, Sparkles, Check, AlertCircle
+  ArrowRight, GripVertical, Eye, Download, Sparkles, Check, AlertCircle,
+  Calendar, Send, ShieldCheck, UserCheck, CalendarPlus, CalendarClock
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { createInterviewToken, sendApplicantWelcomeEmail, sendApprovalEmail } from '../lib/hrEmailService';
 
 // ─── Stage Configuration ─────────────────────────────────────
 const STAGES = [
@@ -65,7 +67,7 @@ export default function HRHub() {
   const [showRejected, setShowRejected] = useState(false);
 
   // Tabs
-  const [activeTab, setActiveTab] = useState('pipeline'); // pipeline | referrals
+  const [activeTab, setActiveTab] = useState('pipeline'); // pipeline | referrals | scheduling
 
   // Dialogs
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -93,9 +95,19 @@ export default function HRHub() {
   const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // Interview scheduling state
+  const [interviewSlots, setInterviewSlots] = useState([]);
+  const [scheduledInterviews, setScheduledInterviews] = useState([]);
+  const [slotForm, setSlotForm] = useState({ date: '', start_time: '09:00', end_time: '09:30', slot_type: 'interview', max_bookings: 1 });
+  const [addSlotOpen, setAddSlotOpen] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [approvingId, setApprovingId] = useState(null);
+
   useEffect(() => {
     fetchApplicants();
     fetchReferrals();
+    fetchInterviewSlots();
+    fetchScheduledInterviews();
   }, []);
 
   async function fetchApplicants() {
@@ -164,7 +176,124 @@ export default function HRHub() {
     toast.success('Referral link copied!');
   }
 
-  // ─── Add Applicant ──────────────────────────────────────────
+  // ─── Interview Slots ─────────────────────────────────────────
+  async function fetchInterviewSlots() {
+    try {
+      const { data } = await supabase
+        .from('interview_slots')
+        .select('*')
+        .gte('date', new Date().toISOString().split('T')[0])
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true });
+      setInterviewSlots(data || []);
+    } catch (err) {
+      console.error('Error fetching slots:', err);
+    }
+  }
+
+  async function fetchScheduledInterviews() {
+    try {
+      const { data } = await supabase
+        .from('scheduled_interviews')
+        .select('*, applicant:applicants(full_name, email, position), slot:interview_slots(date, start_time, end_time)')
+        .order('created_at', { ascending: false });
+      setScheduledInterviews(data || []);
+    } catch (err) {
+      console.error('Error fetching scheduled interviews:', err);
+    }
+  }
+
+  async function addInterviewSlot(e) {
+    e.preventDefault();
+    if (!slotForm.date || !slotForm.start_time || !slotForm.end_time) {
+      toast.error('Date and times are required');
+      return;
+    }
+    try {
+      const { error } = await supabase.from('interview_slots').insert({
+        ...slotForm,
+        max_bookings: parseInt(slotForm.max_bookings) || 1,
+        created_by: user.id,
+      });
+      if (error) throw error;
+      toast.success('Interview slot added');
+      setSlotForm({ date: '', start_time: '09:00', end_time: '09:30', slot_type: 'interview', max_bookings: 1 });
+      setAddSlotOpen(false);
+      fetchInterviewSlots();
+    } catch (err) {
+      console.error('Error adding slot:', err);
+      toast.error('Failed to add slot');
+    }
+  }
+
+  async function deleteSlot(id) {
+    if (!confirm('Delete this interview slot?')) return;
+    try {
+      const { error } = await supabase.from('interview_slots').delete().eq('id', id);
+      if (error) throw error;
+      setInterviewSlots(prev => prev.filter(s => s.id !== id));
+      toast.success('Slot removed');
+    } catch (err) {
+      toast.error('Failed to delete slot');
+    }
+  }
+
+  // ─── Send Welcome Email + Schedule Link ─────────────────────
+  async function handleSendWelcomeEmail(applicant) {
+    setSendingEmail(true);
+    try {
+      const tokenData = await createInterviewToken(applicant.id);
+      await sendApplicantWelcomeEmail(applicant, tokenData.token);
+      setApplicants(prev => prev.map(a => a.id === applicant.id ? { ...a, welcome_email_sent_at: new Date().toISOString() } : a));
+      if (selectedApplicant?.id === applicant.id) {
+        setSelectedApplicant(prev => ({ ...prev, welcome_email_sent_at: new Date().toISOString() }));
+      }
+      toast.success(`Welcome email sent to ${applicant.full_name}!`);
+    } catch (err) {
+      console.error('Email error:', err);
+      toast.error('Failed to send welcome email: ' + err.message);
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
+  // ─── Approve + Send Platform Login ──────────────────────────
+  async function handleApprove(applicant) {
+    setApprovingId(applicant.id);
+    try {
+      // Update applicant to hired + approved
+      const { error: updateErr } = await supabase
+        .from('applicants')
+        .update({
+          stage: 'hired',
+          approved_at: new Date().toISOString(),
+          approved_by: user.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', applicant.id);
+      if (updateErr) throw updateErr;
+
+      // Send approval email with platform login
+      await sendApprovalEmail(applicant);
+
+      setApplicants(prev => prev.map(a => a.id === applicant.id ? {
+        ...a, stage: 'hired', approved_at: new Date().toISOString(), approved_by: user.id, onboarding_triggered_at: new Date().toISOString()
+      } : a));
+      if (selectedApplicant?.id === applicant.id) {
+        setSelectedApplicant(prev => ({
+          ...prev, stage: 'hired', approved_at: new Date().toISOString(), approved_by: user.id, onboarding_triggered_at: new Date().toISOString()
+        }));
+      }
+      toast.success(`${applicant.full_name} approved! Platform login sent.`);
+    } catch (err) {
+      console.error('Approval error:', err);
+      toast.error('Failed to approve: ' + err.message);
+    } finally {
+      setApprovingId(null);
+    }
+  }
+
+  // ─── Add Applicant (with welcome email) ─────────────────────
   async function handleAddApplicant(e) {
     e.preventDefault();
     if (!form.full_name || !form.email || !form.position) {
@@ -172,13 +301,25 @@ export default function HRHub() {
       return;
     }
     try {
-      const { error } = await supabase.from('applicants').insert({
+      const { data: newApplicant, error } = await supabase.from('applicants').insert({
         ...form,
         stage: 'applied',
         created_by: user.id
-      });
+      }).select().single();
       if (error) throw error;
+
       toast.success(`${form.full_name} added to pipeline`);
+
+      // Send welcome email with interview scheduling link
+      try {
+        const tokenData = await createInterviewToken(newApplicant.id);
+        await sendApplicantWelcomeEmail(newApplicant, tokenData.token);
+        toast.success('Welcome email sent from Sage!');
+      } catch (emailErr) {
+        console.error('Welcome email failed:', emailErr);
+        toast.error('Applicant added but welcome email failed — you can resend from the detail panel');
+      }
+
       setForm({ full_name: '', email: '', phone: '', position: '', source: '', portfolio_url: '', linkedin_url: '', salary_expectation: '', availability: '' });
       setAddDialogOpen(false);
       fetchApplicants();
@@ -387,6 +528,13 @@ export default function HRHub() {
     }).length,
   };
 
+  function formatTimeDisplay(timeStr) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 || 12;
+    return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
+  }
+
   if (loading) return <div className="p-6 text-gray-400">Loading HR Hub...</div>;
 
   return (
@@ -437,6 +585,12 @@ export default function HRHub() {
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'referrals' ? 'bg-sky-500 text-white' : 'text-gray-400 hover:text-white'}`}
         >
           <ExternalLink className="h-4 w-4 inline mr-2" />Referral Program
+        </button>
+        <button
+          onClick={() => setActiveTab('scheduling')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'scheduling' ? 'bg-sky-500 text-white' : 'text-gray-400 hover:text-white'}`}
+        >
+          <Calendar className="h-4 w-4 inline mr-2" />Interview Scheduling
         </button>
       </div>
 
@@ -530,6 +684,187 @@ export default function HRHub() {
               </table>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* ─── SCHEDULING TAB ────────────────────────────────────── */}
+      {activeTab === 'scheduling' && (
+        <div className="space-y-6">
+          {/* Upcoming Interviews */}
+          <Card className="bg-navy-800/50 border-white/10 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <CalendarClock className="h-5 w-5 text-purple-400" />
+                Upcoming Interviews
+              </h3>
+            </div>
+            {scheduledInterviews.filter(si => si.status === 'scheduled').length > 0 ? (
+              <div className="space-y-3">
+                {scheduledInterviews.filter(si => si.status === 'scheduled').map(si => (
+                  <div key={si.id} className="flex items-center justify-between bg-navy-900/50 rounded-lg p-4 border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                        <Calendar className="h-5 w-5 text-purple-400" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-white">{si.applicant?.full_name || 'Unknown'}</div>
+                        <div className="text-xs text-gray-400">{si.applicant?.position} — {si.applicant?.email}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-white">
+                        {si.slot?.date ? new Date(si.slot.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {si.slot?.start_time ? formatTimeDisplay(si.slot.start_time) : ''} — {si.slot?.end_time ? formatTimeDisplay(si.slot.end_time) : ''}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-6">No upcoming interviews scheduled yet.</p>
+            )}
+          </Card>
+
+          {/* Available Slots Management */}
+          <Card className="bg-navy-800/50 border-white/10 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <CalendarPlus className="h-5 w-5 text-sky-400" />
+                Available Interview Slots
+              </h3>
+              <Button onClick={() => setAddSlotOpen(true)} className="bg-sky-500 hover:bg-sky-600 text-white gap-2 text-sm">
+                <Plus className="h-4 w-4" /> Add Slot
+              </Button>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">These time slots are available for applicants to book when they receive their scheduling link.</p>
+
+            {interviewSlots.length > 0 ? (
+              <div className="space-y-2">
+                {(() => {
+                  // Group slots by date
+                  const grouped = {};
+                  interviewSlots.forEach(slot => {
+                    if (!grouped[slot.date]) grouped[slot.date] = [];
+                    grouped[slot.date].push(slot);
+                  });
+                  return Object.entries(grouped).map(([date, dateSlots]) => (
+                    <div key={date} className="mb-4">
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                        {new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {dateSlots.map(slot => (
+                          <div key={slot.id} className="flex items-center justify-between bg-navy-900/50 rounded-lg p-3 border border-white/5 group">
+                            <div>
+                              <div className="text-sm text-white font-medium">
+                                {formatTimeDisplay(slot.start_time)} — {formatTimeDisplay(slot.end_time)}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {slot.current_bookings}/{slot.max_bookings} booked
+                                {slot.current_bookings >= slot.max_bookings && <span className="text-red-400 ml-1">(Full)</span>}
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => deleteSlot(slot.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            ) : (
+              <div className="text-center py-8 border border-dashed border-white/10 rounded-lg">
+                <Calendar className="h-8 w-8 text-gray-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No interview slots yet.</p>
+                <p className="text-xs text-gray-600">Add slots so applicants can schedule interviews.</p>
+              </div>
+            )}
+          </Card>
+
+          {/* Add Slot Dialog */}
+          <Dialog open={addSlotOpen} onOpenChange={setAddSlotOpen}>
+            <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CalendarPlus className="h-5 w-5 text-sky-400" />
+                  Add Interview Slot
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={addInterviewSlot} className="space-y-4">
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Date *</label>
+                  <Input
+                    type="date"
+                    value={slotForm.date}
+                    onChange={e => setSlotForm(f => ({ ...f, date: e.target.value }))}
+                    className="bg-navy-800/50 border-white/10"
+                    min={new Date().toISOString().split('T')[0]}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Start Time *</label>
+                    <Input
+                      type="time"
+                      value={slotForm.start_time}
+                      onChange={e => setSlotForm(f => ({ ...f, start_time: e.target.value }))}
+                      className="bg-navy-800/50 border-white/10"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">End Time *</label>
+                    <Input
+                      type="time"
+                      value={slotForm.end_time}
+                      onChange={e => setSlotForm(f => ({ ...f, end_time: e.target.value }))}
+                      className="bg-navy-800/50 border-white/10"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Type</label>
+                    <select
+                      value={slotForm.slot_type}
+                      onChange={e => setSlotForm(f => ({ ...f, slot_type: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-sm text-gray-300"
+                    >
+                      <option value="interview">Interview</option>
+                      <option value="screening">Screening Call</option>
+                      <option value="technical">Technical Review</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Max Bookings</label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={slotForm.max_bookings}
+                      onChange={e => setSlotForm(f => ({ ...f, max_bookings: e.target.value }))}
+                      className="bg-navy-800/50 border-white/10"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="ghost" onClick={() => setAddSlotOpen(false)}>Cancel</Button>
+                  <Button type="submit" className="bg-sky-500 hover:bg-sky-600">Add Slot</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 
@@ -1009,6 +1344,64 @@ export default function HRHub() {
                     ) : (
                       <p className="text-xs text-gray-500">No scores yet. Be the first to review.</p>
                     )}
+                  </Card>
+
+                  {/* ─── Actions ──────────────────────────────────── */}
+                  <Card className="bg-navy-800/30 border-white/10 p-4">
+                    <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                      <Send className="h-4 w-4 text-sky-400" /> Actions
+                    </h3>
+                    <div className="space-y-2">
+                      {/* Send / Resend Welcome Email */}
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-xs text-sky-400 hover:text-sky-300 hover:bg-sky-500/10"
+                        disabled={sendingEmail}
+                        onClick={() => handleSendWelcomeEmail(selectedApplicant)}
+                      >
+                        <Mail className="h-3.5 w-3.5 mr-2" />
+                        {sendingEmail ? 'Sending...' : selectedApplicant.welcome_email_sent_at ? 'Resend Welcome Email' : 'Send Welcome Email'}
+                      </Button>
+                      {selectedApplicant.welcome_email_sent_at && (
+                        <div className="text-[10px] text-gray-500 pl-6">
+                          Sent {new Date(selectedApplicant.welcome_email_sent_at).toLocaleString()}
+                        </div>
+                      )}
+
+                      {/* Interview Info */}
+                      {selectedApplicant.interview_scheduled_at && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 rounded text-xs text-purple-300">
+                          <Calendar className="h-3.5 w-3.5" />
+                          Interview scheduled {new Date(selectedApplicant.interview_scheduled_at).toLocaleDateString()}
+                        </div>
+                      )}
+
+                      {/* Approve + Send Login */}
+                      {selectedApplicant.stage !== 'hired' && selectedApplicant.stage !== 'rejected' && (
+                        <Button
+                          className="w-full bg-green-600 hover:bg-green-700 text-white text-xs gap-2"
+                          disabled={approvingId === selectedApplicant.id}
+                          onClick={() => handleApprove(selectedApplicant)}
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          {approvingId === selectedApplicant.id ? 'Approving...' : 'Approve & Send Login'}
+                        </Button>
+                      )}
+
+                      {/* Already approved badge */}
+                      {selectedApplicant.approved_at && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 rounded text-xs text-green-300">
+                          <UserCheck className="h-3.5 w-3.5" />
+                          Approved {new Date(selectedApplicant.approved_at).toLocaleDateString()}
+                        </div>
+                      )}
+                      {selectedApplicant.onboarding_triggered_at && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 rounded text-xs text-green-300">
+                          <Check className="h-3.5 w-3.5" />
+                          Platform login sent
+                        </div>
+                      )}
+                    </div>
                   </Card>
 
                   {/* Danger Zone */}

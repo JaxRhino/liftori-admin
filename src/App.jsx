@@ -48,6 +48,7 @@ import WorkQueue from './pages/WorkQueue'
 import CompanyDocs from './pages/CompanyDocs'
 import HRHub from './pages/HRHub'
 import Apply from './pages/Apply'
+import ScheduleInterview from './pages/ScheduleInterview'
 import PortalProjects from './pages/portal/PortalProjects'
 import PortalSettings from './pages/portal/PortalSettings'
 import PortalMessages from './pages/portal/PortalMessages'
@@ -160,6 +161,8 @@ export default function App() {
           <Route path="/rally/join/:code" element={<RallyGuestJoin />} />
           {/* Public job application — no auth required */}
           <Route path="/apply" element={<Apply />} />
+          {/* Public interview scheduler — no auth required */}
+          <Route path="/schedule-interview/:token" element={<ScheduleInterview />} />
 
           {/* Root redirect based on role */}
           <Route path="/" element={
