@@ -75,6 +75,7 @@ export default function LeadershipQC() {
       }
 
       const { data, error } = await query;
+      console.log('[LeadershipQC] scorecards query result:', { data, error, dateRange, fromDate: fromDate.toISOString() });
       if (error) throw error;
 
       let filtered = data || [];
@@ -94,7 +95,7 @@ export default function LeadershipQC() {
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name')
-        .in('role', ['admin', 'consultant']);
+        .in('role', ['admin', 'dev', 'super_admin', 'consultant']);
       setConsultants(profiles || []);
     } catch (err) {
       console.error('Error fetching scorecards:', err);
