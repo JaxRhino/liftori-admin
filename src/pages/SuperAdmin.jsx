@@ -44,7 +44,7 @@ export default function SuperAdmin() {
       .select('role')
       .eq('id', user.id)
       .single();
-    if (data?.role === 'super_admin') {
+    if (['super_admin', 'admin'].includes(data?.role)) {
       setIsSuperAdmin(true);
       loadDashboard();
     } else {
