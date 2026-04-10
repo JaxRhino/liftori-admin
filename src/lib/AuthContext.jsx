@@ -87,10 +87,25 @@ export function AuthProvider({ children }) {
     setToken(null)
   }
 
+  async function refreshProfile() {
+    if (!user?.id) return
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      if (error) throw error
+      setProfile(data)
+    } catch (err) {
+      console.error('[Auth] Profile refresh error:', err)
+    }
+  }
+
   const isAdmin = profile?.role === 'admin'
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, token, signIn, signOut, signUp }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, token, signIn, signOut, signUp, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

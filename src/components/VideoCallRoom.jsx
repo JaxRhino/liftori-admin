@@ -36,7 +36,7 @@ const VideoCallRoom = () => {
     currentUserId,
   } = useVideoCallContext();
 
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   // Local state
   const [chatOpen, setChatOpen] = useState(false);
@@ -202,6 +202,7 @@ const VideoCallRoom = () => {
       peerId: 'local',
       display_name: 'You',
       is_self: true,
+      avatar_url: profile?.avatar_url || null,
       media_state: {
         audio_enabled: mediaState.audioEnabled,
         video_enabled: mediaState.videoEnabled,
@@ -268,7 +269,7 @@ const VideoCallRoom = () => {
                     contain
                   />
                 ) : (
-                  <VideoPlaceholder name={screenShareParticipant.display_name} />
+                  <VideoPlaceholder name={screenShareParticipant.display_name} avatarUrl={screenShareParticipant.avatar_url} />
                 )}
 
                 <div className="absolute top-4 right-4 bg-sky-500 px-3 py-1 rounded text-xs text-white font-medium flex items-center gap-1">
@@ -296,7 +297,7 @@ const VideoCallRoom = () => {
                       remoteStreams[participant.peerId] ? (
                       <RemoteVideo stream={remoteStreams[participant.peerId]} />
                     ) : (
-                      <VideoPlaceholder name={participant.display_name} size="sm" />
+                      <VideoPlaceholder name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
                     )}
 
                     <div className="absolute bottom-1 left-1 bg-black/50 px-2 py-0.5 rounded text-xs text-white flex items-center gap-1">
@@ -357,7 +358,7 @@ const VideoCallRoom = () => {
                       stream={remoteStreams[participant.peerId]}
                     />
                   ) : (
-                    <VideoPlaceholder name={participant.display_name} />
+                    <VideoPlaceholder name={participant.display_name} avatarUrl={participant.avatar_url} />
                   )}
 
                   <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-xs text-white flex items-center gap-1">
@@ -654,19 +655,27 @@ const RemoteVideo = ({ stream, contain }) => {
 };
 
 /**
- * VideoPlaceholder component - shows avatar when video is disabled
+ * VideoPlaceholder component - shows profile picture or initials when video is disabled
  */
-const VideoPlaceholder = ({ name, size = 'lg' }) => {
+const VideoPlaceholder = ({ name, avatarUrl, size = 'lg' }) => {
   const initial = name?.charAt(0)?.toUpperCase() || '?';
-  const sizeClass = size === 'sm' ? 'w-12 h-12 text-xl' : 'w-20 h-20 text-4xl';
+  const sizeClass = size === 'sm' ? 'w-12 h-12 text-xl' : 'w-24 h-24 text-4xl';
 
   return (
     <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-      <div
-        className={`${sizeClass} rounded-full bg-sky-500/20 text-sky-400 font-semibold flex items-center justify-center`}
-      >
-        {initial}
-      </div>
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={name || 'User'}
+          className={`${sizeClass} rounded-full object-cover border-2 border-slate-700`}
+        />
+      ) : (
+        <div
+          className={`${sizeClass} rounded-full bg-sky-500/20 text-sky-400 font-semibold flex items-center justify-center`}
+        >
+          {initial}
+        </div>
+      )}
     </div>
   );
 };

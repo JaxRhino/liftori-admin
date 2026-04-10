@@ -26,6 +26,7 @@ import { QuickCallButtons as VideoQuickCallButtons, PreCallSettings } from '../c
 import { RallyButton } from '../components/chat/RallyVideoCall';
 import { useVideoCallContext } from '../contexts/VideoCallContext';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
+import UserAvatar from '../components/UserAvatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { 
   Hash, 
@@ -1248,17 +1249,15 @@ export const Chat = () => {
                   ) : (
                     <div key={item.message.id} className={`group flex gap-3 hover:bg-muted/50 rounded-lg p-2 -mx-2 ${item.grouped ? 'mt-1' : 'mt-4'}`}>
                       {!item.grouped && (
-                        <Avatar className="h-9 w-9">
-                          {item.message.sender_id === 'prime-system' || item.message.is_prime_auto_reply ? (
+                        item.message.sender_id === 'prime-system' || item.message.is_prime_auto_reply ? (
+                          <Avatar className="h-9 w-9">
                             <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-lg font-bold">
                               🔱
                             </div>
-                          ) : (
-                            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                              {item.message.sender_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
+                          </Avatar>
+                        ) : (
+                          <UserAvatar name={item.message.sender_name} avatarUrl={item.message.sender_avatar_url} size="md" />
+                        )
                       )}
                       {item.grouped && <div className="w-9" />}
                       
@@ -1672,11 +1671,7 @@ export const Chat = () => {
           {/* Parent Message */}
           <div className="border-b p-4 bg-muted/30">
             <div className="flex gap-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                  {threadParentMessage.sender_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar name={threadParentMessage.sender_name} avatarUrl={threadParentMessage.sender_avatar_url} size="sm" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="font-semibold text-sm">{threadParentMessage.sender_name}</span>
@@ -1700,11 +1695,7 @@ export const Chat = () => {
             ) : (
               threadMessages.map((reply) => (
                 <div key={reply.id} className="flex gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                      {reply.sender_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar name={reply.sender_name} avatarUrl={reply.sender_avatar_url} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
                       <span className="font-semibold text-sm">{reply.sender_name}</span>

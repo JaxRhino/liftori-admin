@@ -56,9 +56,13 @@ export default function GlobalHeader() {
             onClick={() => setProfileOpen(!profileOpen)}
             className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-navy-700/50 transition-colors"
           >
-            <div className="w-7 h-7 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blue text-xs font-bold flex-shrink-0">
-              {initials}
-            </div>
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt={displayName} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blue text-xs font-bold flex-shrink-0">
+                {initials}
+              </div>
+            )}
           </button>
 
           {/* Profile Dropdown */}

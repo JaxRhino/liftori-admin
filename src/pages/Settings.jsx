@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { toast } from 'sonner'
 
 const TABS = ['Profile', 'Company', 'Notifications', 'Billing', 'Integrations']
 
 export default function Settings() {
-  const { user, profile } = useAuth()
+  const { user, profile, refreshProfile } = useAuth()
   const [activeTab, setActiveTab] = useState('Profile')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -84,6 +85,7 @@ export default function Settings() {
           saving={saving}
           saved={saved}
           error={error}
+          refreshProfile={refreshProfile}
         />
       )}
       {activeTab === 'Company' && <CompanyTab />}
@@ -96,8 +98,81 @@ export default function Settings() {
   )
 }
 
-function ProfileTab({ form, setForm, user, profile, onSave, saving, saved, error }) {
+function ProfileTab({ form, setForm, user, profile, onSave, saving, saved, error, refreshProfile }) {
   const initials = (form.full_name || user?.email || '?').slice(0, 2).toUpperCase()
+  const fileInputRef = useRef(null)
+  const [uploading, setUploading] = useState(false)
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5MB')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const filePath = `${user.id}/avatar.${ext}`
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true })
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      // Add cache-buster to force reload
+      const avatarUrl = `${publicUrl}?t=${Date.now()}`
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', user.id)
+      if (updateError) throw updateError
+
+      await refreshProfile()
+      toast.success('Profile picture updated!')
+    } catch (err) {
+      console.error('Avatar upload error:', err)
+      toast.error('Failed to upload picture')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    setUploading(true)
+    try {
+      // Remove from profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: null })
+        .eq('id', user.id)
+      if (updateError) throw updateError
+
+      await refreshProfile()
+      toast.success('Profile picture removed')
+    } catch (err) {
+      console.error('Avatar remove error:', err)
+      toast.error('Failed to remove picture')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -106,8 +181,43 @@ function ProfileTab({ form, setForm, user, profile, onSave, saving, saved, error
 
         {/* Avatar row */}
         <div className="flex items-center gap-5 mb-6 pb-6 border-b border-navy-700/50">
-          <div className="w-16 h-16 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blue text-2xl font-bold select-none">
-            {initials}
+          <div className="relative group">
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={form.full_name || 'Avatar'}
+                className="w-20 h-20 rounded-full object-cover border-2 border-navy-700"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blue text-2xl font-bold select-none">
+                {initials}
+              </div>
+            )}
+            {/* Upload overlay */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+            >
+              {uploading ? (
+                <svg className="w-6 h-6 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+                </svg>
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
           </div>
           <div>
             <p className="text-sm font-medium text-white">{form.full_name || 'No name set'}</p>
@@ -115,6 +225,24 @@ function ProfileTab({ form, setForm, user, profile, onSave, saving, saved, error
             <span className="mt-1.5 inline-block px-2 py-0.5 rounded text-xs bg-brand-blue/10 text-brand-blue font-medium capitalize">
               {profile?.role || 'admin'}
             </span>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="text-xs text-sky-400 hover:text-sky-300 font-medium transition-colors"
+              >
+                {profile?.avatar_url ? 'Change Photo' : 'Upload Photo'}
+              </button>
+              {profile?.avatar_url && (
+                <button
+                  onClick={handleRemoveAvatar}
+                  disabled={uploading}
+                  className="text-xs text-gray-500 hover:text-red-400 font-medium transition-colors"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

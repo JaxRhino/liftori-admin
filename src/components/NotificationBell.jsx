@@ -9,11 +9,15 @@ export default function NotificationBell() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { triggerIncomingCall } = useVideoCallContext()
+  const triggerRef = useRef(triggerIncomingCall)
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const dropdownRef = useRef(null)
+
+  // Keep ref in sync so Realtime callback always has latest function
+  useEffect(() => { triggerRef.current = triggerIncomingCall }, [triggerIncomingCall])
 
   useEffect(() => {
     if (user) fetchNotifications()
@@ -73,22 +77,24 @@ export default function NotificationBell() {
         // Play sound
         playAlert(isRally)
 
-        // Show toast
+        // Show toast and auto-trigger incoming call modal
         if (isRally) {
           // Extract callId from link (e.g. /admin/chat?callId=xxx)
           const callIdMatch = notif.link?.match(/callId=([^&]+)/);
+
+          // AUTO-TRIGGER: immediately show the incoming call modal
+          if (callIdMatch) {
+            console.log('[NotificationBell] Auto-triggering incoming call:', callIdMatch[1]);
+            triggerRef.current(callIdMatch[1]);
+          }
+
           toast.warning(notif.title, {
             description: notif.body,
             duration: 15000,
             action: callIdMatch ? {
               label: 'Join Call',
               onClick: () => {
-                // Directly trigger the incoming call modal
-                triggerIncomingCall(callIdMatch[1]);
-                // Navigate to chat if not already there
-                if (!window.location.pathname.includes('/chat')) {
-                  navigate('/admin/chat');
-                }
+                triggerRef.current(callIdMatch[1]);
               }
             } : notif.link ? { label: 'Open Rally', onClick: () => { navigate(notif.link) } } : undefined,
           })
@@ -207,7 +213,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute left-full bottom-0 ml-2 w-80 bg-navy-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-navy-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
             <h3 className="text-sm font-semibold text-white">Notifications</h3>

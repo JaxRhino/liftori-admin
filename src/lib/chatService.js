@@ -96,7 +96,7 @@ export async function sendMessage(channelId, { content, attachments = [], thread
   const senderName = user.user_metadata?.full_name || user.email || ''
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, role')
+    .select('full_name, role, avatar_url')
     .eq('id', user.id)
     .single()
 
@@ -107,6 +107,7 @@ export async function sendMessage(channelId, { content, attachments = [], thread
       sender_id: user.id,
       sender_name: profile?.full_name || senderName,
       sender_role: profile?.role || 'customer',
+      sender_avatar_url: profile?.avatar_url || null,
       content,
       attachments: attachments || [],
       thread_id: thread_id || null
