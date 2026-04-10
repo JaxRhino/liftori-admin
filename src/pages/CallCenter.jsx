@@ -1944,24 +1944,19 @@ export default function CallCenter() {
         }),
         onTwilioEvent('incoming', ({ from, call, isInternal, callerUserId, callerName, callerAvatar }) => {
           setTwilioIncoming({ from, call, isInternal, callerUserId, callerName, callerAvatar });
-          const displayName = callerName || from;
-          toast(isInternal ? `Team call from ${displayName}` : `Incoming call from ${displayName}`, { duration: 15000 });
-          playIncomingAlert();
+          // Audio handled by GlobalPhoneCallPopup — no playIncomingAlert() here
         }),
         onTwilioEvent('accepted', () => {
           setTwilioIncoming(null);
-          stopIncomingAlert();
+          // Audio handled by GlobalPhoneCallPopup — no stopIncomingAlert() here
         }),
         onTwilioEvent('disconnected', () => {
           setActiveCall(null);
           setTwilioIncoming(null);
-          stopIncomingAlert();
           loadDashboardData();
         }),
         onTwilioEvent('cancelled', () => {
           setTwilioIncoming(null);
-          stopIncomingAlert();
-          toast('Caller hung up');
         }),
         onTwilioEvent('callEnded', () => {
           setActiveCall(null);

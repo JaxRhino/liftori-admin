@@ -98,21 +98,21 @@ export default function GlobalPhoneCallPopup() {
     };
 
     const unsubs = [
-      onTwilioEvent('incoming', async ({ from, call, isInternal, callerUserId, callerName, callerAvatar }) => {
-        let callerTitle = '';
-        // Fetch title from profiles for internal callers
-        if (callerUserId) {
-          try {
-            const { data: callerProfile } = await supabase
-              .from('profiles')
-              .select('title')
-              .eq('id', callerUserId)
-              .single();
-            callerTitle = callerProfile?.title || '';
-          } catch (e) { /* ignore */ }
-        }
-        setIncoming({ from, call, isInternal, callerUserId, callerName, callerAvatar, callerTitle });
+      onTwilioEvent('incoming', ({ from, call, isInternal, callerUserId, callerName, callerAvatar }) => {
+        // Set state IMMEDIATELY (sync) so popup renders without delay
+        setIncoming({ from, call, isInternal, callerUserId, callerName, callerAvatar, callerTitle: '' });
         playIncomingAlert();
+
+        // Fetch title in background and update if found
+        if (callerUserId) {
+          supabase.from('profiles').select('title').eq('id', callerUserId).single()
+            .then(({ data }) => {
+              if (data?.title) {
+                setIncoming(prev => prev ? { ...prev, callerTitle: data.title } : prev);
+              }
+            })
+            .catch(() => {});
+        }
 
         // Safety timeout — stop ringing after 30s even if no cancel event fires
         if (ringTimeout) clearTimeout(ringTimeout);

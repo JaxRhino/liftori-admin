@@ -178,7 +178,9 @@ export function destroyTwilioDevice() {
   } catch (e) {
     console.warn('[Twilio] Error destroying device:', e);
   }
-  listeners = {};
+  // DO NOT wipe listeners — other components (GlobalPhoneCallPopup) may still
+  // be subscribed and will re-use them when the device is re-created.
+  // Each subscriber manages its own cleanup via the unsub function from onTwilioEvent.
 }
 
 // ─── CALL ACTIONS ──────────────────────────────
