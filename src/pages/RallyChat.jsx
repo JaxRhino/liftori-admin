@@ -1350,9 +1350,7 @@ export const Chat = () => {
                     <div key={item.message.id} className={`group flex gap-3 hover:bg-muted/50 rounded-lg p-2 -mx-2 ${item.grouped ? 'mt-1' : 'mt-4'}`}>
                       {!item.grouped && (
                         item.message.sender_role === 'system' || item.message.sender_name === 'Sage' ? (
-                          <div className="h-9 w-9 rounded-full flex items-center justify-center bg-gradient-to-br from-sky-500 to-indigo-600 text-white text-lg font-bold flex-shrink-0">
-                            🤖
-                          </div>
+                          <img src="/sage-avatar.png" alt="Sage" className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
                         ) : item.message.sender_id === 'prime-system' || item.message.is_prime_auto_reply ? (
                           <Avatar className="h-9 w-9">
                             <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-lg font-bold">
@@ -1371,7 +1369,7 @@ export const Chat = () => {
                             <span className="font-semibold text-sm">{item.message.sender_name}</span>
                             {item.message.sender_role === 'system' && (
                               <span className="text-xs px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-medium">
-                                AI Assistant
+                                Sage AI
                               </span>
                             )}
                             {item.message.sender_role === 'tester' && (
