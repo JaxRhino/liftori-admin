@@ -433,12 +433,36 @@ const navItems = [
   },
 ]
 
+// Role-based nav visibility
+const FULL_ACCESS_ROLES = ['super_admin', 'admin', 'dev']
+const MANAGEMENT_ROLES = ['super_admin', 'admin', 'dev', 'sales_director']
+
+// Items hidden from call_agent role (they only see Call Center, Sales Hub, Chat, Rally)
+const CALL_AGENT_HIDDEN = ['Super Admin', 'Dashboard', 'Marketing', 'Communications', 'Finance', 'Support Tickets', 'Settings']
+// Items hidden from sales_director (they see everything except Super Admin — unless also granted)
+const SALES_DIRECTOR_HIDDEN = []
+
 export default function AdminLayout() {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const mainRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const userRole = profile?.role || 'customer'
+
+  // Filter nav items based on role
+  const visibleNavItems = navItems.filter(item => {
+    if (FULL_ACCESS_ROLES.includes(userRole)) return true
+    if (userRole === 'sales_director') return !SALES_DIRECTOR_HIDDEN.includes(item.label)
+    if (userRole === 'call_agent') return !CALL_AGENT_HIDDEN.includes(item.label)
+    return true
+  })
+
+  // Whether to show Operations, Freight, Builds, Tools sections
+  const showOps = MANAGEMENT_ROLES.includes(userRole)
+  const showFreight = FULL_ACCESS_ROLES.includes(userRole)
+  const showBuilds = FULL_ACCESS_ROLES.includes(userRole)
+  const showTools = MANAGEMENT_ROLES.includes(userRole)
 
   // Scroll to top on route change
   useEffect(() => {
@@ -503,7 +527,7 @@ export default function AdminLayout() {
 
         {/* Nav */}
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-          {navItems.map((item, idx) => (
+          {visibleNavItems.map((item, idx) => (
             <React.Fragment key={item.path}>
               {['Marketing', 'EOS', 'Finance', 'Communications'].includes(item.label) ? (
                 <button
@@ -728,7 +752,7 @@ export default function AdminLayout() {
                 </div>
 
                 {/* Operations dropdown — right after Sales Hub */}
-                <div>
+                {showOps && <div>
                   <button
                     onClick={() => { if (sidebarOpen) setOpsOpen(o => !o); else navigate('/admin/wizard') }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isOpsRoute ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}>
@@ -774,13 +798,13 @@ export default function AdminLayout() {
                       ))}
                     </div>
                   )}
-                </div>
+                </div>}
               </>)}
             </React.Fragment>
           ))}
 
           {/* Tools group */}
-          <div className="pt-1">
+          {showTools && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Tools</p>
             )}
@@ -830,10 +854,10 @@ export default function AdminLayout() {
                 ))}
               </div>
             )}
-          </div>
+          </div>}
 
           {/* In-House Builds */}
-          <div className="pt-1">
+          {showBuilds && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Internal</p>
             )}
@@ -850,10 +874,10 @@ export default function AdminLayout() {
               </svg>
               {sidebarOpen && <span className="flex-1 text-left">In-House Builds</span>}
             </NavLink>
-          </div>
+          </div>}
 
           {/* Freight AI */}
-          <div className="pt-1">
+          {showFreight && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Client Platforms</p>
             )}
@@ -904,7 +928,7 @@ export default function AdminLayout() {
                 </svg>
               </NavLink>
             )}
-          </div>
+          </div>}
 
           {/* Client Portals */}
           <div className="pt-1">
