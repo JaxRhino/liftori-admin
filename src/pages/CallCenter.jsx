@@ -47,6 +47,7 @@ import {
   sendSMS,
   fetchSMSHistory,
 } from '../lib/twilioService';
+import { playIncomingAlert, stopIncomingAlert } from '../lib/callCenterAudio';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -1938,17 +1939,21 @@ export default function CallCenter() {
         onTwilioEvent('incoming', ({ from, call }) => {
           setTwilioIncoming({ from, call });
           toast('Incoming call from ' + from, { duration: 15000 });
+          playIncomingAlert();
         }),
         onTwilioEvent('accepted', () => {
           setTwilioIncoming(null);
+          stopIncomingAlert();
         }),
         onTwilioEvent('disconnected', () => {
           setActiveCall(null);
           setTwilioIncoming(null);
+          stopIncomingAlert();
           loadDashboardData();
         }),
         onTwilioEvent('cancelled', () => {
           setTwilioIncoming(null);
+          stopIncomingAlert();
           toast('Caller hung up');
         }),
         onTwilioEvent('callEnded', () => {
@@ -1967,6 +1972,7 @@ export default function CallCenter() {
       twilioCleanupRef.current.forEach(unsub => { try { unsub(); } catch(e) {} });
       twilioCleanupRef.current = [];
       destroyTwilioDevice();
+      stopIncomingAlert();
       setTwilioReady(false);
       setTwilioIdentity(null);
       setTwilioIncoming(null);
@@ -2051,6 +2057,7 @@ export default function CallCenter() {
 
   const handleAcceptCall = async (call) => {
     try {
+      stopIncomingAlert();
       // If this is a real Twilio incoming call, accept via SDK
       if (twilioIncoming?.call) {
         acceptIncomingCall();
@@ -2070,6 +2077,7 @@ export default function CallCenter() {
 
   const handleRejectCall = async (call) => {
     try {
+      stopIncomingAlert();
       // If this is a real Twilio incoming call, reject via SDK
       if (twilioIncoming?.call) {
         rejectIncomingCall();
