@@ -13,9 +13,11 @@ import { useAuth } from '../lib/AuthContext';
 import {
   Calendar, Clock, Plus, Trash2, User, Building2, Video,
   Search, Filter, ChevronRight, CheckCircle, XCircle,
-  AlertTriangle, Phone, Loader2, ExternalLink
+  AlertTriangle, Phone, Loader2, ExternalLink, Send, Mail,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { sendConsultingReminderEmail } from '../lib/videoCallHelpers';
 
 const STATUS_BADGES = {
   scheduled: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -167,6 +169,33 @@ export default function ConsultingAppointments() {
       toast.success('Slot removed');
     } catch (err) {
       toast.error('Delete failed');
+    }
+  }
+
+  // Send reminder email to lead
+  const [sendingReminder, setSendingReminder] = useState(null);
+
+  async function sendReminder(appt) {
+    if (!appt.lead_email) {
+      toast.error('No email address for this lead');
+      return;
+    }
+    setSendingReminder(appt.id);
+    try {
+      await sendConsultingReminderEmail({
+        to: appt.lead_email,
+        leadName: appt.lead_name,
+        roomId: appt.room_id,
+        appointmentDate: formatDate(appt.appointment_date),
+        appointmentTime: formatTime(appt.appointment_start),
+        consultantName: user?.user_metadata?.full_name || 'our team',
+      });
+      toast.success(`Reminder sent to ${appt.lead_name}`);
+    } catch (err) {
+      console.error('Reminder error:', err);
+      toast.error('Failed to send reminder: ' + err.message);
+    } finally {
+      setSendingReminder(null);
     }
   }
 
@@ -337,24 +366,41 @@ export default function ConsultingAppointments() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {['scheduled', 'confirmed', 'in_progress'].includes(appt.status) && (
-                          <button
-                            onClick={() => navigate(`/admin/sales-call/${appt.room_id}`)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600/20 border border-purple-500/30 rounded-lg text-xs font-semibold text-purple-400 hover:bg-purple-600/30 transition"
-                          >
-                            <Video className="w-3.5 h-3.5" />
-                            Join Call
-                          </button>
-                        )}
-                        {appt.status === 'completed' && (
-                          <button
-                            onClick={() => navigate(`/admin/sales-call/${appt.room_id}`)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/50 border border-slate-600 rounded-lg text-xs font-semibold text-gray-400 hover:text-white transition"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            View Notes
-                          </button>
-                        )}
+                        <div className="flex items-center justify-end gap-2">
+                          {['scheduled', 'confirmed', 'in_progress'].includes(appt.status) && (
+                            <>
+                              <button
+                                onClick={() => sendReminder(appt)}
+                                disabled={sendingReminder === appt.id}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/50 border border-slate-600 rounded-lg text-xs font-semibold text-gray-400 hover:text-sky-400 hover:border-sky-500/30 hover:bg-sky-500/10 transition disabled:opacity-50"
+                                title="Send reminder email with join link"
+                              >
+                                {sendingReminder === appt.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Mail className="w-3.5 h-3.5" />
+                                )}
+                                Remind
+                              </button>
+                              <button
+                                onClick={() => navigate(`/admin/sales-call/${appt.room_id}`)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600/20 border border-purple-500/30 rounded-lg text-xs font-semibold text-purple-400 hover:bg-purple-600/30 transition"
+                              >
+                                <Video className="w-3.5 h-3.5" />
+                                Start Call
+                              </button>
+                            </>
+                          )}
+                          {appt.status === 'completed' && (
+                            <button
+                              onClick={() => navigate(`/admin/sales-call/${appt.room_id}`)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/50 border border-slate-600 rounded-lg text-xs font-semibold text-gray-400 hover:text-white transition"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              View Notes
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))

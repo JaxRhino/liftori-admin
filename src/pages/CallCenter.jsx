@@ -47,7 +47,13 @@ import {
   MoreVertical,
   Settings,
   AlertCircle as Alert,
+  Video,
+  Mail,
+  Copy,
+  Loader2,
+  ExternalLink,
 } from 'lucide-react';
+import { createOutboundRallyLink, sendCallReminderEmail } from '../lib/videoCallHelpers';
 
 // ═══════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS
@@ -290,7 +296,7 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
 // INCOMING CALLS LIST
 // ═══════════════════════════════════════════════════════════════
 
-function IncomingCallsList({ calls, onAccept, onReject }) {
+function IncomingCallsList({ calls, onAccept, onReject, onVideoCall, creatingVideoCall }) {
   if (calls.length === 0) {
     return (
       <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-8 text-center">
@@ -332,6 +338,15 @@ function IncomingCallsList({ calls, onAccept, onReject }) {
               Accept
             </Button>
             <Button
+              onClick={() => onVideoCall(call)}
+              disabled={creatingVideoCall === call.id}
+              size="sm"
+              variant="outline"
+              className="text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+            >
+              {creatingVideoCall === call.id ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} />}
+            </Button>
+            <Button
               onClick={() => onReject(call)}
               variant="destructive"
               size="sm"
@@ -349,7 +364,7 @@ function IncomingCallsList({ calls, onAccept, onReject }) {
 // SPEED TO LEAD SECTION
 // ═══════════════════════════════════════════════════════════════
 
-function SpeedToLeadSection({ leads, onCallNow, onMarkContacted, onAddLead }) {
+function SpeedToLeadSection({ leads, onCallNow, onVideoCall, onMarkContacted, onAddLead, creatingVideoCall }) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newLead, setNewLead] = useState({
     lead_name: '',
@@ -429,6 +444,16 @@ function SpeedToLeadSection({ leads, onCallNow, onMarkContacted, onAddLead }) {
                         className="text-xs"
                       >
                         Call Now
+                      </Button>
+                      <Button
+                        onClick={() => onVideoCall(lead)}
+                        disabled={creatingVideoCall === lead.id}
+                        size="sm"
+                        variant="outline"
+                        className="text-xs text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+                      >
+                        {creatingVideoCall === lead.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <Video size={12} className="mr-1" />}
+                        Video
                       </Button>
                       <Button
                         onClick={() => onMarkContacted(lead)}
@@ -515,7 +540,7 @@ function SpeedToLeadSection({ leads, onCallNow, onMarkContacted, onAddLead }) {
 // CALL QUEUE SECTION
 // ═══════════════════════════════════════════════════════════════
 
-function CallQueueSection({ queueItems, onCallNow, onComplete, onReschedule }) {
+function CallQueueSection({ queueItems, onCallNow, onVideoCall, onComplete, onReschedule, creatingVideoCall }) {
   const [activeTab, setActiveTab] = useState('all');
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -636,6 +661,16 @@ function CallQueueSection({ queueItems, onCallNow, onComplete, onReschedule }) {
                           className="text-xs"
                         >
                           Call Now
+                        </Button>
+                        <Button
+                          onClick={() => onVideoCall(item)}
+                          disabled={creatingVideoCall === item.id}
+                          size="sm"
+                          variant="outline"
+                          className="text-xs text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+                        >
+                          {creatingVideoCall === item.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <Video size={12} className="mr-1" />}
+                          Video
                         </Button>
                         <Button
                           onClick={() => {
@@ -827,6 +862,94 @@ function PhoneDialerModal({ open, onOpenChange, onCall }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// VIDEO CALL LINK DIALOG
+// ═══════════════════════════════════════════════════════════════
+
+function VideoCallLinkDialog({ open, onOpenChange, rallyLink, leadName, leadEmail, onSendEmail }) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSendEmail = async () => {
+    if (!leadEmail) {
+      toast.error('No email address for this lead');
+      return;
+    }
+    setSending(true);
+    try {
+      await onSendEmail();
+      setSent(true);
+      toast.success(`Video link sent to ${leadName}`);
+    } catch (err) {
+      toast.error('Failed to send email');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(rallyLink?.joinUrl || '');
+    toast.success('Video link copied');
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-white flex items-center gap-2">
+            <Video size={18} className="text-purple-400" />
+            Video Call — {leadName || 'Lead'}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <p className="text-gray-400 text-sm">
+            A video call link has been created. Share it with the lead so they can join.
+          </p>
+
+          {/* Link display */}
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 flex items-center justify-between gap-2">
+            <code className="text-sm text-sky-400 truncate flex-1">
+              {rallyLink?.joinUrl || 'Generating...'}
+            </code>
+            <Button onClick={copyLink} variant="outline" size="sm" className="shrink-0">
+              <Copy size={14} />
+            </Button>
+          </div>
+
+          {/* Email option */}
+          {leadEmail && (
+            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-2">
+              <p className="text-xs text-gray-400">Send to: <span className="text-gray-300">{leadEmail}</span></p>
+              <Button
+                onClick={handleSendEmail}
+                disabled={sending || sent}
+                className={`w-full flex items-center justify-center gap-2 ${
+                  sent ? 'bg-green-600/20 text-green-400 border-green-500/30' : 'bg-sky-600 hover:bg-sky-700'
+                }`}
+                size="sm"
+              >
+                {sending ? <Loader2 size={14} className="animate-spin" /> : sent ? <CheckCircle size={14} /> : <Mail size={14} />}
+                {sent ? 'Email Sent' : 'Send Video Link via Email'}
+              </Button>
+            </div>
+          )}
+
+          <p className="text-xs text-gray-600 text-center">
+            When the lead joins, you will receive an incoming call notification
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)} variant="outline">
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
@@ -848,6 +971,12 @@ export default function CallCenter() {
   const [queueItems, setQueueItems] = useState([]);
   const [showDialer, setShowDialer] = useState(false);
   const [showTestCall, setShowTestCall] = useState(false);
+
+  // Video call outbound state
+  const [showVideoLink, setShowVideoLink] = useState(false);
+  const [activeRallyLink, setActiveRallyLink] = useState(null);
+  const [videoCallLead, setVideoCallLead] = useState({ name: '', email: '' });
+  const [creatingVideoCall, setCreatingVideoCall] = useState(null); // lead id being processed
 
   const pollIntervalRef = useRef(null);
   const stlIntervalRef = useRef(null);
@@ -1078,6 +1207,36 @@ export default function CallCenter() {
     }
   };
 
+  // Start an outbound video call for any lead/contact
+  const handleVideoCall = async (lead) => {
+    const leadId = lead.id;
+    const name = lead.lead_name || lead.caller_name || lead.contact_name || 'Lead';
+    const email = lead.email || lead.lead_email || '';
+    setCreatingVideoCall(leadId);
+    try {
+      const link = await createOutboundRallyLink(user.id, `Video Call — ${name}`);
+      setActiveRallyLink(link);
+      setVideoCallLead({ name, email });
+      setShowVideoLink(true);
+    } catch (err) {
+      console.error('Failed to create video call link:', err);
+      toast.error('Failed to create video call link');
+    } finally {
+      setCreatingVideoCall(null);
+    }
+  };
+
+  // Send video link email from dialog
+  const handleSendVideoEmail = async () => {
+    if (!videoCallLead.email || !activeRallyLink) return;
+    await sendCallReminderEmail({
+      to: videoCallLead.email,
+      leadName: videoCallLead.name,
+      joinUrl: activeRallyLink.joinUrl,
+      consultantName: user?.user_metadata?.full_name || 'our team',
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1217,6 +1376,8 @@ export default function CallCenter() {
                   calls={incomingCalls}
                   onAccept={handleAcceptCall}
                   onReject={handleRejectCall}
+                  onVideoCall={handleVideoCall}
+                  creatingVideoCall={creatingVideoCall}
                 />
               </div>
             </Card>
@@ -1227,20 +1388,33 @@ export default function CallCenter() {
         <SpeedToLeadSection
           leads={speedToLeads}
           onCallNow={handleCallNow}
+          onVideoCall={handleVideoCall}
           onMarkContacted={handleMarkContacted}
           onAddLead={handleAddLead}
+          creatingVideoCall={creatingVideoCall}
         />
 
         {/* CALL QUEUE */}
         <CallQueueSection
           queueItems={queueItems}
           onCallNow={handleCallNow}
+          onVideoCall={handleVideoCall}
           onComplete={handleCompleteQueueItem}
           onReschedule={handleRescheduleQueueItem}
+          creatingVideoCall={creatingVideoCall}
         />
       </div>
 
       {/* MODALS */}
+      <VideoCallLinkDialog
+        open={showVideoLink}
+        onOpenChange={setShowVideoLink}
+        rallyLink={activeRallyLink}
+        leadName={videoCallLead.name}
+        leadEmail={videoCallLead.email}
+        onSendEmail={handleSendVideoEmail}
+      />
+
       <PhoneDialerModal
         open={showDialer}
         onOpenChange={setShowDialer}
