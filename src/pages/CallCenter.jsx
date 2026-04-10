@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../lib/AuthContext';
+import { supabase } from '../lib/supabase';
 import {
   fetchActiveCalls,
   fetchCallHistory,
@@ -19,6 +20,17 @@ import {
   setAgentStatus as updateAgentStatusDB,
   fetchAgent,
   fetchCallCenterDashboard,
+  fetchScheduledCalls,
+  createScheduledCall,
+  updateScheduledCall,
+  cancelScheduledCall,
+  completeScheduledCall,
+  checkAgentAvailability,
+  fetchAllAgentAvailability,
+  upsertAgentAvailability,
+  fetchVoicemails,
+  markVoicemailRead,
+  archiveVoicemail,
 } from '../lib/callCenterService';
 import {
   initializeTwilioDevice,
@@ -66,6 +78,16 @@ import {
   Copy,
   Loader2,
   ExternalLink,
+  Users,
+  Circle,
+  CalendarPlus,
+  Voicemail,
+  Play,
+  Archive,
+  UserCheck,
+  Ban,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { createOutboundRallyLink, sendCallReminderEmail } from '../lib/videoCallHelpers';
 
@@ -132,6 +154,124 @@ function StatCard({ label, value, icon, color = 'text-sky-400' }) {
         </div>
         <div className={`${color} opacity-50`}>{icon}</div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AGENT ROSTER PANEL
+// ═══════════════════════════════════════════════════════════════
+
+function AgentRosterPanel() {
+  const [agents, setAgents] = useState([]);
+  const [loadingAgents, setLoadingAgents] = useState(true);
+
+  const fetchAllAgents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('cc_agents')
+        .select('*, profile:profiles!cc_agents_user_id_fkey(id, full_name, avatar_url, email, role)')
+        .order('status');
+      if (error) throw error;
+      setAgents(data || []);
+    } catch (err) {
+      console.error('Error fetching agents:', err);
+    } finally {
+      setLoadingAgents(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllAgents();
+
+    // Real-time subscription for agent status changes
+    const channel = supabase
+      .channel('agent-roster')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'cc_agents',
+      }, () => {
+        fetchAllAgents();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  const available = agents.filter(a => a.status === 'available');
+  const busy = agents.filter(a => a.status === 'on_call' || a.status === 'busy');
+  const offline = agents.filter(a => a.status === 'offline' || (!['available', 'on_call', 'busy'].includes(a.status)));
+
+  const getStatusDot = (status) => {
+    if (status === 'available') return 'text-green-400';
+    if (status === 'on_call' || status === 'busy') return 'text-yellow-400';
+    return 'text-gray-500';
+  };
+
+  const getStatusLabel = (status) => {
+    if (status === 'available') return 'Available';
+    if (status === 'on_call') return 'On Call';
+    if (status === 'busy') return 'Busy';
+    return 'Offline';
+  };
+
+  const AgentPill = ({ agent }) => {
+    const name = agent.profile?.full_name || agent.display_name || 'Unknown';
+    const avatar = agent.profile?.avatar_url;
+    const role = agent.profile?.role;
+    const roleLabel = role === 'super_admin' ? 'Admin' : role === 'sales_director' ? 'Sales Dir.' : role === 'call_agent' ? 'Agent' : role || '';
+
+    return (
+      <div className="flex items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">
+        {avatar ? (
+          <img src={avatar} alt={name} className="w-7 h-7 rounded-full object-cover" />
+        ) : (
+          <div className="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center text-xs text-gray-300 font-bold">
+            {name.charAt(0)}
+          </div>
+        )}
+        <div className="flex flex-col min-w-0">
+          <span className="text-white text-sm font-medium truncate">{name}</span>
+          {roleLabel && <span className="text-gray-500 text-[10px] leading-tight">{roleLabel}</span>}
+        </div>
+        <Circle size={8} className={`${getStatusDot(agent.status)} fill-current ml-auto flex-shrink-0`} />
+      </div>
+    );
+  };
+
+  if (loadingAgents) return null;
+
+  return (
+    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+      <div className="flex items-center gap-3 mb-3">
+        <Users size={18} className="text-sky-400" />
+        <h3 className="text-white font-semibold text-sm">Agent Roster</h3>
+        <div className="flex items-center gap-2 ml-auto">
+          <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
+            {available.length} Active
+          </Badge>
+          {busy.length > 0 && (
+            <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs">
+              {busy.length} Busy
+            </Badge>
+          )}
+          <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30 text-xs">
+            {offline.length} Offline
+          </Badge>
+        </div>
+      </div>
+
+      {agents.length === 0 ? (
+        <p className="text-gray-500 text-sm text-center py-2">No agents registered</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+          {/* Available agents first, then busy, then offline */}
+          {[...available, ...busy, ...offline].map((agent) => (
+            <AgentPill key={agent.id} agent={agent} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -755,6 +895,654 @@ function CallQueueSection({ queueItems, onCallNow, onVideoCall, onComplete, onRe
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCHEDULED CALLS — Leadership assigns calls to agents
+// ═══════════════════════════════════════════════════════════════
+
+function ScheduledCallsSection({ userId }) {
+  const [calls, setCalls] = useState([]);
+  const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAssign, setShowAssign] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [availResult, setAvailResult] = useState(null);
+  const [expanded, setExpanded] = useState(true);
+  const [form, setForm] = useState({
+    assigned_to: '',
+    contact_name: '',
+    contact_phone: '',
+    contact_email: '',
+    purpose: '',
+    notes: '',
+    scheduled_at: '',
+    duration_minutes: 30,
+    priority: 'normal',
+  });
+
+  const loadData = async () => {
+    try {
+      const [sc, ag] = await Promise.all([
+        fetchScheduledCalls({}),
+        fetchAgents(),
+      ]);
+      setCalls(sc);
+      setAgents(ag);
+    } catch (err) {
+      console.error('Error loading scheduled calls:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleCheckAvailability = async () => {
+    if (!form.assigned_to || !form.scheduled_at) {
+      toast.error('Select an agent and time first');
+      return;
+    }
+    setChecking(true);
+    try {
+      const available = await checkAgentAvailability(
+        form.assigned_to,
+        new Date(form.scheduled_at).toISOString(),
+        form.duration_minutes
+      );
+      setAvailResult(available);
+      if (available) {
+        toast.success('Agent is available for this time slot');
+      } else {
+        toast.error('Agent is NOT available — conflict or outside hours');
+      }
+    } catch (err) {
+      toast.error('Could not check availability');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!form.assigned_to || !form.contact_name || !form.contact_phone || !form.scheduled_at) {
+      toast.error('Fill in agent, contact name, phone, and scheduled time');
+      return;
+    }
+    try {
+      await createScheduledCall({
+        ...form,
+        assigned_by: userId,
+        scheduled_at: new Date(form.scheduled_at).toISOString(),
+      });
+      toast.success('Call scheduled and assigned');
+      setShowAssign(false);
+      setForm({ assigned_to: '', contact_name: '', contact_phone: '', contact_email: '', purpose: '', notes: '', scheduled_at: '', duration_minutes: 30, priority: 'normal' });
+      setAvailResult(null);
+      await loadData();
+    } catch (err) {
+      toast.error('Failed to schedule call');
+    }
+  };
+
+  const handleComplete = async (id) => {
+    try {
+      await completeScheduledCall(id, '');
+      toast.success('Call marked complete');
+      await loadData();
+    } catch (err) {
+      toast.error('Failed to complete');
+    }
+  };
+
+  const handleCancel = async (id) => {
+    try {
+      await cancelScheduledCall(id);
+      toast.success('Call cancelled');
+      await loadData();
+    } catch (err) {
+      toast.error('Failed to cancel');
+    }
+  };
+
+  const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const formatScheduledTime = (iso) => {
+    const d = new Date(iso);
+    return `${DAY_LABELS[d.getDay()]} ${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  return (
+    <Card className="bg-slate-800/50 border-slate-700">
+      <div
+        className="p-6 border-b border-slate-700 flex items-center justify-between cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-3">
+          <CalendarPlus className="text-sky-400" size={20} />
+          <div>
+            <h2 className="text-white text-lg font-bold">Scheduled Calls</h2>
+            <p className="text-gray-400 text-sm">Assign and schedule calls to agents</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30">
+            {calls.length} Scheduled
+          </Badge>
+          {expanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+        </div>
+      </div>
+
+      {expanded && (
+        <>
+          <div className="p-4 border-b border-slate-700">
+            <Button onClick={() => setShowAssign(true)} className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700">
+              <CalendarPlus size={16} />
+              Assign New Call
+            </Button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-700">
+                  <th className="text-left px-6 py-3 text-gray-400 font-semibold">Contact</th>
+                  <th className="text-left px-6 py-3 text-gray-400 font-semibold">Phone</th>
+                  <th className="text-left px-6 py-3 text-gray-400 font-semibold">Assigned To</th>
+                  <th className="text-left px-6 py-3 text-gray-400 font-semibold">Scheduled</th>
+                  <th className="text-left px-6 py-3 text-gray-400 font-semibold">Duration</th>
+                  <th className="text-left px-6 py-3 text-gray-400 font-semibold">Priority</th>
+                  <th className="text-left px-6 py-3 text-gray-400 font-semibold">Purpose</th>
+                  <th className="text-left px-6 py-3 text-gray-400 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan="8" className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
+                ) : calls.length === 0 ? (
+                  <tr><td colSpan="8" className="px-6 py-8 text-center text-gray-400">No scheduled calls</td></tr>
+                ) : calls.map((c) => (
+                  <tr key={c.id} className="border-b border-slate-700 hover:bg-slate-700/20">
+                    <td className="px-6 py-4 text-white font-medium">{c.contact_name}</td>
+                    <td className="px-6 py-4 text-gray-300">{c.contact_phone}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {c.assigned_to_profile?.avatar_url ? (
+                          <img src={c.assigned_to_profile.avatar_url} alt="" className="w-6 h-6 rounded-full" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-xs text-gray-300">
+                            {(c.assigned_to_profile?.full_name || '?').charAt(0)}
+                          </div>
+                        )}
+                        <span className="text-gray-300 text-sm">{c.assigned_to_profile?.full_name || 'Unknown'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-300 text-xs">{formatScheduledTime(c.scheduled_at)}</td>
+                    <td className="px-6 py-4 text-gray-400">{c.duration_minutes}m</td>
+                    <td className="px-6 py-4">
+                      <Badge className={getPriorityColor(c.priority)}>{c.priority}</Badge>
+                    </td>
+                    <td className="px-6 py-4 text-gray-400 text-xs max-w-[150px] truncate">{c.purpose || '—'}</td>
+                    <td className="px-6 py-4 flex gap-2">
+                      <Button onClick={() => handleComplete(c.id)} size="sm" variant="outline" className="text-xs text-green-400 border-green-500/30 hover:bg-green-500/10">
+                        <CheckCircle size={12} className="mr-1" /> Done
+                      </Button>
+                      <Button onClick={() => handleCancel(c.id)} size="sm" variant="outline" className="text-xs text-red-400 border-red-500/30 hover:bg-red-500/10">
+                        <Ban size={12} className="mr-1" /> Cancel
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Assign Call Dialog */}
+      <Dialog open={showAssign} onOpenChange={setShowAssign}>
+        <DialogContent className="bg-slate-900 border-slate-700 max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">Assign & Schedule Call</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            <div>
+              <label className="text-gray-400 text-sm font-medium block mb-1">Assign To Agent</label>
+              <select
+                value={form.assigned_to}
+                onChange={(e) => { setForm({ ...form, assigned_to: e.target.value }); setAvailResult(null); }}
+                className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white"
+              >
+                <option value="">— Select agent —</option>
+                {agents.map(a => (
+                  <option key={a.user_id} value={a.user_id}>
+                    {a.profile?.full_name || a.display_name || a.user_id}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-gray-400 text-sm font-medium block mb-1">Contact Name</label>
+                <Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} placeholder="John Smith" className="bg-slate-800 border-slate-600 text-white" />
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm font-medium block mb-1">Phone Number</label>
+                <Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} placeholder="+1 (555) 123-4567" className="bg-slate-800 border-slate-600 text-white" />
+              </div>
+            </div>
+            <div>
+              <label className="text-gray-400 text-sm font-medium block mb-1">Email (optional)</label>
+              <Input value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} placeholder="john@example.com" className="bg-slate-800 border-slate-600 text-white" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-gray-400 text-sm font-medium block mb-1">Scheduled Date & Time</label>
+                <Input type="datetime-local" value={form.scheduled_at} onChange={(e) => { setForm({ ...form, scheduled_at: e.target.value }); setAvailResult(null); }} className="bg-slate-800 border-slate-600 text-white" />
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm font-medium block mb-1">Duration (min)</label>
+                <select value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: parseInt(e.target.value) })} className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white">
+                  <option value={15}>15 min</option>
+                  <option value={30}>30 min</option>
+                  <option value={45}>45 min</option>
+                  <option value={60}>1 hour</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-gray-400 text-sm font-medium block mb-1">Priority</label>
+              <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white">
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-gray-400 text-sm font-medium block mb-1">Purpose</label>
+              <Input value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} placeholder="Follow-up demo, Sales call, etc." className="bg-slate-800 border-slate-600 text-white" />
+            </div>
+            <div>
+              <label className="text-gray-400 text-sm font-medium block mb-1">Notes</label>
+              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Additional context for the agent..." className="bg-slate-800 border-slate-600 text-white" rows={2} />
+            </div>
+
+            {/* Availability Check */}
+            <div className="flex items-center gap-3 pt-1">
+              <Button onClick={handleCheckAvailability} disabled={checking || !form.assigned_to || !form.scheduled_at} variant="outline" size="sm" className="text-xs">
+                {checking ? <Loader2 size={12} className="animate-spin mr-1" /> : <UserCheck size={12} className="mr-1" />}
+                Check Availability
+              </Button>
+              {availResult === true && <span className="text-green-400 text-xs font-medium">Available</span>}
+              {availResult === false && <span className="text-red-400 text-xs font-medium">Not Available — conflict or outside hours</span>}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowAssign(false)} variant="outline">Cancel</Button>
+            <Button onClick={handleAssign} className="bg-sky-600 hover:bg-sky-700">Assign Call</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AGENT AVAILABILITY GRID — Weekly hours per agent
+// ═══════════════════════════════════════════════════════════════
+
+function AgentAvailabilitySection() {
+  const [availability, setAvailability] = useState([]);
+  const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [editForm, setEditForm] = useState({ start_time: '08:00', end_time: '18:00', is_available: true });
+
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [avail, ag] = await Promise.all([
+          fetchAllAgentAvailability(),
+          fetchAgents(),
+        ]);
+        setAvailability(avail);
+        setAgents(ag);
+      } catch (err) {
+        console.error('Error loading availability:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const handleSave = async () => {
+    if (!editing) return;
+    try {
+      await upsertAgentAvailability(
+        editing.agent_user_id,
+        editing.day_of_week,
+        editForm.start_time,
+        editForm.end_time,
+        editForm.is_available
+      );
+      toast.success('Availability updated');
+      setEditing(null);
+      const avail = await fetchAllAgentAvailability();
+      setAvailability(avail);
+    } catch (err) {
+      toast.error('Failed to update');
+    }
+  };
+
+  // Group availability by agent
+  const agentMap = new Map();
+  for (const a of agents) {
+    agentMap.set(a.user_id, {
+      name: a.profile?.full_name || a.display_name || 'Unknown',
+      avatar: a.profile?.avatar_url,
+      role: a.profile?.role,
+      slots: [],
+    });
+  }
+  for (const slot of availability) {
+    const agent = agentMap.get(slot.agent_user_id);
+    if (agent) agent.slots.push(slot);
+  }
+
+  return (
+    <Card className="bg-slate-800/50 border-slate-700">
+      <div
+        className="p-6 border-b border-slate-700 flex items-center justify-between cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-3">
+          <Clock className="text-emerald-400" size={20} />
+          <div>
+            <h2 className="text-white text-lg font-bold">Agent Availability</h2>
+            <p className="text-gray-400 text-sm">Weekly hours — 8am to 6pm ET default</p>
+          </div>
+        </div>
+        {expanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+      </div>
+
+      {expanded && (
+        <div className="p-4 overflow-x-auto">
+          {loading ? (
+            <p className="text-gray-400 text-center py-6">Loading availability...</p>
+          ) : agents.length === 0 ? (
+            <p className="text-gray-400 text-center py-6">No agents registered</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-700">
+                  <th className="text-left px-4 py-2 text-gray-400 font-semibold">Agent</th>
+                  {DAY_NAMES.map(d => (
+                    <th key={d} className="text-center px-2 py-2 text-gray-400 font-semibold">{d}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...agentMap.entries()].map(([uid, agent]) => (
+                  <tr key={uid} className="border-b border-slate-700">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {agent.avatar ? (
+                          <img src={agent.avatar} alt="" className="w-6 h-6 rounded-full" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-xs text-gray-300">{agent.name.charAt(0)}</div>
+                        )}
+                        <span className="text-white text-sm">{agent.name}</span>
+                      </div>
+                    </td>
+                    {DAY_NAMES.map((_, dayIdx) => {
+                      const slot = agent.slots.find(s => s.day_of_week === dayIdx);
+                      const isOn = slot ? slot.is_available : (dayIdx >= 1 && dayIdx <= 5);
+                      const timeStr = slot ? `${slot.start_time?.slice(0,5)}-${slot.end_time?.slice(0,5)}` : '08:00-18:00';
+                      return (
+                        <td key={dayIdx} className="text-center px-1 py-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditing({ agent_user_id: uid, day_of_week: dayIdx, agentName: agent.name, dayName: DAY_NAMES[dayIdx] });
+                              setEditForm({
+                                start_time: slot?.start_time?.slice(0,5) || '08:00',
+                                end_time: slot?.end_time?.slice(0,5) || '18:00',
+                                is_available: isOn,
+                              });
+                            }}
+                            className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                              isOn
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                                : 'bg-gray-700/30 text-gray-500 border border-gray-700 hover:bg-gray-700/50'
+                            }`}
+                          >
+                            {isOn ? timeStr : 'Off'}
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Edit Slot Dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <DialogContent className="bg-slate-900 border-slate-700 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {editing?.agentName} — {editing?.dayName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <label className="text-gray-400 text-sm">Available</label>
+              <button
+                onClick={() => setEditForm({ ...editForm, is_available: !editForm.is_available })}
+                className={`w-10 h-6 rounded-full transition-colors relative ${editForm.is_available ? 'bg-emerald-500' : 'bg-gray-600'}`}
+              >
+                <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-all ${editForm.is_available ? 'left-5' : 'left-1'}`} />
+              </button>
+            </div>
+            {editForm.is_available && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-gray-400 text-sm block mb-1">Start</label>
+                  <Input type="time" value={editForm.start_time} onChange={(e) => setEditForm({ ...editForm, start_time: e.target.value })} className="bg-slate-800 border-slate-600 text-white" />
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm block mb-1">End</label>
+                  <Input type="time" value={editForm.end_time} onChange={(e) => setEditForm({ ...editForm, end_time: e.target.value })} className="bg-slate-800 border-slate-600 text-white" />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setEditing(null)} variant="outline">Cancel</Button>
+            <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700">Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VOICEMAIL INBOX
+// ═══════════════════════════════════════════════════════════════
+
+function VoicemailInbox({ userId }) {
+  const [voicemails, setVoicemails] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [playingId, setPlayingId] = useState(null);
+
+  const loadVoicemails = async () => {
+    try {
+      const statusFilter = filter === 'all' ? undefined : filter;
+      const vms = await fetchVoicemails({ status: statusFilter === 'all' ? undefined : statusFilter });
+      setVoicemails(vms);
+    } catch (err) {
+      console.error('Error loading voicemails:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadVoicemails(); }, [filter]);
+
+  const handleMarkRead = async (vm) => {
+    try {
+      await markVoicemailRead(vm.id, userId);
+      await loadVoicemails();
+    } catch (err) {
+      toast.error('Failed to mark as read');
+    }
+  };
+
+  const handleArchive = async (vm) => {
+    try {
+      await archiveVoicemail(vm.id);
+      toast.success('Voicemail archived');
+      await loadVoicemails();
+    } catch (err) {
+      toast.error('Failed to archive');
+    }
+  };
+
+  const unreadCount = voicemails.filter(v => v.status === 'new').length;
+
+  return (
+    <Card className="bg-slate-800/50 border-slate-700">
+      <div
+        className="p-6 border-b border-slate-700 flex items-center justify-between cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-3">
+          <Voicemail className="text-purple-400" size={20} />
+          <div>
+            <h2 className="text-white text-lg font-bold">Voicemail</h2>
+            <p className="text-gray-400 text-sm">Messages from callers</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {unreadCount > 0 && (
+            <Badge className="bg-red-500/20 text-red-400 border-red-500/30 animate-pulse">
+              {unreadCount} New
+            </Badge>
+          )}
+          <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
+            {voicemails.length} Total
+          </Badge>
+          {expanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+        </div>
+      </div>
+
+      {expanded && (
+        <>
+          <div className="flex gap-2 px-6 pt-4 pb-2">
+            {['all', 'new', 'read', 'returned', 'archived'].map(f => (
+              <button
+                key={f}
+                onClick={(e) => { e.stopPropagation(); setFilter(f); }}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  filter === f
+                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                    : 'text-gray-400 hover:text-gray-300 border border-transparent'
+                }`}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-4 space-y-2">
+            {loading ? (
+              <p className="text-gray-400 text-center py-6">Loading voicemails...</p>
+            ) : voicemails.length === 0 ? (
+              <p className="text-gray-500 text-center py-6">No voicemails</p>
+            ) : voicemails.map((vm) => (
+              <div
+                key={vm.id}
+                className={`border rounded-lg p-4 transition-colors ${
+                  vm.status === 'new'
+                    ? 'bg-purple-900/20 border-purple-500/30'
+                    : 'bg-slate-800/40 border-slate-700'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white font-medium">{vm.caller_name || vm.caller_number}</span>
+                      {vm.caller_name && <span className="text-gray-500 text-xs">{vm.caller_number}</span>}
+                      <Badge className={`text-[10px] ${
+                        vm.target_type === 'department' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                        vm.target_type === 'agent' ? 'bg-sky-500/20 text-sky-400 border-sky-500/30' :
+                        'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                      }`}>
+                        {vm.target_type === 'department' ? (vm.target_department || 'Dept') : vm.target_type}
+                      </Badge>
+                      {vm.status === 'new' && <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />}
+                    </div>
+                    {vm.transcription && (
+                      <p className="text-gray-400 text-sm line-clamp-2 mb-2">{vm.transcription}</p>
+                    )}
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <span>{new Date(vm.created_at).toLocaleString()}</span>
+                      <span>{vm.recording_duration}s</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {vm.recording_url && (
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (playingId === vm.id) {
+                            setPlayingId(null);
+                          } else {
+                            setPlayingId(vm.id);
+                            if (vm.status === 'new') handleMarkRead(vm);
+                          }
+                        }}
+                        size="sm"
+                        variant="outline"
+                        className="text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+                      >
+                        <Play size={14} />
+                      </Button>
+                    )}
+                    {vm.status === 'new' && (
+                      <Button onClick={(e) => { e.stopPropagation(); handleMarkRead(vm); }} size="sm" variant="outline" className="text-xs">
+                        <CheckCircle size={12} className="mr-1" /> Read
+                      </Button>
+                    )}
+                    <Button onClick={(e) => { e.stopPropagation(); handleArchive(vm); }} size="sm" variant="outline" className="text-xs text-gray-400">
+                      <Archive size={12} />
+                    </Button>
+                  </div>
+                </div>
+                {playingId === vm.id && vm.recording_url && (
+                  <div className="mt-3 pt-3 border-t border-slate-700">
+                    <audio controls autoPlay src={vm.recording_url} className="w-full h-8" onEnded={() => setPlayingId(null)}>
+                      Your browser does not support audio playback.
+                    </audio>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
 
@@ -1524,6 +2312,9 @@ export default function CallCenter() {
           />
         </div>
 
+        {/* AGENT ROSTER */}
+        <AgentRosterPanel />
+
         {/* REAL TWILIO INCOMING CALL BANNER */}
         {twilioIncoming && !activeCall && (
           <Card className="bg-blue-900/40 border-blue-500/50 animate-pulse">
@@ -1609,6 +2400,15 @@ export default function CallCenter() {
           onReschedule={handleRescheduleQueueItem}
           creatingVideoCall={creatingVideoCall}
         />
+
+        {/* SCHEDULED CALLS — Leadership assigns calls */}
+        <ScheduledCallsSection userId={user?.id} />
+
+        {/* AGENT AVAILABILITY */}
+        <AgentAvailabilitySection />
+
+        {/* VOICEMAIL INBOX */}
+        <VoicemailInbox userId={user?.id} />
       </div>
 
       {/* MODALS */}
