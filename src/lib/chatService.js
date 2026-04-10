@@ -643,7 +643,7 @@ export async function markNotificationsRead(channelId, userId) {
       channel_id: channelId,
       user_id: userId,
       last_read_at: new Date().toISOString()
-    })
+    }, { onConflict: 'channel_id,user_id' })
 
   if (error) throw error
 }
