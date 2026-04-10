@@ -60,7 +60,7 @@ const DialogContent = React.forwardRef(({ className = '', children, ...props }, 
       />
       <div
         ref={ref}
-        className={`fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-lg border border-navy-700/50 bg-navy-800 p-6 shadow-lg ${className}`}
+        className={`fixed left-[50%] top-[50%] z-50 w-full translate-x-[-50%] translate-y-[-50%] rounded-lg border border-navy-700/50 bg-navy-800 p-6 shadow-lg ${className.includes('max-w-') || className.includes('w-[') ? '' : 'max-w-lg'} ${className}`}
         {...props}
       >
         <button
