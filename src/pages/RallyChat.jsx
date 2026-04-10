@@ -93,6 +93,8 @@ export const Chat = () => {
   
   // Track if we've handled the channel param from URL
   const channelParamHandledRef = useRef(false);
+  // Ref to track selected channel in global subscription closure
+  const selectedChannelIdRef = useRef(null);
 
   // Thread state
   const [threadOpen, setThreadOpen] = useState(false);
@@ -201,12 +203,46 @@ export const Chat = () => {
       fetchChannels();
     });
 
-    return () => chatSvc.unsubscribe(channelSub);
+    // Global message subscription — track unread counts for non-active channels
+    const globalMsgSub = supabase
+      .channel('global-chat-messages')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages'
+      }, (payload) => {
+        const msg = payload.new;
+        if (!msg || msg.sender_id === user?.id || msg.thread_id) return;
+        // Skip the currently active channel — user is already viewing it
+        if (msg.channel_id === selectedChannelIdRef.current) return;
+
+        // Increment unread on channels list (non-DM)
+        setChannels(prev => prev.map(ch =>
+          ch.id === msg.channel_id ? { ...ch, unread_count: (ch.unread_count || 0) + 1 } : ch
+        ));
+        // Increment unread on team DMs
+        setDirectMessages(prev => prev.map(dm =>
+          dm.id === msg.channel_id ? { ...dm, unread_count: (dm.unread_count || 0) + 1 } : dm
+        ));
+        // Increment unread on customer DMs
+        setCustomerDMs(prev => prev.map(dm =>
+          dm.id === msg.channel_id ? { ...dm, unread_count: (dm.unread_count || 0) + 1 } : dm
+        ));
+      })
+      .subscribe();
+
+    return () => {
+      chatSvc.unsubscribe(channelSub);
+      supabase.removeChannel(globalMsgSub);
+    };
   }, []);
 
   // Supabase Realtime: Subscribe to messages for selected channel
   useEffect(() => {
     if (!selectedChannel) return;
+
+    // Keep ref in sync for global subscription
+    selectedChannelIdRef.current = selectedChannel.id;
 
     fetchMessages(selectedChannel.id);
     fetchThreadCounts();
@@ -288,7 +324,7 @@ export const Chat = () => {
 
   const fetchChannels = async () => {
     try {
-      const { channels: allChannels } = await chatSvc.fetchChannels();
+      const { channels: allChannels } = await chatSvc.fetchChannels(user?.id);
 
       // Only set non-DM channels - DMs are fetched separately with more details
       setChannels(allChannels.filter(c => c.type !== 'direct'));
@@ -731,6 +767,16 @@ export const Chat = () => {
 
   // Mark chat notifications as read when viewing channel
   const markChannelNotificationsRead = async (channelId) => {
+    // Immediately clear unread badge in UI
+    setChannels(prev => prev.map(ch =>
+      ch.id === channelId ? { ...ch, unread_count: 0 } : ch
+    ));
+    setDirectMessages(prev => prev.map(dm =>
+      dm.id === channelId ? { ...dm, unread_count: 0 } : dm
+    ));
+    setCustomerDMs(prev => prev.map(dm =>
+      dm.id === channelId ? { ...dm, unread_count: 0 } : dm
+    ));
     try {
       await chatSvc.markNotificationsRead(channelId, user.id);
     } catch (error) {
@@ -1303,7 +1349,11 @@ export const Chat = () => {
                   ) : (
                     <div key={item.message.id} className={`group flex gap-3 hover:bg-muted/50 rounded-lg p-2 -mx-2 ${item.grouped ? 'mt-1' : 'mt-4'}`}>
                       {!item.grouped && (
-                        item.message.sender_id === 'prime-system' || item.message.is_prime_auto_reply ? (
+                        item.message.sender_role === 'system' || item.message.sender_name === 'Sage' ? (
+                          <div className="h-9 w-9 rounded-full flex items-center justify-center bg-gradient-to-br from-sky-500 to-indigo-600 text-white text-lg font-bold flex-shrink-0">
+                            🤖
+                          </div>
+                        ) : item.message.sender_id === 'prime-system' || item.message.is_prime_auto_reply ? (
                           <Avatar className="h-9 w-9">
                             <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-lg font-bold">
                               🔱
@@ -1319,6 +1369,11 @@ export const Chat = () => {
                         {!item.grouped && (
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-semibold text-sm">{item.message.sender_name}</span>
+                            {item.message.sender_role === 'system' && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-medium">
+                                AI Assistant
+                              </span>
+                            )}
                             {item.message.sender_role === 'tester' && (
                               <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-medium">
                                 Platform Tester

@@ -6,7 +6,7 @@ import { supabase } from './supabase'
 
 // ─── Channels ────────────────────────────────────────────────
 
-export async function fetchChannels() {
+export async function fetchChannels(userId) {
   const { data, error } = await supabase
     .from('chat_channels')
     .select('*')
@@ -14,7 +14,45 @@ export async function fetchChannels() {
     .order('created_at', { ascending: true })
 
   if (error) throw error
-  return { channels: data || [] }
+
+  const channels = data || []
+  if (!userId || channels.length === 0) return { channels }
+
+  // Fetch user's read timestamps for all channels
+  const { data: readStates } = await supabase
+    .from('chat_notification_reads')
+    .select('channel_id, last_read_at')
+    .eq('user_id', userId)
+
+  const readMap = new Map()
+  if (readStates) {
+    readStates.forEach(r => readMap.set(r.channel_id, r.last_read_at))
+  }
+
+  // For each channel, count messages newer than last_read_at
+  const channelIds = channels.map(c => c.id)
+  const enriched = await Promise.all(channels.map(async (ch) => {
+    const lastRead = readMap.get(ch.id)
+    let query = supabase
+      .from('chat_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('channel_id', ch.id)
+      .eq('is_deleted', false)
+      .is('thread_id', null)
+
+    if (lastRead) {
+      query = query.gt('created_at', lastRead)
+    }
+    // If no sender_id filter needed — count all unread including system messages
+    if (userId) {
+      query = query.neq('sender_id', userId)
+    }
+
+    const { count } = await query
+    return { ...ch, unread_count: count || 0 }
+  }))
+
+  return { channels: enriched }
 }
 
 export async function createChannel({ name, description, type, members }, userId) {
@@ -326,6 +364,30 @@ export async function fetchDirectMessages(userId, filterRole = null) {
       .limit(1)
       .maybeSingle()
 
+    // Get unread count for this DM
+    const { data: readState } = await supabase
+      .from('chat_notification_reads')
+      .select('last_read_at')
+      .eq('channel_id', dm.id)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    let unreadCount = 0
+    let unreadQuery = supabase
+      .from('chat_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('channel_id', dm.id)
+      .eq('is_deleted', false)
+      .is('thread_id', null)
+      .neq('sender_id', userId)
+
+    if (readState?.last_read_at) {
+      unreadQuery = unreadQuery.gt('created_at', readState.last_read_at)
+    }
+
+    const { count } = await unreadQuery
+    unreadCount = count || 0
+
     const displayName = otherUser?.full_name || otherUser?.email || 'Unknown'
     dms.push({
       ...dm,
@@ -334,7 +396,8 @@ export async function fetchDirectMessages(userId, filterRole = null) {
       other_user_id: otherUserId,
       name: displayName,
       last_message: lastMsg?.content || '',
-      last_message_at: lastMsg?.created_at || dm.created_at
+      last_message_at: lastMsg?.created_at || dm.created_at,
+      unread_count: unreadCount
     })
   }
 
