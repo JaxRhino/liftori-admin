@@ -88,24 +88,30 @@ export default function GlobalPhoneCallPopup() {
     }
 
     // Wire up incoming call events
+    let ringTimeout = null;
+
+    const clearIncoming = (msg) => {
+      setIncoming(null);
+      stopIncomingAlert();
+      if (ringTimeout) { clearTimeout(ringTimeout); ringTimeout = null; }
+      if (msg) toast(msg);
+    };
+
     const unsubs = [
       onTwilioEvent('incoming', ({ from, call, isInternal, callerUserId, callerName, callerAvatar }) => {
         setIncoming({ from, call, isInternal, callerUserId, callerName, callerAvatar });
         playIncomingAlert();
+
+        // Safety timeout — stop ringing after 30s even if no cancel event fires
+        if (ringTimeout) clearTimeout(ringTimeout);
+        ringTimeout = setTimeout(() => {
+          clearIncoming('Call timed out');
+        }, 30000);
       }),
-      onTwilioEvent('accepted', () => {
-        setIncoming(null);
-        stopIncomingAlert();
-      }),
-      onTwilioEvent('disconnected', () => {
-        setIncoming(null);
-        stopIncomingAlert();
-      }),
-      onTwilioEvent('cancelled', () => {
-        setIncoming(null);
-        stopIncomingAlert();
-        toast('Caller hung up');
-      }),
+      onTwilioEvent('accepted', () => clearIncoming()),
+      onTwilioEvent('disconnected', () => clearIncoming()),
+      onTwilioEvent('cancelled', () => clearIncoming('Caller hung up')),
+      onTwilioEvent('rejected', () => clearIncoming()),
     ];
 
     cleanupRef.current = unsubs;
@@ -113,6 +119,8 @@ export default function GlobalPhoneCallPopup() {
     return () => {
       unsubs.forEach(fn => { try { fn(); } catch(e) {} });
       cleanupRef.current = [];
+      if (ringTimeout) { clearTimeout(ringTimeout); ringTimeout = null; }
+      stopIncomingAlert();
     };
   }, [user, agentStatus]);
 

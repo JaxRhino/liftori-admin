@@ -116,6 +116,13 @@ export async function initializeTwilioDevice() {
         activeConnection = null;
         emit('rejected', { callSid: call.parameters.CallSid });
       });
+
+      // Safety: some Twilio Dial timeouts don't fire cancel cleanly
+      // Listen for the underlying connection closing
+      call.on('error', () => {
+        activeConnection = null;
+        emit('cancelled', { callSid: call.parameters?.CallSid });
+      });
     });
 
     // ── Device events ──
