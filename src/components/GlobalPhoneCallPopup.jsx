@@ -21,6 +21,7 @@ import {
 } from '../lib/twilioService';
 import { playIncomingAlert, stopIncomingAlert } from '../lib/callCenterAudio';
 import { sendDeclineNotification } from '../lib/callCenterService';
+import ActiveCallWindow from './ActiveCallWindow';
 import {
   Phone,
   PhoneOff,
@@ -28,8 +29,6 @@ import {
   MessageSquare,
   X,
   PhoneIncoming,
-  Mic,
-  MicOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,27 +42,11 @@ const DECLINE_REASONS = [
 export default function GlobalPhoneCallPopup() {
   const { user, profile } = useAuth();
   const [incoming, setIncoming] = useState(null);
-  const [activeCall, setActiveCall] = useState(null);   // ← active call state
-  const [muted, setMuted] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  const [activeCall, setActiveCall] = useState(null);
   const [showDeclinePanel, setShowDeclinePanel] = useState(false);
   const [customReason, setCustomReason] = useState('');
   const [agentStatus, setAgentStatus] = useState('offline');
   const cleanupRef = useRef([]);
-  const timerRef = useRef(null);
-
-  // ── Call timer ──
-  useEffect(() => {
-    if (activeCall) {
-      setElapsed(0);
-      timerRef.current = setInterval(() => setElapsed(prev => prev + 1), 1000);
-    } else {
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-      setElapsed(0);
-      setMuted(false);
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [activeCall]);
 
   // Check agent status from cc_agents
   useEffect(() => {
@@ -184,20 +167,8 @@ export default function GlobalPhoneCallPopup() {
   const handleAnswer = useCallback(() => {
     stopIncomingAlert();
     acceptIncomingCall();
-    // Don't clear incoming here — the 'accepted' event handler transitions to active call
+    // Don't clear incoming here — the 'accepted' event handler transitions to ActiveCallWindow
   }, []);
-
-  const handleHangup = useCallback(() => {
-    hangupCall();
-    setActiveCall(null);
-    toast.success('Call ended');
-  }, []);
-
-  const handleToggleMute = useCallback(() => {
-    const newMuted = !muted;
-    muteCall(newMuted);
-    setMuted(newMuted);
-  }, [muted]);
 
   const handleDeclineNoReason = useCallback(async () => {
     stopIncomingAlert();
@@ -249,78 +220,15 @@ export default function GlobalPhoneCallPopup() {
     toast('Sent to voicemail');
   }, [incoming, user, profile]);
 
-  // Format elapsed seconds as mm:ss
-  const formatTime = (s) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, '0')}`;
-  };
-
   // ════════════════════════════════════════════
-  //  ACTIVE CALL BAR (after accepting)
+  //  ACTIVE CALL — Full ActiveCallWindow
   // ════════════════════════════════════════════
   if (activeCall) {
-    const name = activeCall.callerName || activeCall.from || 'Unknown';
-    const initial = name.charAt(0).toUpperCase();
-
     return (
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-lg">
-        <div className="rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden">
-          {/* Green header */}
-          <div className="px-4 py-2 bg-green-600 flex items-center gap-2">
-            <Phone size={16} className="text-white" />
-            <span className="text-white font-semibold text-sm">
-              {activeCall.isInternal ? 'Team Call' : 'Active Call'}
-            </span>
-            <span className="ml-auto text-green-100 text-sm font-mono">{formatTime(elapsed)}</span>
-          </div>
-
-          <div className="px-4 py-3 flex items-center gap-4">
-            {/* Avatar */}
-            {activeCall.callerAvatar ? (
-              <img src={activeCall.callerAvatar} alt={name}
-                className="w-10 h-10 rounded-full border-2 border-green-400 object-cover" />
-            ) : (
-              <div className="w-10 h-10 rounded-full border-2 border-green-400 bg-green-500/20 flex items-center justify-center">
-                <span className="text-white text-lg font-bold">{initial}</span>
-              </div>
-            )}
-
-            {/* Name + title */}
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold text-sm truncate">{name}</p>
-              {activeCall.callerTitle && (
-                <p className="text-slate-400 text-xs">{activeCall.callerTitle}</p>
-              )}
-              {!activeCall.isInternal && activeCall.from && activeCall.from !== name && (
-                <p className="text-slate-500 text-xs">{activeCall.from}</p>
-              )}
-            </div>
-
-            {/* Mute button */}
-            <button
-              onClick={handleToggleMute}
-              className={`p-2.5 rounded-full transition-colors ${
-                muted
-                  ? 'bg-amber-600 hover:bg-amber-500 text-white'
-                  : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-              }`}
-              title={muted ? 'Unmute' : 'Mute'}
-            >
-              {muted ? <MicOff size={18} /> : <Mic size={18} />}
-            </button>
-
-            {/* End call button */}
-            <button
-              onClick={handleHangup}
-              className="p-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white transition-colors"
-              title="End Call"
-            >
-              <PhoneOff size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
+      <ActiveCallWindow
+        callData={activeCall}
+        onClose={() => setActiveCall(null)}
+      />
     );
   }
 
