@@ -43,9 +43,9 @@ export async function fetchChannels(userId) {
     if (lastRead) {
       query = query.gt('created_at', lastRead)
     }
-    // If no sender_id filter needed — count all unread including system messages
+    // Exclude user's own messages but include system messages (sender_id IS NULL)
     if (userId) {
-      query = query.neq('sender_id', userId)
+      query = query.or(`sender_id.neq.${userId},sender_id.is.null`)
     }
 
     const { count } = await query
@@ -379,7 +379,7 @@ export async function fetchDirectMessages(userId, filterRole = null) {
       .eq('channel_id', dm.id)
       .eq('is_deleted', false)
       .is('thread_id', null)
-      .neq('sender_id', userId)
+      .or(`sender_id.neq.${userId},sender_id.is.null`)
 
     if (readState?.last_read_at) {
       unreadQuery = unreadQuery.gt('created_at', readState.last_read_at)
