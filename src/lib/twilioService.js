@@ -1,0 +1,259 @@
+// ===========================================
+// Twilio Voice SDK Service Layer
+// Browser-based calling via @twilio/voice-sdk
+// ===========================================
+import { Device } from '@twilio/voice-sdk';
+import { supabase } from './supabase';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://qlerfkdyslndjbaltkwo.supabase.co';
+
+let device = null;
+let activeConnection = null;
+let listeners = {};
+
+// ─── EVENT SYSTEM ──────────────────────────────
+export function onTwilioEvent(event, callback) {
+  if (!listeners[event]) listeners[event] = [];
+  listeners[event].push(callback);
+  return () => {
+    listeners[event] = listeners[event].filter(cb => cb !== callback);
+  };
+}
+
+function emit(event, data) {
+  (listeners[event] || []).forEach(cb => {
+    try { cb(data); } catch (e) { console.error(`[Twilio] Event handler error (${event}):`, e); }
+  });
+}
+
+// ─── TOKEN ─────────────────────────────────────
+async function fetchToken() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Not authenticated');
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/twilio-token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsZXJma2R5c2xuZGpiYWx0a3dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MTQ5OTgsImV4cCI6MjA4ODQ5MDk5OH0.3yrxJBvVNlE-Gx7VcxjMIqsS1XbJBYVTLq6zfMPLtHA',
+    },
+    body: JSON.stringify({}),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Token fetch failed' }));
+    throw new Error(err.error || 'Failed to get Twilio token');
+  }
+
+  return res.json();
+}
+
+// ─── DEVICE MANAGEMENT ─────────────────────────
+export async function initializeTwilioDevice() {
+  try {
+    const { token, identity } = await fetchToken();
+
+    if (device) {
+      device.destroy();
+    }
+
+    device = new Device(token, {
+      logLevel: 1, // warnings only
+      codecPreferences: ['opus', 'pcmu'],
+      edge: 'ashburn',
+    });
+
+    // Register the device so it can receive incoming calls
+    device.register();
+
+    // ── Incoming call ──
+    device.on('incoming', (call) => {
+      console.log('[Twilio] Incoming call from:', call.parameters.From);
+      activeConnection = call;
+
+      emit('incoming', {
+        callSid: call.parameters.CallSid,
+        from: call.parameters.From,
+        to: call.parameters.To,
+        call,
+      });
+
+      call.on('accept', () => {
+        emit('accepted', { callSid: call.parameters.CallSid });
+      });
+
+      call.on('disconnect', () => {
+        activeConnection = null;
+        emit('disconnected', { callSid: call.parameters.CallSid });
+      });
+
+      call.on('cancel', () => {
+        activeConnection = null;
+        emit('cancelled', { callSid: call.parameters.CallSid });
+      });
+
+      call.on('reject', () => {
+        activeConnection = null;
+        emit('rejected', { callSid: call.parameters.CallSid });
+      });
+    });
+
+    // ── Device events ──
+    device.on('registered', () => {
+      console.log('[Twilio] Device registered, ready for calls');
+      emit('ready', { identity });
+    });
+
+    device.on('unregistered', () => {
+      console.log('[Twilio] Device unregistered');
+      emit('offline', {});
+    });
+
+    device.on('error', (error) => {
+      console.error('[Twilio] Device error:', error);
+      emit('error', { error: error.message || 'Unknown error' });
+    });
+
+    device.on('tokenWillExpire', async () => {
+      console.log('[Twilio] Token expiring, refreshing...');
+      try {
+        const { token: newToken } = await fetchToken();
+        device.updateToken(newToken);
+      } catch (err) {
+        console.error('[Twilio] Token refresh failed:', err);
+        emit('error', { error: 'Token refresh failed' });
+      }
+    });
+
+    return { identity, device };
+  } catch (err) {
+    console.error('[Twilio] Device initialization failed:', err);
+    throw err;
+  }
+}
+
+export function destroyTwilioDevice() {
+  if (activeConnection) {
+    activeConnection.disconnect();
+    activeConnection = null;
+  }
+  if (device) {
+    device.unregister();
+    device.destroy();
+    device = null;
+  }
+  listeners = {};
+}
+
+// ─── CALL ACTIONS ──────────────────────────────
+
+export async function makeOutboundCall(toNumber, agentId, callerId, department = 'sales') {
+  if (!device) throw new Error('Twilio device not initialized');
+
+  const call = await device.connect({
+    params: {
+      outbound: 'true',
+      toNumber,
+      agentId,
+      callerId: callerId || '+19044428970',
+      department,
+    },
+  });
+
+  activeConnection = call;
+
+  call.on('accept', () => emit('callStarted', { callSid: call.parameters?.CallSid }));
+  call.on('disconnect', () => {
+    activeConnection = null;
+    emit('callEnded', { callSid: call.parameters?.CallSid });
+  });
+  call.on('cancel', () => {
+    activeConnection = null;
+    emit('callEnded', { callSid: call.parameters?.CallSid });
+  });
+
+  return call;
+}
+
+export function acceptIncomingCall() {
+  if (activeConnection && typeof activeConnection.accept === 'function') {
+    activeConnection.accept();
+    return true;
+  }
+  return false;
+}
+
+export function rejectIncomingCall() {
+  if (activeConnection && typeof activeConnection.reject === 'function') {
+    activeConnection.reject();
+    activeConnection = null;
+    return true;
+  }
+  return false;
+}
+
+export function hangupCall() {
+  if (activeConnection) {
+    activeConnection.disconnect();
+    activeConnection = null;
+    return true;
+  }
+  return false;
+}
+
+export function muteCall(muted) {
+  if (activeConnection) {
+    activeConnection.mute(muted);
+    return true;
+  }
+  return false;
+}
+
+export function sendDigit(digit) {
+  if (activeConnection) {
+    activeConnection.sendDigits(digit);
+    return true;
+  }
+  return false;
+}
+
+export function getActiveConnection() {
+  return activeConnection;
+}
+
+export function isDeviceReady() {
+  return device?.state === 'registered';
+}
+
+// ─── SMS (via Edge Function) ───────────────────
+
+export async function sendSMS(to, body, fromNumber) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Not authenticated');
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/twilio-sms-send`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsZXJma2R5c2xuZGpiYWx0a3dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MTQ5OTgsImV4cCI6MjA4ODQ5MDk5OH0.3yrxJBvVNlE-Gx7VcxjMIqsS1XbJBYVTLq6zfMPLtHA',
+    },
+    body: JSON.stringify({ to, body, from: fromNumber }),
+  });
+
+  if (!res.ok) throw new Error('SMS send failed');
+  return res.json();
+}
+
+// ─── SMS FETCH ─────────────────────────────────
+
+export async function fetchSMSHistory(limit = 50) {
+  const { data, error } = await supabase
+    .from('cc_sms')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}

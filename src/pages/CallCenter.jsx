@@ -20,6 +20,20 @@ import {
   fetchAgent,
   fetchCallCenterDashboard,
 } from '../lib/callCenterService';
+import {
+  initializeTwilioDevice,
+  destroyTwilioDevice,
+  makeOutboundCall,
+  acceptIncomingCall,
+  rejectIncomingCall,
+  hangupCall,
+  muteCall,
+  sendDigit,
+  onTwilioEvent,
+  isDeviceReady,
+  sendSMS,
+  fetchSMSHistory,
+} from '../lib/twilioService';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -211,7 +225,11 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
           {isOnHold ? 'Resume' : 'Hold'}
         </Button>
         <Button
-          onClick={() => setIsMuted(!isMuted)}
+          onClick={() => {
+            const newMuted = !isMuted;
+            setIsMuted(newMuted);
+            muteCall(newMuted);
+          }}
           variant={isMuted ? 'default' : 'outline'}
           className="flex items-center gap-2"
         >
@@ -978,6 +996,17 @@ export default function CallCenter() {
   const [videoCallLead, setVideoCallLead] = useState({ name: '', email: '' });
   const [creatingVideoCall, setCreatingVideoCall] = useState(null); // lead id being processed
 
+  // Twilio state
+  const [twilioReady, setTwilioReady] = useState(false);
+  const [twilioIdentity, setTwilioIdentity] = useState(null);
+  const [twilioIncoming, setTwilioIncoming] = useState(null); // raw Twilio incoming call object
+  const [smsMessages, setSmsMessages] = useState([]);
+  const [showSmsPanel, setShowSmsPanel] = useState(false);
+  const [smsTo, setSmsTo] = useState('');
+  const [smsBody, setSmsBody] = useState('');
+  const [sendingSms, setSendingSms] = useState(false);
+  const twilioCleanupRef = useRef([]);
+
   const pollIntervalRef = useRef(null);
   const stlIntervalRef = useRef(null);
 
@@ -1006,7 +1035,66 @@ export default function CallCenter() {
     };
 
     initializeAgent();
+    return () => {
+      destroyTwilioDevice();
+    };
   }, [user]);
+
+  // Initialize / destroy Twilio device when agent goes active/offline
+  useEffect(() => {
+    if (agentStatus === 'available' && !twilioReady) {
+      initializeTwilioDevice()
+        .then(({ identity }) => {
+          setTwilioIdentity(identity);
+          console.log('[CallCenter] Twilio device ready, identity:', identity);
+        })
+        .catch(err => {
+          console.error('[CallCenter] Twilio init failed:', err);
+          toast.error('Voice connection failed — calls may not ring in browser');
+        });
+
+      // Subscribe to Twilio events
+      const unsubs = [
+        onTwilioEvent('ready', () => {
+          setTwilioReady(true);
+          toast.success('Phone line connected');
+        }),
+        onTwilioEvent('incoming', ({ from, call }) => {
+          setTwilioIncoming({ from, call });
+          toast('Incoming call from ' + from, { duration: 15000 });
+        }),
+        onTwilioEvent('accepted', () => {
+          setTwilioIncoming(null);
+        }),
+        onTwilioEvent('disconnected', () => {
+          setActiveCall(null);
+          setTwilioIncoming(null);
+          loadDashboardData();
+        }),
+        onTwilioEvent('cancelled', () => {
+          setTwilioIncoming(null);
+          toast('Caller hung up');
+        }),
+        onTwilioEvent('callEnded', () => {
+          setActiveCall(null);
+          loadDashboardData();
+        }),
+        onTwilioEvent('error', ({ error }) => {
+          toast.error('Phone error: ' + error);
+        }),
+      ];
+      twilioCleanupRef.current = unsubs;
+    }
+
+    if (agentStatus === 'offline') {
+      destroyTwilioDevice();
+      setTwilioReady(false);
+      setTwilioIdentity(null);
+      setTwilioIncoming(null);
+      twilioCleanupRef.current.forEach(unsub => unsub());
+      twilioCleanupRef.current = [];
+    }
+  }, [agentStatus]);
 
   // Poll for incoming calls
   useEffect(() => {
@@ -1086,6 +1174,14 @@ export default function CallCenter() {
 
   const handleAcceptCall = async (call) => {
     try {
+      // If this is a real Twilio incoming call, accept via SDK
+      if (twilioIncoming?.call) {
+        acceptIncomingCall();
+        setActiveCall({ ...call, isTwilio: true, from_number: twilioIncoming.from });
+        setTwilioIncoming(null);
+        toast.success('Call connected');
+        return;
+      }
       await updateCall(call.id, { status: 'in_progress', answered_at: new Date().toISOString() });
       setActiveCall(call);
       setIncomingCalls(prev => prev.filter(c => c.id !== call.id));
@@ -1097,6 +1193,13 @@ export default function CallCenter() {
 
   const handleRejectCall = async (call) => {
     try {
+      // If this is a real Twilio incoming call, reject via SDK
+      if (twilioIncoming?.call) {
+        rejectIncomingCall();
+        setTwilioIncoming(null);
+        toast.success('Call rejected');
+        return;
+      }
       await updateCall(call.id, { status: 'missed' });
       setIncomingCalls(prev => prev.filter(c => c.id !== call.id));
       toast.success('Call rejected');
@@ -1106,25 +1209,43 @@ export default function CallCenter() {
   };
 
   const handleEndCall = async () => {
+    hangupCall();
     setActiveCall(null);
     await loadDashboardData();
   };
 
   const handleCallNow = async (lead) => {
     try {
-      const call = await createCall({
-        agent_user_id: user.id,
-        caller_name: lead.lead_name,
-        caller_number: lead.phone_number,
-        direction: 'outbound',
-        status: 'in_progress',
-        started_at: new Date().toISOString(),
-      });
-      setActiveCall(call);
-      await contactLead(lead.id, user.id);
-      toast.success('Call started');
+      if (twilioReady && lead.phone_number) {
+        // Real Twilio outbound call
+        await makeOutboundCall(lead.phone_number, user.id, '+19044428970', 'sales');
+        setActiveCall({
+          isTwilio: true,
+          direction: 'outbound',
+          from_number: '+19044428970',
+          to_number: lead.phone_number,
+          caller_name: lead.lead_name,
+          caller_number: lead.phone_number,
+          status: 'in_progress',
+          started_at: new Date().toISOString(),
+        });
+        await contactLead(lead.id, user.id);
+        toast.success('Calling ' + lead.lead_name);
+      } else {
+        const call = await createCall({
+          agent_user_id: user.id,
+          caller_name: lead.lead_name,
+          caller_number: lead.phone_number,
+          direction: 'outbound',
+          status: 'in_progress',
+          started_at: new Date().toISOString(),
+        });
+        setActiveCall(call);
+        await contactLead(lead.id, user.id);
+        toast.success('Call started');
+      }
     } catch (err) {
-      toast.error('Failed to start call');
+      toast.error('Failed to start call: ' + err.message);
     }
   };
 
@@ -1192,18 +1313,56 @@ export default function CallCenter() {
 
   const handlePhoneCall = async (phoneNumber) => {
     try {
-      const call = await createCall({
-        agent_user_id: user.id,
-        caller_name: 'Dialed Call',
-        caller_number: phoneNumber,
-        direction: 'outbound',
-        status: 'in_progress',
-        started_at: new Date().toISOString(),
-      });
-      setActiveCall(call);
-      toast.success('Call started');
+      if (twilioReady) {
+        // Real Twilio outbound call
+        await makeOutboundCall(phoneNumber, user.id, '+19044428970', 'sales');
+        setActiveCall({
+          isTwilio: true,
+          direction: 'outbound',
+          from_number: '+19044428970',
+          to_number: phoneNumber,
+          caller_name: phoneNumber,
+          caller_number: phoneNumber,
+          status: 'in_progress',
+          started_at: new Date().toISOString(),
+        });
+        toast.success('Calling ' + phoneNumber);
+      } else {
+        // Fallback: log-only call
+        const call = await createCall({
+          agent_user_id: user.id,
+          caller_name: 'Dialed Call',
+          caller_number: phoneNumber,
+          direction: 'outbound',
+          status: 'in_progress',
+          started_at: new Date().toISOString(),
+        });
+        setActiveCall(call);
+        toast.success('Call started');
+      }
     } catch (err) {
-      toast.error('Failed to start call');
+      toast.error('Failed to start call: ' + err.message);
+    }
+  };
+
+  // SMS send handler
+  const handleSendSms = async () => {
+    if (!smsTo || !smsBody) {
+      toast.error('Enter a phone number and message');
+      return;
+    }
+    setSendingSms(true);
+    try {
+      await sendSMS(smsTo, smsBody);
+      toast.success('SMS sent');
+      setSmsBody('');
+      // Refresh SMS history
+      const msgs = await fetchSMSHistory();
+      setSmsMessages(msgs);
+    } catch (err) {
+      toast.error('Failed to send SMS: ' + err.message);
+    } finally {
+      setSendingSms(false);
     }
   };
 
@@ -1300,8 +1459,23 @@ export default function CallCenter() {
               Test Call
             </Button>
 
+            {twilioReady && (
+              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                <Phone size={12} className="mr-1 inline" /> Live
+              </Badge>
+            )}
+
+            <Button
+              onClick={() => { setShowSmsPanel(true); fetchSMSHistory().then(setSmsMessages).catch(() => {}); }}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Mail size={16} />
+              SMS
+            </Button>
+
             <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30">
-              {incomingCalls.length} Incoming
+              {incomingCalls.length + (twilioIncoming ? 1 : 0)} Incoming
             </Badge>
           </div>
         </div>
@@ -1348,6 +1522,37 @@ export default function CallCenter() {
             color="text-orange-400"
           />
         </div>
+
+        {/* REAL TWILIO INCOMING CALL BANNER */}
+        {twilioIncoming && !activeCall && (
+          <Card className="bg-blue-900/40 border-blue-500/50 animate-pulse">
+            <div className="p-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-blue-500/30 flex items-center justify-center">
+                  <PhoneIncoming className="text-blue-300" size={28} />
+                </div>
+                <div>
+                  <h2 className="text-white text-xl font-bold">Incoming Call</h2>
+                  <p className="text-blue-200 text-lg">{twilioIncoming.from || 'Unknown Number'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => handleAcceptCall({ isTwilio: true, from_number: twilioIncoming.from })}
+                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg"
+                >
+                  <Phone size={20} className="mr-2" /> Answer
+                </Button>
+                <Button
+                  onClick={() => handleRejectCall({ isTwilio: true })}
+                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg"
+                >
+                  <PhoneOff size={20} className="mr-2" /> Decline
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* ACTIVE CALL OR INCOMING CALLS */}
         <div>
@@ -1443,6 +1648,74 @@ export default function CallCenter() {
               Start Test Call
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SMS PANEL */}
+      <Dialog open={showSmsPanel} onOpenChange={setShowSmsPanel}>
+        <DialogContent className="bg-slate-900 border-slate-700 max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Mail size={20} /> SMS Messages
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Send SMS */}
+          <div className="space-y-3 border-b border-slate-700 pb-4">
+            <Input
+              placeholder="Phone number (e.g. +19045551234)"
+              value={smsTo}
+              onChange={(e) => setSmsTo(e.target.value)}
+              className="bg-slate-800 border-slate-600 text-white"
+            />
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="Type your message..."
+                value={smsBody}
+                onChange={(e) => setSmsBody(e.target.value)}
+                className="bg-slate-800 border-slate-600 text-white flex-1"
+                rows={2}
+              />
+              <Button
+                onClick={handleSendSms}
+                disabled={sendingSms || !smsTo || !smsBody}
+                className="bg-sky-600 hover:bg-sky-700 self-end"
+              >
+                {sendingSms ? <Loader2 className="animate-spin" size={16} /> : 'Send'}
+              </Button>
+            </div>
+          </div>
+
+          {/* SMS History */}
+          <div className="flex-1 overflow-y-auto space-y-2 mt-2">
+            {smsMessages.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No SMS messages yet</p>
+            ) : (
+              smsMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`p-3 rounded-lg text-sm ${
+                    msg.direction === 'inbound'
+                      ? 'bg-slate-800 border border-slate-700 mr-8'
+                      : 'bg-sky-900/40 border border-sky-700/30 ml-8'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-gray-400 text-xs">
+                      {msg.direction === 'inbound' ? msg.from_number : `To: ${msg.to_number}`}
+                    </span>
+                    <span className="text-gray-500 text-xs">
+                      {new Date(msg.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-white">{msg.body}</p>
+                  {msg.contact_name && (
+                    <span className="text-sky-400 text-xs">{msg.contact_name}</span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
