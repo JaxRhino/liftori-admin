@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { Users, Shield, Key, Clock, Plus, Search, MoreVertical, Check, X, Mail, Trash2, Edit2, ChevronDown, UserPlus, FileText, Download, Eye, CheckCircle2, Circle, AlertCircle } from 'lucide-react';
+import { Users, Shield, Key, Clock, Plus, Search, MoreVertical, Check, X, Mail, Trash2, Edit2, ChevronDown, UserPlus, FileText, Download, Eye, CheckCircle2, Circle, AlertCircle, Play } from 'lucide-react';
+import OnboardingWizard from '../components/OnboardingWizard';
 
 // ─── Default Roles & Permissions ─────────────────────────────────────────────
 const DEFAULT_ROLES = [
@@ -182,6 +183,7 @@ export default function Team() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Onboarding state
+  const [showOnboardingPreview, setShowOnboardingPreview] = useState(false);
   const [onboardingRecords, setOnboardingRecords] = useState([]);
   const [showOnboardModal, setShowOnboardModal] = useState(false);
   const [onboardForm, setOnboardForm] = useState({
@@ -764,9 +766,26 @@ export default function Team() {
         </div>
       )}
 
+      {/* Onboarding Preview */}
+      {showOnboardingPreview && (
+        <OnboardingWizard previewMode onComplete={() => setShowOnboardingPreview(false)} />
+      )}
+
       {/* ═══ ONBOARDING TAB ═══ */}
       {activeTab === 'onboarding' && (
         <div>
+          {/* Preview Button */}
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-gray-500 text-sm">Track and manage the onboarding process for new team members</p>
+            <button
+              onClick={() => setShowOnboardingPreview(true)}
+              className="flex items-center gap-2 text-sm font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg transition"
+            >
+              <Eye size={14} />
+              Preview Onboarding Flow
+            </button>
+          </div>
+
           {/* Active Onboarding Records */}
           {onboardingRecords.length === 0 ? (
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-12 text-center">

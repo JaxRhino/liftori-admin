@@ -11,7 +11,7 @@ const STEPS = [
   { id: 'complete', label: 'All Set!', icon: CheckCircle2 },
 ];
 
-export default function OnboardingWizard({ onComplete }) {
+export default function OnboardingWizard({ onComplete, previewMode = false }) {
   const { user, profile } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [ndaAccepted, setNdaAccepted] = useState(false);
@@ -44,7 +44,7 @@ export default function OnboardingWizard({ onComplete }) {
   }
 
   async function updateOnboardingStep(stepKey, value = true) {
-    if (!onboardingRecord) return;
+    if (previewMode || !onboardingRecord) return;
     try {
       const updatedChecklist = { ...onboardingRecord.checklist, [stepKey]: value };
       await supabase
@@ -59,13 +59,13 @@ export default function OnboardingWizard({ onComplete }) {
 
   async function handleAcceptNDA() {
     setNdaAccepted(true);
-    await updateOnboardingStep('nda_signed');
+    if (!previewMode) await updateOnboardingStep('nda_signed');
     setCurrentStep(2);
   }
 
   async function handleAcceptContract() {
     setContractAccepted(true);
-    await updateOnboardingStep('contract_signed');
+    if (!previewMode) await updateOnboardingStep('contract_signed');
     setCurrentStep(3);
   }
 
@@ -73,15 +73,17 @@ export default function OnboardingWizard({ onComplete }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: profileForm.full_name,
-          phone: profileForm.phone,
-          personal_email: profileForm.personal_email,
-        })
-        .eq('id', user.id);
-      if (error) throw error;
+      if (!previewMode) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            full_name: profileForm.full_name,
+            phone: profileForm.phone,
+            personal_email: profileForm.personal_email,
+          })
+          .eq('id', user.id);
+        if (error) throw error;
+      }
       setCurrentStep(4);
     } catch (err) {
       console.error('Error saving profile:', err);
@@ -92,12 +94,14 @@ export default function OnboardingWizard({ onComplete }) {
 
   async function handleComplete() {
     try {
-      await supabase
-        .from('profiles')
-        .update({ onboarding_complete: true })
-        .eq('id', user.id);
+      if (!previewMode) {
+        await supabase
+          .from('profiles')
+          .update({ onboarding_complete: true })
+          .eq('id', user.id);
+      }
 
-      if (onboardingRecord) {
+      if (!previewMode && onboardingRecord) {
         await updateOnboardingStep('account_created');
         await updateOnboardingStep('onboarding_complete');
       }
@@ -116,6 +120,19 @@ export default function OnboardingWizard({ onComplete }) {
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900/20" />
 
       <div className="relative w-full max-w-2xl mx-4">
+        {/* Preview Mode Banner */}
+        {previewMode && (
+          <div className="flex items-center justify-between mb-4 bg-amber-500/20 border border-amber-500/40 rounded-lg px-4 py-2">
+            <span className="text-amber-300 text-sm font-medium">Preview Mode — this is what new team members will see</span>
+            <button
+              onClick={onComplete}
+              className="text-amber-300 hover:text-white text-sm font-medium px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 rounded transition"
+            >
+              Exit Preview
+            </button>
+          </div>
+        )}
+
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-2 mb-8">
           {STEPS.map((s, i) => (
