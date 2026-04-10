@@ -16,7 +16,7 @@ import {
   contactLead,
   createSpeedToLead,
   fetchAgents,
-  setAgentStatus,
+  setAgentStatus as updateAgentStatusDB,
   fetchAgent,
   fetchCallCenterDashboard,
 } from '../lib/callCenterService';
@@ -990,7 +990,7 @@ export default function CallCenter() {
         // Create/fetch agent record
         const existingAgent = await fetchAgent(user.id);
         if (!existingAgent) {
-          await setAgentStatus(user.id, 'offline');
+          await updateAgentStatusDB(user.id, 'offline');
         } else {
           setAgentStatus(existingAgent.status);
         }
@@ -1076,7 +1076,7 @@ export default function CallCenter() {
   const handleToggleStatus = async () => {
     try {
       const newStatus = agentStatus === 'offline' ? 'available' : 'offline';
-      await setAgentStatus(user.id, newStatus);
+      await updateAgentStatusDB(user.id, newStatus);
       setAgentStatus(newStatus);
       toast.success(newStatus === 'available' ? 'You are now available' : 'You are now offline');
     } catch (err) {
@@ -1279,7 +1279,7 @@ export default function CallCenter() {
               ? 'bg-green-500/20 text-green-400 border-green-500/30'
               : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
             }>
-              {agentStatus}
+              {agentStatus === 'available' ? 'Available' : 'Offline'}
             </Badge>
 
             <div className="w-px h-6 bg-slate-700" />
