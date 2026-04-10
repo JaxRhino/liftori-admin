@@ -265,6 +265,10 @@ export const Chat = () => {
           }
           return [...prev, { ...newMsg, reactions: [] }];
         });
+        // Keep last_read_at current while viewing this channel — prevents unread badges from coming back
+        if (newMsg.sender_id !== user?.id) {
+          chatSvc.markNotificationsRead(selectedChannel.id, user?.id).catch(() => {});
+        }
       },
       // onMessageUpdate
       (updatedMsg) => {
@@ -327,7 +331,12 @@ export const Chat = () => {
       const { channels: allChannels } = await chatSvc.fetchChannels(user?.id);
 
       // Only set non-DM channels - DMs are fetched separately with more details
-      setChannels(allChannels.filter(c => c.type !== 'direct'));
+      // Force active channel unread to 0 — user is already viewing it
+      const activeId = selectedChannelIdRef.current;
+      setChannels(allChannels
+        .filter(c => c.type !== 'direct')
+        .map(c => c.id === activeId ? { ...c, unread_count: 0 } : c)
+      );
 
       // Check for channel param in URL (deep-link from admin widget)
       const channelIdFromUrl = searchParams.get('channel');
@@ -571,7 +580,9 @@ export const Chat = () => {
   const fetchDirectMessages = async () => {
     try {
       const { direct_messages } = await chatSvc.fetchDirectMessages(user.id, 'admin');
-      setDirectMessages(direct_messages);
+      // Force active channel unread to 0 — user is already viewing it
+      const activeId = selectedChannelIdRef.current;
+      setDirectMessages(direct_messages.map(dm => dm.id === activeId ? { ...dm, unread_count: 0 } : dm));
     } catch (error) {
       console.error('Error fetching team DMs:', error);
     }
@@ -581,7 +592,9 @@ export const Chat = () => {
   const fetchCustomerDMs = async () => {
     try {
       const { direct_messages } = await chatSvc.fetchDirectMessages(user.id, 'customer');
-      setCustomerDMs(direct_messages);
+      // Force active channel unread to 0 — user is already viewing it
+      const activeId = selectedChannelIdRef.current;
+      setCustomerDMs(direct_messages.map(dm => dm.id === activeId ? { ...dm, unread_count: 0 } : dm));
     } catch (error) {
       console.error('Error fetching customer DMs:', error);
     }
