@@ -102,7 +102,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = ['admin', 'dev', 'super_admin'].includes(profile?.role)
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, isAdmin, token, signIn, signOut, signUp, refreshProfile }}>
