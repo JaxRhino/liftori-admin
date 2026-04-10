@@ -28,7 +28,8 @@ export default function Login() {
           .eq('id', data.user.id)
           .single()
 
-        const isAdmin = profile?.role === 'admin' || profile?.role === 'dev'
+        const adminRoles = ['admin', 'dev', 'super_admin', 'sales_director', 'call_agent']
+        const isAdmin = adminRoles.includes(profile?.role)
         navigate(redirectTo || (isAdmin ? '/admin' : '/portal'), { replace: true })
       } else {
         navigate('/', { replace: true })
