@@ -66,7 +66,7 @@ export default function LeadershipQC() {
 
       let query = supabase
         .from('call_scorecards')
-        .select('*, consulting_appointments(lead_name, company_name, primary_interest, appointment_date, appointment_start, status, lead_email, engagement_tier)')
+        .select('*, consulting_appointments(lead_name, company_name, primary_interest, appointment_date, appointment_start, status, lead_email)')
         .gte('created_at', fromDate.toISOString())
         .order('created_at', { ascending: false });
 
@@ -75,7 +75,6 @@ export default function LeadershipQC() {
       }
 
       const { data, error } = await query;
-      console.log('[LeadershipQC] scorecards query result:', { data, error, dateRange, fromDate: fromDate.toISOString() });
       if (error) throw error;
 
       let filtered = data || [];
