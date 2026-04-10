@@ -80,11 +80,22 @@ export async function initializeTwilioDevice() {
 
       activeConnection = call;
 
+      // Detect internal extension calls (from client:identity)
+      const isInternal = from.startsWith('client:') ||
+        call.customParameters?.get('department') === 'internal';
+      const callerUserId = call.customParameters?.get('callerUserId') || '';
+      const callerName = call.customParameters?.get('callerName') || '';
+      const callerAvatar = call.customParameters?.get('callerAvatar') || '';
+
       emit('incoming', {
         callSid: call.parameters?.CallSid,
         from,
         to: call.parameters?.To,
         call,
+        isInternal,
+        callerUserId,
+        callerName,
+        callerAvatar,
       });
 
       call.on('accept', () => {
@@ -194,7 +205,7 @@ export async function makeOutboundCall(toNumber, agentId, callerId, department =
 }
 
 // Internal extension call — browser-to-browser via Twilio Client identity
-export async function callExtension(targetIdentity, agentId) {
+export async function callExtension(targetIdentity, agentId, callerInfo = {}) {
   if (!device) throw new Error('Twilio device not initialized');
 
   const call = await device.connect({
@@ -204,6 +215,9 @@ export async function callExtension(targetIdentity, agentId) {
       agentId: agentId || '',
       callerId: '+19044428970',
       department: 'internal',
+      callerUserId: callerInfo.userId || '',
+      callerName: callerInfo.name || '',
+      callerAvatar: callerInfo.avatarUrl || '',
     },
   });
 
@@ -212,7 +226,7 @@ export async function callExtension(targetIdentity, agentId) {
   call.on('accept', () => emit('callStarted', { callSid: call.parameters?.CallSid }));
   call.on('disconnect', () => {
     activeConnection = null;
-    emit('callEnded', { callSid: call.parameters?.CallSid });
+    emit('callEnded', { callSid: call.parameters?.CallSid, declineReason: call.customParameters?.get('declineReason') || '' });
   });
   call.on('cancel', () => {
     activeConnection = null;

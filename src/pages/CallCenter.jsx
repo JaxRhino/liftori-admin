@@ -31,6 +31,8 @@ import {
   fetchVoicemails,
   markVoicemailRead,
   archiveVoicemail,
+  sendDeclineNotification,
+  fetchAgentByUserId,
 } from '../lib/callCenterService';
 import {
   initializeTwilioDevice,
@@ -90,6 +92,8 @@ import {
   Ban,
   ChevronDown,
   ChevronUp,
+  MessageSquare,
+  X,
 } from 'lucide-react';
 import { createOutboundRallyLink, sendCallReminderEmail } from '../lib/videoCallHelpers';
 
@@ -1877,6 +1881,8 @@ export default function CallCenter() {
   const [twilioReady, setTwilioReady] = useState(false);
   const [twilioIdentity, setTwilioIdentity] = useState(null);
   const [twilioIncoming, setTwilioIncoming] = useState(null); // raw Twilio incoming call object
+  const [showDeclineReasonModal, setShowDeclineReasonModal] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
   const [smsMessages, setSmsMessages] = useState([]);
   const [showSmsPanel, setShowSmsPanel] = useState(false);
   const [smsTo, setSmsTo] = useState('');
@@ -1936,9 +1942,10 @@ export default function CallCenter() {
           setTwilioReady(true);
           toast.success('Phone line connected');
         }),
-        onTwilioEvent('incoming', ({ from, call }) => {
-          setTwilioIncoming({ from, call });
-          toast('Incoming call from ' + from, { duration: 15000 });
+        onTwilioEvent('incoming', ({ from, call, isInternal, callerUserId, callerName, callerAvatar }) => {
+          setTwilioIncoming({ from, call, isInternal, callerUserId, callerName, callerAvatar });
+          const displayName = callerName || from;
+          toast(isInternal ? `Team call from ${displayName}` : `Incoming call from ${displayName}`, { duration: 15000 });
           playIncomingAlert();
         }),
         onTwilioEvent('accepted', () => {
@@ -2413,34 +2420,187 @@ export default function CallCenter() {
 
         {/* REAL TWILIO INCOMING CALL BANNER */}
         {twilioIncoming && !activeCall && (
-          <Card className="bg-blue-900/40 border-blue-500/50 animate-pulse">
-            <div className="p-6 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-blue-500/30 flex items-center justify-center">
-                  <PhoneIncoming className="text-blue-300" size={28} />
+          <Card className={`${twilioIncoming.isInternal ? 'bg-indigo-900/50 border-indigo-400/50' : 'bg-blue-900/40 border-blue-500/50'} animate-pulse`}>
+            <div className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  {/* Profile picture for internal calls, phone icon for external */}
+                  {twilioIncoming.isInternal && twilioIncoming.callerAvatar ? (
+                    <img
+                      src={twilioIncoming.callerAvatar}
+                      alt={twilioIncoming.callerName || 'Team'}
+                      className="w-16 h-16 rounded-full border-2 border-indigo-400 object-cover"
+                    />
+                  ) : twilioIncoming.isInternal ? (
+                    <div className="w-16 h-16 rounded-full bg-indigo-500/30 border-2 border-indigo-400 flex items-center justify-center text-indigo-200 text-xl font-bold">
+                      {(twilioIncoming.callerName || '?').charAt(0).toUpperCase()}
+                    </div>
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-blue-500/30 flex items-center justify-center">
+                      <PhoneIncoming className="text-blue-300" size={28} />
+                    </div>
+                  )}
+                  <div>
+                    <h2 className="text-white text-xl font-bold">
+                      {twilioIncoming.isInternal ? 'Team Call' : 'Incoming Call'}
+                    </h2>
+                    <p className={`${twilioIncoming.isInternal ? 'text-indigo-200' : 'text-blue-200'} text-lg`}>
+                      {twilioIncoming.callerName || twilioIncoming.from || 'Unknown'}
+                    </p>
+                    {twilioIncoming.isInternal && (
+                      <p className="text-indigo-300/60 text-sm mt-0.5">Internal Extension</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-white text-xl font-bold">Incoming Call</h2>
-                  <p className="text-blue-200 text-lg">{twilioIncoming.from || 'Unknown Number'}</p>
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={() => handleAcceptCall({ isTwilio: true, from_number: twilioIncoming.from })}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg"
+                  >
+                    <Phone size={20} className="mr-2" /> Answer
+                  </Button>
+                  {twilioIncoming.isInternal && (
+                    <Button
+                      onClick={() => {
+                        // Send to voicemail — reject and create voicemail entry
+                        stopIncomingAlert();
+                        rejectIncomingCall();
+                        // Create a voicemail notification for the caller
+                        if (twilioIncoming.callerUserId) {
+                          sendDeclineNotification(
+                            twilioIncoming.callerUserId,
+                            user.id,
+                            user.user_metadata?.full_name || 'Team Member',
+                            'Sent to voicemail — please leave a message or try again later.'
+                          );
+                        }
+                        setTwilioIncoming(null);
+                        toast('Sent to voicemail');
+                      }}
+                      className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-3 text-lg"
+                    >
+                      <Voicemail size={20} className="mr-2" /> Voicemail
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => {
+                      if (twilioIncoming.isInternal) {
+                        setShowDeclineReasonModal(true);
+                      } else {
+                        handleRejectCall({ isTwilio: true });
+                      }
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 text-lg"
+                  >
+                    <PhoneOff size={20} className="mr-2" /> Decline
+                  </Button>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={() => handleAcceptCall({ isTwilio: true, from_number: twilioIncoming.from })}
-                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg"
-                >
-                  <Phone size={20} className="mr-2" /> Answer
-                </Button>
-                <Button
-                  onClick={() => handleRejectCall({ isTwilio: true })}
-                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg"
-                >
-                  <PhoneOff size={20} className="mr-2" /> Decline
-                </Button>
               </div>
             </div>
           </Card>
         )}
+
+        {/* DECLINE REASON MODAL — Internal calls only */}
+        <Dialog open={showDeclineReasonModal} onOpenChange={setShowDeclineReasonModal}>
+          <DialogContent className="bg-slate-800 border-slate-700 max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-white flex items-center gap-2">
+                <PhoneOff className="text-red-400" size={20} />
+                Decline Call from {twilioIncoming?.callerName || 'Team Member'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              {/* Quick decline reasons */}
+              <div className="space-y-2">
+                <p className="text-sm text-gray-400">Quick response:</p>
+                {['In a meeting', 'On another call', 'Busy right now — will call back', 'Stepped away'].map((reason) => (
+                  <Button
+                    key={reason}
+                    variant="outline"
+                    className="w-full justify-start text-left border-slate-600 text-gray-200 hover:bg-slate-700 hover:text-white"
+                    onClick={async () => {
+                      stopIncomingAlert();
+                      rejectIncomingCall();
+                      if (twilioIncoming?.callerUserId) {
+                        await sendDeclineNotification(
+                          twilioIncoming.callerUserId,
+                          user.id,
+                          user.user_metadata?.full_name || 'Team Member',
+                          reason
+                        );
+                      }
+                      setTwilioIncoming(null);
+                      setShowDeclineReasonModal(false);
+                      setDeclineReason('');
+                      toast('Call declined: ' + reason);
+                    }}
+                  >
+                    <MessageSquare size={14} className="mr-2 text-gray-400 shrink-0" />
+                    {reason}
+                  </Button>
+                ))}
+              </div>
+              {/* Custom reason */}
+              <div className="space-y-2">
+                <p className="text-sm text-gray-400">Custom message:</p>
+                <Textarea
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  placeholder="Type a reason..."
+                  className="bg-slate-900 border-slate-600 text-white"
+                  rows={2}
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex gap-2">
+              <Button
+                variant="outline"
+                className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                onClick={async () => {
+                  // Decline with no reason
+                  stopIncomingAlert();
+                  rejectIncomingCall();
+                  if (twilioIncoming?.callerUserId) {
+                    await sendDeclineNotification(
+                      twilioIncoming.callerUserId,
+                      user.id,
+                      user.user_metadata?.full_name || 'Team Member',
+                      ''
+                    );
+                  }
+                  setTwilioIncoming(null);
+                  setShowDeclineReasonModal(false);
+                  setDeclineReason('');
+                  toast('Call declined');
+                }}
+              >
+                Decline Without Reason
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={!declineReason.trim()}
+                onClick={async () => {
+                  stopIncomingAlert();
+                  rejectIncomingCall();
+                  if (twilioIncoming?.callerUserId) {
+                    await sendDeclineNotification(
+                      twilioIncoming.callerUserId,
+                      user.id,
+                      user.user_metadata?.full_name || 'Team Member',
+                      declineReason.trim()
+                    );
+                  }
+                  setTwilioIncoming(null);
+                  setShowDeclineReasonModal(false);
+                  setDeclineReason('');
+                  toast('Call declined with message');
+                }}
+              >
+                Send &amp; Decline
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* ACTIVE CALL OR INCOMING CALLS */}
         <div>
@@ -2523,7 +2683,11 @@ export default function CallCenter() {
         onCall={handlePhoneCall}
         onCallExtension={async (identity, name) => {
           try {
-            await callExtension(identity, user.id);
+            await callExtension(identity, user.id, {
+              userId: user.id,
+              name: user.user_metadata?.full_name || user.email,
+              avatarUrl: user.user_metadata?.avatar_url || '',
+            });
             setActiveCall({
               isTwilio: true,
               direction: 'outbound',

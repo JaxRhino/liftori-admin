@@ -433,3 +433,32 @@ export async function updateVoicemailStatus(id, newStatus) {
 export async function archiveVoicemail(id) {
   return updateVoicemailStatus(id, 'archived');
 }
+
+// ─── INTERNAL CALL DECLINE ─────────────────
+export async function sendDeclineNotification(callerUserId, declinedByUserId, declinedByName, reason) {
+  const { data, error } = await supabase.from('notifications')
+    .insert({
+      user_id: callerUserId,
+      type: 'call_declined',
+      title: `${declinedByName} declined your call`,
+      message: reason || 'No reason given',
+      metadata: {
+        declined_by: declinedByUserId,
+        declined_by_name: declinedByName,
+        reason: reason || '',
+        has_reason: !!reason,
+      },
+    }).select().single();
+  if (error) handleError(error, 'sendDeclineNotification');
+  return data;
+}
+
+// ─── FETCH AGENT BY USER ID ────────────────
+export async function fetchAgentByUserId(userId) {
+  const { data, error } = await supabase.from('cc_agents')
+    .select('*, profile:profiles!cc_agents_user_id_fkey(id, full_name, avatar_url, email, role)')
+    .eq('user_id', userId)
+    .single();
+  if (error && error.code !== 'PGRST116') handleError(error, 'fetchAgentByUserId');
+  return data || null;
+}
