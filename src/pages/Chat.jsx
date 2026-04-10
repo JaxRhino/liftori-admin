@@ -99,7 +99,7 @@ export default function Chat() {
       }, async (payload) => {
         const { data } = await supabase
           .from('chat_messages')
-          .select('*, profiles!chat_messages_sender_id_fkey(full_name, email)')
+          .select('*, profiles!chat_messages_sender_id_fkey(full_name, email, title)')
           .eq('id', payload.new.id)
           .single()
         if (data) {
@@ -117,7 +117,7 @@ export default function Chat() {
       }, async (payload) => {
         const { data } = await supabase
           .from('chat_messages')
-          .select('*, profiles!chat_messages_sender_id_fkey(full_name, email)')
+          .select('*, profiles!chat_messages_sender_id_fkey(full_name, email, title)')
           .eq('id', payload.new.id)
           .single()
         if (data) {
@@ -197,7 +197,7 @@ export default function Chat() {
   async function fetchMessages(channelId) {
     const { data } = await supabase
       .from('chat_messages')
-      .select('*, profiles!chat_messages_sender_id_fkey(full_name, email)')
+      .select('*, profiles!chat_messages_sender_id_fkey(full_name, email, title)')
       .eq('channel_id', channelId)
       .order('created_at', { ascending: true })
       .limit(100)
@@ -582,6 +582,9 @@ export default function Chat() {
                         <span className="text-sm font-semibold text-white">
                           {msg.profiles?.full_name || msg.profiles?.email || 'Unknown'}
                         </span>
+                        {msg.profiles?.title && (
+                          <span className="text-xs text-gray-400 font-medium">{msg.profiles.title}</span>
+                        )}
                         <span className="text-xs text-gray-600">{formatTime(msg.created_at)}</span>
                       </div>
                     )}

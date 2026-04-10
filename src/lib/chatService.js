@@ -134,7 +134,7 @@ export async function sendMessage(channelId, { content, attachments = [], thread
   const senderName = user.user_metadata?.full_name || user.email || ''
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, role, avatar_url')
+    .select('full_name, role, avatar_url, title')
     .eq('id', user.id)
     .single()
 
@@ -146,6 +146,7 @@ export async function sendMessage(channelId, { content, attachments = [], thread
       sender_name: profile?.full_name || senderName,
       sender_role: profile?.role || 'customer',
       sender_avatar_url: profile?.avatar_url || null,
+      sender_title: profile?.title || null,
       content,
       attachments: attachments || [],
       thread_id: thread_id || null
@@ -352,7 +353,9 @@ export async function fetchDirectMessages(userId, filterRole = null) {
     }
 
     // Filter by role if specified (e.g. 'admin' for team, 'customer' for customers)
-    if (filterRole && otherUser?.role !== filterRole) continue
+    const teamRoles = ['admin', 'super_admin', 'sales_director', 'call_agent']
+    if (filterRole === 'admin' && !teamRoles.includes(otherUser?.role)) continue
+    else if (filterRole && filterRole !== 'admin' && otherUser?.role !== filterRole) continue
 
     // Get last message
     const { data: lastMsg } = await supabase
@@ -490,11 +493,11 @@ export async function createOrGetDM(currentUserId, otherUserId) {
 // ─── Users ───────────────────────────────────────────────────
 
 export async function fetchUsers() {
-  // Only return team members (admin role) — customers use a separate DM section
+  // Return team members (admin roles) — customers use a separate DM section
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role')
-    .eq('role', 'admin')
+    .select('id, full_name, email, role, title')
+    .in('role', ['admin', 'super_admin', 'sales_director', 'call_agent'])
     .order('full_name', { ascending: true })
 
   if (error) throw error

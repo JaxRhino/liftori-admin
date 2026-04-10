@@ -98,8 +98,20 @@ export default function GlobalPhoneCallPopup() {
     };
 
     const unsubs = [
-      onTwilioEvent('incoming', ({ from, call, isInternal, callerUserId, callerName, callerAvatar }) => {
-        setIncoming({ from, call, isInternal, callerUserId, callerName, callerAvatar });
+      onTwilioEvent('incoming', async ({ from, call, isInternal, callerUserId, callerName, callerAvatar }) => {
+        let callerTitle = '';
+        // Fetch title from profiles for internal callers
+        if (callerUserId) {
+          try {
+            const { data: callerProfile } = await supabase
+              .from('profiles')
+              .select('title')
+              .eq('id', callerUserId)
+              .single();
+            callerTitle = callerProfile?.title || '';
+          } catch (e) { /* ignore */ }
+        }
+        setIncoming({ from, call, isInternal, callerUserId, callerName, callerAvatar, callerTitle });
         playIncomingAlert();
 
         // Safety timeout — stop ringing after 30s even if no cancel event fires
@@ -219,6 +231,9 @@ export default function GlobalPhoneCallPopup() {
           </div>
 
           <h2 className="text-white text-2xl font-bold text-center">{displayName}</h2>
+          {incoming.callerTitle && (
+            <p className="text-slate-300 text-sm font-medium mt-0.5">{incoming.callerTitle}</p>
+          )}
           <p className="text-slate-400 text-sm mt-1">
             {incoming.isInternal ? 'Internal Extension' : incoming.from || 'Unknown Number'}
           </p>

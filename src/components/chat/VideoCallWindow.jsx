@@ -847,6 +847,9 @@ export const IncomingCallDialog = ({ call, onAccept, onDecline }) => {
         </div>
         
         <h2 className="text-xl font-bold text-white mb-1">{call?.caller_name || 'Unknown'}</h2>
+        {call?.caller_title && (
+          <p className="text-slate-300 text-sm font-medium">{call.caller_title}</p>
+        )}
         <p className="text-slate-400 mb-6">
           {call?.call_type === 'group' ? 'Group Video Call' : 'Video Call'}
         </p>

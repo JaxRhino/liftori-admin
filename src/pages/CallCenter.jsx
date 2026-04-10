@@ -176,7 +176,7 @@ function AgentRosterPanel() {
     try {
       const { data, error } = await supabase
         .from('cc_agents')
-        .select('*, profile:profiles!cc_agents_user_id_fkey(id, full_name, avatar_url, email, role)')
+        .select('*, profile:profiles!cc_agents_user_id_fkey(id, full_name, avatar_url, email, role, title)')
         .order('status');
       if (error) throw error;
       setAgents(data || []);
@@ -225,8 +225,10 @@ function AgentRosterPanel() {
   const AgentPill = ({ agent }) => {
     const name = agent.profile?.full_name || agent.display_name || 'Unknown';
     const avatar = agent.profile?.avatar_url;
+    const title = agent.profile?.title;
     const role = agent.profile?.role;
     const roleLabel = role === 'super_admin' ? 'Admin' : role === 'sales_director' ? 'Sales Dir.' : role === 'call_agent' ? 'Agent' : role || '';
+    const subtitle = title || roleLabel;
 
     return (
       <div className="flex items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">
@@ -239,7 +241,7 @@ function AgentRosterPanel() {
         )}
         <div className="flex flex-col min-w-0">
           <span className="text-white text-sm font-medium truncate">{name}</span>
-          {roleLabel && <span className="text-gray-500 text-[10px] leading-tight">{roleLabel}</span>}
+          {subtitle && <span className="text-gray-500 text-[10px] leading-tight">{subtitle}</span>}
         </div>
         <Circle size={8} className={`${getStatusDot(agent.status)} fill-current ml-auto flex-shrink-0`} />
       </div>

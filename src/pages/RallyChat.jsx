@@ -393,6 +393,7 @@ export const Chat = () => {
       sender_id: user.id,
       sender_name: (profile?.full_name || user?.email || 'User'),
       sender_role: profile?.role || 'customer',
+      sender_title: profile?.title || '',
       content: newMessage,
       attachments: [],
       created_at: new Date().toISOString(),
@@ -1380,6 +1381,9 @@ export const Chat = () => {
                         {!item.grouped && (
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-semibold text-sm">{item.message.sender_name}</span>
+                            {item.message.sender_title && (
+                              <span className="text-xs text-muted-foreground font-medium">{item.message.sender_title}</span>
+                            )}
                             {item.message.sender_role === 'system' && (
                               <span className="text-xs px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-medium">
                                 Sage AI
@@ -1794,6 +1798,9 @@ export const Chat = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="font-semibold text-sm">{threadParentMessage.sender_name}</span>
+                  {threadParentMessage.sender_title && (
+                    <span className="text-xs text-muted-foreground font-medium">{threadParentMessage.sender_title}</span>
+                  )}
                   <span className="text-xs text-muted-foreground">
                     {new Date(threadParentMessage.created_at).toLocaleString()}
                   </span>
@@ -1818,6 +1825,9 @@ export const Chat = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
                       <span className="font-semibold text-sm">{reply.sender_name}</span>
+                      {reply.sender_title && (
+                        <span className="text-xs text-muted-foreground font-medium">{reply.sender_title}</span>
+                      )}
                       {reply.sender_role === 'tester' && (
                         <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-medium">
                           Platform Tester

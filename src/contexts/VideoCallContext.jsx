@@ -309,12 +309,24 @@ export const VideoCallProvider = ({ children }) => {
           // Find caller name from participants
           const caller = call.video_call_participants?.find(p => p.user_id === call.created_by);
 
+          // Fetch caller title from profiles
+          let callerTitle = '';
+          try {
+            const { data: callerProfile } = await supabase
+              .from('profiles')
+              .select('title')
+              .eq('id', call.created_by)
+              .single();
+            callerTitle = callerProfile?.title || '';
+          } catch (e) { /* ignore */ }
+
           console.log('[Rally Poll] Setting incoming call:', call.id);
           setIncomingCall({
             session_id: call.id,
             call_type: call.call_type,
             caller_id: call.created_by,
             caller_name: caller?.display_name || 'Unknown',
+            caller_title: callerTitle,
             video_enabled: call.call_type === 'video'
           });
         }
@@ -349,11 +361,17 @@ export const VideoCallProvider = ({ children }) => {
         const call = await videoSvc.getCall(callId);
         if (!call || call.status === 'ended') return;
         const caller = call.video_call_participants?.find(p => p.user_id === call.created_by);
+        let callerTitle = '';
+        try {
+          const { data: cp } = await supabase.from('profiles').select('title').eq('id', call.created_by).single();
+          callerTitle = cp?.title || '';
+        } catch (e) { /* ignore */ }
         setIncomingCall({
           session_id: call.id,
           call_type: call.call_type,
           caller_id: call.created_by,
           caller_name: caller?.display_name || 'Unknown',
+          caller_title: callerTitle,
           video_enabled: call.call_type === 'video'
         });
       } catch (err) {
@@ -743,11 +761,17 @@ export const VideoCallProvider = ({ children }) => {
         return;
       }
       const caller = call.video_call_participants?.find(p => p.user_id === call.created_by);
+      let callerTitle = '';
+      try {
+        const { data: cp } = await supabase.from('profiles').select('title').eq('id', call.created_by).single();
+        callerTitle = cp?.title || '';
+      } catch (e) { /* ignore */ }
       setIncomingCall({
         session_id: call.id,
         call_type: call.call_type,
         caller_id: call.created_by,
         caller_name: caller?.display_name || 'Unknown',
+        caller_title: callerTitle,
         video_enabled: call.call_type === 'video'
       });
     } catch (err) {

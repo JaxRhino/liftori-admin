@@ -150,6 +150,9 @@ export default function IncomingCallModal() {
           <h2 className="text-2xl font-bold text-white">
             {incomingCall.caller_name || 'Unknown'}
           </h2>
+          {incomingCall.caller_title && (
+            <p className="text-sm text-slate-300 font-medium">{incomingCall.caller_title}</p>
+          )}
           <p className="mt-1 text-sm text-slate-400">Incoming Video Call</p>
         </div>
 
