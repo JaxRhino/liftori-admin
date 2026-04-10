@@ -110,6 +110,7 @@ import PortalSupport from './pages/portal/PortalSupport'
 import RallyGuestJoin from './pages/RallyGuestJoin'
 import SalesCall from './pages/SalesCall'
 import ConsultingAppointments from './pages/ConsultingAppointments'
+import SuperAdmin from './pages/SuperAdmin'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -181,6 +182,7 @@ export default function App() {
             </ProtectedRoute>
           }>
             <Route index element={<Dashboard />} />
+            <Route path="super-admin" element={<SuperAdmin />} />
             <Route path="call-center" element={<CallCenter />} />
             <Route path="projects" element={<Projects />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
