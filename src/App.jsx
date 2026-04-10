@@ -45,6 +45,7 @@ import OpsDashboard from './pages/OpsDashboard'
 import WizardBuilder from './pages/WizardBuilder'
 import Team from './pages/Team'
 import WorkQueue from './pages/WorkQueue'
+import CompanyDocs from './pages/CompanyDocs'
 import PortalProjects from './pages/portal/PortalProjects'
 import PortalSettings from './pages/portal/PortalSettings'
 import PortalMessages from './pages/portal/PortalMessages'
@@ -216,6 +217,7 @@ export default function App() {
             <Route path="ops-dashboard" element={<OpsDashboard />} />
             <Route path="team" element={<Team />} />
             <Route path="work-queue" element={<WorkQueue />} />
+            <Route path="company-docs" element={<CompanyDocs />} />
             {/* In-House Builds */}
             <Route path="builds" element={<InHouseBuilds />} />
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
