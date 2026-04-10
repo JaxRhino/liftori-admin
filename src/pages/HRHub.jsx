@@ -1147,7 +1147,7 @@ export default function HRHub() {
 
       {/* ─── Applicant Detail Panel ─────────────────────────────── */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-5xl max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="bg-[#0B1120] border-white/10 text-white w-[95vw] max-w-[1400px] h-[90vh] overflow-y-auto p-0">
           {selectedApplicant && (
             <div className="flex flex-col">
               {/* ── Hero Header ──────────────────────────────────── */}
