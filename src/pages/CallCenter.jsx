@@ -1087,12 +1087,13 @@ export default function CallCenter() {
     }
 
     if (agentStatus === 'offline') {
+      // Clean up event listeners FIRST to prevent state updates during teardown
+      twilioCleanupRef.current.forEach(unsub => { try { unsub(); } catch(e) {} });
+      twilioCleanupRef.current = [];
       destroyTwilioDevice();
       setTwilioReady(false);
       setTwilioIdentity(null);
       setTwilioIncoming(null);
-      twilioCleanupRef.current.forEach(unsub => unsub());
-      twilioCleanupRef.current = [];
     }
   }, [agentStatus]);
 

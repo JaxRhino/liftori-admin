@@ -69,13 +69,21 @@ export async function initializeTwilioDevice() {
 
     // ── Incoming call ──
     device.on('incoming', (call) => {
-      console.log('[Twilio] Incoming call from:', call.parameters.From);
+      const from = call.parameters?.From || call.customParameters?.get('From') || '';
+      console.log('[Twilio] Incoming call from:', from);
+
+      // Ignore phantom/registration events with no caller info
+      if (!from) {
+        console.log('[Twilio] Ignoring incoming event with no From — likely a registration ping');
+        return;
+      }
+
       activeConnection = call;
 
       emit('incoming', {
-        callSid: call.parameters.CallSid,
-        from: call.parameters.From,
-        to: call.parameters.To,
+        callSid: call.parameters?.CallSid,
+        from,
+        to: call.parameters?.To,
         call,
       });
 
@@ -134,14 +142,23 @@ export async function initializeTwilioDevice() {
 }
 
 export function destroyTwilioDevice() {
-  if (activeConnection) {
-    activeConnection.disconnect();
-    activeConnection = null;
+  try {
+    if (activeConnection) {
+      activeConnection.disconnect();
+      activeConnection = null;
+    }
+  } catch (e) {
+    console.warn('[Twilio] Error disconnecting active call:', e);
   }
-  if (device) {
-    device.unregister();
-    device.destroy();
-    device = null;
+  try {
+    if (device) {
+      device.removeAllListeners();
+      device.unregister();
+      device.destroy();
+      device = null;
+    }
+  } catch (e) {
+    console.warn('[Twilio] Error destroying device:', e);
   }
   listeners = {};
 }
