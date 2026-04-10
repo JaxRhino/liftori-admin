@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import React, { useState, useEffect, useRef } from 'react'
 import IncomingCallModal from './IncomingCallModal'
+import GlobalPhoneCallPopup from './GlobalPhoneCallPopup'
 import GlobalHeader from './GlobalHeader'
 import VideoCallRoom from './VideoCallRoom'
 import OnboardingWizard from './OnboardingWizard'
@@ -975,8 +976,9 @@ export default function AdminLayout() {
         </main>
       </div>
 
-      {/* Global video call overlays */}
+      {/* Global call overlays */}
       <IncomingCallModal />
+      <GlobalPhoneCallPopup />
       <VideoCallRoom />
     </div>
   )
