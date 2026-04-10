@@ -20,10 +20,19 @@ import {
   Clock, Calendar, FileText, ChevronRight, AlertCircle,
   Thermometer, DollarSign, CheckCircle, XCircle,
   Maximize2, Minimize2, PanelRightClose, PanelRight,
-  Clipboard, Send, Star, ArrowLeft, Loader2, Mail, Copy
+  Clipboard, Send, Star, ArrowLeft, Loader2, Mail, Copy,
+  BookOpen, Brain, ListTodo, BarChart3, Plus, Trash2,
+  Play, Square, Sparkles, CircleDot
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { sendConsultingReminderEmail } from '../lib/videoCallHelpers';
+import {
+  fetchScriptByTier, fetchScriptProgress, upsertScriptProgress,
+  fetchTranscript, upsertTranscript,
+  fetchScorecard, createScorecard,
+  fetchCallTasks, createCallTask, toggleCallTask, deleteCallTask,
+  generateAISummary
+} from '../lib/consultingService';
 
 const INTEREST_LABELS = {
   ai_strategy: 'AI Strategy',
@@ -74,6 +83,27 @@ export default function SalesCall() {
   // Reminder state
   const [sendingReminder, setSendingReminder] = useState(false);
   const [reminderSent, setReminderSent] = useState(false);
+
+  // Playbook state
+  const [script, setScript] = useState(null);
+  const [completedSections, setCompletedSections] = useState([]);
+  const [sectionTimestamps, setSectionTimestamps] = useState({});
+
+  // AI Notes state
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptMode, setTranscriptMode] = useState('speech_api');
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const recognitionRef = useRef(null);
+
+  // AI Summary + Scorecard state
+  const [aiSummary, setAiSummary] = useState(null);
+  const [scorecard, setScorecard] = useState(null);
+  const [generatingAI, setGeneratingAI] = useState(false);
+
+  // Call Tasks state
+  const [callTasks, setCallTasks] = useState([]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskAssignee, setNewTaskAssignee] = useState('consultant');
 
   // Video refs
   const localVideoRef = useRef(null);
@@ -142,6 +172,241 @@ export default function SalesCall() {
   function copyJoinLink() {
     navigator.clipboard.writeText(`https://liftori.ai/call/${roomId}`);
     toast.success('Join link copied to clipboard');
+  }
+
+  // Load playbook script based on appointment interest/tier
+  useEffect(() => {
+    if (!appointment) return;
+    const tier = appointment.engagement_tier || 'discovery';
+    fetchScriptByTier(tier).then(s => {
+      if (s) setScript(s);
+      else fetchScriptByTier('discovery').then(fallback => setScript(fallback));
+    }).catch(() => {});
+
+    // Load existing progress, tasks, transcript, scorecard
+    fetchScriptProgress(appointment.id).then(p => {
+      if (p) {
+        setCompletedSections(p.completed_sections || []);
+        setSectionTimestamps(p.section_timestamps || {});
+      }
+    }).catch(() => {});
+
+    fetchCallTasks(appointment.id).then(setCallTasks).catch(() => {});
+    fetchTranscript(appointment.id).then(t => {
+      if (t) {
+        setLiveTranscript(t.transcript_text || '');
+        if (t.ai_summary) setAiSummary({
+          summary: t.ai_summary,
+          consultant_tasks: t.ai_consultant_tasks || [],
+          client_tasks: t.ai_client_tasks || [],
+          follow_up_recommendations: t.ai_follow_up_recommendations || [],
+          identified_opportunities: t.ai_identified_opportunities || [],
+        });
+      }
+    }).catch(() => {});
+    fetchScorecard(appointment.id).then(setScorecard).catch(() => {});
+  }, [appointment?.id]);
+
+  // Toggle playbook section completion
+  function toggleSection(sectionTitle) {
+    const now = new Date().toISOString();
+    let newCompleted, newTimestamps;
+    if (completedSections.includes(sectionTitle)) {
+      newCompleted = completedSections.filter(s => s !== sectionTitle);
+      newTimestamps = { ...sectionTimestamps };
+      delete newTimestamps[sectionTitle];
+    } else {
+      newCompleted = [...completedSections, sectionTitle];
+      newTimestamps = { ...sectionTimestamps, [sectionTitle]: now };
+    }
+    setCompletedSections(newCompleted);
+    setSectionTimestamps(newTimestamps);
+
+    if (appointment && script) {
+      const sections = script.sections || [];
+      const pct = sections.length > 0 ? Math.round((newCompleted.length / sections.length) * 100) : 0;
+      upsertScriptProgress(appointment.id, script.id, user.id, {
+        completed_sections: newCompleted,
+        section_timestamps: newTimestamps,
+        completion_pct: pct,
+        started_at: Object.values(newTimestamps).sort()[0] || now,
+        completed_at: pct === 100 ? now : null,
+      }).catch(err => console.error('Save progress error:', err));
+    }
+  }
+
+  // Start/stop AI transcription
+  function toggleTranscription() {
+    if (isTranscribing) {
+      stopTranscription();
+    } else {
+      startTranscription();
+    }
+  }
+
+  function startTranscription() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast.error('Speech recognition not supported in this browser');
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    let finalTranscript = liveTranscript;
+
+    recognition.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const text = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          finalTranscript += `[${timestamp}] ${text.trim()}\n`;
+          setLiveTranscript(finalTranscript);
+        } else {
+          interim = text;
+        }
+      }
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error !== 'no-speech') {
+        console.error('Speech recognition error:', event.error);
+      }
+    };
+
+    recognition.onend = () => {
+      if (isTranscribing) {
+        recognition.start();
+      }
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
+    setIsTranscribing(true);
+    toast.success('AI note-taking started');
+  }
+
+  function stopTranscription() {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsTranscribing(false);
+
+    // Save transcript
+    if (appointment && liveTranscript) {
+      upsertTranscript(appointment.id, {
+        transcript_text: liveTranscript,
+        transcription_mode: transcriptMode,
+        word_count: liveTranscript.split(/\s+/).length,
+      }).catch(err => console.error('Save transcript error:', err));
+    }
+    toast.success('Transcription saved');
+  }
+
+  // Generate AI summary + scorecard
+  async function handleGenerateAI() {
+    if (!appointment) return;
+    setGeneratingAI(true);
+    try {
+      const analysis = await generateAISummary(liveTranscript, callNotes, appointment);
+      if (!analysis) {
+        toast.error('AI analysis unavailable — check API key');
+        return;
+      }
+
+      setAiSummary(analysis);
+      setCallSummary(analysis.summary || '');
+
+      // Save transcript with AI analysis
+      await upsertTranscript(appointment.id, {
+        transcript_text: liveTranscript,
+        transcription_mode: transcriptMode,
+        ai_summary: analysis.summary,
+        ai_action_items: [...(analysis.consultant_tasks || []), ...(analysis.client_tasks || [])],
+        ai_client_tasks: analysis.client_tasks || [],
+        ai_consultant_tasks: analysis.consultant_tasks || [],
+        ai_follow_up_recommendations: analysis.follow_up_recommendations || [],
+        ai_identified_opportunities: analysis.identified_opportunities || [],
+        processed_at: new Date().toISOString(),
+      });
+
+      // Create scorecard
+      const sections = script?.sections || [];
+      const sc = await createScorecard({
+        appointment_id: appointment.id,
+        consultant_id: user.id,
+        overall_score: analysis.overall_score || null,
+        checklist_completion_pct: sections.length > 0 ? Math.round((completedSections.length / sections.length) * 100) : null,
+        call_duration_score: callDuration > 0 ? Math.min(10, Math.round((callDuration / 3600) * 10 * 10) / 10) : null,
+        topic_coverage_score: analysis.topic_coverage_score || null,
+        client_engagement_score: analysis.client_engagement_score || null,
+        ai_strengths: analysis.strengths || [],
+        ai_improvements: analysis.improvements || [],
+        ai_next_meeting_prep: analysis.next_meeting_prep || [],
+        ai_upsell_opportunities: analysis.identified_opportunities || [],
+        ai_client_health_signals: analysis.client_health_signals || [],
+      });
+      setScorecard(sc);
+
+      // Auto-create tasks from AI suggestions
+      const tasksToCreate = [];
+      (analysis.consultant_tasks || []).forEach(t => tasksToCreate.push({ appointment_id: appointment.id, assigned_to: 'consultant', title: t, created_by: user.id }));
+      (analysis.client_tasks || []).forEach(t => tasksToCreate.push({ appointment_id: appointment.id, assigned_to: 'client', title: t, created_by: user.id }));
+      for (const task of tasksToCreate) {
+        try {
+          const created = await createCallTask(task);
+          setCallTasks(prev => [...prev, created]);
+        } catch (e) { /* skip duplicates */ }
+      }
+
+      toast.success('AI analysis complete!');
+      setSidePanel('scorecard');
+    } catch (err) {
+      console.error('AI generation error:', err);
+      toast.error('AI analysis failed');
+    } finally {
+      setGeneratingAI(false);
+    }
+  }
+
+  // Add a manual task
+  async function handleAddTask() {
+    if (!newTaskTitle.trim() || !appointment) return;
+    try {
+      const task = await createCallTask({
+        appointment_id: appointment.id,
+        assigned_to: newTaskAssignee,
+        title: newTaskTitle.trim(),
+        created_by: user.id,
+      });
+      setCallTasks(prev => [...prev, task]);
+      setNewTaskTitle('');
+      toast.success('Task added');
+    } catch (err) {
+      toast.error('Failed to add task');
+    }
+  }
+
+  async function handleToggleTask(taskId, current) {
+    try {
+      const updated = await toggleCallTask(taskId, !current);
+      setCallTasks(prev => prev.map(t => t.id === taskId ? updated : t));
+    } catch (err) {
+      toast.error('Failed to update task');
+    }
+  }
+
+  async function handleDeleteTask(taskId) {
+    try {
+      await deleteCallTask(taskId);
+      setCallTasks(prev => prev.filter(t => t.id !== taskId));
+    } catch (err) {
+      toast.error('Failed to delete task');
+    }
   }
 
   // Start local video preview
@@ -589,22 +854,24 @@ export default function SalesCall() {
         <div className="w-96 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden">
 
           {/* Panel tabs */}
-          <div className="flex border-b border-slate-800">
+          <div className="flex border-b border-slate-800 overflow-x-auto">
             {[
-              { id: 'info', label: 'Lead Info', icon: User },
-              { id: 'notes', label: 'Notes', icon: FileText },
+              { id: 'info', label: 'Lead', icon: User },
+              { id: 'playbook', label: 'Playbook', icon: BookOpen },
+              { id: 'notes', label: 'Notes', icon: Brain },
               { id: 'summary', label: 'Wrap-Up', icon: CheckCircle },
+              { id: 'scorecard', label: 'Score', icon: BarChart3 },
             ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setSidePanel(tab.id)}
-                className={`flex-1 px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition border-b-2 ${
+                className={`flex-1 px-2 py-2.5 text-[11px] font-semibold flex items-center justify-center gap-1 transition border-b-2 whitespace-nowrap ${
                   sidePanel === tab.id
                     ? 'border-purple-500 text-purple-400 bg-purple-500/5'
                     : 'border-transparent text-gray-500 hover:text-gray-300'
                 }`}
               >
-                <tab.icon className="w-3.5 h-3.5" />
+                <tab.icon className="w-3.5 h-3.5 shrink-0" />
                 {tab.label}
               </button>
             ))}
@@ -669,9 +936,151 @@ export default function SalesCall() {
               </div>
             )}
 
+            {/* PLAYBOOK TAB */}
+            {sidePanel === 'playbook' && (
+              <div className="space-y-4">
+                {script ? (
+                  <>
+                    {/* Progress bar */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          {script.title || 'Call Playbook'}
+                        </h4>
+                        <span className="text-xs font-mono text-purple-400">
+                          {script.sections ? Math.round((completedSections.length / script.sections.length) * 100) : 0}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full transition-all duration-500"
+                          style={{ width: `${script.sections ? Math.round((completedSections.length / script.sections.length) * 100) : 0}%` }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-gray-600 mt-1">
+                        {completedSections.length} of {script.sections?.length || 0} sections complete
+                      </p>
+                    </div>
+
+                    {/* Sections checklist */}
+                    <div className="space-y-2">
+                      {(script.sections || []).map((section, idx) => {
+                        const isCompleted = completedSections.includes(section.title);
+                        return (
+                          <div key={idx} className={`rounded-xl border transition ${isCompleted ? 'bg-green-500/5 border-green-500/20' : 'bg-slate-800/50 border-slate-700/50'}`}>
+                            <button
+                              onClick={() => toggleSection(section.title)}
+                              className="w-full flex items-start gap-3 p-3 text-left"
+                            >
+                              <div className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition ${isCompleted ? 'bg-green-500 border-green-500' : 'border-gray-600'}`}>
+                                {isCompleted && <CheckCircle className="w-3.5 h-3.5 text-white" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-semibold ${isCompleted ? 'text-green-400 line-through opacity-70' : 'text-gray-200'}`}>
+                                  {section.title}
+                                </p>
+                                {section.description && (
+                                  <p className="text-xs text-gray-500 mt-0.5">{section.description}</p>
+                                )}
+                                {sectionTimestamps[section.title] && (
+                                  <p className="text-[10px] text-gray-600 mt-0.5">
+                                    Completed {new Date(sectionTimestamps[section.title]).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                )}
+                              </div>
+                            </button>
+                            {/* Suggested questions */}
+                            {section.suggested_questions && section.suggested_questions.length > 0 && !isCompleted && (
+                              <div className="px-3 pb-3 pl-11 space-y-1">
+                                {section.suggested_questions.map((q, qi) => (
+                                  <p key={qi} className="text-xs text-gray-500 flex items-start gap-1.5">
+                                    <CircleDot className="w-3 h-3 shrink-0 mt-0.5 text-purple-500/50" />
+                                    {q}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <BookOpen className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                    <p className="text-sm text-gray-400">No playbook assigned</p>
+                    <p className="text-xs text-gray-600 mt-1">Scripts are loaded based on engagement tier</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* NOTES TAB */}
             {sidePanel === 'notes' && (
               <div className="space-y-4">
+                {/* AI Transcription Controls */}
+                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Brain className="w-3.5 h-3.5 text-purple-400" />
+                      AI Note-Taking
+                    </h4>
+                    <button
+                      onClick={toggleTranscription}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        isTranscribing
+                          ? 'bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30'
+                          : 'bg-purple-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500/30'
+                      }`}
+                    >
+                      {isTranscribing ? <Square className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                      {isTranscribing ? 'Stop' : 'Start'}
+                    </button>
+                  </div>
+                  {/* Mode toggle */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setTranscriptMode('speech_api')}
+                      className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition border ${
+                        transcriptMode === 'speech_api'
+                          ? 'bg-purple-500/15 border-purple-500/30 text-purple-400'
+                          : 'bg-slate-800 border-slate-700 text-gray-500 hover:text-gray-300'
+                      }`}
+                    >
+                      Speech API (Free)
+                    </button>
+                    <button
+                      onClick={() => setTranscriptMode('whisper')}
+                      className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition border ${
+                        transcriptMode === 'whisper'
+                          ? 'bg-sky-500/15 border-sky-500/30 text-sky-400'
+                          : 'bg-slate-800 border-slate-700 text-gray-500 hover:text-gray-300'
+                      }`}
+                    >
+                      Whisper (Premium)
+                    </button>
+                  </div>
+                  {isTranscribing && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                      <span className="text-[11px] text-red-400 font-medium">Recording...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Live Transcript */}
+                {liveTranscript && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                      Transcript
+                    </label>
+                    <div className="w-full max-h-32 overflow-y-auto bg-slate-800/30 border border-slate-700/50 rounded-xl p-3 text-xs text-gray-400 font-mono whitespace-pre-wrap">
+                      {liveTranscript}
+                    </div>
+                  </div>
+                )}
+
+                {/* Manual Notes */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                     Call Notes
@@ -680,7 +1089,7 @@ export default function SalesCall() {
                     value={callNotes}
                     onChange={e => setCallNotes(e.target.value)}
                     placeholder="Type notes as you talk — they auto-save every 5 seconds..."
-                    className="w-full h-64 bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm text-gray-200 resize-none focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 placeholder-gray-600"
+                    className="w-full h-40 bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm text-gray-200 resize-none focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 placeholder-gray-600"
                   />
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-xs text-gray-600">
@@ -719,6 +1128,30 @@ export default function SalesCall() {
             {/* WRAP-UP TAB */}
             {sidePanel === 'summary' && (
               <div className="space-y-4">
+                {/* AI Summary Button */}
+                <button
+                  onClick={handleGenerateAI}
+                  disabled={generatingAI}
+                  className="w-full py-2.5 bg-gradient-to-r from-purple-600/20 to-violet-600/20 border border-purple-500/30 rounded-xl text-sm font-semibold text-purple-400 hover:from-purple-600/30 hover:to-violet-600/30 transition flex items-center justify-center gap-2"
+                >
+                  {generatingAI ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  {generatingAI ? 'Generating AI Analysis...' : 'Generate AI Summary & Scorecard'}
+                </button>
+
+                {/* AI Summary display */}
+                {aiSummary?.summary && (
+                  <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-3">
+                    <h4 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3" /> AI Summary
+                    </h4>
+                    <p className="text-sm text-gray-300 leading-relaxed">{aiSummary.summary}</p>
+                  </div>
+                )}
+
                 {/* Temperature */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
@@ -765,20 +1198,99 @@ export default function SalesCall() {
                     value={callSummary}
                     onChange={e => setCallSummary(e.target.value)}
                     placeholder="Brief summary of what was discussed and the outcome..."
-                    className="w-full h-28 bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm text-gray-200 resize-none focus:outline-none focus:border-purple-500"
+                    className="w-full h-24 bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm text-gray-200 resize-none focus:outline-none focus:border-purple-500"
                   />
+                </div>
+
+                {/* Shared Task Lists */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <ListTodo className="w-3.5 h-3.5" /> Shared To-Do List
+                  </label>
+
+                  {/* Add task form */}
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      type="text"
+                      value={newTaskTitle}
+                      onChange={e => setNewTaskTitle(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleAddTask()}
+                      placeholder="Add a task..."
+                      className="flex-1 px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-purple-500 placeholder-gray-600"
+                    />
+                    <select
+                      value={newTaskAssignee}
+                      onChange={e => setNewTaskAssignee(e.target.value)}
+                      className="px-2 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-gray-300 focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="consultant">Me</option>
+                      <option value="client">Client</option>
+                    </select>
+                    <button
+                      onClick={handleAddTask}
+                      className="p-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Consultant tasks */}
+                  {callTasks.filter(t => t.assigned_to === 'consultant').length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-[11px] font-semibold text-purple-400 mb-1">Your Tasks</p>
+                      <div className="space-y-1">
+                        {callTasks.filter(t => t.assigned_to === 'consultant').map(task => (
+                          <div key={task.id} className="flex items-center gap-2 group">
+                            <button onClick={() => handleToggleTask(task.id, task.is_completed)}
+                              className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition ${task.is_completed ? 'bg-green-500 border-green-500' : 'border-gray-600 hover:border-purple-500'}`}>
+                              {task.is_completed && <CheckCircle className="w-3 h-3 text-white" />}
+                            </button>
+                            <span className={`text-xs flex-1 ${task.is_completed ? 'text-gray-500 line-through' : 'text-gray-300'}`}>{task.title}</span>
+                            <button onClick={() => handleDeleteTask(task.id)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 text-gray-600 transition">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Client tasks */}
+                  {callTasks.filter(t => t.assigned_to === 'client').length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-[11px] font-semibold text-sky-400 mb-1">Client Tasks</p>
+                      <div className="space-y-1">
+                        {callTasks.filter(t => t.assigned_to === 'client').map(task => (
+                          <div key={task.id} className="flex items-center gap-2 group">
+                            <button onClick={() => handleToggleTask(task.id, task.is_completed)}
+                              className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition ${task.is_completed ? 'bg-green-500 border-green-500' : 'border-gray-600 hover:border-sky-500'}`}>
+                              {task.is_completed && <CheckCircle className="w-3 h-3 text-white" />}
+                            </button>
+                            <span className={`text-xs flex-1 ${task.is_completed ? 'text-gray-500 line-through' : 'text-gray-300'}`}>{task.title}</span>
+                            <button onClick={() => handleDeleteTask(task.id)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 text-gray-600 transition">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {callTasks.length === 0 && !aiSummary && (
+                    <p className="text-xs text-gray-600 text-center py-2">No tasks yet. Add manually or generate with AI.</p>
+                  )}
                 </div>
 
                 {/* Follow-up */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                    Follow-Up Actions
+                    Follow-Up Notes
                   </label>
                   <textarea
                     value={followUpActions}
                     onChange={e => setFollowUpActions(e.target.value)}
-                    placeholder="- Send proposal by Friday&#10;- Schedule demo of LABOS&#10;- Connect with Jeff for pricing"
-                    className="w-full h-24 bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm text-gray-200 resize-none focus:outline-none focus:border-purple-500"
+                    placeholder="Additional follow-up notes..."
+                    className="w-full h-20 bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm text-gray-200 resize-none focus:outline-none focus:border-purple-500"
                   />
                 </div>
 
@@ -803,6 +1315,114 @@ export default function SalesCall() {
                 </div>
               </div>
             )}
+            {/* SCORECARD TAB */}
+            {sidePanel === 'scorecard' && (
+              <div className="space-y-4">
+                {scorecard ? (
+                  <>
+                    {/* Scores */}
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Performance Scores</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <ScoreCard label="Overall" score={scorecard.overall_score} />
+                        <ScoreCard label="Checklist" score={scorecard.checklist_completion_pct} suffix="%" />
+                        <ScoreCard label="Topic Coverage" score={scorecard.topic_coverage_score} />
+                        <ScoreCard label="Engagement" score={scorecard.client_engagement_score} />
+                      </div>
+                    </div>
+
+                    {/* Strengths */}
+                    {scorecard.ai_strengths?.length > 0 && (
+                      <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3">
+                        <h4 className="text-xs font-semibold text-green-400 uppercase tracking-wider mb-2">Strengths</h4>
+                        <div className="space-y-1.5">
+                          {scorecard.ai_strengths.map((s, i) => (
+                            <p key={i} className="text-xs text-gray-300 flex items-start gap-1.5">
+                              <CheckCircle className="w-3 h-3 shrink-0 mt-0.5 text-green-500" />
+                              {s}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Improvements */}
+                    {scorecard.ai_improvements?.length > 0 && (
+                      <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-3">
+                        <h4 className="text-xs font-semibold text-orange-400 uppercase tracking-wider mb-2">Areas to Improve</h4>
+                        <div className="space-y-1.5">
+                          {scorecard.ai_improvements.map((s, i) => (
+                            <p key={i} className="text-xs text-gray-300 flex items-start gap-1.5">
+                              <Target className="w-3 h-3 shrink-0 mt-0.5 text-orange-500" />
+                              {s}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Next Meeting Prep */}
+                    {scorecard.ai_next_meeting_prep?.length > 0 && (
+                      <div className="bg-sky-500/5 border border-sky-500/20 rounded-xl p-3">
+                        <h4 className="text-xs font-semibold text-sky-400 uppercase tracking-wider mb-2">Next Meeting Prep</h4>
+                        <div className="space-y-1.5">
+                          {scorecard.ai_next_meeting_prep.map((s, i) => (
+                            <p key={i} className="text-xs text-gray-300 flex items-start gap-1.5">
+                              <Calendar className="w-3 h-3 shrink-0 mt-0.5 text-sky-500" />
+                              {s}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upsell Opportunities */}
+                    {scorecard.ai_upsell_opportunities?.length > 0 && (
+                      <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-3">
+                        <h4 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-2">Upsell Opportunities</h4>
+                        <div className="space-y-1.5">
+                          {scorecard.ai_upsell_opportunities.map((s, i) => (
+                            <p key={i} className="text-xs text-gray-300 flex items-start gap-1.5">
+                              <DollarSign className="w-3 h-3 shrink-0 mt-0.5 text-purple-500" />
+                              {s}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Client Health */}
+                    {scorecard.ai_client_health_signals?.length > 0 && (
+                      <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3">
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Client Health Signals</h4>
+                        <div className="space-y-1.5">
+                          {scorecard.ai_client_health_signals.map((s, i) => (
+                            <p key={i} className="text-xs text-gray-300 flex items-start gap-1.5">
+                              <Thermometer className="w-3 h-3 shrink-0 mt-0.5 text-gray-500" />
+                              {s}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <BarChart3 className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                    <p className="text-sm text-gray-400">No scorecard yet</p>
+                    <p className="text-xs text-gray-600 mt-1">Complete the call and generate an AI summary to see your scorecard</p>
+                    <button
+                      onClick={handleGenerateAI}
+                      disabled={generatingAI}
+                      className="mt-4 px-4 py-2 bg-purple-600/20 border border-purple-500/30 rounded-lg text-xs font-semibold text-purple-400 hover:bg-purple-600/30 transition flex items-center gap-1.5 mx-auto"
+                    >
+                      {generatingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      {generatingAI ? 'Generating...' : 'Generate Now'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -824,6 +1444,26 @@ function InfoCard({ icon: Icon, label, value, color = 'default' }) {
         <span className="text-xs text-gray-500">{label}</span>
       </div>
       <p className="text-sm font-medium text-gray-200 truncate">{value}</p>
+    </div>
+  );
+}
+
+// Helper: Score card component for scorecard tab
+function ScoreCard({ label, score, suffix = '/10' }) {
+  if (score == null) return (
+    <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-2.5 text-center">
+      <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+      <p className="text-lg font-bold text-gray-600">--</p>
+    </div>
+  );
+  const numScore = parseFloat(score);
+  const color = suffix === '%'
+    ? (numScore >= 80 ? 'text-green-400' : numScore >= 50 ? 'text-yellow-400' : 'text-red-400')
+    : (numScore >= 8 ? 'text-green-400' : numScore >= 6 ? 'text-yellow-400' : 'text-red-400');
+  return (
+    <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-2.5 text-center">
+      <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+      <p className={`text-lg font-bold ${color}`}>{numScore}{suffix}</p>
     </div>
   );
 }
