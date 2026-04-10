@@ -210,18 +210,30 @@ export default function OnboardingWizard({ onComplete, previewMode = false }) {
                 Download Full NDA Document
               </a>
 
-              <div className="flex items-start gap-3 mb-6 p-4 bg-slate-700/20 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="nda-accept"
-                  checked={ndaAccepted}
-                  onChange={e => setNdaAccepted(e.target.checked)}
-                  className="mt-1 w-4 h-4 rounded accent-sky-500"
-                />
-                <label htmlFor="nda-accept" className="text-gray-300 text-sm cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setNdaAccepted(!ndaAccepted)}
+                className={`flex items-start gap-3 mb-6 p-4 rounded-lg w-full text-left transition-all cursor-pointer border-2 ${
+                  ndaAccepted
+                    ? 'bg-sky-500/10 border-sky-500'
+                    : 'bg-slate-700/20 border-slate-600/50 hover:border-slate-500'
+                }`}
+              >
+                <div className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-all ${
+                  ndaAccepted
+                    ? 'bg-sky-500 border-sky-500'
+                    : 'bg-slate-700 border-slate-500'
+                }`}>
+                  {ndaAccepted && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <span className="text-gray-300 text-sm">
                   I have read and agree to the Liftori AI Non-Disclosure Agreement. I understand that violation of this agreement may result in legal action including injunctive relief and liquidated damages.
-                </label>
-              </div>
+                </span>
+              </button>
 
               <div className="flex gap-3">
                 <button
@@ -239,6 +251,9 @@ export default function OnboardingWizard({ onComplete, previewMode = false }) {
                   <ArrowRight size={16} />
                 </button>
               </div>
+              {!ndaAccepted && (
+                <p className="text-amber-400/70 text-xs text-center mt-3">Check the agreement box above to continue</p>
+              )}
             </div>
           )}
 
@@ -276,18 +291,30 @@ export default function OnboardingWizard({ onComplete, previewMode = false }) {
                 Download Full 1099 Agreement
               </a>
 
-              <div className="flex items-start gap-3 mb-6 p-4 bg-slate-700/20 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="contract-accept"
-                  checked={contractAccepted}
-                  onChange={e => setContractAccepted(e.target.checked)}
-                  className="mt-1 w-4 h-4 rounded accent-sky-500"
-                />
-                <label htmlFor="contract-accept" className="text-gray-300 text-sm cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setContractAccepted(!contractAccepted)}
+                className={`flex items-start gap-3 mb-6 p-4 rounded-lg w-full text-left transition-all cursor-pointer border-2 ${
+                  contractAccepted
+                    ? 'bg-sky-500/10 border-sky-500'
+                    : 'bg-slate-700/20 border-slate-600/50 hover:border-slate-500'
+                }`}
+              >
+                <div className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-all ${
+                  contractAccepted
+                    ? 'bg-sky-500 border-sky-500'
+                    : 'bg-slate-700 border-slate-500'
+                }`}>
+                  {contractAccepted && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <span className="text-gray-300 text-sm">
                   I have read and agree to the Liftori AI Independent Contractor Agreement. I understand I am engaged as an independent contractor and am responsible for my own tax obligations.
-                </label>
-              </div>
+                </span>
+              </button>
 
               <div className="flex gap-3">
                 <button
