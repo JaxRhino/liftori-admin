@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { supabase } from '../lib/supabase'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -19,24 +18,17 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const { data } = await signIn(email, password)
-      // Fetch profile to determine role
-      if (data?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single()
-
-        const adminRoles = ['admin', 'dev', 'super_admin', 'sales_director', 'call_agent']
-        const isAdmin = adminRoles.includes(profile?.role)
-        navigate(redirectTo || (isAdmin ? '/admin' : '/portal'), { replace: true })
+      await signIn(email, password)
+      // AuthContext handles profile fetch + loading state.
+      // RootRedirect or the current route will handle navigation
+      // once loading clears and isAdmin is resolved.
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true })
       } else {
         navigate('/', { replace: true })
       }
     } catch (err) {
       setError(err.message || 'Invalid credentials')
-    } finally {
       setLoading(false)
     }
   }

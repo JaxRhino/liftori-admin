@@ -39,9 +39,12 @@ export function AuthProvider({ children }) {
         setUser(sessionUser)
         setToken(session?.access_token ?? null)
         const isInitial = event === 'INITIAL_SESSION'
+        const isSignIn = event === 'SIGNED_IN'
         if (sessionUser) {
-          // Pass isInitial so fetchProfile ends loading AFTER profile is set
-          fetchProfile(sessionUser.id, isInitial)
+          // On sign-in, set loading true so route guards wait for profile
+          if (isSignIn && !isInitial) setLoading(true)
+          // endLoading on both initial session and sign-in
+          fetchProfile(sessionUser.id, isInitial || isSignIn)
         } else {
           setProfile(null)
           if (isInitial) setLoading(false)
