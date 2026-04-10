@@ -308,18 +308,32 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
     return () => clearInterval(intervalRef.current);
   }, [call?.started_at]);
 
+  // Quick hang up — immediately disconnects the Twilio call
+  const handleQuickHangup = () => {
+    hangupCall();
+    onEnd();
+    toast.success('Call ended');
+  };
+
   const handleEndCall = async () => {
     if (!disposition) {
       toast.error('Please select a disposition');
       return;
     }
     try {
-      await endCall(call.id, disposition, notes);
+      // Disconnect the Twilio call first
+      hangupCall();
+      // Log to DB if we have a database record
+      if (call.id && !call.isTwilio) {
+        await endCall(call.id, disposition, notes);
+      }
       toast.success('Call ended');
       setShowEndDialog(false);
       onEnd();
     } catch (err) {
-      toast.error('Failed to end call');
+      // Even if DB update fails, still clear the UI
+      onEnd();
+      toast.error('Call ended but failed to save disposition');
     }
   };
 
@@ -389,7 +403,7 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
           Transfer
         </Button>
         <Button
-          onClick={() => setShowEndDialog(true)}
+          onClick={handleQuickHangup}
           variant="destructive"
           className="flex items-center gap-2 ml-auto"
         >
