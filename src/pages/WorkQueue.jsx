@@ -28,7 +28,7 @@ export default function WorkQueue() {
   const { user, profile } = useAuth()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState({ status: 'open', type: '', priority: '' })
+  const [filter, setFilter] = useState({ status: '', type: '', priority: '' })
   const [selectedItem, setSelectedItem] = useState(null)
   const [stats, setStats] = useState({ open: 0, in_progress: 0, resolved: 0, total: 0 })
 
@@ -79,8 +79,27 @@ export default function WorkQueue() {
       if (newStatus === 'in_progress') updates.assigned_to = user.id
       if (newStatus === 'resolved' || newStatus === 'closed') updates.resolved_at = new Date().toISOString()
 
+      // Find the item to get reporter info
+      const item = items.find(i => i.id === id) || selectedItem
+
       const { error } = await supabase.from('work_queue').update(updates).eq('id', id)
       if (error) throw error
+
+      // Notify the reporter about the status change
+      if (item?.reported_by) {
+        const statusLabel = STATUS_OPTIONS.find(s => s.value === newStatus)?.label || newStatus
+        const typeLabel = item.type === 'bug' ? 'Bug Report' : item.type === 'feature' ? 'Feature Request' : 'Feedback'
+
+        await supabase.from('notifications').insert({
+          user_id: item.reported_by,
+          type: 'project_update',
+          title: `${typeLabel} updated: ${statusLabel}`,
+          body: `"${item.title}" has been moved to ${statusLabel} by ${profile?.full_name || 'a team member'}`,
+          link: '/admin/work-queue',
+          read: false,
+        })
+      }
+
       toast.success(`Status updated to ${newStatus.replace('_', ' ')}`)
       fetchItems()
       if (selectedItem?.id === id) setSelectedItem({ ...selectedItem, ...updates })
