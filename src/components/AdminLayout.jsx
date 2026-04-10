@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import NotificationBell from './NotificationBell'
 import IncomingCallModal from './IncomingCallModal'
 import VideoCallRoom from './VideoCallRoom'
+import OnboardingWizard from './OnboardingWizard'
 
 const freightNavItems = [
   {
@@ -423,9 +424,21 @@ export default function AdminLayout() {
   const isCommsRoute = location.pathname.startsWith('/admin/comms')
   const [commsOpen, setCommsOpen] = useState(isCommsRoute)
 
+  // Onboarding gate — non-admin, non-customer users must complete onboarding first
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
+  const needsOnboarding = profile &&
+    profile.role !== 'admin' &&
+    profile.role !== 'customer' &&
+    !profile.onboarding_complete &&
+    !onboardingDismissed
+
   async function handleSignOut() {
     await signOut()
     navigate('/login', { replace: true })
+  }
+
+  if (needsOnboarding) {
+    return <OnboardingWizard onComplete={() => setOnboardingDismissed(true)} />
   }
 
   return (
