@@ -1,8 +1,8 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import React, { useState, useEffect, useRef } from 'react'
-import NotificationBell from './NotificationBell'
 import IncomingCallModal from './IncomingCallModal'
+import GlobalHeader from './GlobalHeader'
 import VideoCallRoom from './VideoCallRoom'
 import OnboardingWizard from './OnboardingWizard'
 
@@ -185,6 +185,13 @@ const opsItems = [
     label: 'Team', path: '/admin/team', icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Work Queue', path: '/admin/work-queue', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0112 12.75zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 01-1.152-6.135 1.125 1.125 0 00-1.14-1.068l-.738.004c-.532.003-1.072-.095-1.551-.348-.354-.186-.752-.28-1.126-.28h-1c-.374 0-.772.094-1.126.28-.479.253-1.02.351-1.551.348l-.738-.004a1.125 1.125 0 00-1.14 1.068 23.91 23.91 0 01-1.152 6.135C9.353 13.258 12.117 12.75 12 12.75z" />
       </svg>
     )
   },
@@ -407,7 +414,7 @@ export default function AdminLayout() {
   const [salesHubOpen, setSalesHubOpen] = useState(isSalesHubRoute)
   const isLeadHunterRoute = location.pathname.startsWith('/admin/lead-hunter')
   const [leadHunterOpen, setLeadHunterOpen] = useState(isLeadHunterRoute)
-  const isOpsRoute = ['/admin/ops-dashboard', '/admin/wizard', '/admin/affiliates', '/admin/discount-codes', '/admin/plans', '/admin/team'].some(p => location.pathname.startsWith(p))
+  const isOpsRoute = ['/admin/ops-dashboard', '/admin/wizard', '/admin/affiliates', '/admin/discount-codes', '/admin/plans', '/admin/team', '/admin/work-queue'].some(p => location.pathname.startsWith(p))
   const [opsOpen, setOpsOpen] = useState(isOpsRoute)
   const isMarketingRoute = location.pathname.startsWith('/admin/marketing')
   const [marketingOpen, setMarketingOpen] = useState(isMarketingRoute)
@@ -897,33 +904,17 @@ export default function AdminLayout() {
           </div>
         </nav>
 
-        {/* User */}
-        <div className="p-3 border-t border-navy-700/50">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blue text-sm font-bold flex-shrink-0">
-              {(profile?.full_name || user?.email || '?')[0].toUpperCase()}
-            </div>
-            {sidebarOpen && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
-                  {profile?.full_name || user?.email}
-                </p>
-                <button onClick={handleSignOut} className="text-xs text-gray-500 hover:text-red-400 transition-colors">
-                  Sign out
-                </button>
-              </div>
-            )}
-            <NotificationBell />
-          </div>
-        </div>
       </aside>
 
-      {/* Main content */}
-      <main ref={mainRef} className="flex-1 overflow-auto bg-navy-950">
-        <div className="p-0">
-          <Outlet context={{ sidebarOpen }} />
-        </div>
-      </main>
+      {/* Main content area with global header */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <GlobalHeader />
+        <main ref={mainRef} className="flex-1 overflow-auto bg-navy-950">
+          <div className="p-0">
+            <Outlet context={{ sidebarOpen }} />
+          </div>
+        </main>
+      </div>
 
       {/* Global video call overlays */}
       <IncomingCallModal />
