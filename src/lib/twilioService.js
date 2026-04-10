@@ -193,6 +193,35 @@ export async function makeOutboundCall(toNumber, agentId, callerId, department =
   return call;
 }
 
+// Internal extension call — browser-to-browser via Twilio Client identity
+export async function callExtension(targetIdentity, agentId) {
+  if (!device) throw new Error('Twilio device not initialized');
+
+  const call = await device.connect({
+    params: {
+      outbound: 'true',
+      toNumber: `client:${targetIdentity}`,
+      agentId: agentId || '',
+      callerId: '+19044428970',
+      department: 'internal',
+    },
+  });
+
+  activeConnection = call;
+
+  call.on('accept', () => emit('callStarted', { callSid: call.parameters?.CallSid }));
+  call.on('disconnect', () => {
+    activeConnection = null;
+    emit('callEnded', { callSid: call.parameters?.CallSid });
+  });
+  call.on('cancel', () => {
+    activeConnection = null;
+    emit('callEnded', { callSid: call.parameters?.CallSid });
+  });
+
+  return call;
+}
+
 export function acceptIncomingCall() {
   if (activeConnection && typeof activeConnection.accept === 'function') {
     activeConnection.accept();

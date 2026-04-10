@@ -36,6 +36,7 @@ import {
   initializeTwilioDevice,
   destroyTwilioDevice,
   makeOutboundCall,
+  callExtension,
   acceptIncomingCall,
   rejectIncomingCall,
   hangupCall,
@@ -1550,12 +1551,29 @@ function VoicemailInbox({ userId }) {
 // PHONE DIALER MODAL
 // ═══════════════════════════════════════════════════════════════
 
-function PhoneDialerModal({ open, onOpenChange, onCall }) {
+function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioReady }) {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [recentCalls] = useState([
-    { number: '+1 (555) 123-4567', name: 'John Smith' },
-    { number: '+1 (555) 234-5678', name: 'Jane Doe' },
-  ]);
+  const [tab, setTab] = useState('dialer'); // 'dialer' | 'team'
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
+
+  useEffect(() => {
+    if (open && tab === 'team' && teamMembers.length === 0) {
+      loadTeam();
+    }
+  }, [open, tab]);
+
+  const loadTeam = async () => {
+    setLoadingTeam(true);
+    try {
+      const agents = await fetchAgents();
+      setTeamMembers(agents);
+    } catch (err) {
+      console.error('Error loading team:', err);
+    } finally {
+      setLoadingTeam(false);
+    }
+  };
 
   const handleDialerClick = (digit) => {
     setPhoneNumber(prev => prev + digit);
@@ -1575,93 +1593,163 @@ function PhoneDialerModal({ open, onOpenChange, onCall }) {
     onOpenChange(false);
   };
 
+  const handleCallTeamMember = (agent) => {
+    const identity = agent.twilio_client_identity || `agent_${agent.user_id}`;
+    if (onCallExtension) {
+      onCallExtension(identity, agent.profile?.full_name || agent.display_name || 'Team Member');
+    }
+    onOpenChange(false);
+  };
+
+  const getTeamStatusColor = (status) => {
+    if (status === 'available') return 'bg-green-400';
+    if (status === 'on_call' || status === 'busy') return 'bg-yellow-400';
+    return 'bg-gray-500';
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-slate-900 border-slate-700 max-w-sm">
         <DialogHeader>
-          <DialogTitle className="text-white">Phone Dialer</DialogTitle>
+          <DialogTitle className="text-white">Phone</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <Input
-            type="tel"
-            value={phoneNumber}
-            placeholder="Enter number..."
-            className="bg-slate-800 border-slate-600 text-white text-center text-lg font-mono"
-            readOnly
-          />
+        {/* Tab Switcher */}
+        <div className="flex border-b border-slate-700 mb-2">
+          <button
+            onClick={() => setTab('dialer')}
+            className={`flex-1 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'dialer' ? 'border-sky-500 text-sky-400' : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            <Phone size={14} className="inline mr-1" /> Dialer
+          </button>
+          <button
+            onClick={() => { setTab('team'); if (teamMembers.length === 0) loadTeam(); }}
+            className={`flex-1 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'team' ? 'border-sky-500 text-sky-400' : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            <Users size={14} className="inline mr-1" /> Team
+          </button>
+        </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+        {tab === 'dialer' && (
+          <div className="space-y-4">
+            <Input
+              type="tel"
+              value={phoneNumber}
+              placeholder="Enter number..."
+              className="bg-slate-800 border-slate-600 text-white text-center text-lg font-mono"
+              readOnly
+            />
+
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => handleDialerClick(String(num))}
+                  className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
+                >
+                  {num}
+                </button>
+              ))}
               <button
-                key={num}
-                onClick={() => handleDialerClick(String(num))}
+                onClick={() => handleDialerClick('*')}
                 className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
               >
-                {num}
+                *
               </button>
-            ))}
-            <button
-              onClick={() => handleDialerClick('*')}
-              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
-            >
-              *
-            </button>
-            <button
-              onClick={() => handleDialerClick('0')}
-              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
-            >
-              0
-            </button>
-            <button
-              onClick={() => handleDialerClick('#')}
-              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
-            >
-              #
-            </button>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              onClick={handleBackspace}
-              variant="outline"
-              className="flex-1"
-            >
-              Backspace
-            </Button>
-            <Button
-              onClick={handleCall}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2"
-            >
-              <Phone size={16} />
-              Call
-            </Button>
-          </div>
-
-          {recentCalls.length > 0 && (
-            <div>
-              <p className="text-gray-400 text-sm font-medium mb-2">Recent Calls</p>
-              <div className="space-y-1">
-                {recentCalls.map((call, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setPhoneNumber(call.number);
-                      onCall(call.number);
-                      setPhoneNumber('');
-                      onOpenChange(false);
-                    }}
-                    className="w-full text-left px-3 py-2 rounded hover:bg-slate-800 text-gray-300 text-sm"
-                  >
-                    {call.name}
-                    <br />
-                    <span className="text-gray-500 text-xs font-mono">{call.number}</span>
-                  </button>
-                ))}
-              </div>
+              <button
+                onClick={() => handleDialerClick('0')}
+                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
+              >
+                0
+              </button>
+              <button
+                onClick={() => handleDialerClick('#')}
+                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
+              >
+                #
+              </button>
             </div>
-          )}
-        </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleBackspace} variant="outline" className="flex-1">
+                Backspace
+              </Button>
+              <Button
+                onClick={handleCall}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2"
+              >
+                <Phone size={16} />
+                Call
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {tab === 'team' && (
+          <div className="space-y-2">
+            {!twilioReady && (
+              <div className="bg-yellow-900/30 border border-yellow-500/30 rounded-lg p-3 text-yellow-400 text-xs mb-2">
+                Go Active first to make internal calls
+              </div>
+            )}
+            {loadingTeam ? (
+              <p className="text-gray-400 text-center py-6">Loading team...</p>
+            ) : teamMembers.length === 0 ? (
+              <p className="text-gray-400 text-center py-6">No team members found</p>
+            ) : (
+              teamMembers.map((agent) => {
+                const name = agent.profile?.full_name || agent.display_name || 'Unknown';
+                const avatar = agent.profile?.avatar_url;
+                const role = agent.profile?.role;
+                const roleLabel = role === 'super_admin' ? 'Admin' : role === 'sales_director' ? 'Sales Director' : role === 'call_agent' ? 'Call Agent' : role || '';
+                const isOnline = agent.status === 'available' || agent.status === 'on_call' || agent.status === 'busy';
+
+                return (
+                  <div
+                    key={agent.id}
+                    className="flex items-center gap-3 bg-slate-800/60 border border-slate-700 rounded-lg p-3 hover:bg-slate-700/40 transition-colors"
+                  >
+                    <div className="relative">
+                      {avatar ? (
+                        <img src={avatar} alt={name} className="w-10 h-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-slate-600 flex items-center justify-center text-sm text-gray-300 font-bold">
+                          {name.charAt(0)}
+                        </div>
+                      )}
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${getTeamStatusColor(agent.status)}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium text-sm truncate">{name}</p>
+                      <p className="text-gray-500 text-xs">{roleLabel}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs ${isOnline ? 'text-green-400' : 'text-gray-500'}`}>
+                        {agent.status === 'available' ? 'Available' : agent.status === 'on_call' ? 'On Call' : agent.status === 'busy' ? 'Busy' : 'Offline'}
+                      </span>
+                      <Button
+                        onClick={() => handleCallTeamMember(agent)}
+                        disabled={!twilioReady || !isOnline}
+                        size="sm"
+                        className={`${
+                          twilioReady && isOnline
+                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                            : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        <Phone size={14} />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -2425,6 +2513,23 @@ export default function CallCenter() {
         open={showDialer}
         onOpenChange={setShowDialer}
         onCall={handlePhoneCall}
+        onCallExtension={async (identity, name) => {
+          try {
+            await callExtension(identity, user.id);
+            setActiveCall({
+              isTwilio: true,
+              direction: 'outbound',
+              caller_name: name,
+              caller_number: 'Internal',
+              status: 'in_progress',
+              started_at: new Date().toISOString(),
+            });
+            toast.success('Calling ' + name);
+          } catch (err) {
+            toast.error('Failed to call: ' + err.message);
+          }
+        }}
+        twilioReady={twilioReady}
       />
 
       <Dialog open={showTestCall} onOpenChange={setShowTestCall}>
