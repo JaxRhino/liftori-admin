@@ -317,7 +317,9 @@ function CallDetailModal({ call, onClose, agents }) {
         {call.summary && (
           <div className="px-6 py-4 border-t border-slate-800">
             <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-2">AI Summary</p>
-            <p className="text-gray-300 text-sm leading-relaxed">{call.summary}</p>
+            <p className="text-gray-300 text-sm leading-relaxed">
+              {call.summary.replace(/\*\*/g, '').replace(/#{1,3}\s/g, '').replace(/^(Summary:|Call Summary:)\s*/i, '')}
+            </p>
           </div>
         )}
       </div>
@@ -537,7 +539,7 @@ export default function AICallCenterDashboard() {
                         {call.duration > 0 && (
                           <span className="flex items-center gap-1"><Timer className="h-3 w-3" /> {formatDuration(call.duration)}</span>
                         )}
-                        {call.summary && <span className="truncate max-w-[200px] text-gray-400">{call.summary}</span>}
+                        {call.summary && <span className="truncate max-w-[200px] text-gray-400">{call.summary.replace(/\*\*/g, '').replace(/#{1,3}\s/g, '').replace(/^(Summary:|Call Summary:)\s*/i, '')}</span>}
                       </div>
                     </div>
                     {call.outcome && (
