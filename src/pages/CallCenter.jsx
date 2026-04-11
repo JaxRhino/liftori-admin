@@ -2136,6 +2136,7 @@ export default function CallCenter() {
   const [showDialer, setShowDialer] = useState(false);
   const [showTestCall, setShowTestCall] = useState(false);
   const [rosterRefreshTick, setRosterRefreshTick] = useState(0);
+  const [unreadVoicemailCount, setUnreadVoicemailCount] = useState(0);
 
   // Video call outbound state
   const [showVideoLink, setShowVideoLink] = useState(false);
@@ -2175,8 +2176,12 @@ export default function CallCenter() {
           setAgentStatus(existingAgent.status);
         }
 
-        // Load initial data
+        // Load initial data + voicemail count
         await loadDashboardData();
+        try {
+          const { count } = await supabase.from('cc_voicemails').select('id', { count: 'exact', head: true }).eq('is_read', false).neq('status', 'archived');
+          setUnreadVoicemailCount(count || 0);
+        } catch (e) { /* voicemail table may not exist yet */ }
         setLoading(false);
       } catch (err) {
         console.error('Failed to initialize agent:', err);
@@ -2612,6 +2617,20 @@ export default function CallCenter() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Voicemail button with notification badge */}
+            <button
+              onClick={() => window.open('/admin/voicemails', '_blank')}
+              className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-slate-700 transition-colors"
+              title="Voicemails"
+            >
+              <Voicemail size={20} />
+              {unreadVoicemailCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {unreadVoicemailCount > 9 ? '9+' : unreadVoicemailCount}
+                </span>
+              )}
+            </button>
+
             <Button
               onClick={handleToggleStatus}
               className={`flex items-center gap-2 ${
@@ -2717,9 +2736,6 @@ export default function CallCenter() {
           />
         </div>
 
-        {/* AGENT ROSTER */}
-        <AgentRosterPanel refreshTick={rosterRefreshTick} />
-
         {/* Incoming call popup is now handled globally by GlobalPhoneCallPopup in AdminLayout */}
 
         {/* ACTIVE CALL OR INCOMING CALLS */}
@@ -2780,11 +2796,7 @@ export default function CallCenter() {
         {/* SCHEDULED CALLS — Leadership assigns calls */}
         <ScheduledCallsSection userId={user?.id} />
 
-        {/* AGENT AVAILABILITY */}
-        <AgentAvailabilitySection />
-
-        {/* VOICEMAIL INBOX */}
-        <VoicemailInbox userId={user?.id} />
+        {/* Agent Roster, Availability, and Voicemails now have their own pages under Call Center dropdown */}
       </div>
 
       {/* MODALS */}

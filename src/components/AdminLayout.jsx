@@ -388,13 +388,6 @@ const navItems = [
     )
   },
   {
-    label: 'Call Lists', path: '/admin/call-lists', icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-      </svg>
-    )
-  },
-  {
     label: 'Marketing', path: '/admin/marketing', icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" />
@@ -491,6 +484,8 @@ export default function AdminLayout() {
     if (mainRef.current) mainRef.current.scrollTop = 0
   }, [location.pathname])
 
+  const isCallCenterRoute = ['/admin/call-center', '/admin/call-lists', '/admin/cc-team', '/admin/voicemails'].some(p => location.pathname.startsWith(p))
+  const [callCenterOpen, setCallCenterOpen] = useState(isCallCenterRoute)
   const isSalesHubRoute = ['/admin/customers', '/admin/projects', '/admin/pipeline', '/admin/platforms', '/admin/lead-hunter', '/admin/estimates', '/admin/agreements', '/admin/commissions', '/admin/waitlist', '/admin/consulting', '/admin/sales-call'].some(p => location.pathname.startsWith(p))
   const [salesHubOpen, setSalesHubOpen] = useState(isSalesHubRoute)
   const isLeadHunterRoute = location.pathname.startsWith('/admin/lead-hunter')
@@ -551,23 +546,24 @@ export default function AdminLayout() {
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
           {visibleNavItems.map((item, idx) => (
             <React.Fragment key={item.path}>
-              {['Marketing', 'EOS', 'Finance', 'Communications'].includes(item.label) ? (
+              {['Call Center', 'Marketing', 'EOS', 'Finance', 'Communications'].includes(item.label) ? (
                 <button
                   onClick={() => {
-                    if (item.label === 'Marketing') { if (sidebarOpen) setMarketingOpen(o => !o); else navigate('/admin/marketing'); }
+                    if (item.label === 'Call Center') { if (sidebarOpen) setCallCenterOpen(o => !o); else navigate('/admin/call-center'); }
+                    else if (item.label === 'Marketing') { if (sidebarOpen) setMarketingOpen(o => !o); else navigate('/admin/marketing'); }
                     else if (item.label === 'EOS') { if (sidebarOpen) setEosOpen(o => !o); else navigate('/admin/eos'); }
                     else if (item.label === 'Finance') { if (sidebarOpen) setFinanceOpen(o => !o); else navigate('/admin/finance'); }
                     else if (item.label === 'Communications') { if (sidebarOpen) setCommsOpen(o => !o); else navigate('/admin/comms'); }
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${(item.label === 'Marketing' && isMarketingRoute) || (item.label === 'EOS' && isEOSRoute) || (item.label === 'Finance' && isFinanceRoute) || (item.label === 'Communications' && isCommsRoute)
+                    ${(item.label === 'Call Center' && isCallCenterRoute) || (item.label === 'Marketing' && isMarketingRoute) || (item.label === 'EOS' && isEOSRoute) || (item.label === 'Finance' && isFinanceRoute) || (item.label === 'Communications' && isCommsRoute)
                       ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}>
                   {item.icon}
                   {sidebarOpen && (
                     <>
                       <span className="flex-1 text-left">{item.label}</span>
                       <svg className={`w-4 h-4 transition-transform ${
-                        (item.label === 'Marketing' && marketingOpen) || (item.label === 'EOS' && eosOpen) || (item.label === 'Finance' && financeOpen) || (item.label === 'Communications' && commsOpen) ? 'rotate-180' : ''
+                        (item.label === 'Call Center' && callCenterOpen) || (item.label === 'Marketing' && marketingOpen) || (item.label === 'EOS' && eosOpen) || (item.label === 'Finance' && financeOpen) || (item.label === 'Communications' && commsOpen) ? 'rotate-180' : ''
                       }`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                       </svg>
@@ -575,33 +571,57 @@ export default function AdminLayout() {
                   )}
                 </button>
               ) : (
-              <div className="flex items-center group">
-                <NavLink to={item.path} end={item.path === '/admin'}
-                  className={({ isActive }) =>
-                    `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
-                      ? 'bg-brand-blue/10 text-brand-blue'
-                      : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
-                    }`
-                  }>
-                  {item.icon}
-                  {sidebarOpen && <span>{item.label}</span>}
-                </NavLink>
-                {item.label === 'Call Center' && sidebarOpen && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open('/admin/call-center', 'liftori-call-center', 'width=1400,height=900,menubar=no,toolbar=no,location=no,status=no');
-                    }}
-                    title="Open in new window"
-                    className="p-1.5 mr-1 rounded text-gray-500 hover:text-white hover:bg-navy-700/50 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                    </svg>
-                  </button>
-                )}
-              </div>
+              <NavLink to={item.path} end={item.path === '/admin'}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
+                    ? 'bg-brand-blue/10 text-brand-blue'
+                    : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
+                  }`
+                }>
+                {item.icon}
+                {sidebarOpen && <span>{item.label}</span>}
+              </NavLink>
               )}
+
+              {/* Call Center dropdown sub-nav */}
+              {item.label === 'Call Center' && (<>
+                {sidebarOpen && callCenterOpen && (
+                  <div className="ml-3 pl-3 border-l border-white/10 mt-1 space-y-0.5">
+                    {[
+                      { label: 'Control Panel', path: '/admin/call-center' },
+                      { label: 'Team', path: '/admin/cc-team' },
+                      { label: 'Call Lists', path: '/admin/call-lists' },
+                      { label: 'Voicemails', path: '/admin/voicemails' },
+                    ].map(sub => (
+                      <div key={sub.path} className="flex items-center group">
+                        <NavLink to={sub.path} end
+                          className={({ isActive }) =>
+                            `flex-1 flex items-center gap-2.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors ${isActive
+                              ? 'bg-brand-blue/10 text-brand-blue'
+                              : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
+                            }`
+                          }>
+                          <span>{sub.label}</span>
+                        </NavLink>
+                        {sub.label === 'Control Panel' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open('/admin/call-center', 'liftori-call-center', 'width=1400,height=900,menubar=no,toolbar=no,location=no,status=no');
+                            }}
+                            title="Open in new window"
+                            className="p-1 rounded text-gray-500 hover:text-white hover:bg-navy-700/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>)}
 
               {/* Marketing Hub sub-nav */}
               {item.label === 'Marketing' && (<>

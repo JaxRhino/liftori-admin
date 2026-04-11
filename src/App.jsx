@@ -39,6 +39,8 @@ import PortalProject from './pages/portal/PortalProject'
 import Settings from './pages/Settings'
 import ComingSoon from './pages/ComingSoon'
 import CallCenter from './pages/CallCenter'
+import CallCenterTeam from './pages/CallCenterTeam'
+import CallCenterVoicemails from './pages/CallCenterVoicemails'
 import CallLists from './pages/CallLists'
 import InHouseBuilds from './pages/InHouseBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
@@ -187,7 +189,9 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="super-admin" element={<SuperAdmin />} />
             <Route path="call-center" element={<CallCenter />} />
+            <Route path="cc-team" element={<CallCenterTeam />} />
             <Route path="call-lists" element={<CallLists />} />
+            <Route path="voicemails" element={<CallCenterVoicemails />} />
             <Route path="projects" element={<Projects />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="waitlist" element={<Waitlist />} />
