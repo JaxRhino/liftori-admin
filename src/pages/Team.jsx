@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { Users, Shield, Key, Clock, Plus, Search, MoreVertical, Check, X, Mail, Trash2, Edit2, ChevronDown, UserPlus, FileText, Download, Eye, CheckCircle2, Circle, AlertCircle, Play } from 'lucide-react';
+import { Users, Shield, Key, Clock, Plus, Search, MoreVertical, Check, X, Mail, Trash2, Edit2, ChevronDown, UserPlus, FileText, Download, Eye, CheckCircle2, Circle, AlertCircle, Play, Layers } from 'lucide-react';
 import OnboardingWizard from '../components/OnboardingWizard';
 
 // ─── Default Roles & Permissions ─────────────────────────────────────────────
@@ -207,8 +207,19 @@ export default function Team() {
   const [actionMenuId, setActionMenuId] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
 
+  // Teams state
+  const [teams, setTeams] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
+  const [teamForm, setTeamForm] = useState({ name: '', description: '', color: 'bg-sky-500' });
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [expandedTeam, setExpandedTeam] = useState(null);
+  const [addMemberTeamId, setAddMemberTeamId] = useState(null);
+  const [editingTeam, setEditingTeam] = useState(null);
+
   const TABS = [
     { id: 'members', label: 'Members', icon: Users },
+    { id: 'teams', label: 'Teams', icon: Layers },
     { id: 'onboarding', label: 'Onboarding', icon: UserPlus },
     { id: 'roles', label: 'Roles', icon: Shield },
     { id: 'permissions', label: 'Permissions', icon: Key },
@@ -223,7 +234,7 @@ export default function Team() {
   async function fetchAll() {
     setLoading(true);
     try {
-      await Promise.all([fetchMembers(), fetchRoles(), fetchActivity(), fetchOnboarding()]);
+      await Promise.all([fetchMembers(), fetchRoles(), fetchActivity(), fetchOnboarding(), fetchTeams()]);
     } finally {
       setLoading(false);
     }
@@ -309,6 +320,140 @@ export default function Team() {
       console.error('Error fetching onboarding:', err);
       setOnboardingRecords([]);
     }
+  }
+
+  // ─── Teams Fetching ─────────────────────────────────────────────────────
+  async function fetchTeams() {
+    try {
+      const [teamsRes, membersRes] = await Promise.all([
+        supabase.from('teams').select('*').order('created_at', { ascending: true }),
+        supabase.from('team_members').select('*').order('created_at', { ascending: true }),
+      ]);
+      if (teamsRes.error) {
+        if (teamsRes.error.code === '42P01') { setTeams([]); setTeamMembers([]); return; }
+        throw teamsRes.error;
+      }
+      setTeams(teamsRes.data || []);
+      setTeamMembers(membersRes.data || []);
+    } catch (err) {
+      console.error('Error fetching teams:', err);
+      setTeams([]);
+      setTeamMembers([]);
+    }
+  }
+
+  async function handleCreateTeam(e) {
+    e.preventDefault();
+    if (!teamForm.name.trim()) return;
+    setCreatingTeam(true);
+    try {
+      const { error } = await supabase.from('teams').insert({
+        name: teamForm.name.trim(),
+        description: teamForm.description.trim() || null,
+        color: teamForm.color,
+        created_by: user?.id,
+      });
+      if (error) throw error;
+      await logActivity('team_created', teamForm.name.trim());
+      showToast(`Team "${teamForm.name.trim()}" created`, 'success');
+      setShowCreateTeamModal(false);
+      setTeamForm({ name: '', description: '', color: 'bg-sky-500' });
+      fetchTeams();
+      fetchActivity();
+    } catch (err) {
+      console.error('Error creating team:', err);
+      showToast(err.message?.includes('unique') ? 'A team with that name already exists' : 'Failed to create team', 'error');
+    } finally {
+      setCreatingTeam(false);
+    }
+  }
+
+  async function handleDeleteTeam(teamId, teamName) {
+    if (!window.confirm(`Delete "${teamName}"? All members will be removed from this team.`)) return;
+    try {
+      const { error } = await supabase.from('teams').delete().eq('id', teamId);
+      if (error) throw error;
+      await logActivity('team_deleted', teamName);
+      showToast(`Team "${teamName}" deleted`, 'success');
+      fetchTeams();
+      fetchActivity();
+    } catch (err) {
+      console.error('Error deleting team:', err);
+      showToast('Failed to delete team', 'error');
+    }
+  }
+
+  async function handleUpdateTeam(e) {
+    e.preventDefault();
+    if (!editingTeam) return;
+    try {
+      const { error } = await supabase.from('teams').update({
+        name: editingTeam.name.trim(),
+        description: editingTeam.description?.trim() || null,
+        color: editingTeam.color,
+        updated_at: new Date().toISOString(),
+      }).eq('id', editingTeam.id);
+      if (error) throw error;
+      showToast(`Team updated`, 'success');
+      setEditingTeam(null);
+      fetchTeams();
+    } catch (err) {
+      console.error('Error updating team:', err);
+      showToast('Failed to update team', 'error');
+    }
+  }
+
+  async function handleAddMemberToTeam(teamId, userId) {
+    try {
+      const { error } = await supabase.from('team_members').insert({
+        team_id: teamId,
+        user_id: userId,
+        added_by: user?.id,
+      });
+      if (error) throw error;
+      const memberName = members.find(m => m.id === userId)?.full_name || 'Member';
+      const teamName = teams.find(t => t.id === teamId)?.name || 'team';
+      await logActivity('team_member_added', `${memberName} to ${teamName}`);
+      showToast(`Added ${memberName} to ${teamName}`, 'success');
+      setAddMemberTeamId(null);
+      fetchTeams();
+      fetchActivity();
+    } catch (err) {
+      console.error('Error adding member:', err);
+      showToast(err.message?.includes('unique') ? 'Already a member of this team' : 'Failed to add member', 'error');
+    }
+  }
+
+  async function handleRemoveMemberFromTeam(teamId, userId) {
+    const memberName = members.find(m => m.id === userId)?.full_name || 'Member';
+    const teamName = teams.find(t => t.id === teamId)?.name || 'team';
+    if (!window.confirm(`Remove ${memberName} from ${teamName}?`)) return;
+    try {
+      const { error } = await supabase.from('team_members').delete().eq('team_id', teamId).eq('user_id', userId);
+      if (error) throw error;
+      await logActivity('team_member_removed', `${memberName} from ${teamName}`);
+      showToast(`Removed ${memberName} from ${teamName}`, 'success');
+      fetchTeams();
+      fetchActivity();
+    } catch (err) {
+      console.error('Error removing member:', err);
+      showToast('Failed to remove member', 'error');
+    }
+  }
+
+  function getTeamMembers(teamId) {
+    const memberIds = teamMembers.filter(tm => tm.team_id === teamId).map(tm => tm.user_id);
+    return members.filter(m => memberIds.includes(m.id));
+  }
+
+  function getAvailableMembers(teamId) {
+    const memberIds = teamMembers.filter(tm => tm.team_id === teamId).map(tm => tm.user_id);
+    return members.filter(m => !memberIds.includes(m.id));
+  }
+
+  function getMemberTeams(userId) {
+    const teamIds = teamMembers.filter(tm => tm.user_id === userId).map(tm => tm.team_id);
+    return teams.filter(t => teamIds.includes(t.id));
   }
 
   // Onboarding checklist steps
@@ -607,7 +752,7 @@ export default function Team() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Team Management</h1>
-          <p className="text-gray-400 text-sm mt-1">{members.length} team member{members.length !== 1 ? 's' : ''} across {roles.length} role{roles.length !== 1 ? 's' : ''}</p>
+          <p className="text-gray-400 text-sm mt-1">{members.length} member{members.length !== 1 ? 's' : ''} across {teams.length} team{teams.length !== 1 ? 's' : ''} and {roles.length} role{roles.length !== 1 ? 's' : ''}</p>
         </div>
         {activeTab === 'members' && (
           <button
@@ -625,6 +770,15 @@ export default function Team() {
           >
             <UserPlus size={16} />
             Onboard New Member
+          </button>
+        )}
+        {activeTab === 'teams' && (
+          <button
+            onClick={() => setShowCreateTeamModal(true)}
+            className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+          >
+            <Plus size={16} />
+            Create Team
           </button>
         )}
         {activeTab === 'roles' && (
@@ -697,6 +851,13 @@ export default function Team() {
                         <div>
                           <p className="text-white text-sm font-medium">{member.full_name || 'Unnamed'}</p>
                           <p className="text-gray-500 text-xs">{member.email}</p>
+                          {getMemberTeams(member.id).length > 0 && (
+                            <div className="flex gap-1 mt-1">
+                              {getMemberTeams(member.id).map(t => (
+                                <span key={t.id} className={`text-[10px] px-1.5 py-0.5 rounded ${t.color} text-white`}>{t.name}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -763,6 +924,153 @@ export default function Team() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ═══ TEAMS TAB ═══ */}
+      {activeTab === 'teams' && (
+        <div>
+          {teams.length === 0 ? (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-12 text-center">
+              <Layers size={48} className="mx-auto mb-4 text-gray-600" />
+              <p className="text-gray-400 text-lg font-medium">No teams yet</p>
+              <p className="text-gray-500 text-sm mt-1 mb-4">Create named teams like "Sales", "Consulting", or "Development" and assign members</p>
+              <button
+                onClick={() => setShowCreateTeamModal(true)}
+                className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+              >
+                <Plus size={16} />
+                Create Your First Team
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {teams.map(team => {
+                const teamMembersList = getTeamMembers(team.id);
+                const available = getAvailableMembers(team.id);
+                const isExpanded = expandedTeam === team.id;
+                return (
+                  <div key={team.id} className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
+                    {/* Team Header */}
+                    <div
+                      className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-slate-700/20 transition"
+                      onClick={() => setExpandedTeam(isExpanded ? null : team.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg ${team.color} flex items-center justify-center`}>
+                          <Layers size={20} className="text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-white font-semibold text-base">{team.name}</h3>
+                          {team.description && <p className="text-gray-500 text-xs mt-0.5">{team.description}</p>}
+                        </div>
+                        <span className="ml-2 bg-slate-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">{teamMembersList.length} member{teamMembersList.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingTeam({ ...team }); }}
+                          className="text-gray-400 hover:text-white p-1.5 rounded transition"
+                          title="Edit team"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteTeam(team.id, team.name); }}
+                          className="text-gray-400 hover:text-red-400 p-1.5 rounded transition"
+                          title="Delete team"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <ChevronDown size={16} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </div>
+                    </div>
+
+                    {/* Expanded Content */}
+                    {isExpanded && (
+                      <div className="border-t border-slate-700/50 px-5 py-4">
+                        {/* Members list */}
+                        {teamMembersList.length === 0 ? (
+                          <p className="text-gray-500 text-sm mb-3">No members assigned yet</p>
+                        ) : (
+                          <div className="space-y-2 mb-4">
+                            {teamMembersList.map(member => {
+                              const roleObj = roles.find(r => r.name === member.role || r.name === member.title);
+                              return (
+                                <div key={member.id} className="flex items-center justify-between bg-slate-700/30 rounded-lg px-4 py-2.5">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 text-sm font-medium">
+                                      {(member.full_name || member.email || '?').charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <span className="text-white text-sm font-medium">{member.full_name || member.email}</span>
+                                      {member.title && <span className="text-gray-500 text-xs ml-2">{member.title}</span>}
+                                    </div>
+                                    {roleObj && (
+                                      <span className={`text-xs px-2 py-0.5 rounded-full ${roleObj.color || 'bg-slate-600'} text-white`}>{roleObj.name || member.role}</span>
+                                    )}
+                                    {!roleObj && member.role && member.role !== 'customer' && (
+                                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-600 text-gray-300">{member.role}</span>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => handleRemoveMemberFromTeam(team.id, member.id)}
+                                    className="text-gray-500 hover:text-red-400 p-1 rounded transition"
+                                    title="Remove from team"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Add member dropdown */}
+                        {addMemberTeamId === team.id ? (
+                          <div className="bg-slate-700/30 rounded-lg p-3">
+                            <p className="text-gray-400 text-xs font-medium mb-2">Add a team member:</p>
+                            {available.length === 0 ? (
+                              <p className="text-gray-500 text-sm">All team members are already in this team</p>
+                            ) : (
+                              <div className="space-y-1 max-h-48 overflow-y-auto">
+                                {available.map(m => (
+                                  <button
+                                    key={m.id}
+                                    onClick={() => handleAddMemberToTeam(team.id, m.id)}
+                                    className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-600/50 transition"
+                                  >
+                                    <div className="w-7 h-7 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 text-xs font-medium">
+                                      {(m.full_name || m.email || '?').charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="text-white text-sm">{m.full_name || m.email}</span>
+                                    <span className="text-gray-500 text-xs ml-auto">{m.role}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            <button
+                              onClick={() => setAddMemberTeamId(null)}
+                              className="mt-2 text-gray-400 hover:text-white text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setAddMemberTeamId(team.id)}
+                            className="flex items-center gap-2 text-sky-400 hover:text-sky-300 text-sm font-medium transition"
+                          >
+                            <Plus size={14} />
+                            Add Member
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -1328,6 +1636,125 @@ export default function Team() {
                 >
                   <UserPlus size={16} />
                   {onboarding ? 'Starting...' : 'Start Onboarding'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ═══ CREATE TEAM MODAL ═══ */}
+      {showCreateTeamModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowCreateTeamModal(false)}>
+          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-white mb-4">Create Team</h2>
+            <form onSubmit={handleCreateTeam} className="space-y-4">
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-1">Team Name</label>
+                <input
+                  type="text"
+                  value={teamForm.name}
+                  onChange={e => setTeamForm({ ...teamForm, name: e.target.value })}
+                  required
+                  placeholder="e.g. Sales Team, Consulting"
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-1">Description</label>
+                <textarea
+                  value={teamForm.description}
+                  onChange={e => setTeamForm({ ...teamForm, description: e.target.value })}
+                  placeholder="What does this team do?"
+                  rows={2}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-1">Color</label>
+                <div className="flex gap-2">
+                  {['bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'].map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setTeamForm({ ...teamForm, color: c })}
+                      className={`w-8 h-8 rounded-full ${c} transition ${teamForm.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : 'opacity-50 hover:opacity-100'}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateTeamModal(false)}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingTeam}
+                  className="flex-1 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2"
+                >
+                  <Layers size={16} />
+                  {creatingTeam ? 'Creating...' : 'Create Team'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ EDIT TEAM MODAL ═══ */}
+      {editingTeam && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setEditingTeam(null)}>
+          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-white mb-4">Edit Team</h2>
+            <form onSubmit={handleUpdateTeam} className="space-y-4">
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-1">Team Name</label>
+                <input
+                  type="text"
+                  value={editingTeam.name}
+                  onChange={e => setEditingTeam({ ...editingTeam, name: e.target.value })}
+                  required
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-1">Description</label>
+                <textarea
+                  value={editingTeam.description || ''}
+                  onChange={e => setEditingTeam({ ...editingTeam, description: e.target.value })}
+                  rows={2}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-1">Color</label>
+                <div className="flex gap-2">
+                  {['bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'].map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setEditingTeam({ ...editingTeam, color: c })}
+                      className={`w-8 h-8 rounded-full ${c} transition ${editingTeam.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : 'opacity-50 hover:opacity-100'}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTeam(null)}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white py-2 rounded-lg text-sm font-medium transition"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>
