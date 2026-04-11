@@ -52,6 +52,7 @@ import {
   fetchSMSHistory,
 } from '../lib/twilioService';
 import { playIncomingAlert, stopIncomingAlert } from '../lib/callCenterAudio';
+import AICallCenterDashboard from '../components/AICallCenterDashboard';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -2795,6 +2796,9 @@ export default function CallCenter() {
 
         {/* SCHEDULED CALLS — Leadership assigns calls */}
         <ScheduledCallsSection userId={user?.id} />
+
+        {/* AI CALL CENTER — AI agents, recordings, outcomes, call metrics */}
+        <AICallCenterDashboard />
 
         {/* Agent Roster, Availability, and Voicemails now have their own pages under Call Center dropdown */}
       </div>
