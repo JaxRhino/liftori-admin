@@ -42,6 +42,7 @@ import CallCenter from './pages/CallCenter'
 import CallCenterTeam from './pages/CallCenterTeam'
 import CallCenterVoicemails from './pages/CallCenterVoicemails'
 import CallLists from './pages/CallLists'
+import AIAgents from './pages/AIAgents'
 import InHouseBuilds from './pages/InHouseBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import OpsDashboard from './pages/OpsDashboard'
@@ -192,6 +193,7 @@ export default function App() {
             <Route path="cc-team" element={<CallCenterTeam />} />
             <Route path="call-lists" element={<CallLists />} />
             <Route path="voicemails" element={<CallCenterVoicemails />} />
+            <Route path="ai-agents" element={<AIAgents />} />
             <Route path="projects" element={<Projects />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="waitlist" element={<Waitlist />} />

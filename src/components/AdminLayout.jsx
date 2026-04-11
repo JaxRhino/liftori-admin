@@ -484,7 +484,7 @@ export default function AdminLayout() {
     if (mainRef.current) mainRef.current.scrollTop = 0
   }, [location.pathname])
 
-  const isCallCenterRoute = ['/admin/call-center', '/admin/call-lists', '/admin/cc-team', '/admin/voicemails'].some(p => location.pathname.startsWith(p))
+  const isCallCenterRoute = ['/admin/call-center', '/admin/call-lists', '/admin/cc-team', '/admin/voicemails', '/admin/ai-agents'].some(p => location.pathname.startsWith(p))
   const [callCenterOpen, setCallCenterOpen] = useState(isCallCenterRoute)
   const isSalesHubRoute = ['/admin/customers', '/admin/projects', '/admin/pipeline', '/admin/platforms', '/admin/lead-hunter', '/admin/estimates', '/admin/agreements', '/admin/commissions', '/admin/waitlist', '/admin/consulting', '/admin/sales-call'].some(p => location.pathname.startsWith(p))
   const [salesHubOpen, setSalesHubOpen] = useState(isSalesHubRoute)
@@ -592,6 +592,7 @@ export default function AdminLayout() {
                       { label: 'Team', path: '/admin/cc-team' },
                       { label: 'Call Lists', path: '/admin/call-lists' },
                       { label: 'Voicemails', path: '/admin/voicemails' },
+                      { label: 'AI Agents', path: '/admin/ai-agents' },
                     ].map(sub => (
                       <div key={sub.path} className="flex items-center group">
                         <NavLink to={sub.path} end
