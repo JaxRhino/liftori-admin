@@ -1211,70 +1211,54 @@ function ScheduledCallsSection({ userId }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// AGENT AVAILABILITY GRID — Weekly hours per agent
+// AGENT AVAILABILITY GRID — reads from team_availability (unified source)
 // ═══════════════════════════════════════════════════════════════
 
 function AgentAvailabilitySection() {
   const [availability, setAvailability] = useState([]);
-  const [agents, setAgents] = useState([]);
+  const [teamProfiles, setTeamProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [editForm, setEditForm] = useState({ start_time: '08:00', end_time: '18:00', is_available: true });
 
   const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [avail, ag] = await Promise.all([
-          fetchAllAgentAvailability(),
-          fetchAgents(),
-        ]);
-        setAvailability(avail);
-        setAgents(ag);
-      } catch (err) {
-        console.error('Error loading availability:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    loadAvailability();
   }, []);
 
-  const handleSave = async () => {
-    if (!editing) return;
+  async function loadAvailability() {
     try {
-      await upsertAgentAvailability(
-        editing.agent_user_id,
-        editing.day_of_week,
-        editForm.start_time,
-        editForm.end_time,
-        editForm.is_available
-      );
-      toast.success('Availability updated');
-      setEditing(null);
-      const avail = await fetchAllAgentAvailability();
-      setAvailability(avail);
+      const [availRes, profilesRes] = await Promise.all([
+        supabase.from('team_availability').select('*').eq('is_active', true).order('day_of_week').order('start_time'),
+        supabase.from('profiles').select('id, full_name, email, avatar_url, role').not('role', 'eq', 'customer'),
+      ]);
+      if (availRes.error) throw availRes.error;
+      setAvailability(availRes.data || []);
+      setTeamProfiles(profilesRes.data || []);
     } catch (err) {
-      toast.error('Failed to update');
+      console.error('Error loading availability:', err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
-  // Group availability by agent
+  // Group availability by user
   const agentMap = new Map();
-  for (const a of agents) {
-    agentMap.set(a.user_id, {
-      name: a.profile?.full_name || a.display_name || 'Unknown',
-      avatar: a.profile?.avatar_url,
-      role: a.profile?.role,
+  for (const p of teamProfiles) {
+    agentMap.set(p.id, {
+      name: p.full_name || p.email || 'Unknown',
+      avatar: p.avatar_url,
+      role: p.role,
       slots: [],
     });
   }
   for (const slot of availability) {
-    const agent = agentMap.get(slot.agent_user_id);
+    const agent = agentMap.get(slot.user_id);
     if (agent) agent.slots.push(slot);
   }
+
+  // Count total active members
+  const activeCount = [...agentMap.values()].filter(a => a.slots.length > 0).length;
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
@@ -1286,7 +1270,11 @@ function AgentAvailabilitySection() {
           <Clock className="text-emerald-400" size={20} />
           <div>
             <h2 className="text-white text-lg font-bold">Agent Availability</h2>
-            <p className="text-gray-400 text-sm">Weekly hours — 8am to 6pm ET default</p>
+            <p className="text-gray-400 text-sm">
+              {activeCount > 0
+                ? `${activeCount} team member${activeCount !== 1 ? 's' : ''} with scheduled hours`
+                : 'No availability set — configure in Operations > Availability'}
+            </p>
           </div>
         </div>
         {expanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
@@ -1296,8 +1284,11 @@ function AgentAvailabilitySection() {
         <div className="p-4 overflow-x-auto">
           {loading ? (
             <p className="text-gray-400 text-center py-6">Loading availability...</p>
-          ) : agents.length === 0 ? (
-            <p className="text-gray-400 text-center py-6">No agents registered</p>
+          ) : activeCount === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-gray-400">No team members have set their availability yet</p>
+              <p className="text-gray-500 text-sm mt-1">Go to Operations &gt; Availability to set weekly hours</p>
+            </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -1309,7 +1300,7 @@ function AgentAvailabilitySection() {
                 </tr>
               </thead>
               <tbody>
-                {[...agentMap.entries()].map(([uid, agent]) => (
+                {[...agentMap.entries()].filter(([, a]) => a.slots.length > 0).map(([uid, agent]) => (
                   <tr key={uid} className="border-b border-slate-700">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -1322,29 +1313,20 @@ function AgentAvailabilitySection() {
                       </div>
                     </td>
                     {DAY_NAMES.map((_, dayIdx) => {
-                      const slot = agent.slots.find(s => s.day_of_week === dayIdx);
-                      const isOn = slot ? slot.is_available : (dayIdx >= 1 && dayIdx <= 5);
-                      const timeStr = slot ? `${slot.start_time?.slice(0,5)}-${slot.end_time?.slice(0,5)}` : '08:00-18:00';
+                      const daySlots = agent.slots.filter(s => s.day_of_week === dayIdx);
+                      const isOn = daySlots.length > 0;
+                      const timeStr = isOn
+                        ? daySlots.map(s => `${s.start_time?.slice(0,5)}-${s.end_time?.slice(0,5)}`).join(', ')
+                        : '';
                       return (
                         <td key={dayIdx} className="text-center px-1 py-3">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditing({ agent_user_id: uid, day_of_week: dayIdx, agentName: agent.name, dayName: DAY_NAMES[dayIdx] });
-                              setEditForm({
-                                start_time: slot?.start_time?.slice(0,5) || '08:00',
-                                end_time: slot?.end_time?.slice(0,5) || '18:00',
-                                is_available: isOn,
-                              });
-                            }}
-                            className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                              isOn
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
-                                : 'bg-gray-700/30 text-gray-500 border border-gray-700 hover:bg-gray-700/50'
-                            }`}
-                          >
+                          <span className={`rounded px-2 py-1 text-xs font-medium ${
+                            isOn
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-gray-700/30 text-gray-500 border border-gray-700'
+                          }`}>
                             {isOn ? timeStr : 'Off'}
-                          </button>
+                          </span>
                         </td>
                       );
                     })}
@@ -1355,44 +1337,6 @@ function AgentAvailabilitySection() {
           )}
         </div>
       )}
-
-      {/* Edit Slot Dialog */}
-      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
-        <DialogContent className="bg-slate-900 border-slate-700 max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-white">
-              {editing?.agentName} — {editing?.dayName}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <label className="text-gray-400 text-sm">Available</label>
-              <button
-                onClick={() => setEditForm({ ...editForm, is_available: !editForm.is_available })}
-                className={`w-10 h-6 rounded-full transition-colors relative ${editForm.is_available ? 'bg-emerald-500' : 'bg-gray-600'}`}
-              >
-                <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-all ${editForm.is_available ? 'left-5' : 'left-1'}`} />
-              </button>
-            </div>
-            {editForm.is_available && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-gray-400 text-sm block mb-1">Start</label>
-                  <Input type="time" value={editForm.start_time} onChange={(e) => setEditForm({ ...editForm, start_time: e.target.value })} className="bg-slate-800 border-slate-600 text-white" />
-                </div>
-                <div>
-                  <label className="text-gray-400 text-sm block mb-1">End</label>
-                  <Input type="time" value={editForm.end_time} onChange={(e) => setEditForm({ ...editForm, end_time: e.target.value })} className="bg-slate-800 border-slate-600 text-white" />
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setEditing(null)} variant="outline">Cancel</Button>
-            <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700">Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }
