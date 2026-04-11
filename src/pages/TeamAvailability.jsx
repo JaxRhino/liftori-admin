@@ -67,6 +67,7 @@ export default function TeamAvailability() {
 
   // Time off form
   const [offDate, setOffDate] = useState('');
+  const [offEndDate, setOffEndDate] = useState('');
   const [offFullDay, setOffFullDay] = useState(true);
   const [offStart, setOffStart] = useState('09:00');
   const [offEnd, setOffEnd] = useState('17:00');
@@ -196,10 +197,10 @@ export default function TeamAvailability() {
     }
   }
 
-  // ─── Add time off ───
+  // ─── Add time off (supports date ranges) ───
   async function addTimeOff() {
     if (!offDate) {
-      toast.error('Select a date');
+      toast.error('Select a start date');
       return;
     }
     if (!offFullDay && offStart >= offEnd) {
@@ -207,18 +208,35 @@ export default function TeamAvailability() {
       return;
     }
 
+    const endDate = offEndDate || offDate;
+    if (endDate < offDate) {
+      toast.error('End date must be on or after start date');
+      return;
+    }
+
     try {
-      const { error } = await supabase.from('team_time_off').insert({
-        user_id: user.id,
-        date: offDate,
-        start_time: offFullDay ? null : offStart,
-        end_time: offFullDay ? null : offEnd,
-        reason: offReason || null,
-      });
+      // Build a row for each date in the range
+      const rows = [];
+      const current = new Date(offDate + 'T12:00:00');
+      const last = new Date(endDate + 'T12:00:00');
+      while (current <= last) {
+        const dateStr = current.getFullYear() + '-' + String(current.getMonth() + 1).padStart(2, '0') + '-' + String(current.getDate()).padStart(2, '0');
+        rows.push({
+          user_id: user.id,
+          date: dateStr,
+          start_time: offFullDay ? null : offStart,
+          end_time: offFullDay ? null : offEnd,
+          reason: offReason || null,
+        });
+        current.setDate(current.getDate() + 1);
+      }
+
+      const { error } = await supabase.from('team_time_off').insert(rows);
       if (error) throw error;
-      toast.success('Time off added');
+      toast.success(rows.length === 1 ? 'Time off added' : `Blocked ${rows.length} days off`);
       fetchAll();
       setOffDate('');
+      setOffEndDate('');
       setOffReason('');
     } catch (err) {
       toast.error('Failed: ' + err.message);
@@ -518,12 +536,19 @@ export default function TeamAvailability() {
               Block Time Off
             </h2>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Date</label>
-                  <input type="date" value={offDate} onChange={e => setOffDate(e.target.value)}
+                  <label className="text-xs text-gray-400 mb-1 block">Start Date</label>
+                  <input type="date" value={offDate} onChange={e => { setOffDate(e.target.value); if (!offEndDate || offEndDate < e.target.value) setOffEndDate(e.target.value); }}
                     min={new Date().toISOString().split('T')[0]}
                     className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">End Date</label>
+                  <input type="date" value={offEndDate} onChange={e => setOffEndDate(e.target.value)}
+                    min={offDate || new Date().toISOString().split('T')[0]}
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" />
+                  <p className="text-[10px] text-gray-500 mt-0.5">Same as start for single day</p>
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 mb-1 block">Duration</label>
@@ -565,7 +590,9 @@ export default function TeamAvailability() {
               </div>
               <button onClick={addTimeOff}
                 className="bg-orange-500 hover:bg-orange-600 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-colors">
-                Block Time Off
+                {offDate && offEndDate && offEndDate > offDate
+                  ? `Block ${Math.round((new Date(offEndDate + 'T12:00:00') - new Date(offDate + 'T12:00:00')) / 86400000) + 1} Days Off`
+                  : 'Block Time Off'}
               </button>
             </div>
           </div>
