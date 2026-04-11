@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, Plus, Trash2, ArrowRight, Download } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, ArrowRight, Download, PhoneCall } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenantId } from '../../lib/useTenantId';
 import { useToast } from '../../lib/useToast';
@@ -191,6 +191,91 @@ export default function LeadHunterLists() {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error exporting CSV:', err);
+    }
+  };
+
+  const [exportingToDialer, setExportingToDialer] = useState(null);
+
+  const handleExportToDialer = async (listId, listName) => {
+    const listMembers = members[listId] || [];
+    if (listMembers.length === 0) {
+      showToast('No companies in this list to export', 'error');
+      return;
+    }
+
+    setExportingToDialer(listId);
+    try {
+      // Fetch contacts for these companies from lh_contacts
+      const companyIds = listMembers.filter(m => m.lh_companies?.id).map(m => m.lh_companies.id);
+      const { data: contacts, error: contactsErr } = await supabase
+        .from('lh_contacts')
+        .select('*')
+        .in('company_id', companyIds)
+        .not('phone', 'is', null);
+
+      // Build contact rows — use company data if no contacts with phones
+      let rows = [];
+      if (contacts && contacts.length > 0) {
+        rows = contacts.map((c, i) => ({
+          position: i + 1,
+          first_name: c.first_name || null,
+          last_name: c.last_name || null,
+          company: listMembers.find(m => m.lh_companies?.id === c.company_id)?.lh_companies?.name || null,
+          title: c.title || null,
+          phone: c.phone,
+          email: c.email || null,
+          industry: listMembers.find(m => m.lh_companies?.id === c.company_id)?.lh_companies?.industry || null,
+          source_id: c.id,
+        }));
+      } else {
+        // Fallback: use company phone if available
+        const { data: companies } = await supabase
+          .from('lh_companies')
+          .select('id, name, phone, website, industry')
+          .in('id', companyIds)
+          .not('phone', 'is', null);
+        if (companies && companies.length > 0) {
+          rows = companies.map((co, i) => ({
+            position: i + 1,
+            company: co.name,
+            phone: co.phone,
+            website: co.website || null,
+            industry: co.industry || null,
+            source_id: co.id,
+          }));
+        }
+      }
+
+      if (rows.length === 0) {
+        showToast('No contacts with phone numbers found in this list', 'error');
+        return;
+      }
+
+      // Create call list
+      const { data: callList, error: listErr } = await supabase.from('call_lists').insert({
+        name: `LH: ${listName}`,
+        description: `Exported from Lead Hunter list "${listName}"`,
+        source: 'lead_hunter',
+        total_contacts: rows.length,
+        created_by: tenantId,
+      }).select().single();
+
+      if (listErr) throw listErr;
+
+      // Insert contacts
+      const contactRows = rows.map(r => ({ ...r, list_id: callList.id }));
+      for (let i = 0; i < contactRows.length; i += 500) {
+        const batch = contactRows.slice(i, i + 500);
+        const { error } = await supabase.from('call_list_contacts').insert(batch);
+        if (error) throw error;
+      }
+
+      showToast(`Exported ${rows.length} contacts to Call Center dialer`, 'success');
+    } catch (err) {
+      console.error('Error exporting to dialer:', err);
+      showToast('Failed to export: ' + (err.message || 'Unknown error'), 'error');
+    } finally {
+      setExportingToDialer(null);
     }
   };
 
@@ -425,6 +510,14 @@ export default function LeadHunterLists() {
                         className="flex items-center gap-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 px-3 py-2 rounded text-sm transition disabled:opacity-50"
                       >
                         {enrichingList === list.id ? 'Enriching...' : 'Enrich All'}
+                      </button>
+                      <button
+                        onClick={() => handleExportToDialer(list.id, list.name)}
+                        disabled={exportingToDialer === list.id}
+                        className="flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 px-3 py-2 rounded text-sm transition disabled:opacity-50"
+                      >
+                        <PhoneCall size={16} />
+                        {exportingToDialer === list.id ? 'Exporting...' : 'Send to Dialer'}
                       </button>
                       <button
                         onClick={() => handleExportCSV(list.id)}

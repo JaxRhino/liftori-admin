@@ -94,6 +94,9 @@ import {
   ChevronUp,
   MessageSquare,
   X,
+  List,
+  SkipForward,
+  Zap as ZapIcon,
 } from 'lucide-react';
 import { createOutboundRallyLink, sendCallReminderEmail } from '../lib/videoCallHelpers';
 
@@ -1518,9 +1521,139 @@ function VoicemailInbox({ userId }) {
 
 function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioReady }) {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [tab, setTab] = useState('dialer'); // 'dialer' | 'team'
+  const [tab, setTab] = useState('dialer'); // 'dialer' | 'team' | 'lists'
   const [teamMembers, setTeamMembers] = useState([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
+
+  // Call Lists state
+  const [callLists, setCallLists] = useState([]);
+  const [loadingLists, setLoadingLists] = useState(false);
+  const [selectedList, setSelectedList] = useState(null);
+  const [listContacts, setListContacts] = useState([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [autoDial, setAutoDial] = useState(false);
+  const [showDisposition, setShowDisposition] = useState(false);
+  const [dispForm, setDispForm] = useState({ disposition: '', notes: '', callback_at: '' });
+  const [dispContactId, setDispContactId] = useState(null);
+
+  const DISP_OPTIONS = [
+    { value: 'connected', label: 'Connected', color: 'bg-emerald-500' },
+    { value: 'voicemail', label: 'Voicemail', color: 'bg-amber-500' },
+    { value: 'no_answer', label: 'No Answer', color: 'bg-gray-500' },
+    { value: 'busy', label: 'Busy', color: 'bg-orange-500' },
+    { value: 'wrong_number', label: 'Wrong Number', color: 'bg-red-500' },
+    { value: 'not_interested', label: 'Not Interested', color: 'bg-red-400' },
+    { value: 'callback', label: 'Callback', color: 'bg-sky-500' },
+    { value: 'qualified', label: 'Qualified Lead', color: 'bg-emerald-400' },
+  ];
+
+  // Load call lists when tab opens
+  useEffect(() => {
+    if (open && tab === 'lists' && callLists.length === 0) loadCallLists();
+  }, [open, tab]);
+
+  async function loadCallLists() {
+    setLoadingLists(true);
+    try {
+      const { data, error } = await supabase.from('call_lists')
+        .select('*')
+        .in('status', ['active', 'paused'])
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setCallLists(data || []);
+    } catch (err) {
+      console.error('Error loading call lists:', err);
+    } finally {
+      setLoadingLists(false);
+    }
+  }
+
+  async function selectList(list) {
+    setSelectedList(list);
+    try {
+      const { data, error } = await supabase.from('call_list_contacts')
+        .select('*')
+        .eq('list_id', list.id)
+        .in('status', ['pending', 'callback'])
+        .order('position', { ascending: true });
+      if (error) throw error;
+      setListContacts(data || []);
+      setCurrentIdx(0);
+    } catch (err) {
+      console.error('Error loading contacts:', err);
+    }
+  }
+
+  function getCurrentContact() {
+    return listContacts[currentIdx] || null;
+  }
+
+  function handleCallFromList() {
+    const contact = getCurrentContact();
+    if (!contact) return;
+    onCall(contact.phone);
+    // Mark as calling
+    supabase.from('call_list_contacts').update({
+      status: 'calling',
+      attempt_count: (contact.attempt_count || 0) + 1,
+      last_attempt_at: new Date().toISOString(),
+      called_by: null, // will be set server-side if needed
+    }).eq('id', contact.id).then();
+    // Show disposition after a short delay
+    setDispContactId(contact.id);
+    setDispForm({ disposition: '', notes: '', callback_at: '' });
+    setShowDisposition(true);
+  }
+
+  async function submitDisposition() {
+    if (!dispContactId || !dispForm.disposition) {
+      toast.error('Pick a disposition');
+      return;
+    }
+    try {
+      await supabase.from('call_list_contacts').update({
+        status: dispForm.disposition === 'callback' ? 'callback' : 'completed',
+        disposition: dispForm.disposition,
+        notes: dispForm.notes || null,
+        callback_at: dispForm.disposition === 'callback' && dispForm.callback_at ? dispForm.callback_at : null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', dispContactId);
+
+      // Update list stats
+      if (selectedList) {
+        const newContacted = (selectedList.contacted || 0) + 1;
+        const connected = ['connected', 'qualified'].includes(dispForm.disposition);
+        const newConnected = (selectedList.connected || 0) + (connected ? 1 : 0);
+        await supabase.from('call_lists').update({
+          contacted: newContacted,
+          connected: newConnected,
+          updated_at: new Date().toISOString(),
+        }).eq('id', selectedList.id);
+        setSelectedList(prev => ({ ...prev, contacted: newContacted, connected: newConnected }));
+      }
+
+      setShowDisposition(false);
+      setDispContactId(null);
+
+      // Remove from current list and advance
+      setListContacts(prev => prev.filter(c => c.id !== dispContactId));
+      // currentIdx stays the same since the array shifted
+
+      // Auto-dial next if enabled
+      if (autoDial && listContacts.length > 1) {
+        setTimeout(() => handleCallFromList(), 1500);
+      }
+    } catch (err) {
+      toast.error('Failed to save disposition');
+    }
+  }
+
+  function skipContact() {
+    const contact = getCurrentContact();
+    if (!contact) return;
+    supabase.from('call_list_contacts').update({ status: 'skipped', updated_at: new Date().toISOString() }).eq('id', contact.id).then();
+    setListContacts(prev => prev.filter(c => c.id !== contact.id));
+  }
 
   useEffect(() => {
     if (open && tab === 'team' && teamMembers.length === 0) {
@@ -1596,6 +1729,14 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
             }`}
           >
             <Users size={14} className="inline mr-1" /> Team
+          </button>
+          <button
+            onClick={() => { setTab('lists'); if (callLists.length === 0) loadCallLists(); }}
+            className={`flex-1 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'lists' ? 'border-sky-500 text-sky-400' : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            <List size={14} className="inline mr-1" /> Lists
           </button>
         </div>
 
@@ -1712,6 +1853,157 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
                   </div>
                 );
               })
+            )}
+          </div>
+        )}
+
+        {/* Lists Tab */}
+        {tab === 'lists' && (
+          <div className="space-y-3">
+            {!selectedList ? (
+              /* List picker */
+              <>
+                {loadingLists ? (
+                  <p className="text-gray-400 text-center py-6">Loading lists...</p>
+                ) : callLists.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-gray-400 text-sm">No call lists available</p>
+                    <p className="text-gray-500 text-xs mt-1">Upload a CSV in Call Lists to get started</p>
+                  </div>
+                ) : (
+                  callLists.map(list => {
+                    const pct = list.total_contacts > 0 ? Math.round((list.contacted / list.total_contacts) * 100) : 0;
+                    const remaining = list.total_contacts - (list.contacted || 0);
+                    return (
+                      <button
+                        key={list.id}
+                        onClick={() => selectList(list)}
+                        className="w-full text-left bg-slate-800/60 border border-slate-700 rounded-lg p-3 hover:bg-slate-700/40 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-white font-medium text-sm">{list.name}</p>
+                            <p className="text-gray-500 text-xs mt-0.5">{remaining} remaining of {list.total_contacts}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${list.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>{list.status}</span>
+                            <div className="w-16 h-1.5 bg-slate-700 rounded-full mt-1.5">
+                              <div className="h-full bg-sky-500 rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </>
+            ) : showDisposition ? (
+              /* Disposition form */
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-white font-semibold text-sm">Call Outcome</h3>
+                  <span className="text-gray-500 text-xs">{getCurrentContact()?.first_name} {getCurrentContact()?.last_name}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {DISP_OPTIONS.map(d => (
+                    <button
+                      key={d.value}
+                      onClick={() => setDispForm(prev => ({ ...prev, disposition: d.value }))}
+                      className={`text-xs px-3 py-2 rounded-lg border transition-colors ${
+                        dispForm.disposition === d.value
+                          ? `${d.color} text-white border-transparent`
+                          : 'text-gray-400 border-slate-600 hover:border-gray-500'
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+                {dispForm.disposition === 'callback' && (
+                  <div>
+                    <label className="text-gray-400 text-xs block mb-1">Callback Date/Time</label>
+                    <Input type="datetime-local" value={dispForm.callback_at} onChange={e => setDispForm(prev => ({ ...prev, callback_at: e.target.value }))} className="bg-slate-800 border-slate-600 text-white text-sm" />
+                  </div>
+                )}
+                <div>
+                  <label className="text-gray-400 text-xs block mb-1">Notes</label>
+                  <Textarea value={dispForm.notes} onChange={e => setDispForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Call notes..." rows={2} className="bg-slate-800 border-slate-600 text-white text-sm resize-none" />
+                </div>
+                <Button onClick={submitDisposition} disabled={!dispForm.disposition} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                  Save & Next
+                </Button>
+              </div>
+            ) : (
+              /* Active list — current contact */
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <button onClick={() => { setSelectedList(null); setListContacts([]); }} className="text-gray-400 hover:text-white text-xs flex items-center gap-1">
+                    &larr; Back to lists
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 text-xs">{listContacts.length} remaining</span>
+                    <button
+                      onClick={() => setAutoDial(!autoDial)}
+                      className={`text-xs px-2 py-1 rounded-lg border transition-colors flex items-center gap-1 ${
+                        autoDial ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'text-gray-400 border-slate-600'
+                      }`}
+                      title={autoDial ? 'Auto-dial ON' : 'Auto-dial OFF'}
+                    >
+                      <Zap size={12} />
+                      {autoDial ? 'Auto' : 'Manual'}
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-white font-semibold text-sm">{selectedList.name}</p>
+
+                {listContacts.length === 0 ? (
+                  <div className="text-center py-6">
+                    <CheckCircle size={32} className="mx-auto mb-2 text-emerald-400" />
+                    <p className="text-emerald-400 font-medium">List complete!</p>
+                    <p className="text-gray-500 text-xs mt-1">All contacts have been called</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Current contact card */}
+                    {(() => {
+                      const c = getCurrentContact();
+                      if (!c) return null;
+                      return (
+                        <div className="bg-slate-800/80 border border-slate-700 rounded-lg p-4 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-white font-semibold">{[c.first_name, c.last_name].filter(Boolean).join(' ') || 'Unknown'}</p>
+                              {c.title && <p className="text-gray-400 text-xs">{c.title}</p>}
+                            </div>
+                            {c.attempt_count > 0 && <span className="text-gray-500 text-xs">{c.attempt_count} attempts</span>}
+                          </div>
+                          {c.company && <p className="text-gray-300 text-sm">{c.company}</p>}
+                          <p className="text-sky-400 font-mono text-sm">{c.phone}</p>
+                          {c.email && <p className="text-gray-500 text-xs">{c.email}</p>}
+                          {(c.city || c.state) && <p className="text-gray-500 text-xs">{[c.city, c.state].filter(Boolean).join(', ')}</p>}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Action buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleCallFromList}
+                        disabled={!twilioReady}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2"
+                      >
+                        <Phone size={16} />
+                        Call
+                      </Button>
+                      <Button onClick={skipContact} variant="outline" className="flex items-center gap-1">
+                        <SkipForward size={14} />
+                        Skip
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}
