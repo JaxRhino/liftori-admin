@@ -28,6 +28,7 @@ const SLOT_DURATIONS = [
   { value: 60, label: '60 min' },
 ];
 const SLOT_TYPES = [
+  { value: 'all', label: 'All Types' },
   { value: 'consulting', label: 'Consulting' },
   { value: 'sales', label: 'Sales Call' },
   { value: 'demo', label: 'Demo' },
@@ -60,7 +61,7 @@ export default function TeamAvailability() {
   const [newStart, setNewStart] = useState('09:00');
   const [newEnd, setNewEnd] = useState('17:00');
   const [newDuration, setNewDuration] = useState(60);
-  const [newType, setNewType] = useState('consulting');
+  const [newType, setNewType] = useState('all');
   const [quickSetup, setQuickSetup] = useState(false);
   const [quickDays, setQuickDays] = useState({ 1: true, 2: true, 3: true, 4: true, 5: true, 0: false, 6: false });
 
@@ -474,7 +475,7 @@ export default function TeamAvailability() {
                                 <Clock className="h-3.5 w-3.5" />
                                 {formatTime(block.start_time)} - {formatTime(block.end_time)}
                                 <span className="text-xs opacity-60">({block.slot_duration_minutes}min slots)</span>
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-gray-700/50 capitalize">{block.slot_type}</span>
+                                <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${block.slot_type === 'all' ? 'bg-sky-500/20 text-sky-300' : 'bg-gray-700/50'}`}>{block.slot_type === 'all' ? 'All Types' : block.slot_type}</span>
                               </div>
                               <button
                                 onClick={() => toggleActive(block.id, block.is_active)}
