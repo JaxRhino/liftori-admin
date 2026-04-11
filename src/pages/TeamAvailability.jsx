@@ -85,7 +85,7 @@ export default function TeamAvailability() {
       const [availRes, offRes, membersRes] = await Promise.all([
         supabase.from('team_availability').select('*').order('day_of_week').order('start_time'),
         supabase.from('team_time_off').select('*').gte('date', new Date().toISOString().split('T')[0]).order('date'),
-        supabase.from('profiles').select('id, full_name, email, role, avatar_url').in('role', ['admin', 'dev', 'team_member'])
+        supabase.from('profiles').select('id, full_name, email, role, avatar_url').not('role', 'eq', 'customer')
       ]);
 
       if (availRes.error) throw availRes.error;
