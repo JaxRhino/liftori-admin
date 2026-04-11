@@ -24,17 +24,32 @@ import {
   CheckCircle,
   Inbox,
   Trash2,
+  Users,
+  Briefcase,
+  Settings,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════
 // VOICEMAILS PAGE
-// Full voicemail management with playback, search, archive
+// Full voicemail management with mailbox tabs, playback, search, archive
+// Mailboxes: General, Sales, Operations, Mike Lydon, Ryan March
+// Each mailbox filters by the for_person field in cc_voicemails
 // ═══════════════════════════════════════════════════════════════
+
+const MAILBOXES = [
+  { key: 'all', label: 'All', icon: Inbox, match: null },
+  { key: 'general', label: 'General', icon: Voicemail, match: ['General', 'general', 'team'] },
+  { key: 'sales', label: 'Sales', icon: Briefcase, match: ['Sales', 'sales', 'Jeff Cillo', 'Jeff'] },
+  { key: 'operations', label: 'Operations', icon: Settings, match: ['Operations', 'operations', 'ops'] },
+  { key: 'mike', label: 'Mike Lydon', icon: User, match: ['Mike Lydon', 'Mike', 'mike', 'mike lydon'] },
+  { key: 'ryan', label: 'Ryan March', icon: User, match: ['Ryan March', 'Ryan', 'ryan', 'ryan march'] },
+];
 
 export default function CallCenterVoicemails() {
   const { user } = useAuth();
   const [voicemails, setVoicemails] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [mailbox, setMailbox] = useState('all'); // mailbox tab
   const [filter, setFilter] = useState('all'); // all, unread, read, archived
   const [search, setSearch] = useState('');
   const [playingId, setPlayingId] = useState(null);
@@ -125,23 +140,47 @@ export default function CallCenterVoicemails() {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
-  // Filter and search
+  // ── Mailbox + Filter + Search ──
+  function matchesMailbox(v) {
+    if (mailbox === 'all') return true;
+    const mb = MAILBOXES.find(m => m.key === mailbox);
+    if (!mb || !mb.match) return true;
+    const forPerson = (v.for_person || '').toLowerCase();
+    return mb.match.some(m => forPerson === m.toLowerCase());
+  }
+
   const filtered = voicemails.filter(v => {
+    // Mailbox filter
+    if (!matchesMailbox(v)) return false;
+    // Status filter
     if (filter === 'unread' && v.is_read) return false;
     if (filter === 'read' && !v.is_read) return false;
     if (filter === 'archived' && v.status !== 'archived') return false;
     if (filter !== 'archived' && v.status === 'archived') return false;
+    // Search
     if (search) {
       const q = search.toLowerCase();
       const name = (v.caller_name || '').toLowerCase();
-      const number = (v.from_number || '').toLowerCase();
-      const transcript = (v.transcription || '').toLowerCase();
+      const number = (v.from_number || v.caller_phone || '').toLowerCase();
+      const transcript = (v.transcription || v.message || '').toLowerCase();
       if (!name.includes(q) && !number.includes(q) && !transcript.includes(q)) return false;
     }
     return true;
   });
 
-  const unreadCount = voicemails.filter(v => !v.is_read && v.status !== 'archived').length;
+  // Count unread per mailbox for badge display
+  function countUnread(mbKey) {
+    return voicemails.filter(v => {
+      if (v.is_read || v.status === 'archived') return false;
+      if (mbKey === 'all') return true;
+      const mb = MAILBOXES.find(m => m.key === mbKey);
+      if (!mb || !mb.match) return true;
+      const forPerson = (v.for_person || '').toLowerCase();
+      return mb.match.some(m => forPerson === m.toLowerCase());
+    }).length;
+  }
+
+  const unreadCount = countUnread('all');
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -153,7 +192,8 @@ export default function CallCenterVoicemails() {
             <div>
               <h1 className="text-2xl font-bold text-white">Voicemails</h1>
               <p className="text-gray-400 text-sm">
-                {voicemails.length} total{unreadCount > 0 ? ` \u2022 ${unreadCount} unread` : ''}
+                {filtered.length} {mailbox !== 'all' ? `in ${MAILBOXES.find(m => m.key === mailbox)?.label}` : 'total'}
+                {unreadCount > 0 ? ` \u2022 ${unreadCount} unread` : ''}
               </p>
             </div>
           </div>
@@ -162,6 +202,36 @@ export default function CallCenterVoicemails() {
               {unreadCount} New
             </Badge>
           )}
+        </div>
+
+        {/* Mailbox Tabs */}
+        <div className="flex items-center gap-1 mb-4 border-b border-slate-700 pb-3 overflow-x-auto">
+          {MAILBOXES.map(mb => {
+            const Icon = mb.icon;
+            const count = countUnread(mb.key);
+            const isActive = mailbox === mb.key;
+            return (
+              <button
+                key={mb.key}
+                onClick={() => setMailbox(mb.key)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                    : 'text-gray-400 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <Icon size={15} />
+                {mb.label}
+                {count > 0 && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                    isActive ? 'bg-sky-500/30 text-sky-300' : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Filters */}
@@ -241,13 +311,20 @@ export default function CallCenterVoicemails() {
                         <span className="w-2 h-2 rounded-full bg-sky-400 flex-shrink-0" />
                       )}
                     </div>
-                    {vm.from_number && vm.caller_name && (
-                      <p className="text-gray-500 text-xs flex items-center gap-1 mt-0.5">
-                        <Phone size={10} /> {vm.from_number}
-                      </p>
-                    )}
-                    {vm.transcription && (
-                      <p className="text-gray-400 text-sm mt-1 line-clamp-2">{vm.transcription}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {(vm.from_number || vm.caller_phone) && (
+                        <p className="text-gray-500 text-xs flex items-center gap-1">
+                          <Phone size={10} /> {vm.from_number || vm.caller_phone}
+                        </p>
+                      )}
+                      {vm.for_person && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-gray-300">
+                          For: {vm.for_person}
+                        </span>
+                      )}
+                    </div>
+                    {(vm.transcription || vm.message) && (
+                      <p className="text-gray-400 text-sm mt-1 line-clamp-2">{vm.transcription || vm.message}</p>
                     )}
                   </div>
 

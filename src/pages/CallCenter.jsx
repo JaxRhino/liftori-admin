@@ -2138,6 +2138,7 @@ export default function CallCenter() {
   const [showTestCall, setShowTestCall] = useState(false);
   const [rosterRefreshTick, setRosterRefreshTick] = useState(0);
   const [unreadVoicemailCount, setUnreadVoicemailCount] = useState(0);
+  const [showVoicemailPopup, setShowVoicemailPopup] = useState(false);
 
   // Video call outbound state
   const [showVideoLink, setShowVideoLink] = useState(false);
@@ -2620,7 +2621,7 @@ export default function CallCenter() {
           <div className="flex items-center gap-4">
             {/* Voicemail button with notification badge */}
             <button
-              onClick={() => window.open('/admin/voicemails', '_blank')}
+              onClick={() => setShowVoicemailPopup(true)}
               className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-slate-700 transition-colors"
               title="Voicemails"
             >
@@ -2932,6 +2933,42 @@ export default function CallCenter() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Voicemail Popup — centered overlay */}
+      {showVoicemailPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowVoicemailPopup(false)}
+          />
+          {/* Popup */}
+          <div className="relative w-full max-w-2xl max-h-[80vh] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Voicemail size={18} className="text-sky-400" />
+                <h2 className="text-white font-semibold">Voicemails</h2>
+                {unreadVoicemailCount > 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">
+                    {unreadVoicemailCount} new
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setShowVoicemailPopup(false)}
+                className="text-gray-500 hover:text-white transition-colors p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {/* Body — embed the VoicemailInbox component */}
+            <div className="flex-1 overflow-y-auto">
+              <VoicemailInbox userId={user?.id} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
