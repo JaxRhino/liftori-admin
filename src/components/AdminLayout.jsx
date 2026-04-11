@@ -575,16 +575,32 @@ export default function AdminLayout() {
                   )}
                 </button>
               ) : (
-              <NavLink to={item.path} end={item.path === '/admin'}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
-                    ? 'bg-brand-blue/10 text-brand-blue'
-                    : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
-                  }`
-                }>
-                {item.icon}
-                {sidebarOpen && <span>{item.label}</span>}
-              </NavLink>
+              <div className="flex items-center group">
+                <NavLink to={item.path} end={item.path === '/admin'}
+                  className={({ isActive }) =>
+                    `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
+                      ? 'bg-brand-blue/10 text-brand-blue'
+                      : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
+                    }`
+                  }>
+                  {item.icon}
+                  {sidebarOpen && <span>{item.label}</span>}
+                </NavLink>
+                {item.label === 'Call Center' && sidebarOpen && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open('/admin/call-center', 'liftori-call-center', 'width=1400,height=900,menubar=no,toolbar=no,location=no,status=no');
+                    }}
+                    title="Open in new window"
+                    className="p-1.5 mr-1 rounded text-gray-500 hover:text-white hover:bg-navy-700/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                    </svg>
+                  </button>
+                )}
+              </div>
               )}
 
               {/* Marketing Hub sub-nav */}

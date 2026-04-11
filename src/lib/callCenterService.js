@@ -41,10 +41,27 @@ export async function upsertAgent(userId, updates) {
 }
 
 export async function setAgentStatus(userId, status) {
-  const updates = { status, updated_at: new Date().toISOString() };
+  const updates = { status, updated_at: new Date().toISOString(), last_seen_at: new Date().toISOString() };
   if (status === 'available') updates.went_active_at = new Date().toISOString();
   if (status === 'offline') updates.went_offline_at = new Date().toISOString();
   return upsertAgent(userId, updates);
+}
+
+export async function heartbeatAgent(userId) {
+  const now = new Date().toISOString();
+  const { error } = await supabase.from('cc_agents')
+    .update({ last_seen_at: now, updated_at: now })
+    .eq('user_id', userId);
+  if (error) console.error('Heartbeat failed:', error);
+}
+
+export async function markStaleAgentsOffline(staleMinutes = 10) {
+  const cutoff = new Date(Date.now() - staleMinutes * 60 * 1000).toISOString();
+  const { error } = await supabase.from('cc_agents')
+    .update({ status: 'offline', went_offline_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .neq('status', 'offline')
+    .lt('last_seen_at', cutoff);
+  if (error) console.error('Stale agent cleanup failed:', error);
 }
 
 // ─── CALLS ──────────────────────────────────

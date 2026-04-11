@@ -18,6 +18,8 @@ import {
   createSpeedToLead,
   fetchAgents,
   setAgentStatus as updateAgentStatusDB,
+  heartbeatAgent,
+  markStaleAgentsOffline,
   fetchAgent,
   fetchCallCenterDashboard,
   fetchScheduledCalls,
@@ -177,6 +179,9 @@ function AgentRosterPanel() {
 
   const fetchAllAgents = async () => {
     try {
+      // Clean up stale agents first
+      await markStaleAgentsOffline(10);
+
       const { data, error } = await supabase
         .from('cc_agents')
         .select('*, profile:profiles!cc_agents_user_id_fkey(id, full_name, avatar_url, email, role, title)')
@@ -2142,12 +2147,16 @@ export default function CallCenter() {
 
   const pollIntervalRef = useRef(null);
   const stlIntervalRef = useRef(null);
+  const heartbeatRef = useRef(null);
 
   // Initialize agent on mount
   useEffect(() => {
     const initializeAgent = async () => {
       try {
         if (!user) return;
+
+        // Mark stale agents offline before loading roster
+        await markStaleAgentsOffline(10);
 
         // Create/fetch agent record
         const existingAgent = await fetchAgent(user.id);
@@ -2173,6 +2182,44 @@ export default function CallCenter() {
     // which persists across all pages. Destroying here would kill incoming
     // call capability when the user navigates away from CallCenter.
   }, [user]);
+
+  // Heartbeat: ping every 5 min while active, auto-offline on tab close
+  useEffect(() => {
+    if (!user) return;
+
+    // Send heartbeat every 5 minutes while status is available
+    if (agentStatus === 'available') {
+      heartbeatAgent(user.id); // immediate ping
+      heartbeatRef.current = setInterval(() => {
+        heartbeatAgent(user.id);
+      }, 5 * 60 * 1000);
+    }
+
+    // Set offline when closing tab or navigating away
+    const handleUnload = () => {
+      if (agentStatus === 'available') {
+        const url = 'https://qlerfkdyslndjbaltkwo.supabase.co/rest/v1/cc_agents?user_id=eq.' + user.id;
+        const body = JSON.stringify({ status: 'offline', went_offline_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+        try {
+          fetch(url, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsZXJma2R5c2xuZGpiYWx0a3dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTc0MTAsImV4cCI6MjA4ODczMzQxMH0.NM-bFnfWqrnelLnpYO8NNMVpwkoq4LSfCIVq6gs23qk',
+              'Prefer': 'return=minimal',
+            },
+            keepalive: true,
+          });
+        } catch (e) { /* best effort */ }
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      clearInterval(heartbeatRef.current);
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [user, agentStatus]);
 
   // Subscribe to Twilio events for CallCenter-specific state.
   // Device init is handled by GlobalPhoneCallPopup in AdminLayout.
