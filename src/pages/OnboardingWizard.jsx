@@ -476,6 +476,7 @@ export default function OnboardingWizard() {
                     onChange={v => updateForm('full_name', v)}
                     placeholder="John Smith"
                     icon={User}
+                    error={!formData.full_name ? 'Full name is required' : ''}
                   />
                   <WizardInput
                     label="Email"
@@ -484,6 +485,7 @@ export default function OnboardingWizard() {
                     onChange={v => updateForm('email', v)}
                     placeholder="john@company.com"
                     icon={Mail}
+                    error={!formData.email ? 'Email is required' : (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ? 'Please enter a valid email address' : '')}
                   />
                   <WizardInput
                     label="Phone"
@@ -492,6 +494,7 @@ export default function OnboardingWizard() {
                     onChange={v => updateForm('phone', v)}
                     placeholder="(555) 123-4567"
                     icon={Phone}
+                    error={formData.phone && formData.phone.replace(/\D/g,'').length < 10 ? 'Please enter a valid 10-digit phone number' : ''}
                   />
                   {!isAuthenticated && (
                     <WizardInput
@@ -501,11 +504,12 @@ export default function OnboardingWizard() {
                       onChange={v => updateForm('password', v)}
                       placeholder="Minimum 6 characters"
                       icon={Lock}
+                      error={formData.password && formData.password.length < 6 ? 'Password must be at least 6 characters' : ''}
                     />
                   )}
                   <Button
                     className="w-full h-12 bg-sky-500 hover:bg-sky-600 text-white font-semibold text-base"
-                    disabled={!formData.full_name || !formData.email || (!isAuthenticated && formData.password.length < 6) || loading}
+                    disabled={!formData.full_name || !formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) || (!isAuthenticated && formData.password.length < 6) || loading}
                     onClick={async () => {
                       if (!isAuthenticated) {
                         const uid = await createAccount();
@@ -1274,22 +1278,26 @@ function WizardButton({ icon: Icon, label, desc, onClick, variant, highlight, se
   );
 }
 
-function WizardInput({ label, value, onChange, placeholder, type = 'text', icon: Icon }) {
+function WizardInput({ label, value, onChange, placeholder, type = 'text', icon: Icon, error }) {
+  const [touched, setTouched] = React.useState(false);
+  const showError = touched && error;
   return (
     <div>
       <label className="block text-sm text-gray-400 mb-1.5">{label}</label>
       <div className="relative">
         {Icon && (
-          <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+          <Icon className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${showError ? 'text-red-400' : 'text-gray-500'}`} />
         )}
         <Input
           type={type}
           value={value}
           onChange={e => onChange(e.target.value)}
+          onBlur={() => setTouched(true)}
           placeholder={placeholder}
-          className={`bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-sky-500 h-11 ${Icon ? 'pl-10' : ''}`}
+          className={`bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-sky-500 h-11 ${Icon ? 'pl-10' : ''} ${showError ? 'border-red-500 focus:border-red-500' : ''}`}
         />
       </div>
+      {showError && <p className="text-red-400 text-xs mt-1">{error}</p>}
     </div>
   );
 }

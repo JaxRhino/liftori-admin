@@ -49,7 +49,15 @@ export default function Apply() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.full_name || !form.email || !form.position) {
-      setError('Please fill in all required fields.');
+      setError('Please fill in all required fields (Name, Email, and Position).');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (form.phone && form.phone.replace(/\D/g, '').length < 10) {
+      setError('Please enter a valid phone number (at least 10 digits).');
       return;
     }
     setSubmitting(true);
