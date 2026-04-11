@@ -173,14 +173,14 @@ function StatCard({ label, value, icon, color = 'text-sky-400' }) {
 // AGENT ROSTER PANEL
 // ═══════════════════════════════════════════════════════════════
 
-function AgentRosterPanel() {
+function AgentRosterPanel({ refreshTick }) {
   const [agents, setAgents] = useState([]);
   const [loadingAgents, setLoadingAgents] = useState(true);
 
-  const fetchAllAgents = async () => {
+  const fetchAllAgents = async (runStaleCheck = false) => {
     try {
-      // Clean up stale agents first
-      await markStaleAgentsOffline(10);
+      // Only run stale check on initial load, not every refresh
+      if (runStaleCheck) await markStaleAgentsOffline(10);
 
       const { data, error } = await supabase
         .from('cc_agents')
@@ -196,7 +196,7 @@ function AgentRosterPanel() {
   };
 
   useEffect(() => {
-    fetchAllAgents();
+    fetchAllAgents(true);
 
     // Real-time subscription for agent status changes
     const channel = supabase
@@ -206,12 +206,20 @@ function AgentRosterPanel() {
         schema: 'public',
         table: 'cc_agents',
       }, () => {
-        fetchAllAgents();
+        fetchAllAgents(false);
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Polling fallback every 30s in case real-time misses
+    const poll = setInterval(() => fetchAllAgents(false), 30000);
+
+    return () => { supabase.removeChannel(channel); clearInterval(poll); };
   }, []);
+
+  // Re-fetch when parent signals a status toggle
+  useEffect(() => {
+    if (refreshTick > 0) fetchAllAgents(false);
+  }, [refreshTick]);
 
   const available = agents.filter(a => a.status === 'available');
   const busy = agents.filter(a => a.status === 'on_call' || a.status === 'busy');
@@ -2127,6 +2135,7 @@ export default function CallCenter() {
   const [queueItems, setQueueItems] = useState([]);
   const [showDialer, setShowDialer] = useState(false);
   const [showTestCall, setShowTestCall] = useState(false);
+  const [rosterRefreshTick, setRosterRefreshTick] = useState(0);
 
   // Video call outbound state
   const [showVideoLink, setShowVideoLink] = useState(false);
@@ -2348,6 +2357,7 @@ export default function CallCenter() {
       const newStatus = agentStatus === 'offline' ? 'available' : 'offline';
       await updateAgentStatusDB(user.id, newStatus);
       setAgentStatus(newStatus);
+      setRosterRefreshTick(t => t + 1);
       toast.success(newStatus === 'available' ? 'You are now available' : 'You are now offline');
     } catch (err) {
       toast.error('Failed to update status');
@@ -2708,7 +2718,7 @@ export default function CallCenter() {
         </div>
 
         {/* AGENT ROSTER */}
-        <AgentRosterPanel />
+        <AgentRosterPanel refreshTick={rosterRefreshTick} />
 
         {/* Incoming call popup is now handled globally by GlobalPhoneCallPopup in AdminLayout */}
 
