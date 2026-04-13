@@ -24,8 +24,8 @@ export default function OrgSwitcher() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Only admins see the switcher
-  if (!isAdmin || !currentOrg) return null;
+  // Only admins see the switcher, hide when viewing customer org
+  if (!isAdmin || !currentOrg || isImpersonating) return null;
 
   const filteredOrgs = allOrgs.filter(o => {
     if (!search) return true;
