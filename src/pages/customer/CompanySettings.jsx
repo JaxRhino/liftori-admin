@@ -243,7 +243,46 @@ export default function CompanySettings() {
           fetchAuditLog(currentOrg.id),
         ]);
 
-        if (settings) setCompanyData(settings);
+        if (settings) {
+          // Map snake_case DB fields to camelCase component state
+          const hours = settings.business_hours || {};
+          const dayMap = { mon: 'monday', tue: 'tuesday', wed: 'wednesday', thu: 'thursday', fri: 'friday', sat: 'saturday', sun: 'sunday' };
+          const mappedHours = {};
+          Object.entries(dayMap).forEach(([short, long]) => {
+            const h = hours[short];
+            mappedHours[long] = h ? { open: h.open || '08:00', close: h.close || '17:00', closed: !h.open } : { open: '08:00', close: '17:00', closed: short === 'sun' };
+          });
+          setCompanyData({
+            name: settings.company_name || '',
+            email: settings.company_email || '',
+            phone: settings.company_phone || '',
+            website: settings.company_website || '',
+            address: settings.company_address || '',
+            city: settings.company_city || '',
+            state: settings.company_state || '',
+            zip: settings.company_zip || '',
+            businessType: settings.business_type || 'LLC',
+            taxId: settings.tax_id || '',
+            licenseNumber: settings.license_number || '',
+            insuranceInfo: settings.insurance_info || '',
+            industry: settings.industry || 'Home Services',
+            timezone: settings.timezone || 'America/Chicago',
+            businessHours: mappedHours,
+            logoUrl: settings.logo_url || '',
+            primaryColor: settings.primary_color || '#2563eb',
+            accentColor: settings.accent_color || '#1e40af',
+            _id: settings.id,
+          });
+          setAiSettings({
+            aiEnabled: settings.ai_enabled ?? true,
+            autoDispatch: settings.ai_auto_dispatch ?? false,
+            leadScoring: settings.ai_lead_scoring ?? false,
+            emailDrafts: settings.ai_email_drafts ?? false,
+            estimateAssistant: settings.ai_estimate_assist ?? false,
+            callSummary: settings.ai_call_summary ?? false,
+            customInstructions: settings.ai_custom_instructions || '',
+          });
+        }
         if (members) setTeamMembers(members);
         if (docs) setDocuments(docs);
         if (logs) setAuditLog(logs);
@@ -260,7 +299,33 @@ export default function CompanySettings() {
   // Handlers
   const handleSaveCompanyProfile = async () => {
     try {
-      await upsertOrgSettings(currentOrg.id, companyData);
+      // Map camelCase state back to snake_case DB fields
+      const dayMap = { monday: 'mon', tuesday: 'tue', wednesday: 'wed', thursday: 'thu', friday: 'fri', saturday: 'sat', sunday: 'sun' };
+      const dbHours = {};
+      Object.entries(dayMap).forEach(([long, short]) => {
+        const h = companyData.businessHours[long];
+        dbHours[short] = h?.closed ? null : { open: h?.open || '08:00', close: h?.close || '17:00' };
+      });
+      await upsertOrgSettings(currentOrg.id, {
+        company_name: companyData.name,
+        company_email: companyData.email,
+        company_phone: companyData.phone,
+        company_website: companyData.website,
+        company_address: companyData.address,
+        company_city: companyData.city,
+        company_state: companyData.state,
+        company_zip: companyData.zip,
+        business_type: companyData.businessType,
+        tax_id: companyData.taxId,
+        license_number: companyData.licenseNumber,
+        insurance_info: companyData.insuranceInfo,
+        industry: companyData.industry,
+        timezone: companyData.timezone,
+        business_hours: dbHours,
+        logo_url: companyData.logoUrl,
+        primary_color: companyData.primaryColor,
+        accent_color: companyData.accentColor,
+      });
       toast.success('Company profile saved');
     } catch (error) {
       toast.error('Failed to save company profile');
@@ -274,8 +339,15 @@ export default function CompanySettings() {
     }
     try {
       const newMember = {
-        ...inviteForm,
         org_id: currentOrg.id,
+        first_name: inviteForm.firstName,
+        last_name: inviteForm.lastName,
+        email: inviteForm.email,
+        phone: inviteForm.phone || null,
+        role: inviteForm.role,
+        title: inviteForm.title || null,
+        department: inviteForm.department || null,
+        hire_date: inviteForm.hireDate || null,
         status: 'invited',
       };
       const created = await createTeamMember(newMember);
@@ -328,9 +400,12 @@ export default function CompanySettings() {
     }
     try {
       const newDoc = {
-        ...docForm,
         org_id: currentOrg.id,
-        uploadedDate: new Date().toISOString(),
+        name: docForm.name,
+        description: docForm.description || null,
+        category: docForm.category?.toLowerCase().replace(/ /g, '_') || 'general',
+        visibility: docForm.visibility,
+        file_url: docForm.fileUrl || null,
       };
       const created = await createOrgDocument(newDoc);
       setDocuments([...documents, created]);
@@ -361,7 +436,15 @@ export default function CompanySettings() {
 
   const handleSaveAISettings = async () => {
     try {
-      await upsertOrgSettings(currentOrg.id, { ...companyData, ...aiSettings });
+      await upsertOrgSettings(currentOrg.id, {
+        ai_enabled: aiSettings.aiEnabled,
+        ai_auto_dispatch: aiSettings.autoDispatch,
+        ai_lead_scoring: aiSettings.leadScoring,
+        ai_email_drafts: aiSettings.emailDrafts,
+        ai_estimate_assist: aiSettings.estimateAssistant,
+        ai_call_summary: aiSettings.callSummary,
+        ai_custom_instructions: aiSettings.customInstructions,
+      });
       toast.success('AI settings saved');
     } catch (error) {
       toast.error('Failed to save AI settings');
@@ -378,7 +461,10 @@ export default function CompanySettings() {
   const filteredDocs =
     docFilter === 'All'
       ? documents
-      : documents.filter((d) => d.category === docFilter);
+      : documents.filter((d) => {
+          const filterKey = docFilter.toLowerCase().replace(/ /g, '_');
+          return d.category === filterKey || d.category === docFilter;
+        });
 
   if (loading) {
     return (
@@ -915,7 +1001,7 @@ export default function CompanySettings() {
                   {teamMembers.map((member) => (
                     <tr key={member.id} className="hover:bg-navy-800 transition">
                       <td className="px-6 py-4 text-sm text-white font-medium">
-                        {member.firstName} {member.lastName}
+                        {member.first_name} {member.last_name}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-400">
                         {member.email}
