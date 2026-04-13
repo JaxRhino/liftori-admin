@@ -107,15 +107,27 @@ export default function Customers() {
   const [followUpForm, setFollowUpForm] = useState({ type: 'follow_up', title: '', description: '', due_at: '', priority: 'normal' });
 
   // LABOS Leads
-  const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'labos'
+  const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'labos' | 'consulting' | 'digital'
   const [labosLeads, setLabosLeads] = useState([]);
   const [labosLoading, setLabosLoading] = useState(false);
   const [labosSearch, setLabosSearch] = useState('');
+
+  // Consulting Leads
+  const [consultingLeads, setConsultingLeads] = useState([]);
+  const [consultingLoading, setConsultingLoading] = useState(false);
+  const [consultingSearch, setConsultingSearch] = useState('');
+
+  // Digital Product Leads
+  const [digitalLeads, setDigitalLeads] = useState([]);
+  const [digitalLoading, setDigitalLoading] = useState(false);
+  const [digitalSearch, setDigitalSearch] = useState('');
 
   useEffect(() => {
     fetchCustomers();
     fetchAllFollowUps();
     fetchLabosLeads();
+    fetchConsultingLeads();
+    fetchDigitalLeads();
   }, []);
 
   async function fetchCustomers() {
@@ -249,6 +261,149 @@ export default function Customers() {
       l.company_name?.toLowerCase().includes(q)
     );
   }, [labosLeads, labosSearch]);
+
+  // ─── Consulting Leads ──────────────────────────────────────────
+  async function fetchConsultingLeads() {
+    setConsultingLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('consulting_appointments')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setConsultingLeads(data || []);
+    } catch (err) {
+      console.error('Error fetching consulting leads:', err);
+    } finally {
+      setConsultingLoading(false);
+    }
+  }
+
+  async function importConsultingToCRM(lead) {
+    try {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', lead.lead_email)
+        .eq('role', 'customer')
+        .maybeSingle();
+
+      if (existing) {
+        toast.error(`${lead.lead_email} is already in CRM`);
+        return;
+      }
+
+      const { data: newCustomer, error } = await supabase.from('profiles').insert({
+        full_name: lead.lead_name,
+        email: lead.lead_email,
+        phone: lead.lead_phone || null,
+        company_name: lead.company_name || null,
+        source: 'Consulting Lead',
+        estimated_value: 0,
+        crm_stage: 'prospect',
+        lead_temperature: 'hot',
+        role: 'customer',
+      }).select().single();
+      if (error) throw error;
+
+      const interestLabels = { ai_strategy: 'AI Strategy', growth_planning: 'Growth Planning', eos_implementation: 'EOS Implementation', coaching: '1-on-1 Coaching', general: 'General Consulting' };
+      await logActivity(newCustomer.id, 'system', 'Imported from Consulting Lead',
+        `Interest: ${interestLabels[lead.primary_interest] || lead.primary_interest} | Company: ${lead.company_name || 'N/A'} | Source: ${lead.how_heard || 'N/A'} | Challenge: ${lead.biggest_challenge || 'N/A'}`
+      );
+
+      await supabase.from('consulting_appointments')
+        .update({ imported_to_crm: true, crm_profile_id: newCustomer.id, updated_at: new Date().toISOString() })
+        .eq('id', lead.id);
+
+      toast.success(`${lead.lead_name} imported to CRM as Hot Prospect`);
+      fetchCustomers();
+      fetchConsultingLeads();
+    } catch (err) {
+      console.error('Error importing consulting lead:', err);
+      toast.error('Failed to import lead');
+    }
+  }
+
+  const filteredConsultingLeads = useMemo(() => {
+    if (!consultingSearch) return consultingLeads;
+    const q = consultingSearch.toLowerCase();
+    return consultingLeads.filter(l =>
+      l.lead_name?.toLowerCase().includes(q) ||
+      l.lead_email?.toLowerCase().includes(q) ||
+      l.company_name?.toLowerCase().includes(q)
+    );
+  }, [consultingLeads, consultingSearch]);
+
+  // ─── Digital Product Leads ────────────────────────────────────
+  async function fetchDigitalLeads() {
+    setDigitalLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('digital_product_leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setDigitalLeads(data || []);
+    } catch (err) {
+      console.error('Error fetching digital product leads:', err);
+    } finally {
+      setDigitalLoading(false);
+    }
+  }
+
+  async function importDigitalToCRM(lead) {
+    try {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', lead.email)
+        .eq('role', 'customer')
+        .maybeSingle();
+
+      if (existing) {
+        toast.error(`${lead.email} is already in CRM`);
+        return;
+      }
+
+      const { data: newCustomer, error } = await supabase.from('profiles').insert({
+        full_name: lead.full_name,
+        email: lead.email,
+        phone: lead.phone || null,
+        company_name: lead.company_name || null,
+        source: 'Digital Product Lead',
+        estimated_value: 0,
+        crm_stage: 'prospect',
+        lead_temperature: 'warm',
+        role: 'customer',
+      }).select().single();
+      if (error) throw error;
+
+      await logActivity(newCustomer.id, 'system', 'Imported from Digital Product Lead',
+        `Product Interest: ${lead.product_interest || 'N/A'} | Product: ${lead.product_name || 'N/A'} | Budget: ${lead.budget_range || 'N/A'} | Need: ${lead.biggest_need || 'N/A'}`
+      );
+
+      await supabase.from('digital_product_leads')
+        .update({ imported_to_crm: true, crm_profile_id: newCustomer.id, status: 'imported_to_crm', updated_at: new Date().toISOString() })
+        .eq('id', lead.id);
+
+      toast.success(`${lead.full_name} imported to CRM`);
+      fetchCustomers();
+      fetchDigitalLeads();
+    } catch (err) {
+      console.error('Error importing digital lead:', err);
+      toast.error('Failed to import lead');
+    }
+  }
+
+  const filteredDigitalLeads = useMemo(() => {
+    if (!digitalSearch) return digitalLeads;
+    const q = digitalSearch.toLowerCase();
+    return digitalLeads.filter(l =>
+      l.full_name?.toLowerCase().includes(q) ||
+      l.email?.toLowerCase().includes(q) ||
+      l.company_name?.toLowerCase().includes(q)
+    );
+  }, [digitalLeads, digitalSearch]);
 
   // ─── Add Customer ─────────────────────────────────────────────
   async function handleAddCustomer(e) {
@@ -478,7 +633,7 @@ export default function Customers() {
       </div>
 
       {/* ── Tab Toggle ────────────────────────────────────────── */}
-      <div className="flex gap-1 bg-white/5 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 bg-white/5 rounded-lg p-1 w-fit flex-wrap">
         <button
           onClick={() => setActiveTab('crm')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -487,6 +642,20 @@ export default function Customers() {
         >
           <Users className="h-4 w-4" /> CRM Pipeline
           <span className="ml-1 text-xs opacity-70">({customers.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('consulting')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'consulting' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <Phone className="h-4 w-4" /> Consulting Leads
+          <span className="ml-1 text-xs opacity-70">({consultingLeads.length})</span>
+          {consultingLeads.filter(l => l.status === 'scheduled' && !l.imported_to_crm).length > 0 && (
+            <span className="bg-purple-400 text-purple-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
+              {consultingLeads.filter(l => l.status === 'scheduled' && !l.imported_to_crm).length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab('labos')}
@@ -502,9 +671,284 @@ export default function Customers() {
             </span>
           )}
         </button>
+        <button
+          onClick={() => setActiveTab('digital')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'digital' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <ExternalLink className="h-4 w-4" /> Digital Product Leads
+          <span className="ml-1 text-xs opacity-70">({digitalLeads.length})</span>
+          {digitalLeads.filter(l => l.status === 'new').length > 0 && (
+            <span className="bg-blue-400 text-blue-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
+              {digitalLeads.filter(l => l.status === 'new').length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {activeTab === 'labos' ? (
+      {activeTab === 'consulting' ? (
+        /* ═══ CONSULTING LEADS TAB ═════════════════════════════ */
+        <div className="space-y-4">
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Leads', value: consultingLeads.length, color: 'text-purple-400', icon: Phone },
+              { label: 'Scheduled', value: consultingLeads.filter(l => l.status === 'scheduled').length, color: 'text-blue-400', icon: Calendar },
+              { label: 'Completed', value: consultingLeads.filter(l => l.status === 'completed').length, color: 'text-green-400', icon: CheckCircle },
+              { label: 'Imported to CRM', value: consultingLeads.filter(l => l.imported_to_crm).length, color: 'text-sky-400', icon: Download },
+            ].map(stat => (
+              <Card key={stat.label} className="bg-navy-800/50 border-white/10 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400">{stat.label}</span>
+                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                </div>
+                <div className="text-2xl font-bold text-white mt-1">{stat.value}</div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Search */}
+          <div className="flex gap-3 items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search consulting leads..."
+                value={consultingSearch}
+                onChange={e => setConsultingSearch(e.target.value)}
+                className="pl-10 bg-white/5 border-white/10 text-white"
+              />
+            </div>
+            <Button variant="outline" size="sm" className="border-white/10 text-gray-300" onClick={fetchConsultingLeads}>
+              <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+            </Button>
+          </div>
+
+          {/* Table */}
+          {consultingLoading ? (
+            <div className="text-gray-400 text-sm p-8 text-center">Loading consulting leads...</div>
+          ) : filteredConsultingLeads.length === 0 ? (
+            <Card className="bg-navy-800/50 border-white/10 p-12 text-center">
+              <Phone className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400">No consulting leads yet.</p>
+              <p className="text-gray-500 text-sm mt-1">Leads from AI call bookings and liftori.ai/book will appear here.</p>
+            </Card>
+          ) : (
+            <Card className="bg-navy-800/50 border-white/10 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10 text-left">
+                      <th className="px-4 py-3 text-gray-400 font-medium">Lead</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Company</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Interest</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Appointment</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Source</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Status</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredConsultingLeads.map(lead => {
+                      const interestLabels = { ai_strategy: 'AI Strategy', growth_planning: 'Growth Planning', eos_implementation: 'EOS Implementation', coaching: '1-on-1 Coaching', general: 'General' };
+                      const statusColors = { scheduled: 'bg-blue-100 text-blue-800', confirmed: 'bg-green-100 text-green-800', completed: 'bg-emerald-100 text-emerald-800', no_show: 'bg-red-100 text-red-800', cancelled: 'bg-gray-100 text-gray-800', rescheduled: 'bg-yellow-100 text-yellow-800' };
+                      const apptDate = lead.appointment_date ? new Date(lead.appointment_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+                      const apptTime = lead.appointment_start ? (() => { const [h,m] = lead.appointment_start.split(':'); const hr = parseInt(h); return `${hr > 12 ? hr-12 : hr === 0 ? 12 : hr}:${m} ${hr >= 12 ? 'PM' : 'AM'}`; })() : '';
+                      return (
+                        <tr key={lead.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="text-white font-medium">{lead.lead_name}</div>
+                            <div className="text-gray-500 text-xs">{lead.lead_email}</div>
+                            {lead.lead_phone && <div className="text-gray-500 text-xs">{lead.lead_phone}</div>}
+                          </td>
+                          <td className="px-4 py-3 text-gray-300">{lead.company_name || <span className="text-gray-600">—</span>}</td>
+                          <td className="px-4 py-3">
+                            <Badge className={`text-xs bg-purple-100 text-purple-800`}>
+                              {interestLabels[lead.primary_interest] || 'General'}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-gray-300 text-sm">{apptDate}</div>
+                            {apptTime && <div className="text-gray-500 text-xs">{apptTime} ET</div>}
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">{lead.how_heard || '—'}</td>
+                          <td className="px-4 py-3">
+                            <Badge className={`text-xs ${statusColors[lead.status] || statusColors.scheduled}`}>
+                              {(lead.status || 'scheduled').replace(/_/g, ' ')}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            {!lead.imported_to_crm ? (
+                              <Button
+                                size="sm"
+                                onClick={() => importConsultingToCRM(lead)}
+                                className="bg-purple-500 hover:bg-purple-600 text-white text-xs gap-1"
+                              >
+                                <Download className="h-3 w-3" /> Import to CRM
+                              </Button>
+                            ) : (
+                              <span className="text-green-400 text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3" /> In CRM</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
+          {/* Challenge Summary */}
+          {consultingLeads.filter(l => l.biggest_challenge).length > 0 && (
+            <Card className="bg-navy-800/50 border-white/10 p-5">
+              <h3 className="text-white font-semibold text-sm flex items-center gap-2 mb-3">
+                <AlertCircle className="h-4 w-4 text-purple-400" /> Common Challenges
+              </h3>
+              <div className="space-y-2">
+                {consultingLeads.filter(l => l.biggest_challenge).slice(0, 5).map(l => (
+                  <div key={l.id} className="text-sm text-gray-400 flex gap-2">
+                    <span className="text-gray-600 flex-shrink-0">{l.company_name || l.lead_name}:</span>
+                    <span className="text-gray-300">{l.biggest_challenge}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      ) : activeTab === 'digital' ? (
+        /* ═══ DIGITAL PRODUCT LEADS TAB ════════════════════════ */
+        <div className="space-y-4">
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Leads', value: digitalLeads.length, color: 'text-blue-400', icon: ExternalLink },
+              { label: 'New', value: digitalLeads.filter(l => l.status === 'new').length, color: 'text-sky-400', icon: Bell },
+              { label: 'Demo Scheduled', value: digitalLeads.filter(l => l.status === 'demo_scheduled').length, color: 'text-amber-400', icon: Calendar },
+              { label: 'Imported to CRM', value: digitalLeads.filter(l => l.status === 'imported_to_crm').length, color: 'text-green-400', icon: CheckCircle },
+            ].map(stat => (
+              <Card key={stat.label} className="bg-navy-800/50 border-white/10 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400">{stat.label}</span>
+                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                </div>
+                <div className="text-2xl font-bold text-white mt-1">{stat.value}</div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Search */}
+          <div className="flex gap-3 items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search digital product leads..."
+                value={digitalSearch}
+                onChange={e => setDigitalSearch(e.target.value)}
+                className="pl-10 bg-white/5 border-white/10 text-white"
+              />
+            </div>
+            <Button variant="outline" size="sm" className="border-white/10 text-gray-300" onClick={fetchDigitalLeads}>
+              <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+            </Button>
+          </div>
+
+          {/* Table */}
+          {digitalLoading ? (
+            <div className="text-gray-400 text-sm p-8 text-center">Loading digital product leads...</div>
+          ) : filteredDigitalLeads.length === 0 ? (
+            <Card className="bg-navy-800/50 border-white/10 p-12 text-center">
+              <ExternalLink className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400">No digital product leads yet.</p>
+              <p className="text-gray-500 text-sm mt-1">Leads from custom website/app build inquiries will appear here.</p>
+            </Card>
+          ) : (
+            <Card className="bg-navy-800/50 border-white/10 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10 text-left">
+                      <th className="px-4 py-3 text-gray-400 font-medium">Lead</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Company</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Product</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Budget</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Current Site</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Status</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Submitted</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDigitalLeads.map(lead => {
+                      const productLabels = { website_builder: 'Website', saas_template: 'SaaS Template', online_course: 'Online Course', digital_storefront: 'Digital Store', custom_app: 'Custom App', ecommerce: 'E-Commerce', portfolio: 'Portfolio', booking_site: 'Booking Site' };
+                      const budgetLabels = { under_1k: 'Under $1K', '1k_5k': '$1K-$5K', '5k_15k': '$5K-$15K', '15k_plus': '$15K+' };
+                      const statusColors = { new: 'bg-sky-100 text-sky-800', contacted: 'bg-amber-100 text-amber-800', demo_scheduled: 'bg-purple-100 text-purple-800', imported_to_crm: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
+                      return (
+                        <tr key={lead.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="text-white font-medium">{lead.full_name}</div>
+                            <div className="text-gray-500 text-xs">{lead.email}</div>
+                            {lead.phone && <div className="text-gray-500 text-xs">{lead.phone}</div>}
+                          </td>
+                          <td className="px-4 py-3 text-gray-300">{lead.company_name || <span className="text-gray-600">—</span>}</td>
+                          <td className="px-4 py-3">
+                            <Badge className={`text-xs bg-blue-100 text-blue-800`}>
+                              {productLabels[lead.product_interest] || lead.product_interest || 'General'}
+                            </Badge>
+                            {lead.product_name && <div className="text-gray-500 text-xs mt-0.5">{lead.product_name}</div>}
+                          </td>
+                          <td className="px-4 py-3 text-gray-300 text-sm">{budgetLabels[lead.budget_range] || lead.budget_range || <span className="text-gray-600">—</span>}</td>
+                          <td className="px-4 py-3">
+                            {lead.current_website ? (
+                              <span className="text-sky-400 text-xs truncate block max-w-[140px]">{lead.current_website}</span>
+                            ) : <span className="text-gray-600 text-xs">None</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge className={`text-xs ${statusColors[lead.status] || statusColors.new}`}>
+                              {(lead.status || 'new').replace(/_/g, ' ')}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">{formatRelative(lead.created_at)}</td>
+                          <td className="px-4 py-3">
+                            {lead.status !== 'imported_to_crm' ? (
+                              <Button
+                                size="sm"
+                                onClick={() => importDigitalToCRM(lead)}
+                                className="bg-blue-500 hover:bg-blue-600 text-white text-xs gap-1"
+                              >
+                                <Download className="h-3 w-3" /> Import to CRM
+                              </Button>
+                            ) : (
+                              <span className="text-green-400 text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3" /> In CRM</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
+          {/* Needs Summary */}
+          {digitalLeads.filter(l => l.biggest_need).length > 0 && (
+            <Card className="bg-navy-800/50 border-white/10 p-5">
+              <h3 className="text-white font-semibold text-sm flex items-center gap-2 mb-3">
+                <AlertCircle className="h-4 w-4 text-blue-400" /> What They Need
+              </h3>
+              <div className="space-y-2">
+                {digitalLeads.filter(l => l.biggest_need).slice(0, 5).map(l => (
+                  <div key={l.id} className="text-sm text-gray-400 flex gap-2">
+                    <span className="text-gray-600 flex-shrink-0">{l.company_name || l.full_name}:</span>
+                    <span className="text-gray-300">{l.biggest_need}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      ) : activeTab === 'labos' ? (
         /* ═══ LABOS LEADS TAB ═══════════════════════════════════ */
         <div className="space-y-4">
           {/* Stats */}
