@@ -476,7 +476,7 @@ export default function AdminLayout() {
   }
 
   // Items that are Liftori-admin-only (never shown to customer tenants)
-  const ADMIN_ONLY_ITEMS = ['Super Admin', 'Support Tickets']
+  const ADMIN_ONLY_ITEMS = ['Super Admin', 'Support Tickets', 'Rally']
 
   // Filter nav items based on role AND tenant features
   const visibleNavItems = navItems.filter(item => {
