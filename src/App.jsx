@@ -128,6 +128,15 @@ import CustomerPipeline from './pages/customer/CustomerPipeline'
 import CustomerEstimates from './pages/customer/CustomerEstimates'
 import CustomerAgreements from './pages/customer/CustomerAgreements'
 import CompanySettings from './pages/customer/CompanySettings'
+import OpsCommandCenter from './pages/customer/ops/OpsCommandCenter'
+import OpsWorkOrders from './pages/customer/ops/OpsWorkOrders'
+import OpsScheduling from './pages/customer/ops/OpsScheduling'
+import OpsCrewManagement from './pages/customer/ops/OpsCrewManagement'
+import OpsInventory from './pages/customer/ops/OpsInventory'
+import OpsJobsMap from './pages/customer/ops/OpsJobsMap'
+import OpsMeasurements from './pages/customer/ops/OpsMeasurements'
+import OpsHRHub from './pages/customer/ops/OpsHRHub'
+import OpsDocs from './pages/customer/ops/OpsDocs'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -254,7 +263,17 @@ export default function App() {
             <Route path="crm/estimates" element={<CustomerEstimates />} />
             <Route path="crm/agreements" element={<CustomerAgreements />} />
             <Route path="crm/settings" element={<CompanySettings />} />
-            {/* Operations */}
+            {/* Customer Ops Command Center (LABOS tenant pages) */}
+            <Route path="ops/dashboard" element={<OpsCommandCenter />} />
+            <Route path="ops/work-orders" element={<OpsWorkOrders />} />
+            <Route path="ops/scheduling" element={<OpsScheduling />} />
+            <Route path="ops/crews" element={<OpsCrewManagement />} />
+            <Route path="ops/inventory" element={<OpsInventory />} />
+            <Route path="ops/map" element={<OpsJobsMap />} />
+            <Route path="ops/measurements" element={<OpsMeasurements />} />
+            <Route path="ops/hr" element={<OpsHRHub />} />
+            <Route path="ops/docs" element={<OpsDocs />} />
+            {/* Operations (Liftori internal) */}
             <Route path="ops-dashboard" element={<OpsDashboard />} />
             <Route path="team" element={<Team />} />
             <Route path="work-queue" element={<WorkQueue />} />

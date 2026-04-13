@@ -118,6 +118,73 @@ const customerSalesHubItems = [
   },
 ]
 
+// Customer-facing Operations items (shown when impersonating a tenant)
+const customerOpsItems = [
+  {
+    label: 'Ops Dashboard', path: '/admin/ops/dashboard', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Work Orders', path: '/admin/ops/work-orders', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75" />
+      </svg>
+    )
+  },
+  {
+    label: 'Scheduling', path: '/admin/ops/scheduling', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+      </svg>
+    )
+  },
+  {
+    label: 'Crews', path: '/admin/ops/crews', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Inventory', path: '/admin/ops/inventory', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Jobs Map', path: '/admin/ops/map', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m0-8.25a1.5 1.5 0 010 3m0-3a1.5 1.5 0 000 3m0 0v8.25m0-8.25h.008v.008H9V9.75zM15 6.75V15m0-8.25a1.5 1.5 0 010 3m0-3a1.5 1.5 0 000 3m0 0v8.25m0-8.25h.008v.008H15V9.75zM9 15l3 3 3-3" />
+      </svg>
+    )
+  },
+  {
+    label: 'Measurements', path: '/admin/ops/measurements', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-2.625 0V4.125c0-.621.504-1.125 1.125-1.125h1.5c.621 0 1.125.504 1.125 1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m0 0V4.125c0-.621-.504-1.125-1.125-1.125m1.125 16.5h1.5c.621 0 1.125-.504 1.125-1.125M13.5 4.125v14.25m0-14.25c0-.621.504-1.125 1.125-1.125h1.5c.621 0 1.125.504 1.125 1.125m0 14.25v-14.25m0 14.25c0 .621-.504 1.125-1.125 1.125h-1.5m2.625-1.125h1.5c.621 0 1.125-.504 1.125-1.125V4.125c0-.621-.504-1.125-1.125-1.125h-1.5c-.621 0-1.125.504-1.125 1.125v14.25" />
+      </svg>
+    )
+  },
+  {
+    label: 'HR Hub', path: '/admin/ops/hr', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Documents', path: '/admin/ops/docs', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      </svg>
+    )
+  },
+]
+
 const salesHubItems = [
   {
     label: 'Lead Hunter', path: '/admin/lead-hunter', icon: (
@@ -564,7 +631,8 @@ export default function AdminLayout() {
   const [openSubDropdown, setOpenSubDropdown] = useState(
     isLeadHunterRoute ? 'Lead Hunter' : isConsultingRoute ? 'Consulting' : null
   )
-  const isOpsRoute = ['/admin/ops-dashboard', '/admin/wizard', '/admin/affiliates', '/admin/discount-codes', '/admin/plans', '/admin/team', '/admin/work-queue', '/admin/company-docs', '/admin/hr-hub', '/admin/leadership-qc', '/admin/cost-tracker'].some(p => location.pathname.startsWith(p))
+  const isOpsRoute = ['/admin/ops-dashboard', '/admin/ops/', '/admin/wizard', '/admin/affiliates', '/admin/discount-codes', '/admin/plans', '/admin/team', '/admin/work-queue', '/admin/company-docs', '/admin/hr-hub', '/admin/leadership-qc', '/admin/cost-tracker'].some(p => location.pathname.startsWith(p))
+  const activeOpsItems = isImpersonating ? customerOpsItems : opsItems
   const [opsOpen, setOpsOpen] = useState(isOpsRoute)
   const isMarketingRoute = location.pathname.startsWith('/admin/marketing')
   const [marketingOpen, setMarketingOpen] = useState(isMarketingRoute)
@@ -905,7 +973,7 @@ export default function AdminLayout() {
                 {/* Operations dropdown — right after Sales Hub */}
                 {showOps && showOpsHub && <div>
                   <button
-                    onClick={() => { if (sidebarOpen) setOpsOpen(o => !o); else navigate('/admin/wizard') }}
+                    onClick={() => { if (sidebarOpen) setOpsOpen(o => !o); else navigate(isImpersonating ? '/admin/ops/dashboard' : '/admin/wizard') }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isOpsRoute ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}>
                     {OPS_ICON}
                     {sidebarOpen && (
@@ -919,7 +987,7 @@ export default function AdminLayout() {
                   </button>
                   {sidebarOpen && opsOpen && (
                     <div className="ml-3 pl-3 border-l border-white/10 mt-1 space-y-0.5">
-                      {opsItems.map(sub => (
+                      {activeOpsItems.map(sub => (
                         <NavLink key={sub.path} to={sub.path}
                           className={({ isActive }) =>
                             `flex items-center gap-2.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors ${isActive
@@ -935,7 +1003,7 @@ export default function AdminLayout() {
                   )}
                   {!sidebarOpen && (
                     <div className="space-y-0.5 mt-0.5">
-                      {opsItems.map(sub => (
+                      {activeOpsItems.map(sub => (
                         <NavLink key={sub.path} to={sub.path}
                           className={({ isActive }) =>
                             `flex items-center justify-center px-3 py-2 rounded-lg text-xs transition-colors ${isActive
