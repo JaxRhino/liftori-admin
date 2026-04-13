@@ -121,6 +121,12 @@ import ConsultingClientDetail from './pages/ConsultingClientDetail'
 import EOSL10Hub from './pages/EOSL10Hub'
 import TeamAvailability from './pages/TeamAvailability'
 import SuperAdmin from './pages/SuperAdmin'
+// Customer Sales Hub (LABOS tenant pages)
+import CustomerContacts from './pages/customer/CustomerContacts'
+import CustomerProjects from './pages/customer/CustomerProjects'
+import CustomerPipeline from './pages/customer/CustomerPipeline'
+import CustomerEstimates from './pages/customer/CustomerEstimates'
+import CustomerAgreements from './pages/customer/CustomerAgreements'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -240,6 +246,12 @@ export default function App() {
             <Route path="eos/meetings/:meetingId" element={<EOSL10MeetingRoom />} />
             <Route path="eos/accountability" element={<EOSAccountabilityChart />} />
             <Route path="eos/vto" element={<EOSVTO />} />
+            {/* Customer Sales Hub (LABOS tenant pages) */}
+            <Route path="crm/contacts" element={<CustomerContacts />} />
+            <Route path="crm/projects" element={<CustomerProjects />} />
+            <Route path="crm/pipeline" element={<CustomerPipeline />} />
+            <Route path="crm/estimates" element={<CustomerEstimates />} />
+            <Route path="crm/agreements" element={<CustomerAgreements />} />
             {/* Operations */}
             <Route path="ops-dashboard" element={<OpsDashboard />} />
             <Route path="team" element={<Team />} />

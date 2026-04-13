@@ -79,6 +79,45 @@ const leadHunterSubItems = [
   { label: 'Settings', path: '/admin/lead-hunter/settings' },
 ]
 
+// Customer-facing Sales Hub items (shown when impersonating a tenant)
+const customerSalesHubItems = [
+  {
+    label: 'Contacts', path: '/admin/crm/contacts', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Projects', path: '/admin/crm/projects', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Pipeline', path: '/admin/crm/pipeline', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Estimates', path: '/admin/crm/estimates', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V13.5zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V18zm2.498-6.75h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V13.5zm0 2.25h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V18zm2.504-6.75h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V13.5zM8.25 6h7.5v2.25h-7.5V6zM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 002.25 2.25h10.5a2.25 2.25 0 002.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0012 2.25z" />
+      </svg>
+    )
+  },
+  {
+    label: 'Agreements', path: '/admin/crm/agreements', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      </svg>
+    )
+  },
+]
+
 const salesHubItems = [
   {
     label: 'Lead Hunter', path: '/admin/lead-hunter', icon: (
@@ -510,7 +549,9 @@ export default function AdminLayout() {
 
   const isCallCenterRoute = ['/admin/call-center', '/admin/call-lists', '/admin/cc-team', '/admin/voicemails', '/admin/ai-agents'].some(p => location.pathname.startsWith(p))
   const [callCenterOpen, setCallCenterOpen] = useState(isCallCenterRoute)
-  const isSalesHubRoute = ['/admin/customers', '/admin/projects', '/admin/pipeline', '/admin/platforms', '/admin/lead-hunter', '/admin/estimates', '/admin/agreements', '/admin/commissions', '/admin/waitlist', '/admin/consulting', '/admin/sales-call'].some(p => location.pathname.startsWith(p))
+  const isSalesHubRoute = ['/admin/customers', '/admin/projects', '/admin/pipeline', '/admin/platforms', '/admin/lead-hunter', '/admin/estimates', '/admin/agreements', '/admin/commissions', '/admin/waitlist', '/admin/consulting', '/admin/sales-call', '/admin/crm'].some(p => location.pathname.startsWith(p))
+  // Pick which Sales Hub items to show based on admin vs customer view
+  const activeSalesHubItems = isImpersonating ? customerSalesHubItems : salesHubItems
   const [salesHubOpen, setSalesHubOpen] = useState(isSalesHubRoute)
   const isLeadHunterRoute = location.pathname.startsWith('/admin/lead-hunter')
   const isConsultingRoute = location.pathname.startsWith('/admin/consulting') || location.pathname === '/admin/team-availability'
@@ -788,7 +829,7 @@ export default function AdminLayout() {
                   </button>
                   {sidebarOpen && salesHubOpen && (
                     <div className="ml-3 pl-3 border-l border-white/10 mt-1 space-y-0.5">
-                      {salesHubItems.map(sub => (
+                      {activeSalesHubItems.map(sub => (
                         <React.Fragment key={sub.path}>
                           {sub.subItems ? (
                             <>
@@ -839,7 +880,7 @@ export default function AdminLayout() {
                   )}
                   {!sidebarOpen && (
                     <div className="space-y-0.5 mt-0.5">
-                      {salesHubItems.map(sub => (
+                      {activeSalesHubItems.map(sub => (
                         <NavLink key={sub.path} to={sub.path}
                           className={({ isActive }) =>
                             `flex items-center justify-center px-3 py-2 rounded-lg text-xs transition-colors ${isActive
