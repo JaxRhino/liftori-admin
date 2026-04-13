@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { useOrg } from '../lib/OrgContext'
 import { fetchDashboardStats } from '../lib/eosService'
+import CustomerDashboard from './CustomerDashboard'
 
 const PIPELINE_STATUSES = [
   'New Lead',
@@ -59,6 +61,13 @@ const CAL_COLOR_DOTS = {
 const WIDGET_INPUT = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500'
 
 export default function Dashboard() {
+  const { isImpersonating } = useOrg()
+  // When viewing a customer org, show the customer-specific dashboard
+  if (isImpersonating) return <CustomerDashboard />
+  return <AdminDashboard />
+}
+
+function AdminDashboard() {
   const { user } = useAuth()
   const [eosStats, setEosStats] = useState(null)
   const [stats, setStats] = useState({
