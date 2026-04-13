@@ -475,8 +475,13 @@ export default function AdminLayout() {
     'Communications': 'communications',
   }
 
+  // Items that are Liftori-admin-only (never shown to customer tenants)
+  const ADMIN_ONLY_ITEMS = ['Super Admin', 'Support Tickets']
+
   // Filter nav items based on role AND tenant features
   const visibleNavItems = navItems.filter(item => {
+    // Hide admin-only items when viewing a customer org
+    if (isImpersonating && ADMIN_ONLY_ITEMS.includes(item.label)) return false
     // Role-based filtering
     if (!FULL_ACCESS_ROLES.includes(userRole)) {
       if (userRole === 'sales_director' && SALES_DIRECTOR_HIDDEN.includes(item.label)) return false
@@ -885,8 +890,8 @@ export default function AdminLayout() {
             </React.Fragment>
           ))}
 
-          {/* Tools group */}
-          {showTools && <div className="pt-1">
+          {/* Tools group — admin only, hidden when viewing customer org */}
+          {showTools && !isImpersonating && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Tools</p>
             )}
@@ -938,8 +943,8 @@ export default function AdminLayout() {
             )}
           </div>}
 
-          {/* In-House Builds */}
-          {showBuilds && <div className="pt-1">
+          {/* In-House Builds — admin only */}
+          {showBuilds && !isImpersonating && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Internal</p>
             )}
@@ -958,8 +963,8 @@ export default function AdminLayout() {
             </NavLink>
           </div>}
 
-          {/* Freight AI */}
-          {showFreight && <div className="pt-1">
+          {/* Freight AI — admin only */}
+          {showFreight && !isImpersonating && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Client Platforms</p>
             )}
@@ -1012,8 +1017,8 @@ export default function AdminLayout() {
             )}
           </div>}
 
-          {/* Client Portals */}
-          <div className="pt-1">
+          {/* Client Portals — admin only */}
+          {!isImpersonating && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Portals</p>
             )}
@@ -1042,7 +1047,7 @@ export default function AdminLayout() {
                 </svg>
               )}
             </a>
-          </div>
+          </div>}
         </nav>
 
       </aside>
