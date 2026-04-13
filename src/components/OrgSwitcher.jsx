@@ -1,0 +1,155 @@
+/**
+ * OrgSwitcher — Admin context switcher for viewing customer LABOS tenants
+ *
+ * Shows in the top nav header. For admins, displays which org they're viewing
+ * with a dropdown to switch to any customer org. Shows a purple impersonation
+ * banner when viewing a customer's platform.
+ */
+
+import { useState, useRef, useEffect } from 'react';
+import { useOrg } from '../lib/OrgContext';
+
+export default function OrgSwitcher() {
+  const { currentOrg, allOrgs, isAdmin, isImpersonating, switchOrg, resetOrg } = useOrg();
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Only admins see the switcher
+  if (!isAdmin || !currentOrg) return null;
+
+  const filteredOrgs = allOrgs.filter(o => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return o.name.toLowerCase().includes(q) || o.slug.toLowerCase().includes(q) || o.industry?.toLowerCase().includes(q);
+  });
+
+  const tierColors = {
+    internal: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+    enterprise: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    business: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    growth: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    starter: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  };
+
+  return (
+    <>
+      {/* Impersonation Banner */}
+      {isImpersonating && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-purple-600 text-white text-xs font-semibold text-center py-1 px-4 flex items-center justify-center gap-3">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Viewing as: {currentOrg.name}
+          <button
+            onClick={() => { resetOrg(); setOpen(false); }}
+            className="ml-2 px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded text-xs transition-colors"
+          >
+            Switch Back
+          </button>
+        </div>
+      )}
+
+      {/* Org Switcher Button */}
+      <div className="relative" ref={dropdownRef}>
+        <button
+          onClick={() => setOpen(!open)}
+          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            isImpersonating
+              ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30 hover:bg-purple-500/25'
+              : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
+          }`}
+        >
+          {/* Org icon */}
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+          </svg>
+          <span className="max-w-[120px] truncate">{currentOrg.name}</span>
+          <svg className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
+
+        {/* Dropdown */}
+        {open && (
+          <div className="absolute right-0 top-full mt-2 w-72 bg-navy-800 border border-navy-600 rounded-xl shadow-2xl overflow-hidden z-50">
+            {/* Search */}
+            <div className="p-2 border-b border-navy-700">
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search organizations..."
+                className="w-full px-3 py-1.5 bg-navy-900/50 border border-navy-600 rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-sky-500"
+                autoFocus
+              />
+            </div>
+
+            {/* Org List */}
+            <div className="max-h-64 overflow-y-auto">
+              {filteredOrgs.map(org => (
+                <button
+                  key={org.id}
+                  onClick={() => {
+                    if (org.id === currentOrg.id) { setOpen(false); return; }
+                    switchOrg(org.id);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                    org.id === currentOrg.id
+                      ? 'bg-sky-500/10 border-l-2 border-sky-500'
+                      : 'hover:bg-navy-700/50 border-l-2 border-transparent'
+                  }`}
+                >
+                  {/* Org avatar */}
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    org.plan_tier === 'internal' ? 'bg-sky-500/20 text-sky-400' : 'bg-purple-500/20 text-purple-400'
+                  }`}>
+                    {org.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-white truncate">{org.name}</div>
+                    <div className="text-xs text-gray-500 truncate">{org.industry || org.slug}</div>
+                  </div>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${tierColors[org.plan_tier] || tierColors.starter}`}>
+                    {org.plan_tier === 'internal' ? 'ADMIN' : org.plan_tier?.toUpperCase()}
+                  </span>
+                </button>
+              ))}
+
+              {filteredOrgs.length === 0 && (
+                <div className="px-3 py-4 text-center text-xs text-gray-500">No organizations found</div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {isImpersonating && (
+              <div className="p-2 border-t border-navy-700">
+                <button
+                  onClick={() => { resetOrg(); setOpen(false); }}
+                  className="w-full px-3 py-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg text-xs font-semibold text-purple-400 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                  </svg>
+                  Back to Liftori Admin
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

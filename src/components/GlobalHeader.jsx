@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import NotificationBell from './NotificationBell'
 import ReportModal from './ReportModal'
+import OrgSwitcher from './OrgSwitcher'
 
 export default function GlobalHeader() {
   const { user, profile, signOut } = useAuth()
@@ -46,6 +47,9 @@ export default function GlobalHeader() {
 
         {/* Notifications */}
         <NotificationBell />
+
+        {/* Org Switcher (admin only) */}
+        <OrgSwitcher />
 
         {/* Divider */}
         <div className="w-px h-6 bg-navy-700/50 mx-1" />

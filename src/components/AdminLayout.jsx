@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { useOrg } from '../lib/OrgContext'
 import React, { useState, useEffect, useRef } from 'react'
 import IncomingCallModal from './IncomingCallModal'
 import GlobalPhoneCallPopup from './GlobalPhoneCallPopup'
@@ -458,19 +459,38 @@ const SALES_DIRECTOR_HIDDEN = []
 
 export default function AdminLayout() {
   const { user, profile, signOut } = useAuth()
+  const { hasFeature, isImpersonating, currentOrg } = useOrg()
   const navigate = useNavigate()
   const location = useLocation()
   const mainRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const userRole = profile?.role || 'customer'
 
-  // Filter nav items based on role
+  // Map nav labels to feature keys for tenant gating
+  const NAV_FEATURE_MAP = {
+    'Call Center': 'call_center',
+    'EOS': 'eos',
+    'Marketing': 'marketing_hub',
+    'Finance': 'finance_hub',
+    'Communications': 'communications',
+  }
+
+  // Filter nav items based on role AND tenant features
   const visibleNavItems = navItems.filter(item => {
-    if (FULL_ACCESS_ROLES.includes(userRole)) return true
-    if (userRole === 'sales_director') return !SALES_DIRECTOR_HIDDEN.includes(item.label)
-    if (userRole === 'call_agent') return !CALL_AGENT_HIDDEN.includes(item.label)
+    // Role-based filtering
+    if (!FULL_ACCESS_ROLES.includes(userRole)) {
+      if (userRole === 'sales_director' && SALES_DIRECTOR_HIDDEN.includes(item.label)) return false
+      if (userRole === 'call_agent' && CALL_AGENT_HIDDEN.includes(item.label)) return false
+    }
+    // Feature gating (when impersonating a customer org)
+    const featureKey = NAV_FEATURE_MAP[item.label]
+    if (featureKey && !hasFeature(featureKey)) return false
     return true
   })
+
+  // Gate hub sections by features
+  const showSalesHub = hasFeature('sales_hub')
+  const showOpsHub = hasFeature('operations_hub')
 
   // Whether to show Operations, Freight, Builds, Tools sections
   const showOps = MANAGEMENT_ROLES.includes(userRole)
@@ -728,7 +748,7 @@ export default function AdminLayout() {
               </>)}
 
               {/* Sales Hub dropdown — inserted right after Call Center */}
-              {item.label === 'Call Center' && (<>
+              {item.label === 'Call Center' && showSalesHub && (<>
                 <div>
                   <button
                     onClick={() => { if (sidebarOpen) setSalesHubOpen(o => !o); else navigate('/admin/customers') }}
@@ -814,7 +834,7 @@ export default function AdminLayout() {
                 </div>
 
                 {/* Operations dropdown — right after Sales Hub */}
-                {showOps && <div>
+                {showOps && showOpsHub && <div>
                   <button
                     onClick={() => { if (sidebarOpen) setOpsOpen(o => !o); else navigate('/admin/wizard') }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isOpsRoute ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}>

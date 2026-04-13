@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './lib/AuthContext'
+import { OrgProvider } from './lib/OrgContext'
 import AdminLayout from './components/AdminLayout'
 import ClientLayout from './components/ClientLayout'
 import Login from './pages/Login'
@@ -162,6 +163,7 @@ function RootRedirect() {
 export default function App() {
   return (
     <AuthProvider>
+      <OrgProvider>
       <WebSocketProvider>
         <VideoCallProvider>
           <BrowserRouter>
@@ -329,6 +331,7 @@ export default function App() {
           <Toaster position="top-right" richColors theme="dark" />
         </VideoCallProvider>
       </WebSocketProvider>
+      </OrgProvider>
     </AuthProvider>
   )
 }
