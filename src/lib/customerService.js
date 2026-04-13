@@ -148,3 +148,81 @@ export async function deleteAgreement(id) {
   const { error } = await supabase.from('customer_agreements').delete().eq('id', id);
   if (error) handleError(error, 'deleteAgreement');
 }
+
+// ─── TEAM MEMBERS ────────────────────────────
+export async function fetchTeamMembers(orgId) {
+  let query = supabase.from('org_team_members').select('*');
+  if (orgId) query = query.eq('org_id', orgId);
+  const { data, error } = await query.order('role').order('last_name');
+  if (error) handleError(error, 'fetchTeamMembers');
+  return data || [];
+}
+
+export async function createTeamMember(member) {
+  const { data, error } = await supabase.from('org_team_members').insert(member).select().single();
+  if (error) handleError(error, 'createTeamMember');
+  return data;
+}
+
+export async function updateTeamMember(id, updates) {
+  const { data, error } = await supabase.from('org_team_members')
+    .update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+  if (error) handleError(error, 'updateTeamMember');
+  return data;
+}
+
+export async function deleteTeamMember(id) {
+  const { error } = await supabase.from('org_team_members').delete().eq('id', id);
+  if (error) handleError(error, 'deleteTeamMember');
+}
+
+// ─── ORG SETTINGS ────────────────────────────
+export async function fetchOrgSettings(orgId) {
+  const { data, error } = await supabase.from('org_settings')
+    .select('*').eq('org_id', orgId).single();
+  if (error && error.code !== 'PGRST116') handleError(error, 'fetchOrgSettings');
+  return data || null;
+}
+
+export async function upsertOrgSettings(orgId, settings) {
+  const { data, error } = await supabase.from('org_settings')
+    .upsert({ ...settings, org_id: orgId, updated_at: new Date().toISOString() }, { onConflict: 'org_id' })
+    .select().single();
+  if (error) handleError(error, 'upsertOrgSettings');
+  return data;
+}
+
+// ─── ORG DOCUMENTS ───────────────────────────
+export async function fetchOrgDocuments(orgId, category) {
+  let query = supabase.from('org_documents').select('*');
+  if (orgId) query = query.eq('org_id', orgId);
+  if (category && category !== 'all') query = query.eq('category', category);
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) handleError(error, 'fetchOrgDocuments');
+  return data || [];
+}
+
+export async function createOrgDocument(doc) {
+  const { data, error } = await supabase.from('org_documents').insert(doc).select().single();
+  if (error) handleError(error, 'createOrgDocument');
+  return data;
+}
+
+export async function deleteOrgDocument(id) {
+  const { error } = await supabase.from('org_documents').delete().eq('id', id);
+  if (error) handleError(error, 'deleteOrgDocument');
+}
+
+// ─── AUDIT LOG ───────────────────────────────
+export async function fetchAuditLog(orgId, limit = 50) {
+  let query = supabase.from('org_audit_log').select('*');
+  if (orgId) query = query.eq('org_id', orgId);
+  const { data, error } = await query.order('created_at', { ascending: false }).limit(limit);
+  if (error) handleError(error, 'fetchAuditLog');
+  return data || [];
+}
+
+export async function logAuditEvent(event) {
+  const { error } = await supabase.from('org_audit_log').insert(event);
+  if (error) console.error('[customerService.logAuditEvent]', error);
+}

@@ -127,6 +127,7 @@ import CustomerProjects from './pages/customer/CustomerProjects'
 import CustomerPipeline from './pages/customer/CustomerPipeline'
 import CustomerEstimates from './pages/customer/CustomerEstimates'
 import CustomerAgreements from './pages/customer/CustomerAgreements'
+import CompanySettings from './pages/customer/CompanySettings'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -252,6 +253,7 @@ export default function App() {
             <Route path="crm/pipeline" element={<CustomerPipeline />} />
             <Route path="crm/estimates" element={<CustomerEstimates />} />
             <Route path="crm/agreements" element={<CustomerAgreements />} />
+            <Route path="crm/settings" element={<CompanySettings />} />
             {/* Operations */}
             <Route path="ops-dashboard" element={<OpsDashboard />} />
             <Route path="team" element={<Team />} />

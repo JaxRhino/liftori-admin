@@ -530,6 +530,12 @@ export default function AdminLayout() {
     const featureKey = NAV_FEATURE_MAP[item.label]
     if (featureKey && !hasFeature(featureKey)) return false
     return true
+  }).map(item => {
+    // Remap Settings to customer command center when impersonating
+    if (isImpersonating && item.label === 'Settings') {
+      return { ...item, path: '/admin/crm/settings' }
+    }
+    return item
   })
 
   // Gate hub sections by features
