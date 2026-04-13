@@ -10,28 +10,34 @@ function handleError(error, context) {
   throw error;
 }
 
+// ─── ORG SCOPE HELPER ──────────────────────
+// Adds .eq('org_id', orgId) to a query when orgId is provided
+function scopeOrg(query, orgId) {
+  return orgId ? query.eq('org_id', orgId) : query;
+}
+
 // ─── DASHBOARD ──────────────────────────────
-export async function fetchDashboardStats(userId) {
+export async function fetchDashboardStats(userId, orgId) {
   try {
     const now = new Date();
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay());
 
-    // Parallel fetches
+    // Parallel fetches — all scoped to org
     const [meetingsRes, scorecardRes, rocksRes, issuesRes, todosRes, headlinesRes] = await Promise.all([
-      supabase.from('eos_meetings').select('id, title, scheduled_date, status')
+      scopeOrg(supabase.from('eos_meetings').select('id, title, scheduled_date, status')
         .gte('scheduled_date', now.toISOString())
-        .in('status', ['scheduled', 'in_progress'])
+        .in('status', ['scheduled', 'in_progress']), orgId)
         .order('scheduled_date', { ascending: true }).limit(1),
-      supabase.from('eos_scorecard_metrics').select('id, weekly_data, goal, thresholds, is_active')
-        .eq('is_active', true),
-      supabase.from('eos_rocks').select('id, status, owner_id')
-        .neq('status', 'complete'),
-      supabase.from('eos_issues').select('id, status')
-        .in('status', ['identified', 'in_discussion']),
-      supabase.from('eos_todos').select('id, status, due_date, owner_id')
-        .eq('status', 'open'),
-      supabase.from('eos_headlines').select('id, message, category, created_at, author_user_id')
+      scopeOrg(supabase.from('eos_scorecard_metrics').select('id, weekly_data, goal, thresholds, is_active')
+        .eq('is_active', true), orgId),
+      scopeOrg(supabase.from('eos_rocks').select('id, status, owner_id')
+        .neq('status', 'complete'), orgId),
+      scopeOrg(supabase.from('eos_issues').select('id, status')
+        .in('status', ['identified', 'in_discussion']), orgId),
+      scopeOrg(supabase.from('eos_todos').select('id, status, due_date, owner_id')
+        .eq('status', 'open'), orgId),
+      scopeOrg(supabase.from('eos_headlines').select('id, message, category, created_at, author_user_id'), orgId)
         .order('created_at', { ascending: false }).limit(5),
     ]);
 
@@ -64,11 +70,12 @@ export async function fetchDashboardStats(userId) {
 }
 
 // ─── SCORECARD ──────────────────────────────
-export async function fetchScorecardMetrics() {
-  const { data, error } = await supabase.from('eos_scorecard_metrics')
+export async function fetchScorecardMetrics(orgId) {
+  let query = supabase.from('eos_scorecard_metrics')
     .select('*, owner:profiles!eos_scorecard_metrics_owner_id_fkey(id, full_name, avatar_url)')
-    .eq('is_active', true)
-    .order('display_order');
+    .eq('is_active', true);
+  query = scopeOrg(query, orgId);
+  const { data, error } = await query.order('display_order');
   if (error) handleError(error, 'fetchScorecardMetrics');
   return data || [];
 }
@@ -109,10 +116,11 @@ export async function deleteScorecardMetric(id) {
 }
 
 // ─── ROCKS ──────────────────────────────────
-export async function fetchRocks(quarter) {
+export async function fetchRocks(quarter, orgId) {
   let query = supabase.from('eos_rocks')
     .select('*, owner:profiles!eos_rocks_owner_id_fkey(id, full_name, avatar_url)');
   if (quarter) query = query.eq('quarter', quarter);
+  query = scopeOrg(query, orgId);
   query = query.order('created_at', { ascending: false });
   const { data, error } = await query;
   if (error) handleError(error, 'fetchRocks');
@@ -163,10 +171,11 @@ export async function deleteRock(id) {
 }
 
 // ─── ISSUES ─────────────────────────────────
-export async function fetchIssues(status) {
+export async function fetchIssues(status, orgId) {
   let query = supabase.from('eos_issues')
     .select('*, owner:profiles!eos_issues_owner_id_fkey(id, full_name, avatar_url), reporter:profiles!eos_issues_reporter_id_fkey(id, full_name)');
   if (status && status !== 'all') query = query.eq('status', status);
+  query = scopeOrg(query, orgId);
   query = query.order('created_at', { ascending: false });
   const { data, error } = await query;
   if (error) handleError(error, 'fetchIssues');
@@ -192,10 +201,11 @@ export async function deleteIssue(id) {
 }
 
 // ─── TODOS ──────────────────────────────────
-export async function fetchTodos(status) {
+export async function fetchTodos(status, orgId) {
   let query = supabase.from('eos_todos')
     .select('*, owner:profiles!eos_todos_owner_id_fkey(id, full_name, avatar_url)');
   if (status && status !== 'all') query = query.eq('status', status);
+  query = scopeOrg(query, orgId);
   query = query.order('due_date', { ascending: true });
   const { data, error } = await query;
   if (error) handleError(error, 'fetchTodos');
@@ -239,10 +249,11 @@ export async function deleteTodo(id) {
 }
 
 // ─── HEADLINES ──────────────────────────────
-export async function fetchHeadlines(category) {
+export async function fetchHeadlines(category, orgId) {
   let query = supabase.from('eos_headlines')
     .select('*, author:profiles!eos_headlines_author_user_id_fkey(id, full_name, avatar_url)');
   if (category && category !== 'all') query = query.eq('category', category);
+  query = scopeOrg(query, orgId);
   query = query.order('created_at', { ascending: false });
   const { data, error } = await query;
   if (error) handleError(error, 'fetchHeadlines');
@@ -290,10 +301,11 @@ export async function deleteHeadline(id) {
 }
 
 // ─── L10 MEETINGS ───────────────────────────
-export async function fetchMeetings() {
-  const { data, error } = await supabase.from('eos_meetings')
-    .select('*, facilitator:profiles!eos_meetings_facilitator_id_fkey(id, full_name, avatar_url)')
-    .order('scheduled_date', { ascending: false });
+export async function fetchMeetings(orgId) {
+  let query = supabase.from('eos_meetings')
+    .select('*, facilitator:profiles!eos_meetings_facilitator_id_fkey(id, full_name, avatar_url)');
+  query = scopeOrg(query, orgId);
+  const { data, error } = await query.order('scheduled_date', { ascending: false });
   if (error) handleError(error, 'fetchMeetings');
   return data || [];
 }
@@ -338,9 +350,11 @@ export async function deleteMeeting(id) {
 }
 
 // ─── ACCOUNTABILITY CHART ───────────────────
-export async function fetchAccountabilityChart() {
-  const { data, error } = await supabase.from('eos_accountability_charts')
-    .select('*').eq('is_active', true).order('version', { ascending: false }).limit(1).single();
+export async function fetchAccountabilityChart(orgId) {
+  let query = supabase.from('eos_accountability_charts')
+    .select('*').eq('is_active', true);
+  query = scopeOrg(query, orgId);
+  const { data, error } = await query.order('version', { ascending: false }).limit(1).single();
   if (error && error.code !== 'PGRST116') handleError(error, 'fetchAccountabilityChart');
   return data || { seats: [] };
 }
@@ -360,9 +374,11 @@ export async function saveAccountabilityChart(chart) {
 }
 
 // ─── V/TO ───────────────────────────────────
-export async function fetchVTO() {
-  const { data, error } = await supabase.from('eos_vto')
-    .select('*').eq('is_active', true).order('version', { ascending: false }).limit(1).single();
+export async function fetchVTO(orgId) {
+  let query = supabase.from('eos_vto')
+    .select('*').eq('is_active', true);
+  query = scopeOrg(query, orgId);
+  const { data, error } = await query.order('version', { ascending: false }).limit(1).single();
   if (error && error.code !== 'PGRST116') handleError(error, 'fetchVTO');
   return data || null;
 }
@@ -399,13 +415,13 @@ export async function fetchTeamUsers() {
 }
 
 // ─── LEADERSHIP DASHBOARD ───────────────────
-export async function fetchLeadershipDashboard() {
+export async function fetchLeadershipDashboard(orgId) {
   const [rocks, issues, todos, meetings, scorecard] = await Promise.all([
-    supabase.from('eos_rocks').select('id, status, owner_id, progress_percentage, quarter'),
-    supabase.from('eos_issues').select('id, status, priority, created_at'),
-    supabase.from('eos_todos').select('id, status, due_date, owner_id'),
-    supabase.from('eos_meetings').select('id, status, scheduled_date, completed_at').order('scheduled_date', { ascending: false }).limit(20),
-    supabase.from('eos_scorecard_metrics').select('id, weekly_data, goal, thresholds, is_active, category').eq('is_active', true),
+    scopeOrg(supabase.from('eos_rocks').select('id, status, owner_id, progress_percentage, quarter'), orgId),
+    scopeOrg(supabase.from('eos_issues').select('id, status, priority, created_at'), orgId),
+    scopeOrg(supabase.from('eos_todos').select('id, status, due_date, owner_id'), orgId),
+    scopeOrg(supabase.from('eos_meetings').select('id, status, scheduled_date, completed_at'), orgId).order('scheduled_date', { ascending: false }).limit(20),
+    scopeOrg(supabase.from('eos_scorecard_metrics').select('id, weekly_data, goal, thresholds, is_active, category').eq('is_active', true), orgId),
   ]);
 
   const allRocks = rocks.data || [];

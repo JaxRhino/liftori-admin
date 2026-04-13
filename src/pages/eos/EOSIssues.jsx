@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
+import { useOrg } from '../../lib/OrgContext';
 import {
   fetchIssues,
   createIssue,
@@ -411,6 +412,7 @@ function EditIssueDialog({ issue, open, onOpenChange, onSubmit }) {
 
 export default function EOSIssues() {
   const { user } = useAuth();
+  const { currentOrg } = useOrg();
   const [issues, setIssues] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -428,7 +430,7 @@ export default function EOSIssues() {
     try {
       setLoading(true);
       const [issuesData, usersData] = await Promise.all([
-        fetchIssues(statusFilter === 'all' ? null : statusFilter),
+        fetchIssues(statusFilter === 'all' ? null : statusFilter, currentOrg?.id),
         fetchTeamUsers(),
       ]);
       setIssues(issuesData || []);

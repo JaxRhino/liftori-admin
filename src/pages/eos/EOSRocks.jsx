@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
+import { useOrg } from '../../lib/OrgContext';
 import {
   fetchRocks,
   createRock,
@@ -445,6 +446,7 @@ function EditRockDialog({ rock, open, onOpenChange, onSubmit }) {
 
 export default function EOSRocks() {
   const { user } = useAuth();
+  const { currentOrg } = useOrg();
   const [rocks, setRocks] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
   const [selectedQuarter, setSelectedQuarter] = useState(QUARTERS[3]); // Current quarter
@@ -463,7 +465,7 @@ export default function EOSRocks() {
     try {
       setLoading(true);
       const [rocksData, usersData] = await Promise.all([
-        fetchRocks(selectedQuarter),
+        fetchRocks(selectedQuarter, currentOrg?.id),
         fetchTeamUsers(),
       ]);
       setRocks(rocksData || []);

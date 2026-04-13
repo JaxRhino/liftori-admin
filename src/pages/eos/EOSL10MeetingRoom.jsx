@@ -15,6 +15,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Textarea } from '../../components/ui/textarea';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
+import { useOrg } from '../../lib/OrgContext';
 import {
   fetchMeeting,
   startMeeting,
@@ -39,6 +40,7 @@ const SECTIONS = [
 export default function EOSL10MeetingRoom() {
   const { meetingId } = useParams();
   const navigate = useNavigate();
+  const { currentOrg } = useOrg();
 
   const [meeting, setMeeting] = useState(null);
   const [rocks, setRocks] = useState([]);
@@ -72,11 +74,11 @@ export default function EOSL10MeetingRoom() {
         headlinesData,
       ] = await Promise.all([
         fetchMeeting(meetingId),
-        fetchRocks(),
-        fetchTodos(),
-        fetchIssues(),
-        fetchScorecardMetrics(),
-        fetchHeadlines(),
+        fetchRocks(null, currentOrg?.id),
+        fetchTodos(null, currentOrg?.id),
+        fetchIssues(null, currentOrg?.id),
+        fetchScorecardMetrics(currentOrg?.id),
+        fetchHeadlines(null, currentOrg?.id),
       ]);
 
       setMeeting(meetingData);
@@ -88,7 +90,7 @@ export default function EOSL10MeetingRoom() {
     } catch (error) {
       console.error('Error loading meeting data:', error);
       toast.error('Failed to load meeting');
-      navigate('/eos/l10-meetings');
+      navigate('/admin/eos/meetings');
     } finally {
       setLoading(false);
     }
@@ -128,7 +130,7 @@ export default function EOSL10MeetingRoom() {
         notes: concludeNotes,
       });
       toast.success('Meeting completed');
-      navigate('/eos/l10-meetings');
+      navigate('/admin/eos/meetings');
     } catch (error) {
       console.error('Error completing meeting:', error);
       toast.error('Failed to complete meeting');
@@ -375,7 +377,7 @@ export default function EOSL10MeetingRoom() {
         {/* Header */}
         <div className="mb-8">
           <Button
-            onClick={() => navigate('/eos/l10-meetings')}
+            onClick={() => navigate('/admin/eos/meetings')}
             variant="outline"
             className="mb-4 border-navy-700 text-gray-400"
           >

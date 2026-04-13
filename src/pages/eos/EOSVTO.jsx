@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
+import { useOrg } from '../../lib/OrgContext';
 import { fetchVTO, saveVTO } from '../../lib/eosService';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -41,6 +42,7 @@ const DEFAULT_VTO = {
 
 export default function EOSVTO() {
   const { user } = useAuth();
+  const { currentOrg } = useOrg();
   const [vtoData, setVtoData] = useState(DEFAULT_VTO);
   const [isEditMode, setIsEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ export default function EOSVTO() {
   useEffect(() => {
     const loadVTO = async () => {
       try {
-        const data = await fetchVTO();
+        const data = await fetchVTO(currentOrg?.id);
         if (data) {
           setVtoData(data);
         } else {
@@ -70,7 +72,7 @@ export default function EOSVTO() {
       }
     };
     loadVTO();
-  }, []);
+  }, [currentOrg?.id]);
 
   const handleSaveVTO = async () => {
     setSaving(true);

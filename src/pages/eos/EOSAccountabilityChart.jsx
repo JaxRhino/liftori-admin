@@ -7,6 +7,7 @@ import { Badge } from '../../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
+import { useOrg } from '../../lib/OrgContext';
 import { fetchAccountabilityChart, fetchTeamUsers, saveAccountabilityChart } from '../../lib/eosService';
 
 const DEPARTMENT_COLORS = {
@@ -28,6 +29,7 @@ const DEPARTMENT_NAMES = {
 };
 
 export default function EOSAccountabilityChart() {
+  const { currentOrg } = useOrg();
   const [seats, setSeats] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function EOSAccountabilityChart() {
     try {
       setLoading(true);
       const [chartData, usersData] = await Promise.all([
-        fetchAccountabilityChart(),
+        fetchAccountabilityChart(currentOrg?.id),
         fetchTeamUsers(),
       ]);
       setSeats(chartData || []);

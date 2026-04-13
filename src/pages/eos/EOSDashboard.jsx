@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../lib/AuthContext';
+import { useOrg } from '../../lib/OrgContext';
 import { fetchDashboardStats } from '../../lib/eosService';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -11,6 +12,7 @@ import { toast } from 'sonner';
 export default function EOSDashboard() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { currentOrg } = useOrg();
   const { sidebarOpen } = useOutletContext();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,7 +22,7 @@ export default function EOSDashboard() {
       try {
         setLoading(true);
         if (user?.id) {
-          const data = await fetchDashboardStats(user.id);
+          const data = await fetchDashboardStats(user.id, currentOrg?.id);
           setStats(data);
         }
       } catch (error) {
@@ -32,7 +34,7 @@ export default function EOSDashboard() {
     };
 
     loadStats();
-  }, [user?.id]);
+  }, [user?.id, currentOrg?.id]);
 
   const quickStats = [
     {
@@ -41,7 +43,7 @@ export default function EOSDashboard() {
       value: stats?.nextL10Meeting || 'None scheduled',
       icon: Calendar,
       color: 'text-blue-400',
-      onClick: () => navigate('/admin/eos/l10-meetings')
+      onClick: () => navigate('/admin/eos/meetings')
     },
     {
       id: 'scorecard',
@@ -112,13 +114,13 @@ export default function EOSDashboard() {
       title: 'L10 Meetings',
       description: 'Weekly meetings',
       icon: Users,
-      path: '/admin/eos/l10-meetings'
+      path: '/admin/eos/meetings'
     },
     {
       title: 'Accountability Chart',
       description: 'Org structure',
       icon: Users,
-      path: '/admin/eos/accountability-chart'
+      path: '/admin/eos/accountability'
     }
   ];
 

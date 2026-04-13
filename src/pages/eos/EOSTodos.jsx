@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
+import { useOrg } from '../../lib/OrgContext';
 import {
   fetchTodos,
   createTodo,
@@ -451,6 +452,7 @@ function EditTodoDialog({ todo, open, onOpenChange, onSubmit }) {
 
 export default function EOSTodos() {
   const { user } = useAuth();
+  const { currentOrg } = useOrg();
   const [todos, setTodos] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'open', 'complete'
@@ -468,7 +470,7 @@ export default function EOSTodos() {
     try {
       setLoading(true);
       const [todosData, usersData] = await Promise.all([
-        fetchTodos(statusFilter === 'all' ? null : statusFilter),
+        fetchTodos(statusFilter === 'all' ? null : statusFilter, currentOrg?.id),
         fetchTeamUsers(),
       ]);
       setTodos(todosData || []);

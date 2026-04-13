@@ -69,6 +69,7 @@ export default function Dashboard() {
 
 function AdminDashboard() {
   const { user } = useAuth()
+  const { currentOrg } = useOrg()
   const [eosStats, setEosStats] = useState(null)
   const [stats, setStats] = useState({
     totalSignups: 0,
@@ -95,9 +96,9 @@ function AdminDashboard() {
   useEffect(() => {
     fetchDashboardData()
     if (user?.id) {
-      fetchDashboardStats(user.id).then(setEosStats).catch(err => console.error('EOS stats:', err))
+      fetchDashboardStats(user.id, currentOrg?.id).then(setEosStats).catch(err => console.error('EOS stats:', err))
     }
-  }, [user?.id])
+  }, [user?.id, currentOrg?.id])
 
   async function fetchDashboardData() {
     try {

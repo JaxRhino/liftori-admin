@@ -8,10 +8,12 @@ import { Badge } from '../../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
+import { useOrg } from '../../lib/OrgContext';
 import { fetchMeetings, fetchTeamUsers, createMeeting, deleteMeeting } from '../../lib/eosService';
 
 export default function EOSL10Meetings() {
   const navigate = useNavigate();
+  const { currentOrg } = useOrg();
   const [meetings, setMeetings] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,7 @@ export default function EOSL10Meetings() {
     try {
       setLoading(true);
       const [meetingsData, usersData] = await Promise.all([
-        fetchMeetings(),
+        fetchMeetings(currentOrg?.id),
         fetchTeamUsers(),
       ]);
       setMeetings(meetingsData || []);
@@ -193,7 +195,7 @@ export default function EOSL10Meetings() {
               <div className="flex gap-2 pt-4 border-t border-navy-800">
                 {meeting.status === 'scheduled' && (
                   <Button
-                    onClick={() => navigate(`/eos/l10-meeting/${meeting.id}`)}
+                    onClick={() => navigate(`/admin/eos/meetings/${meeting.id}`)}
                     size="sm"
                     className="bg-green-600 hover:bg-green-700 text-white flex-1"
                   >
@@ -203,7 +205,7 @@ export default function EOSL10Meetings() {
                 )}
                 {meeting.status === 'in_progress' && (
                   <Button
-                    onClick={() => navigate(`/eos/l10-meeting/${meeting.id}`)}
+                    onClick={() => navigate(`/admin/eos/meetings/${meeting.id}`)}
                     size="sm"
                     className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
                   >
@@ -213,7 +215,7 @@ export default function EOSL10Meetings() {
                 )}
                 {meeting.status === 'complete' && (
                   <Button
-                    onClick={() => navigate(`/eos/l10-meeting/${meeting.id}`)}
+                    onClick={() => navigate(`/admin/eos/meetings/${meeting.id}`)}
                     size="sm"
                     className="bg-gray-600 hover:bg-gray-700 text-white flex-1"
                   >

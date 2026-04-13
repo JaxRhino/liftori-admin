@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
+import { useOrg } from '../../lib/OrgContext';
 import {
   fetchScorecardMetrics,
   createScorecardMetric,
@@ -43,6 +44,7 @@ const CATEGORY_COLORS = {
 
 export default function EOSScorecard() {
   const { user } = useAuth();
+  const { currentOrg } = useOrg();
   const [metrics, setMetrics] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +74,7 @@ export default function EOSScorecard() {
     const loadData = async () => {
       try {
         const [metricsData, usersData] = await Promise.all([
-          fetchScorecardMetrics(),
+          fetchScorecardMetrics(currentOrg?.id),
           fetchTeamUsers(),
         ]);
         setMetrics(metricsData || []);
@@ -85,12 +87,12 @@ export default function EOSScorecard() {
       }
     };
     loadData();
-  }, []);
+  }, [currentOrg?.id]);
 
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      const metricsData = await fetchScorecardMetrics();
+      const metricsData = await fetchScorecardMetrics(currentOrg?.id);
       setMetrics(metricsData || []);
       toast.success('Scorecard refreshed');
     } catch (error) {

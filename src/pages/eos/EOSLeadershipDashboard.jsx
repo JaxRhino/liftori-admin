@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useOrg } from '../../lib/OrgContext';
 import { fetchLeadershipDashboard } from '../../lib/eosService';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -8,6 +9,7 @@ import { toast } from 'sonner';
 
 export default function EOSLeadershipDashboard() {
   const navigate = useNavigate();
+  const { currentOrg } = useOrg();
   const { sidebarOpen } = useOutletContext();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -16,7 +18,7 @@ export default function EOSLeadershipDashboard() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const dashboardData = await fetchLeadershipDashboard();
+        const dashboardData = await fetchLeadershipDashboard(currentOrg?.id);
         setData(dashboardData);
       } catch (error) {
         console.error('Failed to load leadership dashboard:', error);
@@ -27,7 +29,7 @@ export default function EOSLeadershipDashboard() {
     };
 
     loadData();
-  }, []);
+  }, [currentOrg?.id]);
 
   const getHealthColor = (value) => {
     if (value >= 80) return 'text-green-400';
@@ -138,28 +140,28 @@ export default function EOSLeadershipDashboard() {
           <h2 className="text-2xl font-bold text-white mb-6">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Button
-              onClick={() => navigate('/eos/l10-meetings')}
+              onClick={() => navigate('/admin/eos/meetings')}
               className="bg-brand-blue hover:bg-blue-600 text-white h-12 rounded-lg font-semibold flex items-center justify-center gap-2"
             >
               <Calendar className="w-5 h-5" />
               Schedule L10
             </Button>
             <Button
-              onClick={() => navigate('/eos/rocks')}
+              onClick={() => navigate('/admin/eos/rocks')}
               className="bg-brand-blue hover:bg-blue-600 text-white h-12 rounded-lg font-semibold flex items-center justify-center gap-2"
             >
               <Target className="w-5 h-5" />
               Review Rocks
             </Button>
             <Button
-              onClick={() => navigate('/eos/issues')}
+              onClick={() => navigate('/admin/eos/issues')}
               className="bg-brand-blue hover:bg-blue-600 text-white h-12 rounded-lg font-semibold flex items-center justify-center gap-2"
             >
               <AlertCircle className="w-5 h-5" />
               View Issues
             </Button>
             <Button
-              onClick={() => navigate('/eos/scorecard')}
+              onClick={() => navigate('/admin/eos/scorecard')}
               className="bg-brand-blue hover:bg-blue-600 text-white h-12 rounded-lg font-semibold flex items-center justify-center gap-2"
             >
               <BarChart3 className="w-5 h-5" />

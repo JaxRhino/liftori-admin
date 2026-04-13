@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
+import { useOrg } from '../../lib/OrgContext';
 import {
   fetchHeadlines,
   createHeadline,
@@ -58,6 +59,7 @@ const EMOJI_REACTIONS = ['❤️', '🎉', '👍', '🎯'];
 
 export default function EOSHeadlines() {
   const { user } = useAuth();
+  const { currentOrg } = useOrg();
   const [headlines, setHeadlines] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,7 @@ export default function EOSHeadlines() {
     const loadData = async () => {
       try {
         const [headlinesData, usersData] = await Promise.all([
-          fetchHeadlines(),
+          fetchHeadlines(null, currentOrg?.id),
           fetchTeamUsers(),
         ]);
         setHeadlines(headlinesData || []);
@@ -92,7 +94,7 @@ export default function EOSHeadlines() {
       }
     };
     loadData();
-  }, []);
+  }, [currentOrg?.id]);
 
   const handleCreateHeadline = async () => {
     if (!newHeadline.message || !newHeadline.category) {
@@ -138,7 +140,7 @@ export default function EOSHeadlines() {
 
     try {
       await addHeadlineReaction(selectedHeadline.id, emoji);
-      const updated = await fetchHeadlines().then((h) => h.find((x) => x.id === selectedHeadline.id));
+      const updated = await fetchHeadlines(null, currentOrg?.id).then((h) => h.find((x) => x.id === selectedHeadline.id));
       if (updated) {
         setSelectedHeadline(updated);
         setHeadlines(headlines.map((h) => (h.id === updated.id ? updated : h)));
@@ -156,7 +158,7 @@ export default function EOSHeadlines() {
         text: commentText,
         author_id: user?.id,
       });
-      const updated = await fetchHeadlines().then((h) => h.find((x) => x.id === selectedHeadline.id));
+      const updated = await fetchHeadlines(null, currentOrg?.id).then((h) => h.find((x) => x.id === selectedHeadline.id));
       if (updated) {
         setSelectedHeadline(updated);
         setHeadlines(headlines.map((h) => (h.id === updated.id ? updated : h)));
