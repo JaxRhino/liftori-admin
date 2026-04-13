@@ -31,6 +31,7 @@ const DEPARTMENT_NAMES = {
 export default function EOSAccountabilityChart() {
   const { currentOrg } = useOrg();
   const [seats, setSeats] = useState([]);
+  const [chartRecord, setChartRecord] = useState(null);
   const [teamUsers, setTeamUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -60,7 +61,8 @@ export default function EOSAccountabilityChart() {
         fetchAccountabilityChart(currentOrg?.id),
         fetchTeamUsers(),
       ]);
-      setSeats(chartData || []);
+      setChartRecord(chartData);
+      setSeats(chartData?.seats || []);
       setTeamUsers(usersData || []);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -134,7 +136,11 @@ export default function EOSAccountabilityChart() {
         ? seats.map((s) => (s.id === formData.id ? formData : s))
         : [...seats, { ...formData, id: Date.now().toString() }];
 
-      await saveAccountabilityChart(newSeats);
+      const updatedChart = chartRecord
+        ? { ...chartRecord, seats: newSeats }
+        : { seats: newSeats, is_active: true, version: 1, org_id: currentOrg?.id };
+      const savedChart = await saveAccountabilityChart(updatedChart);
+      if (savedChart) setChartRecord(savedChart);
       toast.success(editingSeat ? 'Seat updated' : 'Seat added');
       setDialogOpen(false);
       setSeats(newSeats);
@@ -148,7 +154,11 @@ export default function EOSAccountabilityChart() {
     if (window.confirm('Are you sure you want to remove this seat?')) {
       try {
         const newSeats = seats.filter((s) => s.id !== seatId);
-        await saveAccountabilityChart(newSeats);
+        const updatedChart = chartRecord
+          ? { ...chartRecord, seats: newSeats }
+          : { seats: newSeats, is_active: true, version: 1, org_id: currentOrg?.id };
+        const savedChart = await saveAccountabilityChart(updatedChart);
+        if (savedChart) setChartRecord(savedChart);
         toast.success('Seat removed');
         setSeats(newSeats);
       } catch (error) {
