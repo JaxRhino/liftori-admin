@@ -1067,19 +1067,21 @@ export default function CompanySettings() {
                     <h4 className="text-2xl font-bold text-blue-400">
                       LABOS Starter
                     </h4>
-                    <p className="text-gray-400 mt-1">$99/month per team seat</p>
+                    <p className="text-gray-400 mt-1">Flat monthly rate — unlimited team members</p>
                   </div>
                   <Button className="bg-blue-600 hover:bg-blue-700">
                     Upgrade Plan
                   </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm text-gray-300">
-                  <div>Up to 10 team members</div>
-                  <div>5 GB storage</div>
-                  <div>Email support</div>
-                  <div>Basic reporting</div>
-                  <div>Team collaboration</div>
-                  <div>API access</div>
+                  <div>Unlimited team members</div>
+                  <div>5 GB document storage</div>
+                  <div>Priority support</div>
+                  <div>CRM + Pipeline</div>
+                  <div>Estimates + Agreements</div>
+                  <div>EOS / L10 Meetings</div>
+                  <div>AI-powered features</div>
+                  <div>No per-seat fees, ever</div>
                 </div>
               </div>
             </Card>
@@ -1091,15 +1093,15 @@ export default function CompanySettings() {
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between mb-2">
-                      <span className="text-gray-400">Team Seats</span>
+                      <span className="text-gray-400">Team Members</span>
                       <span className="text-white font-medium">
-                        {teamStats.total} / 10
+                        {teamStats.total} active — <span className="text-green-400">Unlimited</span>
                       </span>
                     </div>
                     <div className="w-full bg-navy-800 rounded-full h-2">
                       <div
                         className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${(teamStats.total / 10) * 100}%` }}
+                        style={{ width: '15%' }}
                       />
                     </div>
                   </div>
