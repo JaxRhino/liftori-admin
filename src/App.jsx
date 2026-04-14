@@ -124,6 +124,7 @@ import SuperAdmin from './pages/SuperAdmin'
 import Testing from './pages/Testing'
 import TesterOnboarding from './pages/TesterOnboarding'
 import TesterDashboard from './pages/TesterDashboard'
+import AffiliateOnboarding from './pages/AffiliateOnboarding'
 import { useEffect, useState } from 'react'
 import { fetchMyEnrollment } from './lib/timeTrackingService'
 // Customer Sales Hub (LABOS tenant pages)
@@ -224,6 +225,8 @@ export default function App() {
           <Route path="/schedule-interview/:token" element={<ScheduleInterview />} />
           {/* Public tester onboarding wizard — no auth required */}
           <Route path="/onboard-tester/:token" element={<TesterOnboarding />} />
+          {/* Public affiliate/creator onboarding wizard — no auth required */}
+          <Route path="/onboard-affiliate/:token" element={<AffiliateOnboarding />} />
 
           {/* Root redirect based on role */}
           <Route path="/" element={
