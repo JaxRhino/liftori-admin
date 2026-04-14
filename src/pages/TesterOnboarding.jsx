@@ -20,6 +20,7 @@ const SLIDE_ORDER = [
   'profile',
   'nda',
   'contractor',
+  'contractor_role',
   'availability',
   'instructions',
   'practical',
@@ -44,6 +45,7 @@ export default function TesterOnboarding() {
   const [phone, setPhone] = useState('')
   const [ndaSig, setNdaSig] = useState({ method: 'typed', typed: null, drawn: null, isComplete: false })
   const [contractorSig, setContractorSig] = useState({ method: 'typed', typed: null, drawn: null, isComplete: false })
+  const [contractorRoleSig, setContractorRoleSig] = useState({ method: 'typed', typed: null, drawn: null, isComplete: false })
   const [availability, setAvailability] = useState(
     [1, 2, 3, 4, 5].map((d) => ({ day_of_week: d, enabled: true, start_time: '09:00', end_time: '17:00' }))
       .concat([0, 6].map((d) => ({ day_of_week: d, enabled: false, start_time: '10:00', end_time: '14:00' })))
@@ -106,6 +108,8 @@ export default function TesterOnboarding() {
         return ndaSig.isComplete
       case 'contractor':
         return contractorSig.isComplete
+      case 'contractor_role':
+        return contractorRoleSig.isComplete
       case 'availability':
         return availability.some((d) => d.enabled)
       case 'practical':
@@ -121,8 +125,10 @@ export default function TesterOnboarding() {
     try {
       const ndaText = AGREEMENT_TEXTS.nda.body
       const contractorText = AGREEMENT_TEXTS.contractor_1099.body
+      const contractorRoleText = AGREEMENT_TEXTS.contractor_role.body
       const ndaHash = await hashText(ndaText)
       const contractorHash = await hashText(contractorText)
+      const contractorRoleHash = await hashText(contractorRoleText)
 
       const sigs = [
         {
@@ -142,6 +148,15 @@ export default function TesterOnboarding() {
           drawn_signature_data: contractorSig.drawn,
           agreement_text_hash: contractorHash,
           agreement_text_snapshot: contractorText,
+        },
+        {
+          agreement_type: 'contractor_role',
+          agreement_version: AGREEMENT_TEXTS.contractor_role.version,
+          signature_method: contractorRoleSig.method,
+          typed_signature: contractorRoleSig.typed,
+          drawn_signature_data: contractorRoleSig.drawn,
+          agreement_text_hash: contractorRoleHash,
+          agreement_text_snapshot: contractorRoleText,
         },
       ]
 
@@ -230,6 +245,7 @@ export default function TesterOnboarding() {
             invite={invite}
             sig={ndaSig}
             onSigChange={setNdaSig}
+            stepLabel="Step 1 of 3 · agreements"
           />
         )}
         {slide === 'contractor' && (
@@ -238,6 +254,16 @@ export default function TesterOnboarding() {
             invite={invite}
             sig={contractorSig}
             onSigChange={setContractorSig}
+            stepLabel="Step 2 of 3 · agreements"
+          />
+        )}
+        {slide === 'contractor_role' && (
+          <AgreementSlide
+            agreement={AGREEMENT_TEXTS.contractor_role}
+            invite={invite}
+            sig={contractorRoleSig}
+            onSigChange={setContractorRoleSig}
+            stepLabel="Step 3 of 3 · agreements"
           />
         )}
         {slide === 'availability' && (
@@ -287,6 +313,7 @@ function advanceLabel(slide) {
     case 'profile': return 'Save & continue'
     case 'nda': return 'I sign'
     case 'contractor': return 'I sign'
+    case 'contractor_role': return 'I sign'
     case 'availability': return 'Save availability'
     default: return 'Continue'
   }
@@ -386,11 +413,20 @@ function CommissionSlide({ invite }) {
       <div className="text-sm text-gray-400 leading-relaxed bg-navy-800/40 rounded-lg p-4">
         <div className="font-semibold text-gray-300 mb-1">How it works each month</div>
         <ol className="list-decimal list-inside space-y-1 marker:text-gray-600">
-          <li>You clock in + out as you test. Hours rack up automatically.</li>
+          <li>You clock in + out as you test. Hours and activity tracked automatically per session.</li>
           <li>End of month: Ryan enters Liftori's net profit. The pool = net profit × commission rate.</li>
-          <li>Pool splits evenly among all testers who hit the minimum hours.</li>
+          <li>Pool splits evenly among all testers who hit the minimum hours <em>and</em> show real tracked activity.</li>
           <li>Your share is paid out within 30 days of period close (1099).</li>
         </ol>
+      </div>
+      <div className="text-sm text-emerald-300 leading-relaxed bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+        <div className="font-semibold mb-1">Carry-over rule — you don't lose qualifying months</div>
+        <p>
+          If Liftori has zero or negative net profit in a given month, no commission is paid that month <strong>but your qualifying status carries over.</strong> When Liftori hits a profitable month, you get paid for every qualifying period you carried over, plus the current month. Your effort doesn't expire — Liftori commits to making qualifying testers whole once profitability is achieved.
+        </p>
+      </div>
+      <div className="text-xs text-gray-500 italic">
+        Full terms in the Tester Role &amp; Commission Agreement you'll sign in a moment.
       </div>
     </div>
   )
@@ -428,7 +464,7 @@ function ProfileSlide({ invite, password, setPassword, passwordConfirm, setPassw
   )
 }
 
-function AgreementSlide({ agreement, invite, sig, onSigChange }) {
+function AgreementSlide({ agreement, invite, sig, onSigChange, stepLabel }) {
   const [scrolledToEnd, setScrolledToEnd] = useState(false)
   function onScroll(e) {
     const el = e.target
@@ -437,7 +473,7 @@ function AgreementSlide({ agreement, invite, sig, onSigChange }) {
   return (
     <div className="space-y-5">
       <div>
-        <div className="text-xs uppercase font-semibold text-gray-500 tracking-wide">{agreement.title === 'Mutual Non-Disclosure Agreement' ? 'Step 1 of 2' : 'Step 2 of 2'} · agreements</div>
+        <div className="text-xs uppercase font-semibold text-gray-500 tracking-wide">{stepLabel || 'agreement'}</div>
         <h1 className="text-3xl font-bold mt-1">{agreement.title}</h1>
         <p className="text-xs text-gray-500 mt-1">Version {agreement.version}</p>
       </div>

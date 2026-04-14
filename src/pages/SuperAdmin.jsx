@@ -14,42 +14,79 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
+import { LIFTORI_FOUNDERS, isFounder, listAssignments, createAssignment, updateAssignment } from '../lib/testerProgramService';
+import { fetchEnrollments, fetchEntries, fetchLogs, formatDuration, liveDuration } from '../lib/timeTrackingService';
 import {
   Shield, Users, Briefcase, Phone, BarChart3, MessageSquare,
   TrendingUp, AlertTriangle, Star, Clock, Activity, DollarSign,
   UserCheck, Calendar, Target, Zap, ChevronRight, RefreshCw,
   Loader2, Building2, Headphones, FileText, CheckCircle,
-  ArrowUpRight, ArrowDownRight
+  ArrowUpRight, ArrowDownRight, Sparkles, ClipboardList, Bug, X, Plus
 } from 'lucide-react';
 
 export default function SuperAdmin() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [recentAppointments, setRecentAppointments] = useState([]);
   const [topScorecards, setTopScorecards] = useState([]);
   const [flaggedCalls, setFlaggedCalls] = useState([]);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isFounderUser, setIsFounderUser] = useState(false);
+  // Tester program data
+  const [testerEnrollments, setTesterEnrollments] = useState([]);
+  const [testerSessions, setTesterSessions] = useState([]);
+  const [testerLogs, setTesterLogs] = useState([]);
+  const [testerAssignments, setTesterAssignments] = useState([]);
+  const [profilesLookup, setProfilesLookup] = useState({});
+  const [showAssignModal, setShowAssignModal] = useState(false);
 
   useEffect(() => {
     checkAccess();
-  }, [user]);
+  }, [user, profile]);
 
-  async function checkAccess() {
+  function checkAccess() {
     if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (['super_admin', 'admin'].includes(data?.role)) {
-      setIsSuperAdmin(true);
+    const founder = isFounder({ email: user.email, personal_email: profile?.personal_email });
+    setIsFounderUser(founder);
+    if (founder) {
       loadDashboard();
+      loadTesterProgram();
     } else {
-      setIsSuperAdmin(false);
       setLoading(false);
+    }
+  }
+
+  async function loadTesterProgram() {
+    try {
+      const [enr, sessions, logs, assigns] = await Promise.all([
+        fetchEnrollments({ activeOnly: true }),
+        fetchEntries({ limit: 200 }),
+        fetchLogs({ limit: 100 }),
+        listAssignments({ limit: 100 }),
+      ]);
+      setTesterEnrollments(enr);
+      setTesterSessions(sessions);
+      setTesterLogs(logs);
+      setTesterAssignments(assigns);
+      // Build profile lookup for any user_ids referenced
+      const ids = new Set();
+      enr.forEach((e) => ids.add(e.user_id));
+      sessions.forEach((s) => ids.add(s.user_id));
+      logs.forEach((l) => ids.add(l.user_id));
+      assigns.forEach((a) => { if (a.assigned_to) ids.add(a.assigned_to) });
+      if (ids.size > 0) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, avatar_url')
+          .in('id', Array.from(ids));
+        const lookup = {};
+        for (const r of data || []) lookup[r.id] = r;
+        setProfilesLookup(lookup);
+      }
+    } catch (e) {
+      console.error('Tester program load failed', e);
     }
   }
 
@@ -151,15 +188,26 @@ export default function SuperAdmin() {
     );
   }
 
-  if (!isSuperAdmin) {
+  if (!isFounderUser) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
         <Shield className="w-16 h-16 text-red-400" />
-        <h2 className="text-xl font-bold">Access Denied</h2>
-        <p className="text-gray-400">Super Admin access required</p>
+        <h2 className="text-xl font-bold">Founder Access Only</h2>
+        <p className="text-gray-400">This dashboard is restricted to Liftori founders.</p>
       </div>
     );
   }
+
+  // Derive tester data
+  const activeTesterSessions = testerSessions.filter((s) => s.status === 'active');
+  const recentTesterLogs = testerLogs.slice(0, 10);
+  const openCriticalLogs = testerLogs.filter((l) => l.severity === 'critical' && !['fixed', 'closed', 'wontfix'].includes(l.status));
+  const openAssignmentsByUser = testerEnrollments.map((e) => ({
+    user: profilesLookup[e.user_id],
+    enrollment: e,
+    open: testerAssignments.filter((a) => a.assigned_to === e.user_id && ['assigned', 'in_progress'].includes(a.status)).length,
+    completed: testerAssignments.filter((a) => a.assigned_to === e.user_id && a.status === 'completed').length,
+  }));
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -375,6 +423,268 @@ export default function SuperAdmin() {
           </div>
         </div>
       </div>
+
+      {/* ═════════════════════════════════════════════════════ */}
+      {/* TESTER PROGRAM — founder-only oversight + management   */}
+      {/* ═════════════════════════════════════════════════════ */}
+      <div className="border-t border-slate-800 pt-6 mt-2">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-pink-400" />
+            <h2 className="text-lg font-bold text-white">Tester Program</h2>
+            <span className="text-xs text-gray-500">{testerEnrollments.length} active</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAssignModal(true)}
+              className="text-xs px-3 py-1.5 bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/40 text-pink-300 rounded-md font-medium flex items-center gap-1"
+            >
+              <Plus className="w-3 h-3" /> Assign work
+            </button>
+            <button onClick={() => navigate('/admin/testing')} className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-gray-300 rounded-md font-medium">
+              Full dashboard →
+            </button>
+          </div>
+        </div>
+
+        {/* Tester KPIs */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+          <MetricCard icon={Users} label="Active Testers" value={testerEnrollments.length} sub="enrolled" color="purple" />
+          <MetricCard icon={Activity} label="Clocked In Now" value={activeTesterSessions.length} sub="live sessions" color={activeTesterSessions.length > 0 ? 'green' : 'default'} />
+          <MetricCard icon={Bug} label="Open Logs" value={testerLogs.filter(l => ['open', 'triaged', 'in_progress'].includes(l.status)).length} sub="awaiting fix" color="orange" />
+          <MetricCard icon={AlertTriangle} label="Critical Open" value={openCriticalLogs.length} sub="urgent" color={openCriticalLogs.length > 0 ? 'red' : 'green'} />
+          <MetricCard icon={ClipboardList} label="Open Assignments" value={testerAssignments.filter(a => ['assigned', 'in_progress'].includes(a.status)).length} sub={`${testerAssignments.filter(a => a.status === 'completed').length} done`} color="sky" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Live Tester Activity */}
+          <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+            <SectionHeader icon={Activity} title="Live Activity" />
+            <div className="space-y-2 mt-3">
+              {testerEnrollments.length === 0 ? (
+                <p className="text-xs text-gray-500 text-center py-4">No enrolled testers yet</p>
+              ) : openAssignmentsByUser.map(({ user: u, enrollment: e, open, completed }) => {
+                const session = activeTesterSessions.find((s) => s.user_id === e.user_id);
+                return (
+                  <div key={e.id} className="bg-slate-900/40 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${session ? 'bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-500/30' : 'bg-slate-700 text-gray-400'}`}>
+                        {(u?.full_name || u?.email || '?')[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white truncate">{u?.full_name || u?.email || 'Tester'}</div>
+                        <div className="text-[10px] text-gray-500">
+                          {session
+                            ? <span className="text-emerald-400">● Active {formatDuration(liveDuration(session.clock_in_at))}</span>
+                            : <span>○ Off the clock</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] text-gray-500 ml-9">
+                      <span>{open} open</span>
+                      <span>·</span>
+                      <span>{completed} done</span>
+                      <span>·</span>
+                      <span>{(Number(e.commission_rate) * 100).toFixed(1)}% / {e.min_hours_per_week}hr</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recent Submissions */}
+          <div className="lg:col-span-2 bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <SectionHeader icon={Bug} title="Recent Submissions" />
+              <button onClick={() => navigate('/admin/testing')} className="text-xs text-purple-400 hover:text-purple-300">View all in Testing →</button>
+            </div>
+            <div className="mt-3 divide-y divide-slate-700/40">
+              {recentTesterLogs.length === 0 ? (
+                <p className="text-xs text-gray-500 text-center py-6">No submissions yet</p>
+              ) : recentTesterLogs.map((l) => (
+                <TesterLogRow
+                  key={l.id}
+                  log={l}
+                  user={profilesLookup[l.user_id]}
+                  onChangeStatus={async (s) => {
+                    await supabase.from('team_work_logs').update({ status: s, updated_at: new Date().toISOString() }).eq('id', l.id);
+                    loadTesterProgram();
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Assign Modal */}
+      {showAssignModal && (
+        <AssignWorkModal
+          assignedBy={user?.id}
+          enrollments={testerEnrollments}
+          profilesLookup={profilesLookup}
+          onClose={() => setShowAssignModal(false)}
+          onCreated={() => { setShowAssignModal(false); loadTesterProgram(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Tester sub-components ───────────────────────────────
+function TesterLogRow({ log, user, onChangeStatus }) {
+  const [expanded, setExpanded] = useState(false);
+  const sevColor = {
+    critical: 'text-rose-400 bg-rose-500/15',
+    high: 'text-orange-400 bg-orange-500/15',
+    medium: 'text-amber-400 bg-amber-500/15',
+    low: 'text-sky-400 bg-sky-500/15',
+    info: 'text-slate-400 bg-slate-500/15',
+  }[log.severity] || 'text-slate-400 bg-slate-500/15';
+  return (
+    <>
+      <div className="py-2 flex items-center gap-2 cursor-pointer hover:bg-slate-800/40 px-2 -mx-2 rounded" onClick={() => setExpanded((x) => !x)}>
+        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${sevColor}`}>{log.severity}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm text-white truncate">{log.title}</div>
+          <div className="text-[10px] text-gray-500 flex items-center gap-2">
+            <span>{user?.full_name || user?.email?.split('@')[0] || 'tester'}</span>
+            {log.screen_path && <span className="font-mono">{log.screen_path}</span>}
+            <span>·</span>
+            <span>{new Date(log.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+        <select
+          value={log.status}
+          onChange={(e) => { e.stopPropagation(); onChangeStatus(e.target.value); }}
+          onClick={(e) => e.stopPropagation()}
+          className={`text-[10px] font-semibold uppercase rounded px-1.5 py-0.5 border-0 focus:outline-none ${
+            log.status === 'fixed' ? 'bg-emerald-500/15 text-emerald-300' :
+            log.status === 'open' ? 'bg-rose-500/15 text-rose-300' :
+            'bg-slate-500/15 text-slate-400'
+          }`}
+        >
+          {['open', 'triaged', 'in_progress', 'fixed', 'wontfix', 'cannot_reproduce', 'duplicate', 'closed'].map((s) => (
+            <option key={s} value={s} className="bg-slate-900 text-white">{s.replace(/_/g, ' ')}</option>
+          ))}
+        </select>
+      </div>
+      {expanded && (
+        <div className="bg-slate-900/40 rounded p-3 mb-2 text-xs text-gray-300 space-y-2">
+          {log.description && <div><span className="text-gray-500 uppercase text-[10px] font-bold">Desc:</span> {log.description}</div>}
+          {log.steps_to_reproduce && <div><span className="text-gray-500 uppercase text-[10px] font-bold">Steps:</span><pre className="whitespace-pre-wrap font-mono text-[11px] mt-1">{log.steps_to_reproduce}</pre></div>}
+          {log.expected_result && <div><span className="text-gray-500 uppercase text-[10px] font-bold">Expected:</span> {log.expected_result}</div>}
+          {log.actual_result && <div><span className="text-gray-500 uppercase text-[10px] font-bold">Actual:</span> {log.actual_result}</div>}
+        </div>
+      )}
+    </>
+  );
+}
+
+function AssignWorkModal({ assignedBy, enrollments, profilesLookup, onClose, onCreated }) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [screenPath, setScreenPath] = useState('');
+  const [priority, setPriority] = useState('medium');
+  const [assignedTo, setAssignedTo] = useState(enrollments[0]?.user_id || '');
+  const [dueDate, setDueDate] = useState('');
+  const [estMinutes, setEstMinutes] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!title.trim() || !assignedTo) {
+      alert('Title + assignee required');
+      return;
+    }
+    setBusy(true);
+    try {
+      await createAssignment({
+        title: title.trim(),
+        description: description.trim() || null,
+        instructions: instructions.trim() || null,
+        screenPath: screenPath.trim() || null,
+        priority,
+        dueDate: dueDate || null,
+        estimatedMinutes: estMinutes ? Number(estMinutes) : null,
+        assignedTo,
+        assignedBy,
+      });
+      onCreated?.();
+    } catch (err) {
+      console.error(err);
+      alert('Save failed: ' + (err?.message || 'unknown'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-auto py-10 px-4">
+      <form onSubmit={submit} className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-slate-700">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Assign work to a tester</h2>
+            <p className="text-xs text-gray-500 mt-0.5">They'll see this on their dashboard.</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div>
+            <label className="text-[10px] uppercase font-bold text-gray-500">Assign to *</label>
+            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} required className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+              {enrollments.length === 0 && <option value="">No active testers</option>}
+              {enrollments.map((e) => (
+                <option key={e.user_id} value={e.user_id}>
+                  {profilesLookup[e.user_id]?.full_name || profilesLookup[e.user_id]?.email || e.user_id.slice(0, 8)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase font-bold text-gray-500">Title *</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" placeholder="e.g., Test mobile responsive on Ops dashboard" />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase font-bold text-gray-500">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase font-bold text-gray-500">Instructions (specific test steps)</label>
+            <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={3} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white font-mono" placeholder={'1. Open page on mobile (375x667)\n2. Try to add a work order\n3. Verify form submits without errors'} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] uppercase font-bold text-gray-500">Screen path</label>
+              <input value={screenPath} onChange={(e) => setScreenPath(e.target.value)} placeholder="/admin/ops/work-orders" className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white font-mono" />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase font-bold text-gray-500">Priority</label>
+              <select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+                {['low', 'medium', 'high', 'urgent'].map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] uppercase font-bold text-gray-500">Due date</label>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase font-bold text-gray-500">Estimated minutes</label>
+              <input type="number" min="0" value={estMinutes} onChange={(e) => setEstMinutes(e.target.value)} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-700">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+          <button type="submit" disabled={busy || !assignedTo} className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+            {busy ? 'Assigning…' : 'Assign work'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

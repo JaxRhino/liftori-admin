@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import IncomingCallModal from './IncomingCallModal'
 import GlobalPhoneCallPopup from './GlobalPhoneCallPopup'
 import GlobalHeader from './GlobalHeader'
+import { isFounder } from '../lib/testerProgramService'
 import VideoCallRoom from './VideoCallRoom'
 import OnboardingWizard from './OnboardingWizard'
 
@@ -601,8 +602,14 @@ export default function AdminLayout() {
   // Items that are Liftori-admin-only (never shown to customer tenants)
   const ADMIN_ONLY_ITEMS = ['Super Admin', 'Support Tickets', 'Rally']
 
+  // Founder-only nav items (Ryan + Mike via email allowlist)
+  const founder = isFounder({ email: user?.email, personal_email: profile?.personal_email })
+  const FOUNDER_ONLY_ITEMS = ['Super Admin']
+
   // Filter nav items based on role AND tenant features
   const visibleNavItems = navItems.filter(item => {
+    // Founder-only items
+    if (FOUNDER_ONLY_ITEMS.includes(item.label) && !founder) return false
     // Hide admin-only items when viewing a customer org
     if (isImpersonating && ADMIN_ONLY_ITEMS.includes(item.label)) return false
     // Role-based filtering

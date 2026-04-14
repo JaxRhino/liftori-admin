@@ -152,6 +152,90 @@ export async function completeOnboarding({ token, password, profile, availabilit
 // AGREEMENT TEXTS (versioned, hashed for proof)
 // ═══════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════
+// FOUNDERS — hardcoded allowlist (Ryan + Mike)
+// ═══════════════════════════════════════════════
+export const LIFTORI_FOUNDERS = [
+  'ryan@liftori.ai',
+  'mike@liftori.ai',
+  'rhinomarch78@gmail.com', // Ryan personal backup
+  '4sherpanation@gmail.com', // Mike personal backup
+]
+
+export function isFounder(profileOrUser) {
+  const email = (profileOrUser?.email || '').toLowerCase()
+  const personal = (profileOrUser?.personal_email || '').toLowerCase()
+  return LIFTORI_FOUNDERS.includes(email) || LIFTORI_FOUNDERS.includes(personal)
+}
+
+// ═══════════════════════════════════════════════
+// TESTER ASSIGNMENTS — work assigned by founders to testers
+// ═══════════════════════════════════════════════
+
+export async function createAssignment({
+  title,
+  description = null,
+  instructions = null,
+  screenPath = null,
+  priority = 'medium',
+  dueDate = null,
+  estimatedMinutes = null,
+  assignedTo,
+  assignedBy,
+  tags = [],
+}) {
+  const { data, error } = await supabase
+    .from('tester_assignments')
+    .insert({
+      title,
+      description,
+      instructions,
+      screen_path: screenPath,
+      priority,
+      due_date: dueDate,
+      estimated_minutes: estimatedMinutes,
+      assigned_to: assignedTo,
+      assigned_by: assignedBy,
+      tags,
+    })
+    .select()
+    .single()
+  if (error) err(error, 'createAssignment')
+  return data
+}
+
+export async function listAssignments({ assignedTo = null, status = null, limit = 100 } = {}) {
+  let q = supabase.from('tester_assignments').select('*').order('created_at', { ascending: false }).limit(limit)
+  if (assignedTo) q = q.eq('assigned_to', assignedTo)
+  if (status) q = q.eq('status', status)
+  const { data, error } = await q
+  if (error) err(error, 'listAssignments')
+  return data || []
+}
+
+export async function updateAssignment(id, updates) {
+  const payload = { ...updates, updated_at: new Date().toISOString() }
+  if (updates.status === 'in_progress' && !updates.started_at) payload.started_at = new Date().toISOString()
+  if (updates.status === 'completed' && !updates.completed_at) payload.completed_at = new Date().toISOString()
+  const { data, error } = await supabase
+    .from('tester_assignments')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) err(error, 'updateAssignment')
+  return data
+}
+
+export async function deleteAssignment(id) {
+  const { error } = await supabase.from('tester_assignments').delete().eq('id', id)
+  if (error) err(error, 'deleteAssignment')
+}
+
+// ═══════════════════════════════════════════════
+// AGREEMENT TEXTS (versioned, hashed for proof)
+// ═══════════════════════════════════════════════
+
 export const AGREEMENT_TEXTS = {
   nda: {
     version: '1.0',
@@ -177,6 +261,99 @@ This Mutual Non-Disclosure Agreement ("Agreement") is entered into as of the sig
 8. GOVERNING LAW. This Agreement is governed by the laws of the State of Florida.
 
 By signing below, Tester acknowledges they have read, understood, and agree to be bound by this Agreement.`,
+  },
+  contractor_role: {
+    version: '1.0',
+    title: 'Liftori Tester Role & Commission Agreement',
+    body: `LIFTORI, LLC — TESTER ROLE & COMMISSION AGREEMENT (v1.0)
+
+This Tester Role & Commission Agreement ("Agreement") is entered into as of the signature date below by and between Liftori, LLC ("Liftori"), a Florida limited liability company, and the undersigned individual ("Tester"). This Agreement supplements the Mutual Non-Disclosure Agreement and the 1099 Independent Contractor Agreement also signed by Tester.
+
+1. ROLE DESCRIPTION
+
+Tester is engaged to provide platform quality testing services to Liftori, including but not limited to:
+   (a) Testing the functionality, usability, and reliability of Liftori's platform across all surfaces (admin dashboards, client portals, mobile views, public pages).
+   (b) Identifying, documenting, and reporting bugs, regressions, friction points, and security issues using Liftori's structured Work Log system.
+   (c) Validating new features against acceptance criteria.
+   (d) Walking through user workflows as a real user would, on multiple devices and browsers.
+   (e) Completing assigned testing tasks issued by Liftori founders.
+
+2. OBLIGATIONS OF TESTER
+
+Tester agrees to:
+   (a) Maintain strict confidentiality of all platform features, data, and business operations witnessed during testing, in accordance with the signed Mutual NDA.
+   (b) Submit honest, accurate, and detailed bug reports. Falsified, exaggerated, or manufactured reports are grounds for immediate termination and forfeiture of any unpaid commission.
+   (c) Use platform access solely for testing purposes — not for personal use, not for competitive analysis on behalf of any third party, and not to access customer data beyond what is necessary to test.
+   (d) Never share login credentials, tokens, or access keys with any third party.
+   (e) Report any discovered security vulnerabilities, data exposures, or critical defects to Liftori immediately and confidentially via the #critical-bugs channel — never publicly disclose, post on social media, or share with anyone outside Liftori.
+   (f) Maintain professional conduct in all communications with Liftori founders, team members, and customers (when impersonating tenants for testing).
+   (g) Clock in for all billable testing time using Liftori's time-tracking system. Time not clocked in is not eligible for commission consideration.
+   (h) Provide notice and remit any Liftori property, credentials, or access immediately upon termination of this Agreement.
+
+3. COMMISSION STRUCTURE
+
+(a) Compensation Model. Tester is compensated solely through a commission share of Liftori's monthly net profit pool. There is no salary, hourly wage, or per-bug payment.
+
+(b) Pool Calculation. Liftori contributes a percentage of its monthly net profit (the "Tester Commission Rate," default five percent (5%)) to the Tester Commission Pool each month. The Tester's individual rate is recorded in Liftori's tester enrollment system at the time of onboarding.
+
+(c) Minimum Commitment. To qualify for a given monthly period, Tester must clock at least ten (10) hours per week of testing activity (the "Minimum Hours"). Hours are measured by Liftori's time-tracking system.
+
+(d) Effort Measurement. Tester's effort is measured by both (i) clocked hours and (ii) tracked activity per session, including but not limited to the number, severity, quality, and accuracy of work log entries submitted, completion of assigned tasks, and engagement with platform testing flows. Liftori reserves the right to disqualify any tester whose tracked activity does not reasonably correspond to claimed clocked hours.
+
+(e) Pool Split. The Tester Commission Pool for a given month is split evenly among all Testers who meet the Minimum Hours and pass the activity check for that month.
+
+(f) PROFIT-CONTINGENT PAYMENT — CARRY-OVER RULE. The Tester Commission Pool is funded only from Liftori's monthly net profit. If Liftori has zero or negative net profit for a given month, no commission is paid for that month. However, Tester's qualifying status (hours and activity) for that month is preserved and carries forward to subsequent months. When Liftori achieves a profitable month, Tester will receive their accrued share for all prior qualifying carried-over periods, in addition to the current month's share. This carry-over has no expiration; Liftori commits to making qualifying testers whole once profitability is achieved.
+
+(g) Payout Method and Timing. Commission payouts are issued via Tester's designated payment method (ACH, check, or other agreed method) within thirty (30) days of the period being closed and marked paid by Liftori. All payouts are reported on IRS Form 1099 per the 1099 Independent Contractor Agreement.
+
+(h) No Guarantee. Tester acknowledges that commission amounts are inherently variable and dependent on Liftori's monthly net profit, the number of qualifying testers, and individual qualification status. Liftori makes no representation or warranty regarding any minimum commission amount.
+
+4. TERMINATION
+
+(a) Termination by Either Party. Either party may terminate this Agreement at any time, with or without cause, by providing fourteen (14) days written notice to the other party (electronic notice via Liftori's platform or email is sufficient).
+
+(b) Immediate Termination for Cause by Liftori. Liftori may terminate this Agreement immediately, without notice and without further obligation, for any of the following reasons:
+   (i) Breach of confidentiality, including but not limited to disclosing Liftori's proprietary information, customer data, or platform vulnerabilities to any third party.
+   (ii) Submission of falsified, fraudulent, or materially inaccurate bug reports or time entries.
+   (iii) Misuse of platform access, including unauthorized access to customer data, attempts to circumvent security controls, or use of access for purposes other than testing.
+   (iv) Public disclosure of Liftori vulnerabilities, defects, or business information without prior written authorization.
+   (v) Failure to clock the Minimum Hours for three (3) consecutive monthly periods, absent a documented leave arrangement.
+   (vi) Conduct that materially harms Liftori's reputation, customer relationships, or business operations.
+   (vii) Violation of any term of the Mutual NDA or 1099 Independent Contractor Agreement.
+
+(c) Effect of Termination. Upon termination:
+   (i) Tester's platform access will be revoked.
+   (ii) Tester remains bound by ongoing confidentiality obligations under the Mutual NDA.
+   (iii) Any qualifying commission accrued and unpaid up to the termination date will be paid out in the next paid period, EXCEPT in cases of termination for cause under Section 4(b)(i)–(iv), in which case Liftori may forfeit unpaid amounts.
+   (iv) Carried-over qualifying periods (per Section 3(f)) are preserved through termination only when termination is mutual or for non-cause; carry-over balances are forfeited upon termination for cause under Section 4(b)(i)–(iv).
+
+5. INDEPENDENT CONTRACTOR STATUS
+
+Tester is an independent contractor and not an employee, agent, partner, or joint venturer of Liftori. Liftori does not control the manner, location, or specific hours during which Tester performs testing services, only the deliverables and minimum commitment. Tester is responsible for their own taxes, equipment, internet, workspace, insurance, and benefits.
+
+6. INTELLECTUAL PROPERTY
+
+All bug reports, suggestions, observations, test results, and any other work product created by Tester in the course of performing services under this Agreement are the sole and exclusive property of Liftori. Tester hereby assigns all right, title, and interest in such work product to Liftori upon creation.
+
+7. NO COMPETING ENGAGEMENTS
+
+While engaged with Liftori, Tester agrees not to provide testing or quality assurance services to any direct competitor of Liftori without prior written consent. Direct competitors include other AI-powered platform delivery services, business operating system vendors targeting small business markets, and white-label SaaS builders.
+
+8. INDEMNIFICATION
+
+Tester agrees to indemnify and hold Liftori harmless from any claims, damages, or losses arising from Tester's negligence, willful misconduct, breach of this Agreement, or unauthorized disclosure of Confidential Information.
+
+9. ENTIRE AGREEMENT; AMENDMENTS
+
+This Agreement, together with the Mutual NDA and 1099 Independent Contractor Agreement, constitutes the entire agreement between the parties regarding Tester's engagement. Any amendments must be in writing and signed by both parties. Liftori may update the commission rate, minimum hours threshold, or payout terms with thirty (30) days written notice; continued participation by Tester after such notice constitutes acceptance.
+
+10. GOVERNING LAW; DISPUTE RESOLUTION
+
+This Agreement is governed by the laws of the State of Florida. Any disputes shall first be addressed through good-faith direct negotiation between the parties, and if unresolved within thirty (30) days, shall be resolved in the courts of Duval County, Florida.
+
+11. ACKNOWLEDGMENT
+
+By signing below, Tester acknowledges that they have read this Agreement in its entirety, have had the opportunity to ask questions, understand the commission structure including the profit-contingent carry-over rule, understand the obligations and grounds for termination, and agree to be bound by all terms herein.`,
   },
   contractor_1099: {
     version: '1.0',

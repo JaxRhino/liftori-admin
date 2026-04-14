@@ -123,6 +123,9 @@ import TeamAvailability from './pages/TeamAvailability'
 import SuperAdmin from './pages/SuperAdmin'
 import Testing from './pages/Testing'
 import TesterOnboarding from './pages/TesterOnboarding'
+import TesterDashboard from './pages/TesterDashboard'
+import { useEffect, useState } from 'react'
+import { fetchMyEnrollment } from './lib/timeTrackingService'
 // Customer Sales Hub (LABOS tenant pages)
 import CustomerContacts from './pages/customer/CustomerContacts'
 import CustomerProjects from './pages/customer/CustomerProjects'
@@ -179,6 +182,28 @@ function RootRedirect() {
   return isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/portal" replace />
 }
 
+/** Renders TesterDashboard for enrolled testers, regular Dashboard otherwise. */
+function DashboardRouter() {
+  const { user } = useAuth()
+  const [checked, setChecked] = useState(false)
+  const [isTester, setIsTester] = useState(false)
+  useEffect(() => {
+    if (!user?.id) return
+    fetchMyEnrollment(user.id)
+      .then((e) => setIsTester(!!e))
+      .catch(() => setIsTester(false))
+      .finally(() => setChecked(true))
+  }, [user?.id])
+  if (!checked) {
+    return (
+      <div className="min-h-screen bg-navy-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+  return isTester ? <TesterDashboard /> : <Dashboard />
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -213,7 +238,7 @@ export default function App() {
               </AdminRoute>
             </ProtectedRoute>
           }>
-            <Route index element={<Dashboard />} />
+            <Route index element={<DashboardRouter />} />
             <Route path="super-admin" element={<SuperAdmin />} />
             <Route path="call-center" element={<CallCenter />} />
             <Route path="cc-team" element={<CallCenterTeam />} />

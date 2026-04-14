@@ -6,12 +6,14 @@ import {
   fetchActiveEntry,
   clockIn as apiClockIn,
   clockOut as apiClockOut,
+  fetchMyEnrollment,
   liveDuration,
   formatDuration,
 } from '../lib/timeTrackingService'
 
 /**
  * Persistent clock-in / clock-out chip for the top nav.
+ * - Only renders for users with an active tester_enrollments row.
  * - Shows a "Clock in" button when no active session.
  * - Shows a live-updating timer + "Clock out" button when active.
  * - Clicking the chip body navigates to the Testing page.
@@ -22,14 +24,22 @@ export default function TimeClockBar() {
   const [active, setActive] = useState(null)
   const [loading, setLoading] = useState(false)
   const [tick, setTick] = useState(0)
+  const [enrollment, setEnrollment] = useState(null)
+  const [enrollmentChecked, setEnrollmentChecked] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!user?.id) return
     try {
-      const entry = await fetchActiveEntry(user.id)
+      const [entry, enr] = await Promise.all([
+        fetchActiveEntry(user.id),
+        fetchMyEnrollment(user.id),
+      ])
       setActive(entry)
+      setEnrollment(enr)
     } catch (err) {
       console.error('[TimeClockBar] refresh', err)
+    } finally {
+      setEnrollmentChecked(true)
     }
   }, [user?.id])
 
@@ -77,6 +87,13 @@ export default function TimeClockBar() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Gate: only enrolled testers see the clock chip.
+  // Exception: if a non-tester somehow has an active session (legacy data), still
+  // show the "Clock out" affordance so they can close it cleanly.
+  if (enrollmentChecked && !enrollment && !active) {
+    return null
   }
 
   // Not clocked in — small CTA

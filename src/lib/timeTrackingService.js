@@ -466,3 +466,17 @@ export function formatCurrency(n) {
   if (n == null || isNaN(Number(n))) return '$0.00'
   return `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
+
+/** Public-safe RPC: how many active testers there are (no identities exposed). */
+export async function countActiveTesters() {
+  const { data, error } = await supabase.rpc('count_active_testers')
+  if (error) { console.error('[countActiveTesters]', error); return 0 }
+  return Number(data) || 0
+}
+
+/** Public-safe RPC: how many testers qualified for a given period (no identities). */
+export async function countQualifyingTesters(periodId) {
+  const { data, error } = await supabase.rpc('count_qualifying_testers', { p_period_id: periodId })
+  if (error) { console.error('[countQualifyingTesters]', error); return 0 }
+  return Number(data) || 0
+}
