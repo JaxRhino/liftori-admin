@@ -16,12 +16,13 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { LIFTORI_FOUNDERS, isFounder, listAssignments, createAssignment, updateAssignment } from '../lib/testerProgramService';
 import { fetchEnrollments, fetchEntries, fetchLogs, formatDuration, liveDuration } from '../lib/timeTrackingService';
+import { fetchAffiliateEnrollments, listAffiliateInvites, AFFILIATE_TIERS, getTier } from '../lib/affiliateProgramService';
 import {
   Shield, Users, Briefcase, Phone, BarChart3, MessageSquare,
   TrendingUp, AlertTriangle, Star, Clock, Activity, DollarSign,
   UserCheck, Calendar, Target, Zap, ChevronRight, RefreshCw,
   Loader2, Building2, Headphones, FileText, CheckCircle,
-  ArrowUpRight, ArrowDownRight, Sparkles, ClipboardList, Bug, X, Plus
+  ArrowUpRight, ArrowDownRight, Sparkles, ClipboardList, Bug, X, Plus, Heart
 } from 'lucide-react';
 
 export default function SuperAdmin() {
@@ -41,6 +42,9 @@ export default function SuperAdmin() {
   const [testerAssignments, setTesterAssignments] = useState([]);
   const [profilesLookup, setProfilesLookup] = useState({});
   const [showAssignModal, setShowAssignModal] = useState(false);
+  // Affiliate program data
+  const [affiliateEnrollments, setAffiliateEnrollments] = useState([]);
+  const [affiliateInvites, setAffiliateInvites] = useState([]);
 
   useEffect(() => {
     checkAccess();
@@ -60,22 +64,27 @@ export default function SuperAdmin() {
 
   async function loadTesterProgram() {
     try {
-      const [enr, sessions, logs, assigns] = await Promise.all([
+      const [enr, sessions, logs, assigns, affEnr, affInv] = await Promise.all([
         fetchEnrollments({ activeOnly: true }),
         fetchEntries({ limit: 200 }),
         fetchLogs({ limit: 100 }),
         listAssignments({ limit: 100 }),
+        fetchAffiliateEnrollments({ activeOnly: true }),
+        listAffiliateInvites({ limit: 50 }),
       ]);
       setTesterEnrollments(enr);
       setTesterSessions(sessions);
       setTesterLogs(logs);
       setTesterAssignments(assigns);
+      setAffiliateEnrollments(affEnr);
+      setAffiliateInvites(affInv);
       // Build profile lookup for any user_ids referenced
       const ids = new Set();
       enr.forEach((e) => ids.add(e.user_id));
       sessions.forEach((s) => ids.add(s.user_id));
       logs.forEach((l) => ids.add(l.user_id));
       assigns.forEach((a) => { if (a.assigned_to) ids.add(a.assigned_to) });
+      affEnr.forEach((a) => ids.add(a.user_id));
       if (ids.size > 0) {
         const { data } = await supabase
           .from('profiles')
@@ -511,6 +520,101 @@ export default function SuperAdmin() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ═════════════════════════════════════════════════════ */}
+      {/* AFFILIATE / CREATOR PROGRAM — founder-only oversight  */}
+      {/* ═════════════════════════════════════════════════════ */}
+      <div className="border-t border-slate-800 pt-6 mt-2">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Heart className="w-5 h-5 text-pink-400" />
+            <h2 className="text-lg font-bold text-white">Creator / Affiliate Program</h2>
+            <span className="text-xs text-gray-500">{affiliateEnrollments.length} active</span>
+          </div>
+          <button onClick={() => navigate('/admin/affiliates')} className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-gray-300 rounded-md font-medium">
+            Manage affiliates →
+          </button>
+        </div>
+
+        {/* KPIs */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+          <MetricCard icon={Users} label="Active creators" value={affiliateEnrollments.length} sub="enrolled" color="purple" />
+          <MetricCard icon={Star} label="Pro tier" value={affiliateEnrollments.filter((e) => e.tier === 'pro').length} sub="$149/mo" color="green" />
+          <MetricCard icon={Zap} label="Creator tier" value={affiliateEnrollments.filter((e) => e.tier === 'creator').length} sub="$29/mo" color="sky" />
+          <MetricCard icon={Heart} label="Starter tier" value={affiliateEnrollments.filter((e) => e.tier === 'free').length} sub="free" />
+          <MetricCard icon={Clock} label="Pending invites" value={affiliateInvites.filter((i) => ['pending','opened','in_progress'].includes(i.status)).length} sub={`${affiliateInvites.filter((i) => i.status === 'completed').length} completed`} color="orange" />
+        </div>
+
+        {/* Creators list */}
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+          <SectionHeader icon={Heart} title="Active creators" />
+          <div className="mt-3 space-y-2">
+            {affiliateEnrollments.length === 0 ? (
+              <p className="text-xs text-gray-500 italic text-center py-4">No creators onboarded yet. Invite your first from /admin/affiliates.</p>
+            ) : (
+              affiliateEnrollments.map((e) => {
+                const u = profilesLookup[e.user_id];
+                const tier = getTier(e.tier);
+                return (
+                  <div key={e.id} className="bg-slate-900/40 rounded-lg p-3 flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                      e.tier === 'pro' ? 'bg-emerald-500/20 text-emerald-300' :
+                      e.tier === 'creator' ? 'bg-sky-500/20 text-sky-300' :
+                      'bg-slate-500/20 text-gray-400'
+                    }`}>
+                      {(u?.full_name || u?.email || '?')[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-white truncate">{u?.full_name || u?.email || e.user_id.slice(0, 8)}</div>
+                      <div className="text-[10px] text-gray-500">
+                        <span className="text-pink-300 font-semibold">{tier.label}</span>
+                        {' · '}
+                        <span>{(Number(e.commission_rate) * 100).toFixed(0)}% commission</span>
+                        {e.niche && <span> · {e.niche}</span>}
+                        {e.primary_platform && <span> · {e.primary_platform}</span>}
+                      </div>
+                    </div>
+                    {e.referral_code && (
+                      <code className="text-[10px] font-mono text-pink-300 bg-pink-500/10 px-2 py-1 rounded border border-pink-500/20">
+                        ?ref={e.referral_code}
+                      </code>
+                    )}
+                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                      e.subscription_status === 'active' ? 'bg-emerald-500/15 text-emerald-300' :
+                      e.subscription_status === 'trialing' ? 'bg-amber-500/15 text-amber-300' :
+                      'bg-slate-500/15 text-slate-400'
+                    }`}>
+                      {e.subscription_status}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Pending invites */}
+        {affiliateInvites.filter((i) => ['pending','opened','in_progress'].includes(i.status)).length > 0 && (
+          <div className="mt-4 bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+            <SectionHeader icon={Clock} title="Pending invites" />
+            <div className="mt-3 space-y-1.5">
+              {affiliateInvites.filter((i) => ['pending','opened','in_progress'].includes(i.status)).map((i) => (
+                <div key={i.id} className="flex items-center justify-between text-xs py-1">
+                  <div>
+                    <span className="text-white">{i.full_name}</span>
+                    <span className="text-gray-500"> · {i.personal_email}</span>
+                  </div>
+                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                    i.status === 'pending' ? 'bg-amber-500/15 text-amber-300' :
+                    i.status === 'opened' ? 'bg-sky-500/15 text-sky-300' :
+                    'bg-purple-500/15 text-purple-300'
+                  }`}>{i.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Assign Modal */}

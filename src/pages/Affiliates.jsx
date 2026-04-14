@@ -145,7 +145,7 @@ function TierRewardsSection() {
       bg: 'bg-violet-500/20',
       border: 'border-violet-500/30',
       text: 'text-violet-400',
-      perks: ['Revenue share', 'White-label option', 'VIP events', 'Direct Slack channel'],
+      perks: ['Revenue share', 'White-label option', 'VIP events', 'Direct Liftori Chat line'],
     },
   ]
 

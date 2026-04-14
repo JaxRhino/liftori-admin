@@ -125,6 +125,22 @@ import Testing from './pages/Testing'
 import TesterOnboarding from './pages/TesterOnboarding'
 import TesterDashboard from './pages/TesterDashboard'
 import AffiliateOnboarding from './pages/AffiliateOnboarding'
+import AffiliateLayout from './components/AffiliateLayout'
+import AffiliateDashboard from './pages/affiliate/AffiliateDashboard'
+import AffiliateReferrals from './pages/affiliate/AffiliateReferrals'
+import AffiliateContent from './pages/affiliate/AffiliateContent'
+import AffiliateScheduler from './pages/affiliate/AffiliateScheduler'
+import AffiliateLibrary from './pages/affiliate/AffiliateLibrary'
+import AffiliateIdeas from './pages/affiliate/AffiliateIdeas'
+import AffiliateAnalytics from './pages/affiliate/AffiliateAnalytics'
+import AffiliateCRM from './pages/affiliate/AffiliateCRM'
+import AffiliateInventory from './pages/affiliate/AffiliateInventory'
+import AffiliateNotes from './pages/affiliate/AffiliateNotes'
+import AffiliateTasks from './pages/affiliate/AffiliateTasks'
+import AffiliateCalendar from './pages/affiliate/AffiliateCalendar'
+import AffiliateChat from './pages/affiliate/AffiliateChat'
+import AffiliateSupport from './pages/affiliate/AffiliateSupport'
+import AffiliateSettings from './pages/affiliate/AffiliateSettings'
 import { useEffect, useState } from 'react'
 import { fetchMyEnrollment } from './lib/timeTrackingService'
 // Customer Sales Hub (LABOS tenant pages)
@@ -161,9 +177,18 @@ function ProtectedRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { isAdmin, loading } = useAuth()
+  const { isAdmin, isAffiliate, loading } = useAuth()
   if (loading) return null
+  if (isAffiliate) return <Navigate to="/affiliate" replace />
   if (!isAdmin) return <Navigate to="/portal" replace />
+  return children
+}
+
+function AffiliateRoute({ children }) {
+  const { isAffiliate, isAdmin, loading } = useAuth()
+  if (loading) return null
+  // Allow affiliates + admins (so founders can impersonate / test)
+  if (!isAffiliate && !isAdmin) return <Navigate to="/portal" replace />
   return children
 }
 
@@ -174,12 +199,13 @@ function ClientRoute({ children }) {
 }
 
 function RootRedirect() {
-  const { isAdmin, loading } = useAuth()
+  const { isAdmin, isAffiliate, loading } = useAuth()
   if (loading) return (
     <div className="min-h-screen bg-navy-950 flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
     </div>
   )
+  if (isAffiliate) return <Navigate to="/affiliate" replace />
   return isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/portal" replace />
 }
 
@@ -363,6 +389,32 @@ export default function App() {
             <Route path="testing" element={<Testing />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Route>
+
+          {/* Affiliate / Creator Portal routes */}
+          <Route path="/affiliate" element={
+            <ProtectedRoute>
+              <AffiliateRoute>
+                <AffiliateLayout />
+              </AffiliateRoute>
+            </ProtectedRoute>
+          }>
+            <Route index element={<AffiliateDashboard />} />
+            <Route path="referrals" element={<AffiliateReferrals />} />
+            <Route path="content" element={<AffiliateContent />} />
+            <Route path="scheduler" element={<AffiliateScheduler />} />
+            <Route path="library" element={<AffiliateLibrary />} />
+            <Route path="ideas" element={<AffiliateIdeas />} />
+            <Route path="analytics" element={<AffiliateAnalytics />} />
+            <Route path="crm" element={<AffiliateCRM />} />
+            <Route path="inventory" element={<AffiliateInventory />} />
+            <Route path="notes" element={<AffiliateNotes />} />
+            <Route path="tasks" element={<AffiliateTasks />} />
+            <Route path="calendar" element={<AffiliateCalendar />} />
+            <Route path="chat" element={<AffiliateChat />} />
+            <Route path="support" element={<AffiliateSupport />} />
+            <Route path="settings" element={<AffiliateSettings />} />
+            <Route path="*" element={<Navigate to="/affiliate" replace />} />
           </Route>
 
           {/* Choose Plan — full-screen, outside ClientLayout */}

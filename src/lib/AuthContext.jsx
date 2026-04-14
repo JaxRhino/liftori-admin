@@ -105,12 +105,14 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // 'tester' is included so enrolled testers can reach /admin (their dashboard lives there).
-  // The Super Admin page itself is gated separately by founder email allowlist.
+  // 'tester' included so enrolled testers can reach /admin (TesterDashboard renders there).
+  // Super Admin page is gated separately by founder email allowlist.
   const isAdmin = ['admin', 'dev', 'super_admin', 'sales_director', 'call_agent', 'tester'].includes(profile?.role)
+  // Affiliates get their own /affiliate portal tree (like /portal for customers).
+  const isAffiliate = profile?.role === 'affiliate'
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, token, signIn, signOut, signUp, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, isAffiliate, token, signIn, signOut, signUp, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )
