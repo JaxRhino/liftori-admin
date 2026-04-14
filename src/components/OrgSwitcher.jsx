@@ -120,6 +120,33 @@ export default function OrgSwitcher() {
               )}
             </div>
 
+            {/* Role previews — role-based UIs that aren't org-scoped */}
+            <div className="border-t border-navy-700 bg-navy-900/40">
+              <div className="px-3 pt-2 pb-1 text-[9px] uppercase font-bold text-gray-500 tracking-wider">Role previews</div>
+              <button
+                onClick={() => { setOpen(false); setSearch(''); navigate('/affiliate') }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-navy-700/50 border-l-2 border-transparent transition-colors"
+              >
+                <div className="w-8 h-8 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold flex-shrink-0">🎨</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-white truncate">Creator / Affiliate</div>
+                  <div className="text-xs text-gray-500 truncate">Preview the creator platform</div>
+                </div>
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-pink-500/20 text-pink-400 border-pink-500/30">PREVIEW</span>
+              </button>
+              <button
+                onClick={() => { setOpen(false); setSearch(''); navigate('/admin/tester-dashboard') }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-navy-700/50 border-l-2 border-transparent transition-colors"
+              >
+                <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold flex-shrink-0">🧪</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-white truncate">Tester Dashboard</div>
+                  <div className="text-xs text-gray-500 truncate">Preview the tester experience</div>
+                </div>
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-sky-500/20 text-sky-400 border-sky-500/30">PREVIEW</span>
+              </button>
+            </div>
+
             {/* Footer */}
             {isImpersonating && (
               <div className="p-2 border-t border-navy-700">

@@ -272,6 +272,7 @@ export default function App() {
           }>
             <Route index element={<DashboardRouter />} />
             <Route path="super-admin" element={<SuperAdmin />} />
+            <Route path="tester-dashboard" element={<TesterDashboard />} />
             <Route path="outbound-mail" element={<OutboundLog />} />
             <Route path="call-center" element={<CallCenter />} />
             <Route path="cc-team" element={<CallCenterTeam />} />
