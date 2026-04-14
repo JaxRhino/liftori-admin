@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import TeamMemberSelect, { TeamMemberLabel } from '../components/TeamMemberSelect'
 
 const STATUS_COLORS = {
   'Wizard Complete': 'bg-gray-500/20 text-gray-400',
@@ -525,6 +526,7 @@ function DetailsTab({ customer }) {
 
   const sections = [
     { key: 'identity', label: 'Identity & Status' },
+    { key: 'team', label: 'Team Assignments' },
     { key: 'company', label: 'Company' },
     { key: 'legal', label: 'Legal Entity' },
     { key: 'billing', label: 'Billing & Plan' },
@@ -575,6 +577,29 @@ function DetailsTab({ customer }) {
           <DetailField label="Referral Source" value={c.referral_source} />
           <DetailField label="Joined" value={formatDate(c.created_at)} />
           <DetailField label="Last Updated" value={formatDate(c.updated_at)} />
+        </DetailSection>
+      )}
+
+      {/* Team Assignments */}
+      {activeSection === 'team' && (
+        <DetailSection
+          icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>}
+          title="Liftori Team"
+        >
+          <div className="col-span-2 sm:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-0.5">Sales Rep</p>
+              <TeamMemberLabel userId={c.sales_rep_id} fallback="— Unassigned —" className="text-sm" />
+            </div>
+            <div>
+              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-0.5">Project Manager</p>
+              <TeamMemberLabel userId={c.project_manager_id} fallback="— Unassigned —" className="text-sm" />
+            </div>
+            <div>
+              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-0.5">Consultant</p>
+              <TeamMemberLabel userId={c.consultant_id} fallback="— Unassigned —" className="text-sm" />
+            </div>
+          </div>
         </DetailSection>
       )}
 
@@ -793,6 +818,10 @@ function EditTab({ customer, onSaved }) {
     onboarding_notes: customer.onboarding_notes || '',
     internal_notes: customer.internal_notes || '',
     referral_source: customer.referral_source || '',
+    // Liftori team assignments
+    sales_rep_id: customer.sales_rep_id || null,
+    project_manager_id: customer.project_manager_id || null,
+    consultant_id: customer.consultant_id || null,
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -848,6 +877,7 @@ function EditTab({ customer, onSaved }) {
 
   const sections = [
     { key: 'identity', label: 'Identity & Status' },
+    { key: 'team', label: 'Team Assignments' },
     { key: 'company', label: 'Company' },
     { key: 'legal', label: 'Legal Entity' },
     { key: 'billing', label: 'Billing & Plan' },
@@ -935,6 +965,43 @@ function EditTab({ customer, onSaved }) {
                 <option value="Other">Other</option>
               </select>
             </FormField>
+          </div>
+        </div>
+      )}
+
+      {/* ── Team Assignments ───────────────────────────────────── */}
+      {activeSection === 'team' && (
+        <div className="space-y-4">
+          <SectionHeader
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>}
+            title="Liftori Team Assignments"
+            subtitle="Who from Liftori is responsible for this customer"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <FormField label="Sales Rep">
+              <TeamMemberSelect
+                value={form.sales_rep_id}
+                onChange={(id) => handleChange('sales_rep_id', id)}
+                placeholder="Pick a sales rep"
+              />
+            </FormField>
+            <FormField label="Project Manager">
+              <TeamMemberSelect
+                value={form.project_manager_id}
+                onChange={(id) => handleChange('project_manager_id', id)}
+                placeholder="Pick a PM"
+              />
+            </FormField>
+            <FormField label="Consultant">
+              <TeamMemberSelect
+                value={form.consultant_id}
+                onChange={(id) => handleChange('consultant_id', id)}
+                placeholder="Pick a consultant"
+              />
+            </FormField>
+          </div>
+          <div className="text-xs text-gray-500 italic">
+            Dropdowns pull from Liftori internal team members (admin, super_admin, dev, sales rep, sales director, consultant, call agent). Customers and testers are excluded.
           </div>
         </div>
       )}

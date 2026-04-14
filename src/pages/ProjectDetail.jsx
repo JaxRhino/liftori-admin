@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import DevLab from '../components/DevLab'
+import TeamMemberSelect, { TeamMemberLabel } from '../components/TeamMemberSelect'
 
 const STATUSES = ['Wizard Complete', 'Brief Review', 'Design Approval', 'In Build', 'QA', 'Launched', 'On Hold', 'Cancelled']
 
@@ -161,7 +162,10 @@ export default function ProjectDetail() {
       timeline_pref: project.timeline_pref || '',
       vibe: project.vibe || '',
       features: (project.features || []).join(', '),
-      tech_stack: project.tech_stack || []
+      tech_stack: project.tech_stack || [],
+      sales_rep_id: project.sales_rep_id || null,
+      project_manager_id: project.project_manager_id || null,
+      consultant_id: project.consultant_id || null,
     })
     setEditing(true)
   }
@@ -181,7 +185,10 @@ export default function ProjectDetail() {
         timeline_pref: editForm.timeline_pref || null,
         vibe: editForm.vibe || null,
         features: featuresArray.length > 0 ? featuresArray : null,
-        tech_stack: editForm.tech_stack.length > 0 ? editForm.tech_stack : null
+        tech_stack: editForm.tech_stack.length > 0 ? editForm.tech_stack : null,
+        sales_rep_id: editForm.sales_rep_id || null,
+        project_manager_id: editForm.project_manager_id || null,
+        consultant_id: editForm.consultant_id || null,
       }
       const { error } = await supabase.from('projects').update(payload).eq('id', id)
       if (error) throw error
@@ -588,6 +595,22 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
                         ))}
                       </div>
                     </div>
+                    {/* Team Assignments — edit mode */}
+                    <div className="py-2 border-b border-navy-700/30 space-y-2">
+                      <div className="text-xs text-gray-500 mb-1">Liftori Team Assignments</div>
+                      <div>
+                        <label className="text-[10px] uppercase text-gray-500 block mb-0.5">Sales Rep</label>
+                        <TeamMemberSelect value={editForm.sales_rep_id} onChange={v => setEditForm(f => ({ ...f, sales_rep_id: v }))} placeholder="Pick a sales rep" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase text-gray-500 block mb-0.5">Project Manager</label>
+                        <TeamMemberSelect value={editForm.project_manager_id} onChange={v => setEditForm(f => ({ ...f, project_manager_id: v }))} placeholder="Pick a PM" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase text-gray-500 block mb-0.5">Consultant</label>
+                        <TeamMemberSelect value={editForm.consultant_id} onChange={v => setEditForm(f => ({ ...f, consultant_id: v }))} placeholder="Pick a consultant" />
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -607,6 +630,24 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
                       ) : (
                         <span className="text-sm text-white float-right">{'\u2014'}</span>
                       )}
+                    </div>
+                    {/* Team Assignments — view mode */}
+                    <div className="pt-2 pb-1 border-b border-navy-700/30">
+                      <div className="text-xs text-gray-500 mb-2">Liftori Team</div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-400 text-xs">Sales Rep</span>
+                          <TeamMemberLabel userId={project.sales_rep_id} fallback="—" />
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-400 text-xs">Project Manager</span>
+                          <TeamMemberLabel userId={project.project_manager_id} fallback="—" />
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-400 text-xs">Consultant</span>
+                          <TeamMemberLabel userId={project.consultant_id} fallback="—" />
+                        </div>
+                      </div>
                     </div>
                     <DetailRow label="Created" value={new Date(project.created_at).toLocaleString()} />
                     {project.launched_at && <DetailRow label="Launched" value={new Date(project.launched_at).toLocaleString()} />}
