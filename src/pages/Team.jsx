@@ -1,8 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { Users, Shield, Key, Clock, Plus, Search, MoreVertical, Check, X, Mail, Trash2, Edit2, ChevronDown, UserPlus, FileText, Download, Eye, CheckCircle2, Circle, AlertCircle, Play, Layers } from 'lucide-react';
+import { Users, Shield, Key, Clock, Plus, Search, MoreVertical, Check, X, Mail, Trash2, Edit2, ChevronDown, UserPlus, FileText, Download, Eye, CheckCircle2, Circle, AlertCircle, Play, Layers, Sparkles } from 'lucide-react';
 import OnboardingWizard from '../components/OnboardingWizard';
+import {
+  fetchEnrollments as fetchTesterEnrollments,
+  enrollTester,
+  endEnrollment,
+  formatCurrency,
+} from '../lib/timeTrackingService';
+import { listTesterInvites, cancelTesterInvite, resendTesterInvite } from '../lib/testerProgramService';
+import InviteTesterModal from '../components/testing/InviteTesterModal';
 
 // ─── Default Roles & Permissions ─────────────────────────────────────────────
 const DEFAULT_ROLES = [
@@ -221,10 +229,18 @@ export default function Team() {
     { id: 'members', label: 'Members', icon: Users },
     { id: 'teams', label: 'Teams', icon: Layers },
     { id: 'onboarding', label: 'Onboarding', icon: UserPlus },
+    { id: 'testing', label: 'Testing Program', icon: Sparkles },
     { id: 'roles', label: 'Roles', icon: Shield },
     { id: 'permissions', label: 'Permissions', icon: Key },
     { id: 'activity', label: 'Activity Log', icon: Clock },
   ];
+
+  // Tester program state
+  const [testerEnrollments, setTesterEnrollments] = useState([]);
+  const [testerEnrollLoading, setTesterEnrollLoading] = useState(false);
+  const [showEnrollTesterFor, setShowEnrollTesterFor] = useState(null); // member object
+  const [testerInvites, setTesterInvites] = useState([]);
+  const [showInviteTesterModal, setShowInviteTesterModal] = useState(false);
 
   // ─── Data Fetching ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -234,10 +250,80 @@ export default function Team() {
   async function fetchAll() {
     setLoading(true);
     try {
-      await Promise.all([fetchMembers(), fetchRoles(), fetchActivity(), fetchOnboarding(), fetchTeams()]);
+      await Promise.all([fetchMembers(), fetchRoles(), fetchActivity(), fetchOnboarding(), fetchTeams(), reloadTesterEnrollments()]);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function reloadTesterEnrollments() {
+    setTesterEnrollLoading(true);
+    try {
+      const [enr, invites] = await Promise.all([
+        fetchTesterEnrollments({ activeOnly: false }),
+        listTesterInvites({ limit: 25 }),
+      ]);
+      setTesterEnrollments(enr);
+      setTesterInvites(invites);
+    } catch (err) {
+      console.error('Tester enrollments fetch failed', err);
+    } finally {
+      setTesterEnrollLoading(false);
+    }
+  }
+
+  async function handleResendInvite(id) {
+    try {
+      await resendTesterInvite(id);
+      showToast('Invite resent', 'success');
+      reloadTesterEnrollments();
+    } catch {
+      showToast('Resend failed', 'error');
+    }
+  }
+
+  async function handleCancelInvite(id) {
+    if (!window.confirm('Cancel this invite? The link will stop working.')) return;
+    try {
+      await cancelTesterInvite(id);
+      showToast('Invite cancelled', 'success');
+      reloadTesterEnrollments();
+    } catch {
+      showToast('Cancel failed', 'error');
+    }
+  }
+
+  async function handleEnrollTester(memberId, { commissionRate, minHoursPerPeriod, notes }) {
+    try {
+      await enrollTester({
+        userId: memberId,
+        commissionRate,
+        minHoursPerPeriod,
+        notes,
+        enrolledBy: profile?.id,
+      });
+      showToast('Tester enrolled', 'success');
+      await reloadTesterEnrollments();
+      setShowEnrollTesterFor(null);
+    } catch (err) {
+      console.error(err);
+      showToast(err?.message?.includes('duplicate') ? 'Already enrolled' : 'Enroll failed', 'error');
+    }
+  }
+
+  async function handleEndTesterEnrollment(enrollmentId) {
+    if (!window.confirm('End this tester enrollment? They will stop accruing commission going forward.')) return;
+    try {
+      await endEnrollment(enrollmentId);
+      showToast('Enrollment ended', 'success');
+      await reloadTesterEnrollments();
+    } catch {
+      showToast('Update failed', 'error');
+    }
+  }
+
+  function getActiveEnrollment(memberId) {
+    return testerEnrollments.find((e) => e.user_id === memberId && !e.ended_at);
   }
 
   async function fetchMembers() {
@@ -1345,6 +1431,161 @@ export default function Team() {
         </div>
       )}
 
+      {/* ═══ TESTING PROGRAM TAB ═══ */}
+      {activeTab === 'testing' && (
+        <div className="space-y-4">
+          <div className="flex items-start justify-between flex-wrap gap-3 bg-pink-500/5 border border-pink-500/20 rounded-lg p-4">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <Sparkles size={20} className="text-pink-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-white">Tester Commission Program</h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  Testers earn a share of the monthly net profit pool. Invite a new tester to send them a Sage email with a guided onboarding link (NDA + 1099 e-sign included).
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowInviteTesterModal(true)}
+              className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex-shrink-0"
+            >
+              <Plus size={16} />
+              Invite Tester
+            </button>
+          </div>
+
+          {/* Pending invites */}
+          {testerInvites.filter(i => ['pending','opened','in_progress'].includes(i.status)).length > 0 && (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-700/50">
+                <h3 className="text-sm font-semibold text-white">Pending invites ({testerInvites.filter(i => ['pending','opened','in_progress'].includes(i.status)).length})</h3>
+              </div>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-700/50">
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Invitee</th>
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Status</th>
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Sent</th>
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Expires</th>
+                    <th className="text-right text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {testerInvites
+                    .filter(i => ['pending','opened','in_progress'].includes(i.status))
+                    .map((inv) => (
+                      <tr key={inv.id} className="border-b border-slate-700/30 hover:bg-slate-700/20 transition">
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-white">{inv.full_name}</div>
+                          <div className="text-[11px] text-gray-500">{inv.personal_email}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${
+                            inv.status === 'pending' ? 'bg-amber-500/15 text-amber-300' :
+                            inv.status === 'opened' ? 'bg-sky-500/15 text-sky-300' :
+                            'bg-purple-500/15 text-purple-300'
+                          }`}>{inv.status}</span>
+                          {inv.email_send_error && <div className="text-[10px] text-rose-400 mt-1">Send error: {inv.email_send_error.slice(0, 60)}</div>}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-400">
+                          {inv.email_sent_at ? new Date(inv.email_sent_at).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-400">
+                          {new Date(inv.expires_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-right space-x-2">
+                          <button onClick={() => handleResendInvite(inv.id)} className="text-xs text-sky-400 hover:text-sky-300">Resend</button>
+                          <button onClick={() => handleCancelInvite(inv.id)} className="text-xs text-gray-500 hover:text-rose-400">Cancel</button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-700/50 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-white">Active testers ({testerEnrollments.filter(e => !e.ended_at).length})</h3>
+                <p className="text-[11px] text-gray-500 mt-0.5">{testerEnrollments.filter(e => e.ended_at).length} ended</p>
+              </div>
+              <a
+                href="/admin/testing"
+                className="text-xs px-3 py-1.5 bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/40 text-pink-300 rounded-md font-medium"
+              >
+                Open Testing dashboard →
+              </a>
+            </div>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-700/50">
+                  <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Tester</th>
+                  <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Status</th>
+                  <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Rate</th>
+                  <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Min hrs</th>
+                  <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Enrolled</th>
+                  <th className="text-right text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {testerEnrollLoading ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">Loading…</td></tr>
+                ) : testerEnrollments.length === 0 ? (
+                  <tr><td colSpan={6} className="px-4 py-12 text-center">
+                    <Sparkles size={36} className="mx-auto mb-3 text-gray-600" />
+                    <p className="text-gray-400 text-sm">No testers enrolled yet</p>
+                    <p className="text-gray-500 text-xs mt-1">Use the invite flow (coming soon) or enroll an existing team member from the Testing dashboard.</p>
+                  </td></tr>
+                ) : (
+                  testerEnrollments.map((e) => {
+                    const member = members.find((m) => m.id === e.user_id);
+                    const isActive = !e.ended_at;
+                    return (
+                      <tr key={e.id} className="border-b border-slate-700/30 hover:bg-slate-700/20 transition">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400 font-medium text-sm">
+                              {(member?.full_name || member?.email || '?')[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="text-sm text-white">{member?.full_name || member?.email || e.user_id.slice(0, 8)}</div>
+                              <div className="text-[11px] text-gray-500">{member?.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {isActive ? (
+                            <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300">Active</span>
+                          ) : (
+                            <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-slate-500/15 text-slate-400">Ended</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-300">{(Number(e.commission_rate) * 100).toFixed(1)}%</td>
+                        <td className="px-4 py-3 text-sm text-gray-300">{e.min_hours_per_period}h</td>
+                        <td className="px-4 py-3 text-xs text-gray-400">
+                          {new Date(e.enrolled_at).toLocaleDateString()}
+                          {e.ended_at && <div className="text-[10px] text-gray-500">ended {new Date(e.ended_at).toLocaleDateString()}</div>}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {isActive && (
+                            <button
+                              onClick={() => handleEndTesterEnrollment(e.id)}
+                              className="text-xs text-gray-500 hover:text-rose-400"
+                            >
+                              End enrollment
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* ═══ ACTIVITY LOG TAB ═══ */}
       {activeTab === 'activity' && (
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
@@ -1760,6 +2001,15 @@ export default function Team() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Invite Tester modal */}
+      {showInviteTesterModal && (
+        <InviteTesterModal
+          invitedBy={profile?.id}
+          onClose={() => setShowInviteTesterModal(false)}
+          onCreated={() => { setShowInviteTesterModal(false); reloadTesterEnrollments(); }}
+        />
       )}
     </div>
   );

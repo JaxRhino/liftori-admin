@@ -122,6 +122,7 @@ import EOSL10Hub from './pages/EOSL10Hub'
 import TeamAvailability from './pages/TeamAvailability'
 import SuperAdmin from './pages/SuperAdmin'
 import Testing from './pages/Testing'
+import TesterOnboarding from './pages/TesterOnboarding'
 // Customer Sales Hub (LABOS tenant pages)
 import CustomerContacts from './pages/customer/CustomerContacts'
 import CustomerProjects from './pages/customer/CustomerProjects'
@@ -196,6 +197,8 @@ export default function App() {
           <Route path="/apply" element={<Apply />} />
           {/* Public interview scheduler — no auth required */}
           <Route path="/schedule-interview/:token" element={<ScheduleInterview />} />
+          {/* Public tester onboarding wizard — no auth required */}
+          <Route path="/onboard-tester/:token" element={<TesterOnboarding />} />
 
           {/* Root redirect based on role */}
           <Route path="/" element={
