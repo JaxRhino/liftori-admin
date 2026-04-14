@@ -47,8 +47,16 @@ export default function TesterOnboarding() {
   const [contractorSig, setContractorSig] = useState({ method: 'typed', typed: null, drawn: null, isComplete: false })
   const [contractorRoleSig, setContractorRoleSig] = useState({ method: 'typed', typed: null, drawn: null, isComplete: false })
   const [availability, setAvailability] = useState(
-    [1, 2, 3, 4, 5].map((d) => ({ day_of_week: d, enabled: true, start_time: '09:00', end_time: '17:00' }))
-      .concat([0, 6].map((d) => ({ day_of_week: d, enabled: false, start_time: '10:00', end_time: '14:00' })))
+    // Sun(0) → Sat(6), weekdays enabled by default, weekends off
+    [0, 1, 2, 3, 4, 5, 6].map((d) => {
+      const isWeekend = d === 0 || d === 6
+      return {
+        day_of_week: d,
+        enabled: !isWeekend,
+        start_time: isWeekend ? '10:00' : '09:00',
+        end_time: isWeekend ? '14:00' : '17:00',
+      }
+    })
   )
   const [practicalDone, setPracticalDone] = useState(false)
   const [submitting, setSubmitting] = useState(false)
