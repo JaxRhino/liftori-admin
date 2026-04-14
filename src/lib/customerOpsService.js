@@ -290,6 +290,7 @@ export async function fetchOpsDocs(orgId, filters = {}) {
 export async function fetchOpsDashboardStats(orgId) {
   const results = {};
 
+  try {
   // Work order stats
   const { data: wos } = await supabase.from('ops_work_orders').select('status, priority, estimated_cost, actual_cost').eq('org_id', orgId);
   results.workOrders = {
@@ -309,12 +310,11 @@ export async function fetchOpsDashboardStats(orgId) {
     onJob: crews?.filter(c => c.status === 'on_job').length || 0,
   };
 
-  // Inventory alerts
-  const { data: lowStock } = await supabase.from('ops_inventory')
-    .select('id').eq('org_id', orgId).eq('is_active', true)
-    .filter('quantity', 'lte', 'min_quantity');
+  // Inventory alerts — fetch all active inventory and filter client-side
+  const { data: invItems } = await supabase.from('ops_inventory')
+    .select('id, quantity, min_quantity').eq('org_id', orgId).eq('is_active', true);
   results.inventory = {
-    lowStockCount: lowStock?.length || 0,
+    lowStockCount: invItems?.filter(i => i.quantity <= (i.min_quantity || 0)).length || 0,
   };
 
   // Today's schedule
@@ -336,6 +336,15 @@ export async function fetchOpsDashboardStats(orgId) {
     total: apps?.length || 0,
     active: apps?.filter(a => !['hired', 'rejected', 'withdrawn'].includes(a.stage)).length || 0,
   };
+  } catch (err) {
+    console.error('[customerOpsService.fetchOpsDashboardStats]', err);
+    // Return safe defaults so the dashboard still renders
+    if (!results.workOrders) results.workOrders = { total: 0, pending: 0, inProgress: 0, completed: 0, urgent: 0, revenue: 0 };
+    if (!results.crews) results.crews = { total: 0, active: 0, onJob: 0 };
+    if (!results.inventory) results.inventory = { lowStockCount: 0 };
+    if (!results.schedule) results.schedule = { todayJobs: 0 };
+    if (!results.hiring) results.hiring = { total: 0, active: 0 };
+  }
 
   return results;
 }

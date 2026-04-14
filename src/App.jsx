@@ -137,6 +137,7 @@ import OpsJobsMap from './pages/customer/ops/OpsJobsMap'
 import OpsMeasurements from './pages/customer/ops/OpsMeasurements'
 import OpsHRHub from './pages/customer/ops/OpsHRHub'
 import OpsDocs from './pages/customer/ops/OpsDocs'
+import OpsProjects from './pages/customer/ops/OpsProjects'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -262,6 +263,7 @@ export default function App() {
             <Route path="crm/pipeline" element={<CustomerPipeline />} />
             <Route path="crm/estimates" element={<CustomerEstimates />} />
             <Route path="crm/agreements" element={<CustomerAgreements />} />
+            <Route path="crm/measurements" element={<OpsMeasurements />} />
             <Route path="crm/settings" element={<CompanySettings />} />
             {/* Customer Ops Command Center (LABOS tenant pages) */}
             <Route path="ops/dashboard" element={<OpsCommandCenter />} />
@@ -270,6 +272,7 @@ export default function App() {
             <Route path="ops/crews" element={<OpsCrewManagement />} />
             <Route path="ops/inventory" element={<OpsInventory />} />
             <Route path="ops/map" element={<OpsJobsMap />} />
+            <Route path="ops/projects" element={<OpsProjects />} />
             <Route path="ops/measurements" element={<OpsMeasurements />} />
             <Route path="ops/hr" element={<OpsHRHub />} />
             <Route path="ops/docs" element={<OpsDocs />} />
