@@ -127,7 +127,7 @@ function HooksTab({ userId }) {
       {showForm && (
         <form onSubmit={save} className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-4 space-y-2">
           <textarea value={form.hook_text} onChange={(e) => setForm((f) => ({ ...f, hook_text: e.target.value }))} required rows={2}
-            placeholder='e.g. "I wasted $10k learning this so you don\'t have to"'
+            placeholder={`e.g. "I wasted $10k learning this so you don't have to"`}
             className="w-full bg-navy-900 border border-navy-700/50 rounded-md px-3 py-2 text-sm text-white" />
           <div className="grid grid-cols-2 gap-2">
             <input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
