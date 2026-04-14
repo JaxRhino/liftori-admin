@@ -22,7 +22,7 @@ import {
   TrendingUp, AlertTriangle, Star, Clock, Activity, DollarSign,
   UserCheck, Calendar, Target, Zap, ChevronRight, RefreshCw,
   Loader2, Building2, Headphones, FileText, CheckCircle,
-  ArrowUpRight, ArrowDownRight, Sparkles, ClipboardList, Bug, X, Plus, Heart
+  ArrowUpRight, ArrowDownRight, Sparkles, ClipboardList, Bug, X, Plus, Heart, Mail
 } from 'lucide-react';
 
 export default function SuperAdmin() {
@@ -426,6 +426,30 @@ export default function SuperAdmin() {
             <QuickLink label="Settings" path="/admin/settings" icon={FileText} onClick={navigate} />
           </div>
         </div>
+      </div>
+
+      {/* ═════════════════════════════════════════════════════ */}
+      {/* OUTBOUND MAIL — full audit trail of sent emails        */}
+      {/* ═════════════════════════════════════════════════════ */}
+      <div className="border-t border-slate-800 pt-6 mt-2">
+        <button
+          onClick={() => navigate('/admin/outbound-mail')}
+          className="w-full bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 hover:border-sky-500/40 rounded-2xl p-4 text-left transition group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-sky-500/15 flex items-center justify-center flex-shrink-0">
+              <Mail className="w-5 h-5 text-sky-300" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-white">Outbound Mail</h2>
+                <span className="text-[10px] uppercase bg-slate-700/50 text-gray-400 px-1.5 py-0.5 rounded">Audit log</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5">Every email Liftori has sent — invites, welcomes, notifications. Filter, preview, and resend.</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-sky-300 flex-shrink-0" />
+          </div>
+        </button>
       </div>
 
       {/* ═════════════════════════════════════════════════════ */}

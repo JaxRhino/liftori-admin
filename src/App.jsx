@@ -121,6 +121,7 @@ import ConsultingClientDetail from './pages/ConsultingClientDetail'
 import EOSL10Hub from './pages/EOSL10Hub'
 import TeamAvailability from './pages/TeamAvailability'
 import SuperAdmin from './pages/SuperAdmin'
+import OutboundMail from './pages/OutboundMail'
 import Testing from './pages/Testing'
 import TesterOnboarding from './pages/TesterOnboarding'
 import TesterDashboard from './pages/TesterDashboard'
@@ -269,6 +270,7 @@ export default function App() {
           }>
             <Route index element={<DashboardRouter />} />
             <Route path="super-admin" element={<SuperAdmin />} />
+            <Route path="outbound-mail" element={<OutboundMail />} />
             <Route path="call-center" element={<CallCenter />} />
             <Route path="cc-team" element={<CallCenterTeam />} />
             <Route path="call-lists" element={<CallLists />} />
