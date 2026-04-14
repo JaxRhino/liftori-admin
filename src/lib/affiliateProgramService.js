@@ -280,7 +280,7 @@ Specific rates may be negotiated per-Creator and are recorded in Liftori's affil
 
 (d) Tracking. Referrals are tracked via Creator's unique referral code and cookie-based attribution with a 60-day window. Creator acknowledges that tracking is not perfect and that browser settings, ad blockers, and cross-device journeys may affect attribution. Liftori will act in good faith to resolve disputed attributions.
 
-(e) Subscription Fees. Creator and Pro tiers include a monthly subscription fee ($29 / $149 respectively as of v1.0). Creator authorizes Liftori (via Stripe) to bill the selected method on the first of each month. Subscriptions auto-renew. Creator may downgrade or cancel at any time; refunds for partial months are not provided.
+(e) Subscription Fees. Creator and Pro tiers include a monthly subscription fee ($29 / $149 respectively as of v1.0). Billing is handled through the Liftori AI Payment Center (in development). Creator authorizes Liftori to bill the designated payment method on the first of each month once the Payment Center launches. Subscriptions auto-renew. Creator may downgrade or cancel at any time; refunds for partial months are not provided. Until the Payment Center is live, paid tier enrollments are held in pending status and Creator retains full platform access free of charge during that window.
 
 (f) Offset Against Subscription. For Creator and Pro tiers, Liftori may offset unpaid subscription fees against earned commissions in a given month before issuing payout. Creator will receive a clear accounting of the offset.
 

@@ -351,7 +351,7 @@ function CommissionSlide() {
           <li>Share on your content — with proper FTC disclosure (we give you templates).</li>
           <li>Customer signs up within 60 days of clicking + stays 30+ days → it counts.</li>
           <li>We pay out monthly, 30 days after month close (1099 issued if you earn $600+/yr).</li>
-          <li>If you're on Creator or Pro tier, your subscription is auto-offset against earned commission first.</li>
+          <li>If you're on Creator or Pro tier, your subscription will auto-offset against earned commission once the Liftori AI Payment Center launches.</li>
         </ol>
       </div>
     </div>
@@ -394,7 +394,7 @@ function TierSlide({ tier, setTier }) {
         })}
       </div>
       <div className="text-xs text-gray-500 italic">
-        Creator and Pro tiers get billed starting your next month. Your first 14 days on either tier are a free trial.
+        Creator and Pro tiers will be billed through the <strong className="text-pink-300">Liftori AI Payment Center</strong> (coming soon). Until it launches, your paid tier access is free — sign up now, get grandfathered pricing, and we'll notify you when billing activates.
       </div>
     </div>
   )
