@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../lib/AuthContext'
-import { isFounder } from '../lib/testerProgramService'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../lib/AuthContext'
+import { isFounder } from '../../lib/testerProgramService'
 
 const TYPE_META = {
   tester_invite:       { label: 'Tester invite',       color: 'bg-sky-500/15 text-sky-300'         },

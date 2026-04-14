@@ -429,27 +429,56 @@ export default function SuperAdmin() {
       </div>
 
       {/* ═════════════════════════════════════════════════════ */}
-      {/* OUTBOUND MAIL — full audit trail of sent emails        */}
+      {/* COMMUNICATIONS HUB — campaigns, templates, audit log   */}
       {/* ═════════════════════════════════════════════════════ */}
       <div className="border-t border-slate-800 pt-6 mt-2">
-        <button
-          onClick={() => navigate('/admin/outbound-mail')}
-          className="w-full bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 hover:border-sky-500/40 rounded-2xl p-4 text-left transition group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-sky-500/15 flex items-center justify-center flex-shrink-0">
-              <Mail className="w-5 h-5 text-sky-300" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white">Outbound Mail</h2>
-                <span className="text-[10px] uppercase bg-slate-700/50 text-gray-400 px-1.5 py-0.5 rounded">Audit log</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          <button
+            onClick={() => navigate('/admin/comms/campaigns')}
+            className="bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 hover:border-pink-500/40 rounded-xl p-3 text-left transition group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-pink-500/15 flex items-center justify-center flex-shrink-0">
+                <Mail className="w-4 h-4 text-pink-300" />
               </div>
-              <p className="text-xs text-gray-400 mt-0.5">Every email Liftori has sent — invites, welcomes, notifications. Filter, preview, and resend.</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-white">Campaigns</h3>
+                <p className="text-[11px] text-gray-400">HR + platform broadcasts</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-pink-300 flex-shrink-0" />
             </div>
-            <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-sky-300 flex-shrink-0" />
-          </div>
-        </button>
+          </button>
+          <button
+            onClick={() => navigate('/admin/comms/templates')}
+            className="bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 hover:border-sky-500/40 rounded-xl p-3 text-left transition group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-sky-500/15 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-4 h-4 text-sky-300" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-white">Templates</h3>
+                <p className="text-[11px] text-gray-400">Reusable HR + platform shells</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-sky-300 flex-shrink-0" />
+            </div>
+          </button>
+          <button
+            onClick={() => navigate('/admin/comms/outbound')}
+            className="bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 hover:border-emerald-500/40 rounded-xl p-3 text-left transition group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                <ClipboardList className="w-4 h-4 text-emerald-300" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-white">Outbound log</h3>
+                <p className="text-[11px] text-gray-400">Every email sent — audit trail</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-emerald-300 flex-shrink-0" />
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* ═════════════════════════════════════════════════════ */}

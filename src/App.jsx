@@ -121,7 +121,9 @@ import ConsultingClientDetail from './pages/ConsultingClientDetail'
 import EOSL10Hub from './pages/EOSL10Hub'
 import TeamAvailability from './pages/TeamAvailability'
 import SuperAdmin from './pages/SuperAdmin'
-import OutboundMail from './pages/OutboundMail'
+import Campaigns from './pages/communications/Campaigns'
+import CommsTemplates from './pages/communications/Templates'
+import OutboundLog from './pages/communications/OutboundLog'
 import Testing from './pages/Testing'
 import TesterOnboarding from './pages/TesterOnboarding'
 import TesterDashboard from './pages/TesterDashboard'
@@ -270,7 +272,7 @@ export default function App() {
           }>
             <Route index element={<DashboardRouter />} />
             <Route path="super-admin" element={<SuperAdmin />} />
-            <Route path="outbound-mail" element={<OutboundMail />} />
+            <Route path="outbound-mail" element={<OutboundLog />} />
             <Route path="call-center" element={<CallCenter />} />
             <Route path="cc-team" element={<CallCenterTeam />} />
             <Route path="call-lists" element={<CallLists />} />
@@ -378,6 +380,9 @@ export default function App() {
             <Route path="finance/accounts" element={<ChartOfAccounts />} />
             {/* Communications Hub */}
             <Route path="comms" element={<CommunicationsHub />} />
+            <Route path="comms/campaigns" element={<Campaigns />} />
+            <Route path="comms/templates" element={<CommsTemplates />} />
+            <Route path="comms/outbound" element={<OutboundLog />} />
             <Route path="comms/channels" element={<ChannelsSettings />} />
             <Route path="comms/automations" element={<AutomationsPage />} />
             {/* Consulting */}

@@ -915,6 +915,9 @@ export default function AdminLayout() {
                   <div className="ml-3 pl-3 border-l border-white/10 mt-1 space-y-0.5">
                     {[
                       { label: 'Inbox', path: '/admin/comms' },
+                      { label: 'Campaigns', path: '/admin/comms/campaigns' },
+                      { label: 'Templates', path: '/admin/comms/templates' },
+                      { label: 'Outbound log', path: '/admin/comms/outbound' },
                       { label: 'Channels', path: '/admin/comms/channels' },
                       { label: 'Automations', path: '/admin/comms/automations' },
                     ].map(sub => (
