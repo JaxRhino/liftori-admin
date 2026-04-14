@@ -105,7 +105,9 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const isAdmin = ['admin', 'dev', 'super_admin', 'sales_director', 'call_agent'].includes(profile?.role)
+  // 'tester' is included so enrolled testers can reach /admin (their dashboard lives there).
+  // The Super Admin page itself is gated separately by founder email allowlist.
+  const isAdmin = ['admin', 'dev', 'super_admin', 'sales_director', 'call_agent', 'tester'].includes(profile?.role)
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, isAdmin, token, signIn, signOut, signUp, refreshProfile }}>

@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { LIFTORI_FOUNDERS, isFounder, listAssignments, createAssignment, updateAssignment } from '../lib/testerProgramService';
@@ -189,13 +189,8 @@ export default function SuperAdmin() {
   }
 
   if (!isFounderUser) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
-        <Shield className="w-16 h-16 text-red-400" />
-        <h2 className="text-xl font-bold">Founder Access Only</h2>
-        <p className="text-gray-400">This dashboard is restricted to Liftori founders.</p>
-      </div>
-    );
+    // Silent redirect — testers and non-founder admins should never see a denial wall here
+    return <Navigate to="/admin" replace />;
   }
 
   // Derive tester data

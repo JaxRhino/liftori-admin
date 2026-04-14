@@ -166,6 +166,19 @@ export default function TesterDashboard() {
   const currentPeriod = periods.find((p) => p.status === 'open') || periods[0]
   const myCurrentAllocation = currentPeriod ? allocations.find((a) => a.period_id === currentPeriod.id) : null
 
+  // Pre-launch detection: no period has ever had real net profit > 0
+  // Auto-flips to active the moment Ryan creates a period with revenue
+  const isPreLaunch = useMemo(() => {
+    return periods.length === 0 || periods.every((p) => Number(p.net_profit || 0) <= 0)
+  }, [periods])
+
+  // Lifetime hours logged (becomes commission credit at launch via carry-over)
+  const lifetimeHours = useMemo(() => {
+    return entries
+      .filter((e) => e.duration_minutes != null)
+      .reduce((a, e) => a + Number(e.duration_minutes || 0), 0) / 60
+  }, [entries])
+
   // Commission projection — divides current pool by active tester count (best estimate)
   const projectedShare = useMemo(() => {
     if (!currentPeriod) return 0
@@ -279,23 +292,38 @@ export default function TesterDashboard() {
             )}
           </div>
 
-          {/* Quick projected share card — bigger detail in Commission Tracker section below */}
-          <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/30 rounded-xl p-5">
-            <div className="text-[10px] uppercase tracking-wider text-emerald-300 font-bold">Projected this period</div>
-            {currentPeriod ? (
-              <>
-                <div className="text-3xl font-bold text-emerald-400 mt-2 tabular-nums">{formatCurrency(projectedShare)}</div>
-                <div className="text-xs text-gray-400 mt-1">
-                  if you {weekProgress.qualifies ? 'maintain' : 'hit'} {enrollment.min_hours_per_week} hr/wk
-                </div>
-                <div className="text-[10px] text-gray-600 mt-2">
-                  Pool: {formatCurrency(currentPeriod.pool_amount)} ÷ {activeTesterCount} active
-                </div>
-              </>
-            ) : (
-              <div className="text-sm text-gray-500 mt-2">No period open yet</div>
-            )}
-          </div>
+          {/* Quick status card — bigger detail in Commission Tracker section below */}
+          {isPreLaunch ? (
+            <div className="bg-gradient-to-br from-purple-500/10 to-sky-500/5 border border-purple-500/30 rounded-xl p-5">
+              <div className="text-[10px] uppercase tracking-wider text-purple-300 font-bold">Pre-launch mode</div>
+              <div className="text-2xl font-bold text-white mt-2">
+                {lifetimeHours.toFixed(1)} <span className="text-base text-gray-500">hr logged</span>
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                {weekProgress.qualifies ? 'On pace this week ✓' : 'Building credit toward launch'}
+              </div>
+              <div className="text-[10px] text-gray-500 mt-2 leading-relaxed">
+                Liftori is pre-revenue. Every qualifying month carries forward — paid when we hit profit.
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/30 rounded-xl p-5">
+              <div className="text-[10px] uppercase tracking-wider text-emerald-300 font-bold">Projected this period</div>
+              {currentPeriod ? (
+                <>
+                  <div className="text-3xl font-bold text-emerald-400 mt-2 tabular-nums">{formatCurrency(projectedShare)}</div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    if you {weekProgress.qualifies ? 'maintain' : 'hit'} {enrollment.min_hours_per_week} hr/wk
+                  </div>
+                  <div className="text-[10px] text-gray-600 mt-2">
+                    Pool: {formatCurrency(currentPeriod.pool_amount)} ÷ {activeTesterCount} active
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-gray-500 mt-2">No period open yet</div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Week progress strip */}
