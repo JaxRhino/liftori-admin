@@ -55,18 +55,32 @@ export default function OpsCommandCenter() {
       try {
         setLoading(true);
 
-        const [statsData, workOrdersData, scheduleData] = await Promise.all([
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+
+        const [statsResult, woResult, schedResult] = await Promise.allSettled([
           fetchOpsDashboardStats(currentOrg.id),
           fetchWorkOrders(currentOrg.id),
           fetchSchedule(currentOrg.id, {
-            start_after: new Date().setHours(0, 0, 0, 0),
-            end_before: new Date().setHours(23, 59, 59, 999),
+            start_after: todayStart.toISOString(),
+            end_before: todayEnd.toISOString(),
           }),
         ]);
 
-        setStats(statsData);
-        setWorkOrders(workOrdersData || []);
-        setSchedule(scheduleData || []);
+        // Use safe defaults for any query that failed
+        const defaultStats = {
+          workOrders: { total: 0, pending: 0, inProgress: 0, completed: 0, urgent: 0, revenue: 0 },
+          crews: { total: 0, active: 0, onJob: 0 },
+          inventory: { lowStockCount: 0 },
+          schedule: { todayJobs: 0 },
+          hiring: { total: 0, active: 0 },
+        };
+
+        setStats(statsResult.status === 'fulfilled' ? statsResult.value : defaultStats);
+        setWorkOrders(woResult.status === 'fulfilled' ? (woResult.value || []) : []);
+        setSchedule(schedResult.status === 'fulfilled' ? (schedResult.value || []) : []);
       } catch (error) {
         console.error('Failed to load ops dashboard:', error);
         toast.error('Failed to load operations data');
