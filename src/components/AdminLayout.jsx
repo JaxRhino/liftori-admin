@@ -576,7 +576,10 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const mainRef = useRef(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarPinned, setSidebarPinned] = useState(false)
+  const [sidebarHovered, setSidebarHovered] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const sidebarOpen = sidebarPinned || sidebarHovered || mobileMenuOpen
   const userRole = profile?.role || 'customer'
 
   // Map nav labels to feature keys for tenant gating
@@ -691,25 +694,49 @@ export default function AdminLayout() {
           </button>
         </div>
       )}
-      <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-60' : 'w-16'} bg-navy-800 border-r border-navy-700/50 flex flex-col transition-all duration-200`}>
+      <div className="flex flex-1 overflow-hidden relative">
+      {/* Sidebar spacer — reserves collapsed/pinned width in flex layout */}
+      <div className={`hidden md:block flex-shrink-0 transition-all duration-300 ${sidebarPinned ? 'w-60' : 'w-16'}`} />
+
+      {/* Mobile backdrop */}
+      {mobileMenuOpen && (
+        <div className="absolute inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
+      )}
+
+      {/* Sidebar — absolute overlay, expands on hover, slides in on mobile */}
+      <aside
+        onMouseEnter={() => { if (!sidebarPinned && !mobileMenuOpen) setSidebarHovered(true) }}
+        onMouseLeave={() => setSidebarHovered(false)}
+        className={`absolute top-0 bottom-0 left-0 z-50 flex flex-col ${sidebarOpen ? 'w-60' : 'w-16'} bg-navy-800 border-r border-navy-700/50 transition-all duration-300 ease-in-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${!sidebarPinned && sidebarHovered ? 'shadow-2xl shadow-black/50' : ''}`}
+      >
         {/* Logo */}
-        <div className="h-16 flex items-center px-4 border-b border-navy-700/50">
+        <div
+          className="h-14 flex items-center px-4 border-b border-navy-700/50 flex-shrink-0 cursor-pointer"
+          onClick={() => { if (!sidebarOpen) setSidebarPinned(true) }}
+        >
           <span className="font-display text-2xl tracking-wider text-white">
             {sidebarOpen ? 'LIFTORI' : 'L'}
           </span>
-          <button onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="ml-auto text-gray-500 hover:text-white transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d={sidebarOpen ? "M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" : "M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5"} />
-            </svg>
-          </button>
+          {sidebarOpen && (
+            <button
+              onClick={(e) => { e.stopPropagation(); if (mobileMenuOpen) setMobileMenuOpen(false); else setSidebarPinned(p => !p); }}
+              className="ml-auto text-gray-500 hover:text-white transition-colors"
+              title={mobileMenuOpen ? 'Close menu' : sidebarPinned ? 'Unpin sidebar' : 'Pin sidebar open'}
+            >
+              <svg className={`w-5 h-5 transition-transform ${sidebarPinned ? 'text-brand-blue' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d={mobileMenuOpen
+                    ? "M6 18L18 6M6 6l12 12"
+                    : sidebarPinned
+                      ? "M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"
+                      : "M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5"} />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
+        {/* Nav — auto-close sidebar on link click */}
+        <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto" onClick={(e) => { if (e.target.closest('a')) { setMobileMenuOpen(false); setSidebarPinned(false); } }}>
           {visibleNavItems.map((item, idx) => (
             <React.Fragment key={item.path}>
               {['Call Center', 'Marketing', 'EOS', 'Finance', 'Communications'].includes(item.label) ? (
@@ -1192,7 +1219,16 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main content area with global header */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Mobile hamburger bar */}
+        <div className="md:hidden flex items-center h-12 px-3 bg-navy-800 border-b border-navy-700/50 flex-shrink-0">
+          <button onClick={() => setMobileMenuOpen(true)} className="p-1 text-gray-400 hover:text-white">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </button>
+          <span className="ml-2 font-display text-lg tracking-wider text-white">LIFTORI</span>
+        </div>
         <GlobalHeader />
         <main ref={mainRef} className="flex-1 overflow-auto bg-navy-950">
           <div className="p-0">
