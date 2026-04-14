@@ -1386,6 +1386,14 @@ export default function Customers() {
                       {selectedCustomer.estimated_value > 0 && (
                         <span className="text-sm font-bold text-emerald-400">${parseFloat(selectedCustomer.estimated_value).toLocaleString()}</span>
                       )}
+                      <button
+                        onClick={() => { setDetailOpen(false); navigate(`/admin/customers/${selectedCustomer.id}`); }}
+                        className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold rounded-lg transition"
+                        title="Open the full record to edit all fields"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                        Open & Edit
+                      </button>
                     </div>
                     {selectedCustomer.company_name && <div className="text-sm text-gray-400 mt-0.5">{selectedCustomer.company_name}</div>}
                     <div className="flex flex-wrap items-center gap-3 mt-3">
