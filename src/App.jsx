@@ -121,6 +121,7 @@ import ConsultingClientDetail from './pages/ConsultingClientDetail'
 import EOSL10Hub from './pages/EOSL10Hub'
 import TeamAvailability from './pages/TeamAvailability'
 import SuperAdmin from './pages/SuperAdmin'
+import Testing from './pages/Testing'
 // Customer Sales Hub (LABOS tenant pages)
 import CustomerContacts from './pages/customer/CustomerContacts'
 import CustomerProjects from './pages/customer/CustomerProjects'
@@ -328,6 +329,7 @@ export default function App() {
             <Route path="team-availability" element={<TeamAvailability />} />
             <Route path="sales-call/:roomId" element={<SalesCall />} />
             <Route path="support-tickets" element={<SupportTickets />} />
+            <Route path="testing" element={<Testing />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
