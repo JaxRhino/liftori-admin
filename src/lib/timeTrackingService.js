@@ -230,3 +230,239 @@ export function liveDuration(clockInAt) {
   if (!clockInAt) return 0
   return (new Date() - new Date(clockInAt)) / 60000
 }
+
+// ═══════════════════════════════════════════════
+// TIMESHEET AGGREGATES
+// ═══════════════════════════════════════════════
+
+/**
+ * Group completed entries by day (YYYY-MM-DD). Returns a map.
+ */
+export function groupByDay(entries) {
+  const out = {}
+  for (const e of entries) {
+    if (!e.clock_in_at) continue
+    const d = new Date(e.clock_in_at).toISOString().slice(0, 10)
+    if (!out[d]) out[d] = { date: d, minutes: 0, sessions: 0, user_id: e.user_id }
+    out[d].minutes += Number(e.duration_minutes || 0)
+    out[d].sessions += 1
+  }
+  return Object.values(out).sort((a, b) => (a.date > b.date ? -1 : 1))
+}
+
+/**
+ * Group by ISO week (YYYY-Www).
+ */
+export function groupByWeek(entries) {
+  const out = {}
+  for (const e of entries) {
+    if (!e.clock_in_at) continue
+    const d = new Date(e.clock_in_at)
+    const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+    const dow = tmp.getUTCDay() || 7
+    tmp.setUTCDate(tmp.getUTCDate() + 4 - dow)
+    const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1))
+    const weekNum = Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7)
+    const key = `${tmp.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`
+    if (!out[key]) out[key] = { week: key, minutes: 0, sessions: 0 }
+    out[key].minutes += Number(e.duration_minutes || 0)
+    out[key].sessions += 1
+  }
+  return Object.values(out).sort((a, b) => (a.week > b.week ? -1 : 1))
+}
+
+export function groupByMonth(entries) {
+  const out = {}
+  for (const e of entries) {
+    if (!e.clock_in_at) continue
+    const key = new Date(e.clock_in_at).toISOString().slice(0, 7) // YYYY-MM
+    if (!out[key]) out[key] = { month: key, minutes: 0, sessions: 0 }
+    out[key].minutes += Number(e.duration_minutes || 0)
+    out[key].sessions += 1
+  }
+  return Object.values(out).sort((a, b) => (a.month > b.month ? -1 : 1))
+}
+
+/**
+ * Build a CSV string from entries. Columns: date, user, entry_type, hours, notes.
+ */
+export function entriesToCSV(entries, userLookup = {}) {
+  const header = ['date', 'start_time', 'end_time', 'user', 'entry_type', 'duration_hours', 'status', 'notes']
+  const rows = entries.map((e) => {
+    const start = e.clock_in_at ? new Date(e.clock_in_at) : null
+    const end = e.clock_out_at ? new Date(e.clock_out_at) : null
+    const userName = userLookup[e.user_id]?.full_name || userLookup[e.user_id]?.email || e.user_id
+    const hours = e.duration_minutes ? (Number(e.duration_minutes) / 60).toFixed(2) : ''
+    return [
+      start ? start.toISOString().slice(0, 10) : '',
+      start ? start.toISOString().slice(11, 19) : '',
+      end ? end.toISOString().slice(11, 19) : '',
+      userName,
+      e.entry_type || '',
+      hours,
+      e.status || '',
+      (e.notes || '').replace(/"/g, '""'),
+    ]
+  })
+  const lines = [header, ...rows].map((r) => r.map((v) => `"${v ?? ''}"`).join(','))
+  return lines.join('\n')
+}
+
+export function downloadCSV(filename, csvText) {
+  const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// ═══════════════════════════════════════════════
+// TESTER ENROLLMENT
+// ═══════════════════════════════════════════════
+export async function fetchEnrollments({ activeOnly = true } = {}) {
+  let query = supabase.from('tester_enrollments').select('*')
+  if (activeOnly) query = query.is('ended_at', null)
+  const { data, error } = await query.order('enrolled_at', { ascending: false })
+  if (error) handleError(error, 'fetchEnrollments')
+  return data || []
+}
+
+export async function fetchMyEnrollment(userId) {
+  const { data, error } = await supabase
+    .from('tester_enrollments')
+    .select('*')
+    .eq('user_id', userId)
+    .is('ended_at', null)
+    .maybeSingle()
+  if (error && error.code !== 'PGRST116') handleError(error, 'fetchMyEnrollment')
+  return data || null
+}
+
+export async function enrollTester({ userId, commissionRate = 0.05, minHoursPerPeriod = 10, notes = null, enrolledBy }) {
+  const { data, error } = await supabase
+    .from('tester_enrollments')
+    .insert({
+      user_id: userId,
+      commission_rate: commissionRate,
+      min_hours_per_period: minHoursPerPeriod,
+      enrolled_by: enrolledBy,
+      notes,
+    })
+    .select()
+    .single()
+  if (error) handleError(error, 'enrollTester')
+  return data
+}
+
+export async function endEnrollment(enrollmentId) {
+  const { data, error } = await supabase
+    .from('tester_enrollments')
+    .update({ ended_at: new Date().toISOString() })
+    .eq('id', enrollmentId)
+    .select()
+    .single()
+  if (error) handleError(error, 'endEnrollment')
+  return data
+}
+
+// ═══════════════════════════════════════════════
+// COMMISSION PERIODS + ALLOCATIONS
+// ═══════════════════════════════════════════════
+export async function fetchPeriods({ limit = 24 } = {}) {
+  const { data, error } = await supabase
+    .from('tester_commission_periods')
+    .select('*')
+    .order('period_start', { ascending: false })
+    .limit(limit)
+  if (error) handleError(error, 'fetchPeriods')
+  return data || []
+}
+
+export async function fetchMyAllocations(userId) {
+  const { data, error } = await supabase
+    .from('tester_commission_allocations')
+    .select('*, tester_commission_periods(period_start, period_end, status, net_profit, pool_amount)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) handleError(error, 'fetchMyAllocations')
+  return data || []
+}
+
+export async function fetchPeriodAllocations(periodId) {
+  const { data, error } = await supabase
+    .from('tester_commission_allocations')
+    .select('*')
+    .eq('period_id', periodId)
+    .order('share_amount', { ascending: false })
+  if (error) handleError(error, 'fetchPeriodAllocations')
+  return data || []
+}
+
+export async function createPeriod({ periodType = 'monthly', periodStart, periodEnd, netProfit, commissionRate = 0.05, minHoursToQualify = 10, notes = null, createdBy }) {
+  const { data, error } = await supabase
+    .from('tester_commission_periods')
+    .insert({
+      period_type: periodType,
+      period_start: periodStart,
+      period_end: periodEnd,
+      net_profit: netProfit,
+      commission_rate: commissionRate,
+      min_hours_to_qualify: minHoursToQualify,
+      notes,
+      created_by: createdBy,
+    })
+    .select()
+    .single()
+  if (error) handleError(error, 'createPeriod')
+  return data
+}
+
+export async function updatePeriod(id, updates) {
+  const { data, error } = await supabase
+    .from('tester_commission_periods')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) handleError(error, 'updatePeriod')
+  return data
+}
+
+/** Calls the DB function that computes hours-by-user, qualifies them, and splits the pool. */
+export async function closePeriod(periodId, closedBy) {
+  const { data, error } = await supabase.rpc('close_commission_period', {
+    p_period_id: periodId,
+    p_closed_by: closedBy,
+  })
+  if (error) handleError(error, 'closePeriod')
+  return data
+}
+
+export async function markPeriodPaid(periodId) {
+  return updatePeriod(periodId, { status: 'paid', paid_at: new Date().toISOString() })
+}
+
+export async function markAllocationPaid(allocationId, { paymentMethod, paymentReference }) {
+  const { data, error } = await supabase
+    .from('tester_commission_allocations')
+    .update({
+      paid: true,
+      paid_at: new Date().toISOString(),
+      payment_method: paymentMethod,
+      payment_reference: paymentReference,
+    })
+    .eq('id', allocationId)
+    .select()
+    .single()
+  if (error) handleError(error, 'markAllocationPaid')
+  return data
+}
+
+export function formatCurrency(n) {
+  if (n == null || isNaN(Number(n))) return '$0.00'
+  return `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
