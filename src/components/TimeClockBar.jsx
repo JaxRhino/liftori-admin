@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../lib/AuthContext'
+import { isFounder } from '../lib/testerProgramService'
 import {
   fetchActiveEntry,
   clockIn as apiClockIn,
@@ -21,11 +22,18 @@ import {
 export default function TimeClockBar() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [active, setActive] = useState(null)
   const [loading, setLoading] = useState(false)
   const [tick, setTick] = useState(0)
   const [enrollment, setEnrollment] = useState(null)
   const [enrollmentChecked, setEnrollmentChecked] = useState(false)
+
+  // Founders have tester enrollments for preview purposes only — hide clock bar
+  // globally for them, but still show it on the tester-dashboard preview route
+  // so they can see what a real tester sees.
+  const isFounderUser = isFounder({ email: user?.email, personal_email: profile?.personal_email })
+  const onTesterPreview = location.pathname === '/admin/tester-dashboard'
 
   const refresh = useCallback(async () => {
     if (!user?.id) return
@@ -87,6 +95,12 @@ export default function TimeClockBar() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Founders: hide clock bar globally (their tester_enrollments rows are preview-only).
+  // Exception: show on the tester-dashboard preview route so they see the full tester UI.
+  if (isFounderUser && !onTesterPreview && !active) {
+    return null
   }
 
   // Gate: only enrolled testers see the clock chip.

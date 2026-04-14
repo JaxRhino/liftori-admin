@@ -146,6 +146,7 @@ import AffiliateSupport from './pages/affiliate/AffiliateSupport'
 import AffiliateSettings from './pages/affiliate/AffiliateSettings'
 import { useEffect, useState } from 'react'
 import { fetchMyEnrollment } from './lib/timeTrackingService'
+import { isFounder } from './lib/testerProgramService'
 // Customer Sales Hub (LABOS tenant pages)
 import CustomerContacts from './pages/customer/CustomerContacts'
 import CustomerProjects from './pages/customer/CustomerProjects'
@@ -212,18 +213,22 @@ function RootRedirect() {
   return isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/portal" replace />
 }
 
-/** Renders TesterDashboard for enrolled testers, regular Dashboard otherwise. */
+/** Renders TesterDashboard for enrolled testers, regular Dashboard otherwise.
+ *  Founders always get the regular Dashboard — their tester_enrollments rows
+ *  exist only for preview access at /admin/tester-dashboard. */
 function DashboardRouter() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [checked, setChecked] = useState(false)
   const [isTester, setIsTester] = useState(false)
+  const founder = isFounder({ email: user?.email, personal_email: profile?.personal_email })
   useEffect(() => {
     if (!user?.id) return
+    if (founder) { setIsTester(false); setChecked(true); return }
     fetchMyEnrollment(user.id)
       .then((e) => setIsTester(!!e))
       .catch(() => setIsTester(false))
       .finally(() => setChecked(true))
-  }, [user?.id])
+  }, [user?.id, founder])
   if (!checked) {
     return (
       <div className="min-h-screen bg-navy-950 flex items-center justify-center">
