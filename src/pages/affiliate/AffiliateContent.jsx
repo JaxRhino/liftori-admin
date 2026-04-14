@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/AuthContext'
@@ -20,6 +21,7 @@ const STATUS_COLORS = {
 
 export default function AffiliateContent() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [drafts, setDrafts] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -180,8 +182,34 @@ export default function AffiliateContent() {
     }
   }
 
-  function sendToScheduler() {
-    toast.info('Scheduler — coming soon. Copy to clipboard for now.')
+  async function sendToScheduler() {
+    if (!body.trim()) return
+    try {
+      const payload = {
+        user_id: user.id,
+        title: title.trim() || null,
+        body,
+        platform,
+        content_type: contentType,
+        status: 'ready',
+        template_key: templateKey,
+        character_count: charCount,
+        updated_at: new Date().toISOString(),
+      }
+      if (draftId) {
+        const { error } = await supabase.from('creator_drafts').update(payload).eq('id', draftId)
+        if (error) throw error
+      } else {
+        const { data, error } = await supabase.from('creator_drafts').insert(payload).select().single()
+        if (error) throw error
+        setDraftId(data.id)
+      }
+      setStatus('ready')
+      toast.success('Marked Ready — opening Scheduler')
+      navigate('/affiliate/scheduler')
+    } catch (e) {
+      console.error(e); toast.error('Failed to send to scheduler')
+    }
   }
 
   const activePlaceholders = activeTemplate ? extractPlaceholders(activeTemplate.body) : []
