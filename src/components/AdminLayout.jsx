@@ -687,7 +687,7 @@ export default function AdminLayout() {
           </svg>
           Viewing as: {currentOrg?.name}
           <button
-            onClick={() => resetOrg()}
+            onClick={() => { resetOrg(); navigate('/admin'); }}
             className="ml-2 px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded text-xs transition-colors"
           >
             Switch Back
