@@ -224,17 +224,17 @@ export default function AffiliateOnboarding() {
         {slide === 'done' && <DoneSlide invite={invite} />}
 
         {slide !== 'done' && (
-          <div className="flex items-center justify-between mt-10 pt-6 border-t border-navy-800">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-10 pt-6 border-t border-navy-800 pb-[max(env(safe-area-inset-bottom),1rem)]">
             <button
               onClick={() => go(-1)}
               disabled={slideIndex === 0}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed text-center sm:text-left"
             >← Back</button>
             {slide === 'instructions' ? (
               <button
                 onClick={handleFinish}
                 disabled={submitting}
-                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-navy-950 rounded-lg text-sm font-bold disabled:opacity-50"
+                className="w-full sm:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-navy-950 rounded-lg text-sm font-bold disabled:opacity-50"
               >
                 {submitting ? 'Activating account…' : 'Finish + activate my account →'}
               </button>
@@ -242,7 +242,7 @@ export default function AffiliateOnboarding() {
               <button
                 onClick={() => go(1)}
                 disabled={!canAdvance()}
-                className="px-6 py-2.5 bg-brand-blue hover:bg-brand-blue/80 text-white rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto px-6 py-2.5 bg-brand-blue hover:bg-brand-blue/80 text-white rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {advanceLabel(slide)} →
               </button>
