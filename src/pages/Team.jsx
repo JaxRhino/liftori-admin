@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { Users, Shield, Key, Clock, Plus, Search, MoreVertical, Check, X, Mail, Trash2, Edit2, ChevronDown, UserPlus, FileText, Download, Eye, CheckCircle2, Circle, AlertCircle, Play, Layers, Sparkles } from 'lucide-react';
@@ -192,6 +192,50 @@ export default function Team() {
 
   // Onboarding state
   const [showOnboardingPreview, setShowOnboardingPreview] = useState(false);
+  const [previewMenuOpen, setPreviewMenuOpen] = useState(false);
+  const previewMenuRef = useRef(null);
+
+  // Close preview dropdown on outside click / Escape
+  useEffect(() => {
+    if (!previewMenuOpen) return;
+    const onClickOutside = (e) => {
+      if (previewMenuRef.current && !previewMenuRef.current.contains(e.target)) {
+        setPreviewMenuOpen(false);
+      }
+    };
+    const onEsc = (e) => { if (e.key === 'Escape') setPreviewMenuOpen(false); };
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, [previewMenuOpen]);
+
+  // Onboarding flows available to preview
+  const ONBOARDING_FLOWS = [
+    {
+      key: 'team',
+      label: 'Team Member',
+      description: 'NDA + 1099 + welcome flow for new hires',
+      icon: UserPlus,
+      action: () => { setShowOnboardingPreview(true); setPreviewMenuOpen(false); },
+    },
+    {
+      key: 'tester',
+      label: 'Tester Program',
+      description: '12-slide wizard with NDA, 1099, Role agmt',
+      icon: Sparkles,
+      action: () => { window.open('/onboard-tester/preview', '_blank'); setPreviewMenuOpen(false); },
+    },
+    {
+      key: 'affiliate',
+      label: 'Affiliate',
+      description: 'Referral program signup + payout terms',
+      icon: Layers,
+      action: () => { window.open('/onboard-affiliate/preview', '_blank'); setPreviewMenuOpen(false); },
+    },
+  ];
   const [onboardingRecords, setOnboardingRecords] = useState([]);
   const [showOnboardModal, setShowOnboardModal] = useState(false);
   const [onboardForm, setOnboardForm] = useState({
@@ -388,15 +432,24 @@ export default function Team() {
   }
 
   // ─── Onboarding Fetching ──────────────────────────────────────────────────
+  // Reads from v_team_onboarding_unified — UNION of team_onboarding (manual)
+  // + tester_enrollments/agreement_signatures (auto-onboarded testers).
+  // Each row has a `source` field: 'manual' (editable) or 'tester' (read-only).
   async function fetchOnboarding() {
     try {
       const { data, error } = await supabase
-        .from('team_onboarding')
+        .from('v_team_onboarding_unified')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) {
+        // Fallback to base table if the view hasn't been deployed yet
         if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          setOnboardingRecords([]);
+          const fb = await supabase
+            .from('team_onboarding')
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (fb.error && fb.error.code !== '42P01') throw fb.error;
+          setOnboardingRecords((fb.data || []).map(r => ({ ...r, source: 'manual' })));
           return;
         }
         throw error;
@@ -598,6 +651,13 @@ export default function Team() {
   async function handleToggleStep(recordId, stepKey) {
     const record = onboardingRecords.find(r => r.id === recordId);
     if (!record) return;
+    // Tester-source rows are derived from agreement_signatures + enrollment
+    // state; toggling them in the UI would be a no-op (the view recomputes
+    // from the underlying tables). Surface a friendly explanation instead.
+    if (record.source === 'tester') {
+      showToast('Auto-onboarded via Tester Program — checklist reflects signed agreements on file and cannot be toggled here.', 'info');
+      return;
+    }
     const updatedChecklist = { ...record.checklist, [stepKey]: !record.checklist[stepKey] };
 
     // Check if all steps are complete
@@ -1168,16 +1228,50 @@ export default function Team() {
       {/* ═══ ONBOARDING TAB ═══ */}
       {activeTab === 'onboarding' && (
         <div>
-          {/* Preview Button */}
+          {/* Preview Dropdown */}
           <div className="flex items-center justify-between mb-4">
             <p className="text-gray-500 text-sm">Track and manage the onboarding process for new team members</p>
-            <button
-              onClick={() => setShowOnboardingPreview(true)}
-              className="flex items-center gap-2 text-sm font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg transition"
-            >
-              <Eye size={14} />
-              Preview Onboarding Flow
-            </button>
+            <div className="relative" ref={previewMenuRef}>
+              <button
+                onClick={() => setPreviewMenuOpen(v => !v)}
+                aria-haspopup="menu"
+                aria-expanded={previewMenuOpen}
+                className="flex items-center gap-2 text-sm font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg transition"
+              >
+                <Eye size={14} />
+                Preview Onboarding Flow
+                <ChevronDown size={14} className={`transition-transform ${previewMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {previewMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full mt-2 w-72 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-20 overflow-hidden"
+                >
+                  <div className="px-3 py-2 text-[11px] uppercase tracking-wide text-gray-500 font-semibold border-b border-slate-700/60">
+                    Select a flow to preview
+                  </div>
+                  {ONBOARDING_FLOWS.map(flow => {
+                    const FlowIcon = flow.icon;
+                    return (
+                      <button
+                        key={flow.key}
+                        role="menuitem"
+                        onClick={flow.action}
+                        className="w-full flex items-start gap-3 px-3 py-2.5 text-left hover:bg-slate-800 transition border-b border-slate-700/30 last:border-b-0"
+                      >
+                        <div className="w-8 h-8 rounded-md flex items-center justify-center bg-amber-500/10 text-amber-400 flex-shrink-0 mt-0.5">
+                          <FlowIcon size={16} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-white">{flow.label}</div>
+                          <div className="text-xs text-gray-400 truncate">{flow.description}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Active Onboarding Records */}
@@ -1211,12 +1305,31 @@ export default function Team() {
                           {(record.full_name || '?')[0].toUpperCase()}
                         </div>
                         <div>
-                          <h3 className="text-white font-semibold">{record.full_name}</h3>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-white font-semibold">{record.full_name}</h3>
+                            {record.source === 'tester' && (
+                              <span
+                                title="Auto-onboarded via the Tester Program. Checklist reflects signed agreements on file."
+                                className="text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30"
+                              >
+                                Tester Program
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
                             <span>{record.email}</span>
                             {record.phone && <span>{record.phone}</span>}
                             <span>Role: {record.role}</span>
                             <span>Started: {new Date(record.created_at).toLocaleDateString()}</span>
+                            {record.nda_signed_at && (
+                              <span className="text-emerald-400/80">NDA signed {new Date(record.nda_signed_at).toLocaleDateString()}</span>
+                            )}
+                            {record.contract_signed_at && (
+                              <span className="text-emerald-400/80">1099 signed {new Date(record.contract_signed_at).toLocaleDateString()}</span>
+                            )}
+                            {record.role_signed_at && (
+                              <span className="text-emerald-400/80">Role agmt signed {new Date(record.role_signed_at).toLocaleDateString()}</span>
+                            )}
                           </div>
                         </div>
                       </div>
