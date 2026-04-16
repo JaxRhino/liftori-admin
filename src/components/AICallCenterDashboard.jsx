@@ -6,7 +6,7 @@ import {
   Bot, Phone, PhoneIncoming, CheckCircle, Activity, Headphones,
   Timer, Play, Pause, Zap, Volume2, RefreshCw, ChevronDown, ChevronUp,
   X, User, Building2, Target, Clock, ArrowDownLeft, ArrowUpRight,
-  FileText, BarChart3, PhoneCall,
+  FileText, BarChart3, PhoneCall, Copy, MessageSquare, Wrench,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -322,7 +322,169 @@ function CallDetailModal({ call, onClose, agents }) {
             </p>
           </div>
         )}
+
+        {/* Call Log — transcript + tool events, with a Copy button so Ryan
+            can paste the whole thing into Sage for analysis */}
+        <CallLogSection call={call} />
       </div>
+    </div>
+  );
+}
+
+// ─── Call Log (transcript + tool events) ──────────────────────────────
+function CallLogSection({ call }) {
+  const log = call?.metadata?.call_log;
+  const transcript = Array.isArray(log?.transcript) ? log.transcript : [];
+  const toolEvents = Array.isArray(log?.tool_events) ? log.tool_events : [];
+  const [copied, setCopied] = useState(false);
+
+  if (transcript.length === 0 && toolEvents.length === 0) {
+    return (
+      <div className="px-6 py-4 border-t border-slate-800">
+        <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <MessageSquare className="h-3.5 w-3.5" /> Call Log
+        </p>
+        <div className="bg-slate-800/50 rounded-lg p-4 text-center text-gray-500 text-xs">
+          No log captured for this call. Logs are saved for calls that complete after the log tracker was deployed.
+        </div>
+      </div>
+    );
+  }
+
+  // Build a plain-text version suitable for pasting into a chat.
+  const buildPlainText = () => {
+    const lines = [];
+    lines.push(`Call Log — ${call.call_sid || 'unknown'}`);
+    if (call.caller_name) lines.push(`Caller: ${call.caller_name}`);
+    if (call.from_number) lines.push(`From: ${call.from_number}`);
+    if (call.created_at) lines.push(`Started: ${new Date(call.created_at).toLocaleString()}`);
+    if (call.duration) lines.push(`Duration: ${Math.floor(call.duration / 60)}:${String(call.duration % 60).padStart(2, '0')}`);
+    if (call.outcome) lines.push(`Outcome: ${call.outcome}`);
+    lines.push('');
+    lines.push('--- Transcript ---');
+    for (const turn of transcript) {
+      const who = turn.role === 'assistant' ? 'Sol' : 'Caller';
+      lines.push(`${who}: ${turn.content}`);
+    }
+    if (toolEvents.length > 0) {
+      lines.push('');
+      lines.push('--- Tool Events ---');
+      for (const ev of toolEvents) {
+        const when = ev.ts ? new Date(ev.ts).toLocaleTimeString() : '';
+        const status = ev.result?.success === true ? 'OK'
+          : ev.result?.success === false ? 'FAIL' : '...';
+        const msg = ev.result?.message ? ` — ${ev.result.message}` : '';
+        lines.push(`[${when}] ${ev.name} (${status})${msg}`);
+        if (ev.input && Object.keys(ev.input).length > 0) {
+          lines.push(`  input: ${JSON.stringify(ev.input)}`);
+        }
+      }
+    }
+    return lines.join('\n');
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(buildPlainText());
+      setCopied(true);
+      toast.success('Call log copied — paste it anywhere');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy to clipboard');
+    }
+  };
+
+  return (
+    <div className="px-6 py-4 border-t border-slate-800">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-gray-500 font-medium uppercase tracking-wider flex items-center gap-1.5">
+          <MessageSquare className="h-3.5 w-3.5" /> Call Log
+          <span className="text-gray-600 normal-case tracking-normal ml-1">
+            ({transcript.length} turns{toolEvents.length > 0 ? ` · ${toolEvents.length} tool events` : ''})
+          </span>
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs gap-1.5 border-slate-600 hover:border-sky-500/50"
+          onClick={handleCopy}
+        >
+          <Copy className="h-3 w-3" />
+          {copied ? 'Copied' : 'Copy Log'}
+        </Button>
+      </div>
+
+      {/* Transcript */}
+      {transcript.length > 0 && (
+        <div className="bg-slate-900/60 border border-slate-800 rounded-lg max-h-80 overflow-y-auto divide-y divide-slate-800/60">
+          {transcript.map((turn, idx) => {
+            const isAgent = turn.role === 'assistant';
+            return (
+              <div key={idx} className="px-3 py-2">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+                    isAgent ? 'text-sky-400' : 'text-purple-400'
+                  }`}>
+                    {isAgent ? 'Sol' : 'Caller'}
+                  </span>
+                  {turn.ts && (
+                    <span className="text-[10px] text-gray-600">
+                      {new Date(turn.ts).toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+                  {turn.content}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tool events */}
+      {toolEvents.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Wrench className="h-3 w-3" /> Tool Events
+          </p>
+          <div className="bg-slate-900/60 border border-slate-800 rounded-lg divide-y divide-slate-800/60">
+            {toolEvents.map((ev, idx) => {
+              const ok = ev.result?.success === true;
+              const failed = ev.result?.success === false;
+              return (
+                <div key={idx} className="px-3 py-2 text-xs flex items-start gap-2">
+                  <span className={`flex-shrink-0 h-5 px-1.5 rounded text-[10px] font-mono flex items-center ${
+                    ok ? 'bg-green-500/15 text-green-400'
+                      : failed ? 'bg-red-500/15 text-red-400'
+                      : 'bg-gray-500/15 text-gray-400'
+                  }`}>
+                    {ok ? 'OK' : failed ? 'FAIL' : '...'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sky-300 font-mono">{ev.name}</span>
+                      {ev.ts && (
+                        <span className="text-[10px] text-gray-600">
+                          {new Date(ev.ts).toLocaleTimeString()}
+                        </span>
+                      )}
+                    </div>
+                    {ev.result?.message && (
+                      <p className="text-gray-400 mt-0.5 break-words">{ev.result.message}</p>
+                    )}
+                    {ev.input && Object.keys(ev.input).length > 0 && (
+                      <p className="text-gray-500 mt-0.5 font-mono text-[10px] break-all">
+                        {JSON.stringify(ev.input)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
