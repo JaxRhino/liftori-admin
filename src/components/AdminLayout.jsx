@@ -584,7 +584,15 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const mainRef = useRef(null)
-  const [sidebarPinned, setSidebarPinned] = useState(false)
+  // Sidebar pin state — persisted so pinned-open survives page refresh.
+  // Behavior: once pinned, stays pinned across navigations AND reloads until
+  // the user clicks the pin toggle to switch back to auto-hide.
+  const [sidebarPinned, setSidebarPinned] = useState(() => {
+    try { return localStorage.getItem('liftori.sidebar.pinned') === '1' } catch { return false }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('liftori.sidebar.pinned', sidebarPinned ? '1' : '0') } catch {}
+  }, [sidebarPinned])
   const [sidebarHovered, setSidebarHovered] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const sidebarOpen = sidebarPinned || sidebarHovered || mobileMenuOpen
@@ -749,8 +757,10 @@ export default function AdminLayout() {
           )}
         </div>
 
-        {/* Nav — auto-close sidebar on link click */}
-        <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto" onClick={(e) => { if (e.target.closest('a')) { setMobileMenuOpen(false); setSidebarPinned(false); } }}>
+        {/* Nav — on link click: close mobile menu + collapse hover-opened sidebar.
+            DO NOT unpin — if the user explicitly pinned the sidebar, it stays pinned
+            until they click the pin toggle again. */}
+        <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto" onClick={(e) => { if (e.target.closest('a')) { setMobileMenuOpen(false); setSidebarHovered(false); } }}>
           {visibleNavItems.map((item, idx) => (
             <React.Fragment key={item.path}>
               {['Call Center', 'Marketing', 'EOS', 'Finance', 'Communications'].includes(item.label) ? (
