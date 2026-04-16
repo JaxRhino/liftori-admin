@@ -16,20 +16,18 @@ import {
   PhoneOutgoing,
   Calendar,
   Headphones,
-  Settings,
   Trash2,
-  Play,
-  Pause,
   Activity,
-  BarChart3,
   Clock,
   Users,
   Zap,
-  Copy,
   Edit3,
   Power,
-  Eye,
   MessageSquare,
+  UserCheck,
+  ArrowRightLeft,
+  Sparkles,
+  BookOpen,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════
@@ -38,11 +36,26 @@ import {
 // ═══════════════════════════════════════════════════════════════
 
 const ROLE_CONFIG = {
-  receptionist: { label: 'Receptionist', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: PhoneIncoming },
-  sales: { label: 'Sales Agent', color: 'bg-green-500/20 text-green-400 border-green-500/30', icon: PhoneOutgoing },
-  booking: { label: 'Booking Agent', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', icon: Calendar },
-  support: { label: 'Support Agent', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', icon: Headphones },
-  custom: { label: 'Custom Agent', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', icon: Bot },
+  receptionist:  { label: 'Receptionist',       color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',     icon: PhoneIncoming },
+  sales:         { label: 'Outbound Sales',     color: 'bg-green-500/20 text-green-400 border-green-500/30', icon: PhoneOutgoing },
+  sales_inbound: { label: 'Inbound Sales',      color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: PhoneIncoming },
+  booking:       { label: 'Booking Agent',      color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', icon: Calendar },
+  support:       { label: 'Support Agent',      color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', icon: Headphones },
+  hr_recruiter:  { label: 'HR Recruiter',       color: 'bg-pink-500/20 text-pink-400 border-pink-500/30',     icon: UserCheck },
+  custom:        { label: 'Custom Agent',       color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',     icon: Bot },
+};
+
+const DEFAULT_FORM = {
+  name: '',
+  role: 'receptionist',
+  description: '',
+  system_prompt: '',
+  greeting: '',
+  voice_name: '',
+  voice_id: '',
+  phone_number: '',
+  llm_model: 'claude-sonnet-4-20250514',
+  max_concurrent_calls: 5,
 };
 
 export default function AIAgents() {
@@ -55,20 +68,7 @@ export default function AIAgents() {
   const [showEdit, setShowEdit] = useState(null);
   const [showConversations, setShowConversations] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-
-  // Create form state
-  const [form, setForm] = useState({
-    name: '',
-    role: 'receptionist',
-    description: '',
-    system_prompt: '',
-    greeting: '',
-    voice_name: '',
-    voice_id: '',
-    phone_number: '',
-    llm_model: 'claude-sonnet-4-20250514',
-    max_concurrent_calls: 5,
-  });
+  const [form, setForm] = useState(DEFAULT_FORM);
 
   useEffect(() => {
     loadData();
@@ -94,50 +94,35 @@ export default function AIAgents() {
   function openCreateFromTemplate(template) {
     setSelectedTemplate(template);
     setForm({
+      ...DEFAULT_FORM,
       name: template.name,
       role: template.role,
       description: template.description || '',
-      system_prompt: template.system_prompt,
+      system_prompt: template.system_prompt || '',
       greeting: template.greeting || '',
-      voice_name: '',
-      voice_id: '',
-      phone_number: '',
-      llm_model: 'claude-sonnet-4-20250514',
-      max_concurrent_calls: 5,
     });
     setShowCreate(true);
   }
 
   function openCreateBlank() {
     setSelectedTemplate(null);
-    setForm({
-      name: '',
-      role: 'receptionist',
-      description: '',
-      system_prompt: '',
-      greeting: 'Hello, thank you for calling. How can I help you today?',
-      voice_name: '',
-      voice_id: '',
-      phone_number: '',
-      llm_model: 'claude-sonnet-4-20250514',
-      max_concurrent_calls: 5,
-    });
+    setForm({ ...DEFAULT_FORM, greeting: 'Hello, thank you for calling. How can I help you today?' });
     setShowCreate(true);
   }
 
   async function handleCreate() {
-    if (!form.name || !form.system_prompt) {
-      toast.error('Name and system prompt are required');
+    if (!form.name) {
+      toast.error('Agent name is required');
       return;
     }
-
     try {
       const { error } = await supabase.from('ai_agents').insert({
         name: form.name,
         role: form.role,
         description: form.description,
-        system_prompt: form.system_prompt,
-        greeting: form.greeting,
+        // Empty prompt → NULL (worker uses built-in role default)
+        system_prompt: form.system_prompt.trim() || null,
+        greeting: form.greeting || null,
         voice_name: form.voice_name || null,
         voice_id: form.voice_id || null,
         phone_number: form.phone_number || null,
@@ -149,7 +134,6 @@ export default function AIAgents() {
         created_by: user.id,
       });
       if (error) throw error;
-
       toast.success(`AI Agent "${form.name}" created`);
       setShowCreate(false);
       loadData();
@@ -191,8 +175,8 @@ export default function AIAgents() {
           name: form.name,
           role: form.role,
           description: form.description,
-          system_prompt: form.system_prompt,
-          greeting: form.greeting,
+          system_prompt: form.system_prompt.trim() || null,
+          greeting: form.greeting || null,
           voice_name: form.voice_name || null,
           voice_id: form.voice_id || null,
           phone_number: form.phone_number || null,
@@ -211,11 +195,12 @@ export default function AIAgents() {
   }
 
   function openEdit(agent) {
+    setSelectedTemplate(null);
     setForm({
       name: agent.name,
       role: agent.role,
       description: agent.description || '',
-      system_prompt: agent.system_prompt,
+      system_prompt: agent.system_prompt || '',
       greeting: agent.greeting || '',
       voice_name: agent.voice_name || '',
       voice_id: agent.voice_id || '',
@@ -281,59 +266,33 @@ export default function AIAgents() {
           ))}
         </div>
 
-        {/* Agent Templates */}
-        {agents.length === 0 && (
-          <Card className="bg-slate-800/50 border-slate-700 mb-6">
-            <div className="p-6 border-b border-slate-700">
-              <h2 className="text-white text-lg font-bold">Quick Start Templates</h2>
-              <p className="text-gray-400 text-sm">Choose a template to create your first AI agent</p>
+        {/* ─── YOUR LIVE AGENTS ──────────────────────────────────────── */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-white text-lg font-bold flex items-center gap-2">
+                <Zap size={18} className="text-sky-400" />
+                Your Live Agents
+              </h2>
+              <p className="text-gray-400 text-xs">These are the agents actually answering and making your calls. Click Edit to tune them.</p>
             </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {templates.map(t => {
-                const config = ROLE_CONFIG[t.role] || ROLE_CONFIG.custom;
-                const Icon = config.icon;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => openCreateFromTemplate(t)}
-                    className="text-left bg-slate-700/50 border border-slate-600 rounded-lg p-4 hover:border-sky-500/50 hover:bg-slate-700 transition-all group"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Icon size={18} className="text-sky-400" />
-                      <Badge className={config.color + ' text-xs'}>{config.label}</Badge>
-                    </div>
-                    <h3 className="text-white font-semibold mb-1">{t.name}</h3>
-                    <p className="text-gray-400 text-xs line-clamp-2">{t.description}</p>
-                    <p className="text-sky-400 text-xs mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to create</p>
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-        )}
+            <span className="text-xs text-gray-500">{agents.length} agent{agents.length === 1 ? '' : 's'}</span>
+          </div>
 
-        {/* Agents List */}
-        {agents.length > 0 && (
-          <>
-            {/* Templates strip (compact when agents exist) */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-gray-500 text-xs">Quick add:</span>
-              {templates.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => openCreateFromTemplate(t)}
-                  className="px-3 py-1 rounded-full text-xs border border-slate-600 text-gray-400 hover:text-white hover:border-sky-500/50 transition-colors"
-                >
-                  + {t.name}
-                </button>
-              ))}
-            </div>
-
+          {agents.length === 0 ? (
+            <Card className="bg-slate-800/30 border-slate-700 border-dashed p-8 text-center">
+              <Bot size={40} className="text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400 text-sm">No live agents yet — pick a template below to create your first one.</p>
+            </Card>
+          ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {agents.map(agent => {
                 const config = ROLE_CONFIG[agent.role] || ROLE_CONFIG.custom;
                 const Icon = config.icon;
                 const agentConvos = getAgentConversations(agent.id);
+                const capabilities = Array.isArray(agent.capabilities) ? agent.capabilities : [];
+                const transferRules = Array.isArray(agent.transfer_rules) ? agent.transfer_rules : [];
+                const usingDefault = !agent.system_prompt || !agent.system_prompt.trim();
 
                 return (
                   <Card key={agent.id} className={`border-slate-700 transition-colors ${agent.is_active ? 'bg-slate-800/60' : 'bg-slate-800/30 opacity-60'}`}>
@@ -349,7 +308,14 @@ export default function AIAgents() {
                               <h3 className="text-white font-semibold">{agent.name}</h3>
                               <span className={`w-2 h-2 rounded-full ${agent.is_active ? 'bg-green-400' : 'bg-gray-500'}`} />
                             </div>
-                            <Badge className={config.color + ' text-xs mt-0.5'}>{config.label}</Badge>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <Badge className={config.color + ' text-xs'}>{config.label}</Badge>
+                              {usingDefault && (
+                                <Badge className="bg-slate-700 text-gray-400 border-slate-600 text-[10px]" title="No custom prompt set — using the baked-in worker default. Edit to override.">
+                                  default prompt
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -368,6 +334,41 @@ export default function AIAgents() {
                       {/* Description */}
                       {agent.description && (
                         <p className="text-gray-400 text-xs mb-3 line-clamp-2">{agent.description}</p>
+                      )}
+
+                      {/* Capabilities */}
+                      {capabilities.length > 0 && (
+                        <div className="mb-3">
+                          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
+                            <Sparkles size={10} /> Capabilities
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {capabilities.map(cap => (
+                              <span key={cap} className="px-2 py-0.5 rounded bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px]">
+                                {cap.replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Transfer rules */}
+                      {transferRules.length > 0 && (
+                        <div className="mb-3">
+                          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
+                            <ArrowRightLeft size={10} /> Transfer Rules
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {transferRules.slice(0, 4).map((rule, i) => (
+                              <span key={i} className="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px]">
+                                {String(rule.trigger || '').replace(/_/g, ' ')} → {String(rule.target || '').replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                            {transferRules.length > 4 && (
+                              <span className="px-2 py-0.5 rounded bg-slate-700 text-gray-400 text-[10px]">+{transferRules.length - 4} more</span>
+                            )}
+                          </div>
+                        </div>
                       )}
 
                       {/* Stats */}
@@ -391,14 +392,16 @@ export default function AIAgents() {
                       </div>
 
                       {/* Config Info */}
-                      <div className="flex items-center gap-3 text-xs text-gray-500 border-t border-slate-700 pt-3">
-                        {agent.phone_number && (
+                      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 border-t border-slate-700 pt-3">
+                        {agent.phone_number ? (
                           <span className="flex items-center gap-1"><Phone size={10} /> {agent.phone_number}</span>
+                        ) : (
+                          <span className="flex items-center gap-1 italic"><Phone size={10} /> no number bound</span>
                         )}
                         {agent.voice_name && (
                           <span className="flex items-center gap-1"><MessageSquare size={10} /> {agent.voice_name}</span>
                         )}
-                        <span className="flex items-center gap-1"><Zap size={10} /> {agent.llm_model?.replace('claude-', '').replace('-20250514', '')}</span>
+                        <span className="flex items-center gap-1"><Zap size={10} /> {agent.llm_model?.replace('claude-', '').replace(/-\d{8}$/, '')}</span>
                         <span className="flex items-center gap-1"><Users size={10} /> {agent.max_concurrent_calls} max</span>
                       </div>
 
@@ -439,21 +442,52 @@ export default function AIAgents() {
                 );
               })}
             </div>
-          </>
-        )}
+          )}
+        </div>
 
-        {/* Empty State */}
-        {agents.length === 0 && templates.length === 0 && (
-          <Card className="bg-slate-800/50 border-slate-700 p-12">
-            <div className="text-center">
-              <Bot size={48} className="text-gray-600 mx-auto mb-4" />
-              <h2 className="text-white text-xl font-bold mb-2">No AI Agents Yet</h2>
-              <p className="text-gray-400 mb-4">Create your first AI voice agent to start automating calls</p>
-              <Button onClick={openCreateBlank} className="bg-sky-600 hover:bg-sky-700">
-                <Plus size={16} className="mr-2" /> Create Agent
-              </Button>
+        {/* ─── QUICK START TEMPLATES (always visible) ──────────────── */}
+        {templates.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-white text-lg font-bold flex items-center gap-2">
+                  <BookOpen size={18} className="text-cyan-400" />
+                  Quick Start Templates
+                </h2>
+                <p className="text-gray-400 text-xs">Pre-configured role blueprints. Click one to spawn a new live agent pre-filled with its prompt and capabilities.</p>
+              </div>
             </div>
-          </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {templates.map(t => {
+                const config = ROLE_CONFIG[t.role] || ROLE_CONFIG.custom;
+                const Icon = config.icon;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => openCreateFromTemplate(t)}
+                    className="text-left bg-slate-800/40 border border-slate-700 rounded-lg p-4 hover:border-sky-500/50 hover:bg-slate-700/60 transition-all group"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icon size={16} className="text-sky-400" />
+                      <Badge className={config.color + ' text-xs'}>{config.label}</Badge>
+                    </div>
+                    <h3 className="text-white font-semibold text-sm mb-1">{t.name}</h3>
+                    <p className="text-gray-400 text-xs line-clamp-2 mb-2">{t.description}</p>
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <Sparkles size={10} />
+                      <span>{Array.isArray(t.capabilities) ? t.capabilities.length : 0} capabilities</span>
+                      <span>·</span>
+                      <ArrowRightLeft size={10} />
+                      <span>{Array.isArray(t.transfer_rules) ? t.transfer_rules.length : 0} transfer rules</span>
+                    </div>
+                    <p className="text-sky-400 text-xs mt-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <Plus size={10} /> Create agent from template
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 
@@ -482,10 +516,12 @@ export default function AIAgents() {
                   onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
                   className="w-full rounded-md bg-slate-700 border border-slate-600 text-white px-3 py-2 text-sm"
                 >
-                  <option value="receptionist">Receptionist</option>
-                  <option value="sales">Sales Agent</option>
+                  <option value="receptionist">Receptionist (inbound)</option>
+                  <option value="sales_inbound">Inbound Sales</option>
+                  <option value="sales">Outbound Sales</option>
                   <option value="booking">Booking Agent</option>
                   <option value="support">Support Agent</option>
+                  <option value="hr_recruiter">HR Recruiter (outbound screening)</option>
                   <option value="custom">Custom</option>
                 </select>
               </div>
@@ -502,12 +538,19 @@ export default function AIAgents() {
             </div>
 
             <div>
-              <label className="text-gray-400 text-xs font-medium mb-1 block">System Prompt</label>
+              <label className="text-gray-400 text-xs font-medium mb-1 block flex items-center justify-between">
+                <span>System Prompt</span>
+                {(!form.system_prompt || !form.system_prompt.trim()) && (
+                  <span className="text-[10px] font-normal text-sky-400 normal-case">
+                    Empty → uses the worker's built-in {form.role} default
+                  </span>
+                )}
+              </label>
               <Textarea
                 value={form.system_prompt}
                 onChange={e => setForm(f => ({ ...f, system_prompt: e.target.value }))}
-                placeholder="Instructions for the AI agent..."
-                className="bg-slate-700 border-slate-600 text-white min-h-[120px]"
+                placeholder="Leave blank to use the worker's built-in role prompt. Type here to override it — saved value wins on the next call, no deploy needed."
+                className="bg-slate-700 border-slate-600 text-white min-h-[140px] font-mono text-xs"
               />
             </div>
 
