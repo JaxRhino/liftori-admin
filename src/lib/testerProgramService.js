@@ -232,6 +232,36 @@ export async function deleteAssignment(id) {
   if (error) err(error, 'deleteAssignment')
 }
 
+/**
+ * Return assignments a tester has not yet viewed (for the center-screen alert).
+ * Used by NewAssignmentsAlert on tester login.
+ */
+export async function listUnviewedAssignments(userId) {
+  const { data, error } = await supabase
+    .from('tester_assignments')
+    .select('id, title, description, priority, screen_path, estimated_minutes, due_date, tags, created_at')
+    .eq('assigned_to', userId)
+    .is('viewed_at', null)
+    .in('status', ['assigned', 'in_progress'])
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) err(error, 'listUnviewedAssignments')
+  return data || []
+}
+
+/**
+ * Mark a batch of assignments as viewed. Called when the tester dismisses
+ * the center-screen alert so it does not re-appear for the same batch.
+ */
+export async function markAssignmentsViewed(ids) {
+  if (!ids || ids.length === 0) return
+  const { error } = await supabase
+    .from('tester_assignments')
+    .update({ viewed_at: new Date().toISOString() })
+    .in('id', ids)
+  if (error) err(error, 'markAssignmentsViewed')
+}
+
 // ═══════════════════════════════════════════════
 // AGREEMENT TEXTS (versioned, hashed for proof)
 // ═══════════════════════════════════════════════

@@ -30,6 +30,7 @@ import {
   liveDuration,
 } from '../lib/timeTrackingService'
 import { listAssignments, updateAssignment } from '../lib/testerProgramService'
+import NewAssignmentsAlert from '../components/NewAssignmentsAlert'
 
 const PRIORITY_COLORS = {
   urgent: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
@@ -228,6 +229,9 @@ export default function TesterDashboard() {
 
   return (
     <div className="min-h-screen bg-navy-950 text-white">
+      {/* Center-screen alert for unviewed tester_assignments — fires once per new batch */}
+      <NewAssignmentsAlert userId={user?.id} />
+
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Welcome header */}
         <div className="flex items-start justify-between flex-wrap gap-3">
