@@ -4,7 +4,7 @@ import { useAuth } from '../lib/AuthContext'
 import NotificationBell from './NotificationBell'
 import ReportModal from './ReportModal'
 import OrgSwitcher from './OrgSwitcher'
-import TimeClockBar from './TimeClockBar'
+import ClockChip from './ClockChip'
 import ImpersonatePicker from './ImpersonatePicker'
 
 export default function GlobalHeader() {
@@ -21,8 +21,8 @@ export default function GlobalHeader() {
   return (
     <>
       <header className="h-12 bg-navy-800/80 backdrop-blur-sm border-b border-navy-700/50 flex items-center justify-end gap-1 px-4 flex-shrink-0 z-30">
-        {/* Time Clock Bar — persistent clock-in/out chip */}
-        <TimeClockBar />
+        {/* Pulse Clock — persistent team work-hour clock-in/out chip */}
+        <ClockChip />
 
         {/* Bug Report Button */}
         <button

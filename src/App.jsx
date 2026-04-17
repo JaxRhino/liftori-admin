@@ -50,6 +50,7 @@ import SalesPipeline from './pages/SalesPipeline'
 import OpsDashboard from './pages/OpsDashboard'
 import WizardBuilder from './pages/WizardBuilder'
 import Team from './pages/Team'
+import Pulse from './pages/Pulse'
 import WorkQueue from './pages/WorkQueue'
 import CompanyDocs from './pages/CompanyDocs'
 import HRHub from './pages/HRHub'
@@ -348,6 +349,7 @@ export default function App() {
             {/* Operations (Liftori internal) */}
             <Route path="ops-dashboard" element={<OpsDashboard />} />
             <Route path="team" element={<Team />} />
+            <Route path="pulse" element={<Pulse />} />
             <Route path="work-queue" element={<WorkQueue />} />
             <Route path="company-docs" element={<CompanyDocs />} />
             <Route path="hr-hub" element={<HRHub />} />

@@ -361,6 +361,13 @@ const opsItems = [
     )
   },
   {
+    label: 'Pulse', path: '/admin/pulse', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h4.5l3-9 4.5 18 3-9h4.5" />
+      </svg>
+    )
+  },
+  {
     label: 'Work Queue', path: '/admin/work-queue', icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0112 12.75zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 01-1.152-6.135 1.125 1.125 0 00-1.14-1.068l-.738.004c-.532.003-1.072-.095-1.551-.348-.354-.186-.752-.28-1.126-.28h-1c-.374 0-.772.094-1.126.28-.479.253-1.02.351-1.551.348l-.738-.004a1.125 1.125 0 00-1.14 1.068 23.91 23.91 0 01-1.152 6.135C9.353 13.258 12.117 12.75 12 12.75z" />
