@@ -1164,5 +1164,3 @@ export default function Projects() {
   </>
   )
 }
-
-}
