@@ -73,6 +73,14 @@ export default function AnnouncementModal() {
       await acknowledgeAnnouncement(current.id, user.id)
       // Drop this one from the queue and advance
       setQueue((q) => q.slice(1))
+      // Signal to any open AnnouncementCenter to refresh its ack counts immediately
+      try {
+        window.dispatchEvent(
+          new CustomEvent('liftori:announcement-acked', {
+            detail: { announcementId: current.id, userId: user.id },
+          })
+        )
+      } catch (_) { /* no-op */ }
     } catch (err) {
       console.error('[AnnouncementModal] ack failed:', err)
       alert('Could not record acknowledgment: ' + (err?.message || 'unknown'))

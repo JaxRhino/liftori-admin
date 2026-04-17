@@ -52,6 +52,15 @@ export default function AnnouncementCenter() {
 
   useEffect(() => {
     load()
+    // Re-poll every 30s to pick up acks from other sessions
+    const t = setInterval(load, 30_000)
+    // Instant refresh when someone acks in this tab (from AnnouncementModal)
+    const onAck = () => load()
+    window.addEventListener('liftori:announcement-acked', onAck)
+    return () => {
+      clearInterval(t)
+      window.removeEventListener('liftori:announcement-acked', onAck)
+    }
   }, [load])
 
   return (
