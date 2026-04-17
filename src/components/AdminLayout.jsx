@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import IncomingCallModal from './IncomingCallModal'
 import GlobalPhoneCallPopup from './GlobalPhoneCallPopup'
 import GlobalHeader from './GlobalHeader'
+import ImpersonationBanner from './ImpersonationBanner'
 import { isFounder } from '../lib/testerProgramService'
 import VideoCallRoom from './VideoCallRoom'
 import OnboardingWizard from './OnboardingWizard'
@@ -704,7 +705,12 @@ export default function AdminLayout() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      {/* Impersonation Banner — flow element, pushes layout down */}
+      {/* User-level view-as banner — shows when a founder is impersonating a team member.
+          Sits above everything (including the org-impersonation banner) so "Return to admin"
+          is always reachable without touching page content. */}
+      <ImpersonationBanner />
+
+      {/* Org-level impersonation banner — admin viewing a customer org */}
       {isImpersonating && (
         <div className="bg-purple-600 text-white text-xs font-semibold text-center py-1.5 px-4 flex items-center justify-center gap-3 flex-shrink-0 z-50">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

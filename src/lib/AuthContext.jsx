@@ -1,13 +1,28 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from './supabase'
+import { isFounder } from './testerProgramService'
 
 const AuthContext = createContext(null)
 
+const IMPERSONATE_STORAGE_KEY = 'liftori.impersonatedUserId'
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
+  // Real auth state — the actual logged-in user
+  const [realUser, setRealUser] = useState(null)
+  const [realProfile, setRealProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [token, setToken] = useState(null)
+
+  // View-as-user (impersonation) state. When set, the UI renders as if the
+  // impersonated user were logged in, but the underlying Supabase session
+  // and JWT are still the real founder's — writes are still attributed to
+  // the real user, and RLS still sees the founder's auth.uid().
+  const [impersonatedUserId, setImpersonatedUserId] = useState(() => {
+    if (typeof window === 'undefined') return null
+    try { return window.localStorage.getItem(IMPERSONATE_STORAGE_KEY) || null }
+    catch { return null }
+  })
+  const [impersonatedProfile, setImpersonatedProfile] = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -20,33 +35,28 @@ export function AuthProvider({ children }) {
           .eq('id', userId)
           .single()
         if (error) throw error
-        if (mounted) setProfile(data)
+        if (mounted) setRealProfile(data)
       } catch (err) {
         console.error('[Auth] Profile fetch error:', err)
-        if (mounted) setProfile(null)
+        if (mounted) setRealProfile(null)
       } finally {
         if (endLoading && mounted) setLoading(false)
       }
     }
 
-    // onAuthStateChange fires INITIAL_SESSION on every page load/refresh.
-    // This is Supabase's recommended SPA pattern and avoids the Web Locks
-    // hang that broke page refresh (getSession() can deadlock on reload).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!mounted) return
         const sessionUser = session?.user ?? null
-        setUser(sessionUser)
+        setRealUser(sessionUser)
         setToken(session?.access_token ?? null)
         const isInitial = event === 'INITIAL_SESSION'
         const isSignIn = event === 'SIGNED_IN'
         if (sessionUser) {
-          // On sign-in, set loading true so route guards wait for profile
           if (isSignIn && !isInitial) setLoading(true)
-          // endLoading on both initial session and sign-in
           fetchProfile(sessionUser.id, isInitial || isSignIn)
         } else {
-          setProfile(null)
+          setRealProfile(null)
           if (isInitial) setLoading(false)
         }
       }
@@ -58,7 +68,62 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-    async function signIn(email, password) {
+  // Founder gating — derived from the REAL profile/user, not the impersonated
+  // one. Losing impersonation access just because you're viewing-as a tester
+  // would be a nasty footgun.
+  const canImpersonate = useMemo(
+    () => isFounder(realProfile) || isFounder(realUser),
+    [realProfile, realUser]
+  )
+
+  // Load the impersonated user's profile whenever the impersonated ID changes.
+  useEffect(() => {
+    let cancelled = false
+    async function loadImpersonated() {
+      if (!impersonatedUserId) { setImpersonatedProfile(null); return }
+      if (realUser && !canImpersonate) {
+        setImpersonatedUserId(null)
+        try { window.localStorage.removeItem(IMPERSONATE_STORAGE_KEY) } catch {}
+        return
+      }
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', impersonatedUserId)
+          .single()
+        if (error) throw error
+        if (!cancelled) setImpersonatedProfile(data)
+      } catch (err) {
+        console.error('[Auth] Impersonated profile fetch error:', err)
+        if (!cancelled) {
+          setImpersonatedProfile(null)
+          setImpersonatedUserId(null)
+          try { window.localStorage.removeItem(IMPERSONATE_STORAGE_KEY) } catch {}
+        }
+      }
+    }
+    loadImpersonated()
+    return () => { cancelled = true }
+  }, [impersonatedUserId, realUser, canImpersonate])
+
+  function stopImpersonationInternal() {
+    try { window.localStorage.removeItem(IMPERSONATE_STORAGE_KEY) } catch {}
+    setImpersonatedUserId(null)
+    setImpersonatedProfile(null)
+  }
+
+  const startImpersonation = useCallback((userId) => {
+    if (!canImpersonate) return
+    if (!userId) return
+    if (realUser && userId === realUser.id) { stopImpersonationInternal(); return }
+    try { window.localStorage.setItem(IMPERSONATE_STORAGE_KEY, userId) } catch {}
+    setImpersonatedUserId(userId)
+  }, [canImpersonate, realUser])
+
+  const stopImpersonation = useCallback(stopImpersonationInternal, [])
+
+  async function signIn(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     return data
@@ -85,34 +150,58 @@ export function AuthProvider({ children }) {
   async function signOut() {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
-    setUser(null)
-    setProfile(null)
+    setRealUser(null)
+    setRealProfile(null)
     setToken(null)
+    stopImpersonationInternal()
   }
 
   async function refreshProfile() {
-    if (!user?.id) return
+    if (!realUser?.id) return
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', realUser.id)
         .single()
       if (error) throw error
-      setProfile(data)
+      setRealProfile(data)
     } catch (err) {
       console.error('[Auth] Profile refresh error:', err)
     }
   }
 
-  // 'tester' included so enrolled testers can reach /admin (TesterDashboard renders there).
-  // Super Admin page is gated separately by founder email allowlist.
-  const isAdmin = ['admin', 'dev', 'super_admin', 'sales_director', 'call_agent', 'tester'].includes(profile?.role)
-  // Affiliates get their own /affiliate portal tree (like /portal for customers).
-  const isAffiliate = profile?.role === 'affiliate'
+  // ─── Effective identity ──────────────────────────────────────────
+  const isImpersonating = !!(impersonatedUserId && impersonatedProfile && realUser && impersonatedUserId !== realUser.id)
+
+  const effectiveUser = isImpersonating
+    ? { ...realUser, id: impersonatedProfile.id, email: impersonatedProfile.email, __impersonated: true }
+    : realUser
+  const effectiveProfile = isImpersonating ? impersonatedProfile : realProfile
+
+  const isAdmin = ['admin', 'dev', 'super_admin', 'sales_director', 'call_agent', 'tester'].includes(effectiveProfile?.role)
+  const isAffiliate = effectiveProfile?.role === 'affiliate'
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, isAffiliate, token, signIn, signOut, signUp, refreshProfile }}>
+    <AuthContext.Provider value={{
+      user: effectiveUser,
+      profile: effectiveProfile,
+      realUser,
+      realProfile,
+      loading,
+      isAdmin,
+      isAffiliate,
+      token,
+      isImpersonating,
+      canImpersonate,
+      impersonatedUserId,
+      startImpersonation,
+      stopImpersonation,
+      signIn,
+      signOut,
+      signUp,
+      refreshProfile,
+    }}>
       {children}
     </AuthContext.Provider>
   )

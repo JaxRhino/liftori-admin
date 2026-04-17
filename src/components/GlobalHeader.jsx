@@ -5,6 +5,7 @@ import NotificationBell from './NotificationBell'
 import ReportModal from './ReportModal'
 import OrgSwitcher from './OrgSwitcher'
 import TimeClockBar from './TimeClockBar'
+import ImpersonatePicker from './ImpersonatePicker'
 
 export default function GlobalHeader() {
   const { user, profile, signOut } = useAuth()
@@ -54,6 +55,9 @@ export default function GlobalHeader() {
 
         {/* Org Switcher (admin only) */}
         <OrgSwitcher />
+
+        {/* Impersonate user (founders only) */}
+        <ImpersonatePicker />
 
         {/* Divider */}
         <div className="w-px h-6 bg-navy-700/50 mx-1" />
