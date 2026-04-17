@@ -546,8 +546,8 @@ export default function Projects() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Projects</h1>
-          <p className="text-sm text-gray-400 mt-1">{projects.length} total project{projects.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Custom Builds</h1>
+          <p className="text-sm text-gray-400 mt-1">{projects.length} total build{projects.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex bg-navy-800 rounded-lg p-0.5 border border-navy-600/50">
@@ -1163,4 +1163,6 @@ export default function Projects() {
 
   </>
   )
+}
+
 }
