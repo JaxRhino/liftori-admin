@@ -1694,7 +1694,7 @@ export const Chat = () => {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{u.name}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">@{u.username}{u.role ? ` · ${u.role}` : ''}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{u.roleLabel || ''}{u.title ? ` · ${u.title}` : ''}</div>
                       </div>
                     </button>
                   ))}

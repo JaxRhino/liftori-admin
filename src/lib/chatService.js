@@ -506,6 +506,23 @@ export const TEAM_ROLES = [
   'tester',
 ]
 
+const ROLE_LABELS = {
+  admin: 'Admin',
+  super_admin: 'Super Admin',
+  sales_director: 'Sales Director',
+  sales_rep: 'Sales Rep',
+  call_agent: 'Call Agent',
+  dev: 'Developer',
+  project_manager: 'Project Manager',
+  consultant: 'Consultant',
+  tester: 'Tester',
+}
+
+function prettyRole(role) {
+  if (!role) return null
+  return ROLE_LABELS[role] || role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
 export async function fetchUsers() {
   // Return all Liftori team members — customers/affiliates are excluded
   // and surfaced in a separate DM section.
@@ -516,14 +533,30 @@ export async function fetchUsers() {
     .order('full_name', { ascending: true })
 
   if (error) throw error
+
+  // Figure out first-name collisions so we can fall back to "First L" handles
+  const rows = (data || []).map(u => {
+    const firstLast = [u.first_name, u.last_name].filter(Boolean).join(' ').trim()
+    const name = u.full_name || firstLast || u.email || 'Unknown'
+    const tokens = name.split(/\s+/).filter(Boolean)
+    return { u, name, first: tokens[0] || name, lastInitial: (tokens[1] || '').charAt(0) }
+  })
+  const firstCounts = rows.reduce((m, r) => {
+    const key = r.first.toLowerCase()
+    m[key] = (m[key] || 0) + 1
+    return m
+  }, {})
+
   return {
-    users: (data || []).map(u => {
-      const firstLast = [u.first_name, u.last_name].filter(Boolean).join(' ').trim()
-      const name = u.full_name || firstLast || u.email || 'Unknown'
+    users: rows.map(({ u, name, first, lastInitial }) => {
+      // Handle = first name (e.g. "Ryan") — append last initial only on collision
+      const collision = firstCounts[first.toLowerCase()] > 1 && lastInitial
+      const handle = collision ? `${first}${lastInitial}` : first
       return {
         id: u.id,
         name,
-        username: name.toLowerCase().replace(/\s+/g, '.'),
+        username: handle,                       // e.g. "Ryan" — used in @mentions
+        roleLabel: prettyRole(u.role),          // e.g. "Super Admin" — for dropdown subtitle
         email: u.email,
         role: u.role,
         title: u.title || null,
