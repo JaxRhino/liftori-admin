@@ -1,7 +1,41 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo, Fragment } from 'react'
 import { supabase } from '../lib/supabase'
 import InviteAffiliateModal from '../components/affiliates/InviteAffiliateModal'
 import { useAuth } from '../lib/AuthContext'
+
+// ─── CSV Helpers ──────────────────────────────────────────────────────────────
+function exportPayoutsCSV(affiliates, referralCounts) {
+  const rows = [['Name', 'Email', 'Code', 'Referrals', 'Rate', 'Type', 'Owed', 'Total Paid', 'Balance', 'Active', 'Joined']]
+  affiliates.forEach(a => {
+    const refs = referralCounts[a.referral_code] || 0
+    const owed = calcCommission(a, refs) || 0
+    const paid = a.total_paid || 0
+    const balance = Math.max(0, owed - paid)
+    rows.push([
+      a.name || '',
+      a.email || '',
+      a.referral_code || '',
+      String(refs),
+      String(a.commission_rate || 0),
+      a.commission_type || '',
+      owed.toFixed(2),
+      paid.toFixed(2),
+      balance.toFixed(2),
+      a.is_active ? 'Yes' : 'No',
+      a.created_at ? new Date(a.created_at).toISOString().slice(0, 10) : '',
+    ])
+  })
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `liftori-payouts-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 
 // Performance tier thresholds (referral count)
 const PERF_TIERS = [
@@ -43,8 +77,6 @@ function PerfBadge({ referrals }) {
   if (tier.key === 'none') return <span className="text-xs text-gray-600">—</span>
   return (
     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${tier.bg} ${tier.text}`}>
-      {tier.key === 'diamond' && '💎 '}
-      {tier.key === 'gold' && '★ '}
       {tier.label}
     </span>
   )
@@ -77,23 +109,20 @@ function CopyButton({ value, label = 'Copy' }) {
 
 function HighlightsBanner() {
   const highlights = [
-    { icon: '💰', text: 'Earn up to 20% recurring commission' },
-    { icon: '📊', text: 'Real-time dashboard for every affiliate' },
-    { icon: '🎨', text: 'Branded marketing materials provided' },
-    { icon: '💳', text: 'Monthly payouts, no minimum' },
+    { text: 'Earn up to 20% recurring commission' },
+    { text: 'Real-time dashboard for every affiliate' },
+    { text: 'Branded marketing materials provided' },
+    { text: 'Monthly payouts, no minimum' },
   ]
 
   return (
     <div className="relative bg-gradient-to-r from-violet-600/30 via-purple-600/20 to-violet-600/30 border border-violet-500/30 rounded-xl p-6 overflow-hidden">
-      {/* Background glow */}
       <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 via-purple-500/5 to-violet-500/0 pointer-events-none" />
-
       <div className="relative z-10">
         <h3 className="text-lg font-semibold text-white mb-4">Why Join Liftori Affiliates?</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {highlights.map((item, idx) => (
             <div key={idx} className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-navy-800/60 border border-violet-500/20 hover:border-violet-500/40 transition-colors">
-              <span className="text-lg flex-shrink-0">{item.icon}</span>
               <span className="text-sm text-gray-200">{item.text}</span>
             </div>
           ))}
@@ -103,50 +132,14 @@ function HighlightsBanner() {
   )
 }
 
-// ─── Tier Rewards Card Row ────────────────────────────────────────────────────
+// ─── Tier Rewards ─────────────────────────────────────────────────────────────
 
 function TierRewardsSection() {
   const tiers = [
-    {
-      key: 'bronze',
-      label: 'Bronze',
-      minRefs: '1+',
-      commission: '8%',
-      bg: 'bg-orange-800/20',
-      border: 'border-orange-600/30',
-      text: 'text-orange-400',
-      perks: ['Basic dashboard', 'Email support'],
-    },
-    {
-      key: 'silver',
-      label: 'Silver',
-      minRefs: '5+',
-      commission: '10%',
-      bg: 'bg-gray-400/20',
-      border: 'border-gray-500/30',
-      text: 'text-gray-300',
-      perks: ['Priority support', 'Co-branded materials'],
-    },
-    {
-      key: 'gold',
-      label: 'Gold',
-      minRefs: '15+',
-      commission: '15%',
-      bg: 'bg-yellow-500/20',
-      border: 'border-yellow-500/30',
-      text: 'text-yellow-400',
-      perks: ['Dedicated manager', 'Custom landing pages', 'Early access'],
-    },
-    {
-      key: 'diamond',
-      label: 'Diamond',
-      minRefs: '30+',
-      commission: '20%',
-      bg: 'bg-violet-500/20',
-      border: 'border-violet-500/30',
-      text: 'text-violet-400',
-      perks: ['Revenue share', 'White-label option', 'VIP events', 'Direct Liftori Chat line'],
-    },
+    { key: 'bronze',  label: 'Bronze',  minRefs: '1+',  commission: '8%',  bg: 'bg-orange-800/20', border: 'border-orange-600/30', text: 'text-orange-400', perks: ['Basic dashboard', 'Email support'] },
+    { key: 'silver',  label: 'Silver',  minRefs: '5+',  commission: '10%', bg: 'bg-gray-400/20',   border: 'border-gray-500/30',   text: 'text-gray-300',   perks: ['Priority support', 'Co-branded materials'] },
+    { key: 'gold',    label: 'Gold',    minRefs: '15+', commission: '15%', bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', text: 'text-yellow-400', perks: ['Dedicated manager', 'Custom landing pages', 'Early access'] },
+    { key: 'diamond', label: 'Diamond', minRefs: '30+', commission: '20%', bg: 'bg-violet-500/20', border: 'border-violet-500/30', text: 'text-violet-400', perks: ['Revenue share', 'White-label option', 'VIP events', 'Direct Liftori Chat line'] },
   ]
 
   return (
@@ -154,10 +147,7 @@ function TierRewardsSection() {
       <h3 className="text-lg font-semibold text-white">Performance Tiers</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {tiers.map(tier => (
-          <div
-            key={tier.key}
-            className={`${tier.bg} border ${tier.border} rounded-xl p-5 hover:border-opacity-60 transition-all hover:shadow-lg`}
-          >
+          <div key={tier.key} className={`${tier.bg} border ${tier.border} rounded-xl p-5 hover:border-opacity-60 transition-all hover:shadow-lg`}>
             <div className="space-y-3">
               <div>
                 <p className={`text-sm font-bold ${tier.text} mb-0.5`}>{tier.label}</p>
@@ -170,7 +160,7 @@ function TierRewardsSection() {
               <div className="space-y-1.5">
                 {tier.perks.map((perk, idx) => (
                   <div key={idx} className="flex items-start gap-2">
-                    <span className="text-brand-blue mt-0.5">✓</span>
+                    <span className="text-brand-blue mt-0.5">+</span>
                     <p className="text-xs text-gray-300">{perk}</p>
                   </div>
                 ))}
@@ -183,32 +173,25 @@ function TierRewardsSection() {
   )
 }
 
-// ─── Marketing Assets Preview ─────────────────────────────────────────────────
+// ─── Marketing Assets ─────────────────────────────────────────────────────────
 
 function MarketingAssetsSection() {
   const assets = [
-    { icon: '📱', name: 'Social Media Kit', tag: 'Coming Soon' },
-    { icon: '✉️', name: 'Email Templates', tag: 'Coming Soon' },
-    { icon: '🌐', name: 'Landing Page Builder', tag: 'Coming Soon' },
-    { icon: '🎯', name: 'Banner Ads', tag: 'Coming Soon' },
-    { icon: '📋', name: 'Case Studies', tag: 'Coming Soon' },
-    { icon: '📖', name: 'Brand Guidelines', tag: 'Coming Soon' },
+    { name: 'Social Media Kit', tag: 'Coming Soon' },
+    { name: 'Email Templates', tag: 'Coming Soon' },
+    { name: 'Landing Page Builder', tag: 'Coming Soon' },
+    { name: 'Banner Ads', tag: 'Coming Soon' },
+    { name: 'Case Studies', tag: 'Coming Soon' },
+    { name: 'Brand Guidelines', tag: 'Coming Soon' },
   ]
-
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-white">Marketing Assets</h3>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {assets.map((asset, idx) => (
-          <div
-            key={idx}
-            className="bg-navy-800/50 border border-navy-700/40 rounded-lg p-4 hover:border-brand-blue/40 transition-colors text-center"
-          >
-            <div className="text-3xl mb-2">{asset.icon}</div>
+          <div key={idx} className="bg-navy-800/50 border border-navy-700/40 rounded-lg p-4 hover:border-brand-blue/40 transition-colors text-center">
             <p className="text-xs font-medium text-white mb-1.5">{asset.name}</p>
-            <span className="inline-block px-2 py-0.5 bg-brand-blue/10 border border-brand-blue/20 rounded text-xs text-brand-light">
-              {asset.tag}
-            </span>
+            <span className="inline-block px-2 py-0.5 bg-brand-blue/10 border border-brand-blue/20 rounded text-xs text-brand-light">{asset.tag}</span>
           </div>
         ))}
       </div>
@@ -216,19 +199,15 @@ function MarketingAssetsSection() {
   )
 }
 
-// ─── Affiliate Detail Panel (expanded row) ───────────────────────────────────
+// ─── Affiliate Detail Panel ───────────────────────────────────────────────────
 
 function AffiliateDetail({ affiliate, referralCount, onMarkPaid, onToggleActive, onEdit }) {
   const commission = calcCommission(affiliate, referralCount)
-  const tier = getPerfTier(referralCount)
   const referralLink = `https://liftori.ai/?ref=${affiliate.referral_code}`
-  const convRate = referralCount > 0 ? '—' : '—' // future: clicks data
 
   return (
     <div className="bg-navy-900/50 border-t border-navy-700/30 px-6 py-5">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-
-        {/* Profile + Referral Link */}
         <div className="space-y-3">
           <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Profile</p>
           <div className="space-y-1.5">
@@ -239,22 +218,17 @@ function AffiliateDetail({ affiliate, referralCount, onMarkPaid, onToggleActive,
           <div className="pt-1 space-y-2">
             <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Referral Link</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <code className="text-xs font-mono bg-navy-800 border border-navy-700/50 px-2 py-1 rounded text-brand-light break-all">
-                {referralLink}
-              </code>
+              <code className="text-xs font-mono bg-navy-800 border border-navy-700/50 px-2 py-1 rounded text-brand-light break-all">{referralLink}</code>
               <CopyButton value={referralLink} label="Copy Link" />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Code:</span>
-              <code className="text-xs font-mono bg-navy-800 border border-navy-700/50 px-2 py-1 rounded text-brand-light">
-                {affiliate.referral_code}
-              </code>
+              <code className="text-xs font-mono bg-navy-800 border border-navy-700/50 px-2 py-1 rounded text-brand-light">{affiliate.referral_code}</code>
               <CopyButton value={affiliate.referral_code} label="Copy" />
             </div>
           </div>
         </div>
 
-        {/* Performance Metrics */}
         <div className="space-y-3">
           <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Performance</p>
           <div className="grid grid-cols-2 gap-3">
@@ -269,21 +243,16 @@ function AffiliateDetail({ affiliate, referralCount, onMarkPaid, onToggleActive,
             <div className="bg-navy-800/60 border border-navy-700/40 rounded-lg p-3">
               <p className="text-xs text-gray-500 mb-1">Commission Rate</p>
               <p className="text-sm font-semibold text-white">
-                {affiliate.commission_type === 'per_signup'
-                  ? `$${affiliate.commission_rate} / signup`
-                  : `${affiliate.commission_rate}% / sale`}
+                {affiliate.commission_type === 'per_signup' ? `$${affiliate.commission_rate} / signup` : `${affiliate.commission_rate}% / sale`}
               </p>
             </div>
             <div className="bg-navy-800/60 border border-navy-700/40 rounded-lg p-3">
               <p className="text-xs text-gray-500 mb-1">Commissions Owed</p>
-              <p className="text-sm font-semibold text-emerald-400">
-                {commission !== null ? `$${commission.toFixed(2)}` : '—'}
-              </p>
+              <p className="text-sm font-semibold text-emerald-400">{commission !== null ? `$${commission.toFixed(2)}` : '—'}</p>
             </div>
           </div>
         </div>
 
-        {/* Payout & Actions */}
         <div className="space-y-3">
           <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Payout Status</p>
           <div className="bg-navy-800/60 border border-navy-700/40 rounded-lg p-3 space-y-2">
@@ -298,36 +267,341 @@ function AffiliateDetail({ affiliate, referralCount, onMarkPaid, onToggleActive,
             {commission !== null && commission > 0 && (
               <div className="pt-1 border-t border-navy-700/30">
                 <p className="text-xs text-gray-500">Balance Owed</p>
-                <p className="text-sm font-semibold text-yellow-400">
-                  ${Math.max(0, commission - (affiliate.total_paid || 0)).toFixed(2)}
-                </p>
+                <p className="text-sm font-semibold text-yellow-400">${Math.max(0, commission - (affiliate.total_paid || 0)).toFixed(2)}</p>
               </div>
             )}
           </div>
           <div className="flex flex-col gap-2">
             {commission !== null && commission > 0 && (
-              <button
-                onClick={() => onMarkPaid(affiliate, commission)}
-                className="w-full px-3 py-1.5 text-xs font-medium bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 rounded-lg hover:bg-emerald-600/30 transition-colors"
-              >
+              <button onClick={() => onMarkPaid(affiliate, commission)} className="w-full px-3 py-1.5 text-xs font-medium bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 rounded-lg hover:bg-emerald-600/30 transition-colors">
                 Mark as Paid (${commission.toFixed(2)})
               </button>
             )}
-            <button
-              onClick={() => onEdit(affiliate)}
-              className="w-full px-3 py-1.5 text-xs font-medium bg-brand-blue/10 text-brand-blue border border-brand-blue/20 rounded-lg hover:bg-brand-blue/20 transition-colors"
-            >
+            <button onClick={() => onEdit(affiliate)} className="w-full px-3 py-1.5 text-xs font-medium bg-brand-blue/10 text-brand-blue border border-brand-blue/20 rounded-lg hover:bg-brand-blue/20 transition-colors">
               Edit Affiliate
             </button>
-            <button
-              onClick={() => onToggleActive(affiliate.id, affiliate.is_active)}
-              className="w-full px-3 py-1.5 text-xs font-medium bg-navy-800 text-gray-400 border border-navy-700/50 rounded-lg hover:text-white transition-colors"
-            >
+            <button onClick={() => onToggleActive(affiliate.id, affiliate.is_active)} className="w-full px-3 py-1.5 text-xs font-medium bg-navy-800 text-gray-400 border border-navy-700/50 rounded-lg hover:text-white transition-colors">
               {affiliate.is_active ? 'Deactivate' : 'Activate'}
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
 
+// ─── Payouts View ─────────────────────────────────────────────────────────────
+
+function PayoutsView({ affiliates, referralCounts, onMarkPaid, onBulkMarkPaid, onExport, loading }) {
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [busy, setBusy] = useState(false)
+
+  const rows = useMemo(() => {
+    return affiliates
+      .map(a => {
+        const refs = referralCounts[a.referral_code] || 0
+        const owed = calcCommission(a, refs) || 0
+        const paid = a.total_paid || 0
+        const balance = Math.max(0, owed - paid)
+        return { ...a, refs, owed, paid, balance }
+      })
+      .sort((a, b) => b.balance - a.balance)
+  }, [affiliates, referralCounts])
+
+  const pending = rows.filter(r => r.balance > 0)
+  const totalPending = pending.reduce((s, r) => s + r.balance, 0)
+  const totalLifetime = rows.reduce((s, r) => s + r.paid, 0)
+  const allSelected = pending.length > 0 && pending.every(p => selectedIds.has(p.id))
+
+  function toggleAll() {
+    if (allSelected) setSelectedIds(new Set())
+    else setSelectedIds(new Set(pending.map(p => p.id)))
+  }
+
+  function toggleOne(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function handleBulkPay() {
+    if (selectedIds.size === 0) return
+    const toPay = pending.filter(p => selectedIds.has(p.id))
+    if (!confirm(`Mark ${toPay.length} affiliate${toPay.length !== 1 ? 's' : ''} as paid ($${toPay.reduce((s, r) => s + r.balance, 0).toFixed(2)} total)?`)) return
+    setBusy(true)
+    try {
+      await onBulkMarkPaid(toPay)
+      setSelectedIds(new Set())
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Pending Payouts</p>
+          <p className="text-3xl font-bold text-yellow-400 mt-2">${totalPending.toFixed(0)}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{pending.length} affiliate{pending.length !== 1 ? 's' : ''} owed</p>
+        </div>
+        <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Lifetime Paid</p>
+          <p className="text-3xl font-bold text-emerald-400 mt-2">${totalLifetime.toFixed(0)}</p>
+          <p className="text-xs text-gray-500 mt-0.5">across {rows.filter(r => r.paid > 0).length} affiliates</p>
+        </div>
+        <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Actions</p>
+            <p className="text-xs text-gray-500 mt-2">Bulk-pay selected or export full ledger</p>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button onClick={handleBulkPay} disabled={selectedIds.size === 0 || busy} className="flex-1 px-3 py-2 text-xs font-medium bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 rounded-lg hover:bg-emerald-600/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              {busy ? 'Paying...' : `Mark Paid (${selectedIds.size})`}
+            </button>
+            <button onClick={onExport} className="flex-1 px-3 py-2 text-xs font-medium bg-navy-700/50 text-gray-300 border border-navy-600/50 rounded-lg hover:text-white transition-colors">
+              Export CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-navy-800 border border-navy-700/50 rounded-xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-navy-700/40 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-white">Pending Payouts</h3>
+          {pending.length > 0 && (
+            <button onClick={toggleAll} className="text-xs text-brand-blue hover:underline">
+              {allSelected ? 'Deselect all' : 'Select all'}
+            </button>
+          )}
+        </div>
+        {loading ? (
+          <div className="flex items-center justify-center h-32">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-blue" />
+          </div>
+        ) : pending.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 text-gray-500">
+            <p className="text-sm">No outstanding balances. All affiliates are paid up.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-navy-700/40 bg-navy-900/30">
+                  <th className="px-4 py-3 w-10" />
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Affiliate</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Refs</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Owed</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Paid</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Balance</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-navy-700/30">
+                {pending.map(p => (
+                  <tr key={p.id} className="hover:bg-navy-700/20">
+                    <td className="px-4 py-3">
+                      <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleOne(p.id)} className="rounded border-navy-600 bg-navy-800 text-brand-blue focus:ring-brand-blue/40" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-brand-blue/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-bold text-brand-blue">{(p.name || '?')[0].toUpperCase()}</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-white leading-tight">{p.name}</p>
+                          {p.email && <p className="text-xs text-gray-400">{p.email}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{p.refs}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300">${p.owed.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">${p.paid.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-yellow-400">${p.balance.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => onMarkPaid(p, p.balance)} className="text-xs px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                        Pay ${p.balance.toFixed(2)}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-navy-800 border border-navy-700/50 rounded-xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-navy-700/40">
+          <h3 className="text-sm font-semibold text-white">Lifetime Payment Totals</h3>
+        </div>
+        {rows.filter(r => r.paid > 0).length === 0 ? (
+          <div className="flex items-center justify-center h-24 text-sm text-gray-500">No payouts recorded yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-navy-700/40 bg-navy-900/30">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Affiliate</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Total Paid</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Referrals</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Last Update</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-navy-700/30">
+                {rows.filter(r => r.paid > 0).map(r => (
+                  <tr key={`paid-${r.id}`} className="hover:bg-navy-700/20">
+                    <td className="px-4 py-3 text-sm text-white">{r.name}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-emerald-400">${r.paid.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-400">{r.refs}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{formatDate(r.updated_at || r.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Bulk Invite Modal ────────────────────────────────────────────────────────
+
+function BulkInviteModal({ onClose, onSaved }) {
+  const [text, setText] = useState('')
+  const [rate, setRate] = useState('5')
+  const [type, setType] = useState('per_signup')
+  const [saving, setSaving] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+
+  const parsed = useMemo(() => {
+    return text.split('\n').map(line => {
+      const parts = line.split(/[,\t]/).map(s => s.trim())
+      const name = parts[0] || ''
+      const email = parts[1] || ''
+      if (!name) return null
+      return { name, email, code: generateCode(name) }
+    }).filter(Boolean)
+  }, [text])
+
+  async function handleImport() {
+    if (parsed.length === 0) { setError('Paste at least one name'); return }
+    setSaving(true)
+    setError(null)
+    setResult(null)
+    const inserted = []
+    const skipped = []
+    for (const row of parsed) {
+      try {
+        const { error: err } = await supabase.from('affiliates').insert({
+          name: row.name,
+          email: row.email || null,
+          referral_code: row.code,
+          commission_rate: parseFloat(rate) || 0,
+          commission_type: type,
+          is_active: true,
+        })
+        if (err) skipped.push({ name: row.name, reason: err.message })
+        else inserted.push(row.name)
+      } catch (e) {
+        skipped.push({ name: row.name, reason: e.message })
+      }
+    }
+    setResult({ inserted: inserted.length, skipped })
+    setSaving(false)
+    if (inserted.length > 0) onSaved()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+      <div className="bg-navy-800 border border-navy-700/50 rounded-2xl w-full max-w-xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-navy-700/50">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Bulk Invite Affiliates</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Paste a list of names and emails to onboard multiple partners at once.</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4 overflow-y-auto">
+          <div>
+            <label className="label">Paste list (one per line - format: <code className="text-brand-light bg-navy-900/60 px-1 rounded">Name, email@example.com</code>)</label>
+            <textarea className="input resize-none font-mono text-xs" rows={8} value={text} onChange={e => setText(e.target.value)} placeholder={`Mike Lydon, mike@example.com\nJane Doe, jane@example.com\nBob Smith`} />
+            {parsed.length > 0 && (
+              <p className="text-xs text-gray-500 mt-1.5">Preview: <span className="text-brand-light">{parsed.length}</span> affiliate{parsed.length !== 1 ? 's' : ''} ready to import</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Default Commission Rate</label>
+              <input className="input" type="number" min="0" step="0.5" value={rate} onChange={e => setRate(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Commission Type</label>
+              <select className="select" value={type} onChange={e => setType(e.target.value)}>
+                <option value="per_signup">Per Signup ($)</option>
+                <option value="percentage">Percentage (%)</option>
+              </select>
+            </div>
+          </div>
+
+          {parsed.length > 0 && (
+            <div className="bg-navy-900/40 border border-navy-700/40 rounded-lg p-3 max-h-40 overflow-y-auto">
+              <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Preview</p>
+              <div className="space-y-1">
+                {parsed.slice(0, 12).map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="text-white flex-1">{r.name}</span>
+                    <span className="text-gray-400">{r.email || '—'}</span>
+                    <code className="text-brand-light bg-navy-900/60 px-1.5 py-0.5 rounded">{r.code}</code>
+                  </div>
+                ))}
+                {parsed.length > 12 && <p className="text-xs text-gray-500 italic">+{parsed.length - 12} more...</p>}
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+          )}
+
+          {result && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-sm">
+              <p className="text-emerald-400">Imported {result.inserted} affiliate{result.inserted !== 1 ? 's' : ''}.</p>
+              {result.skipped.length > 0 && (
+                <details className="mt-1">
+                  <summary className="text-xs text-yellow-400 cursor-pointer">{result.skipped.length} skipped</summary>
+                  <ul className="mt-1 text-xs text-gray-400 space-y-0.5">
+                    {result.skipped.map((s, i) => (
+                      <li key={i}>- {s.name}: {s.reason}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-navy-700/50">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">
+            {result ? 'Close' : 'Cancel'}
+          </button>
+          <button onClick={handleImport} disabled={saving || parsed.length === 0} className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white text-sm font-medium rounded-lg hover:bg-sky-400 transition-colors disabled:opacity-50">
+            {saving ? (
+              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Importing...</>
+            ) : `Import ${parsed.length || ''} Affiliate${parsed.length !== 1 ? 's' : ''}`}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -404,13 +678,7 @@ function AffiliateModal({ editing, onClose, onSaved }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="label">Name *</label>
-              <input
-                className="input"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Mike Lydon"
-                autoFocus
-              />
+              <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Mike Lydon" autoFocus />
               {!editing && form.name && (
                 <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1.5">
                   <span>Referral code:</span>
@@ -420,45 +688,22 @@ function AffiliateModal({ editing, onClose, onSaved }) {
             </div>
             <div className="col-span-2">
               <label className="label">Email</label>
-              <input
-                className="input"
-                type="email"
-                value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="mike@example.com"
-              />
+              <input className="input" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="mike@example.com" />
             </div>
             <div>
               <label className="label">Commission Rate</label>
-              <input
-                className="input"
-                type="number"
-                min="0"
-                step="0.5"
-                value={form.commission_rate}
-                onChange={e => setForm(f => ({ ...f, commission_rate: e.target.value }))}
-              />
+              <input className="input" type="number" min="0" step="0.5" value={form.commission_rate} onChange={e => setForm(f => ({ ...f, commission_rate: e.target.value }))} />
             </div>
             <div>
               <label className="label">Commission Type</label>
-              <select
-                className="select"
-                value={form.commission_type}
-                onChange={e => setForm(f => ({ ...f, commission_type: e.target.value }))}
-              >
+              <select className="select" value={form.commission_type} onChange={e => setForm(f => ({ ...f, commission_type: e.target.value }))}>
                 <option value="per_signup">Per Signup ($)</option>
                 <option value="percentage">Percentage (%)</option>
               </select>
             </div>
             <div className="col-span-2">
               <label className="label">Notes</label>
-              <textarea
-                className="input resize-none"
-                rows={2}
-                value={form.notes}
-                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                placeholder="Partner details, agreements, contact notes..."
-              />
+              <textarea className="input resize-none" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Partner details, agreements, contact notes..." />
             </div>
           </div>
 
@@ -468,16 +713,10 @@ function AffiliateModal({ editing, onClose, onSaved }) {
         </div>
 
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-navy-700/50">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !form.name.trim()}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white text-sm font-medium rounded-lg hover:bg-sky-400 transition-colors disabled:opacity-50"
-          >
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
+          <button onClick={handleSave} disabled={saving || !form.name.trim()} className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white text-sm font-medium rounded-lg hover:bg-sky-400 transition-colors disabled:opacity-50">
             {saving ? (
-              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</>
+              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</>
             ) : editing ? 'Update Affiliate' : 'Create Affiliate'}
           </button>
         </div>
@@ -502,6 +741,8 @@ export default function Affiliates() {
   const [showModal, setShowModal] = useState(false)
   const [editingAffiliate, setEditingAffiliate] = useState(null)
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
+  const [view, setView] = useState('overview')
   const { profile } = useAuth()
 
   const fetchData = useCallback(async () => {
@@ -540,15 +781,33 @@ export default function Affiliates() {
       .update({ total_paid: newTotal })
       .eq('id', affiliate.id)
     if (!error) {
-      setAffiliates(prev => prev.map(a => a.id === affiliate.id ? { ...a, total_paid: newTotal } : a))
+      setAffiliates(prev => prev.map(a => a.id === affiliate.id ? { ...a, total_paid: newTotal, updated_at: new Date().toISOString() } : a))
     }
+  }
+
+  async function handleBulkMarkPaid(rows) {
+    const updates = await Promise.all(rows.map(r => {
+      const newTotal = (r.paid || 0) + r.balance
+      return supabase.from('affiliates')
+        .update({ total_paid: newTotal })
+        .eq('id', r.id)
+        .then(({ error }) => ({ id: r.id, newTotal, error }))
+    }))
+    const okIds = new Set(updates.filter(u => !u.error).map(u => u.id))
+    setAffiliates(prev => prev.map(a => {
+      if (!okIds.has(a.id)) return a
+      const hit = updates.find(u => u.id === a.id)
+      return { ...a, total_paid: hit.newTotal, updated_at: new Date().toISOString() }
+    }))
+  }
+
+  function handleExportPayouts() {
+    exportPayoutsCSV(affiliates, referralCounts)
   }
 
   function openCreate() { setEditingAffiliate(null); setShowModal(true) }
   function openEdit(affiliate) { setEditingAffiliate(affiliate); setShowModal(true) }
   function closeModal() { setShowModal(false); setEditingAffiliate(null) }
-
-  // ─── Derived Stats ───────────────────────────────────────────────────────
 
   const totalReferrals = Object.values(referralCounts).reduce((a, b) => a + b, 0)
   const activeCount = affiliates.filter(a => a.is_active).length
@@ -561,36 +820,24 @@ export default function Affiliates() {
 
   const totalPaidOut = affiliates.reduce((sum, a) => sum + (a.total_paid || 0), 0)
 
-  // ─── Filtering ───────────────────────────────────────────────────────────
-
   const filtered = affiliates.filter(a => {
     const refs = referralCounts[a.referral_code] || 0
     const tier = getPerfTier(refs)
-
-    const matchesSearch =
-      !search ||
+    const matchesSearch = !search ||
       a.name?.toLowerCase().includes(search.toLowerCase()) ||
       a.email?.toLowerCase().includes(search.toLowerCase()) ||
       a.referral_code?.toLowerCase().includes(search.toLowerCase())
-
-    const matchesStatus =
-      statusFilter === 'all' ||
+    const matchesStatus = statusFilter === 'all' ||
       (statusFilter === 'active' && a.is_active) ||
       (statusFilter === 'inactive' && !a.is_active)
-
-    const matchesTier =
-      tierFilter === 'all' || tier.key === tierFilter
-
+    const matchesTier = tierFilter === 'all' || tier.key === tierFilter
     return matchesSearch && matchesStatus && matchesTier
   })
 
   const hasFilters = search || statusFilter !== 'all' || tierFilter !== 'all'
 
-  // ─── Render ──────────────────────────────────────────────────────────────
-
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Affiliates</h1>
@@ -599,282 +846,202 @@ export default function Affiliates() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowInviteModal(true)}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-pink-500 hover:bg-pink-600 rounded-lg transition-colors"
-            title="Invite a Creator via Sage email with a guided onboarding wizard"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
-            </svg>
+          <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-pink-500 hover:bg-pink-600 rounded-lg transition-colors">
             Invite Creator
           </button>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-brand-blue hover:bg-sky-400 rounded-lg transition-colors"
-            title="Manually add a legacy affiliate record (no onboarding wizard)"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+          <button onClick={() => setShowBulkModal(true)} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-500 rounded-lg transition-colors">
+            Bulk Invite
+          </button>
+          <button onClick={openCreate} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-brand-blue hover:bg-sky-400 rounded-lg transition-colors">
             Manual Add
           </button>
-          <button
-            onClick={fetchData}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white border border-navy-700/50 rounded-lg hover:border-navy-600 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+          <button onClick={fetchData} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white border border-navy-700/50 rounded-lg hover:border-navy-600 transition-colors">
             Refresh
           </button>
         </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Total Affiliates</p>
-          <p className="text-3xl font-bold text-white mt-2">{affiliates.length}</p>
-        </div>
-        <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Active</p>
-          <p className="text-3xl font-bold text-emerald-400 mt-2">{activeCount}</p>
-        </div>
-        <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Total Referrals</p>
-          <p className="text-3xl font-bold text-brand-blue mt-2">{totalReferrals}</p>
-        </div>
-        <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Conversion Rate</p>
-          <p className="text-3xl font-bold text-purple-400 mt-2">{conversionRate}<span className="text-base text-gray-400 font-normal">%</span></p>
-          <p className="text-xs text-gray-600 mt-0.5">of total signups</p>
-        </div>
-        <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Commissions Owed</p>
-          <p className="text-3xl font-bold text-yellow-400 mt-2">${commissionsOwed.toFixed(0)}</p>
-          {totalPaidOut > 0 && (
-            <p className="text-xs text-gray-500 mt-0.5">${totalPaidOut.toFixed(0)} paid</p>
-          )}
-        </div>
-      </div>
-
-      {/* NEW: Highlights Banner */}
-      <HighlightsBanner />
-
-      {/* NEW: Tier Rewards Section */}
-      <TierRewardsSection />
-
-      {/* NEW: Marketing Assets Section */}
-      <MarketingAssetsSection />
-
-      {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search by name, email, or code..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-navy-800 border border-navy-700/50 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue/50 transition-colors"
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40 min-w-[140px]"
-        >
-          <option value="all">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-        <select
-          value={tierFilter}
-          onChange={e => setTierFilter(e.target.value)}
-          className="bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40 min-w-[140px]"
-        >
-          <option value="all">All Tiers</option>
-          <option value="diamond">Diamond (30+ refs)</option>
-          <option value="gold">Gold (15+ refs)</option>
-          <option value="silver">Silver (5+ refs)</option>
-          <option value="bronze">Bronze (1+ refs)</option>
-          <option value="none">No Referrals</option>
-        </select>
-        {hasFilters && (
-          <button
-            onClick={() => { setSearch(''); setStatusFilter('all'); setTierFilter('all') }}
-            className="px-3 py-2 text-sm text-gray-400 hover:text-white border border-navy-700/50 rounded-lg transition-colors"
-          >
-            Clear
+      <div className="flex items-center gap-1 border-b border-navy-700/40">
+        {[
+          { key: 'overview', label: 'Overview' },
+          { key: 'payouts', label: 'Payouts' },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setView(tab.key)} className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${view === tab.key ? 'text-white border-brand-blue' : 'text-gray-400 border-transparent hover:text-white'}`}>
+            {tab.label}
           </button>
-        )}
+        ))}
       </div>
 
-      {/* Table */}
-      <div className="bg-navy-800 border border-navy-700/50 rounded-xl overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue" />
+      {view === 'payouts' ? (
+        <PayoutsView
+          affiliates={affiliates}
+          referralCounts={referralCounts}
+          onMarkPaid={handleMarkPaid}
+          onBulkMarkPaid={handleBulkMarkPaid}
+          onExport={handleExportPayouts}
+          loading={loading}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
+              <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Total Affiliates</p>
+              <p className="text-3xl font-bold text-white mt-2">{affiliates.length}</p>
+            </div>
+            <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
+              <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Active</p>
+              <p className="text-3xl font-bold text-emerald-400 mt-2">{activeCount}</p>
+            </div>
+            <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
+              <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Total Referrals</p>
+              <p className="text-3xl font-bold text-brand-blue mt-2">{totalReferrals}</p>
+            </div>
+            <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
+              <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Conversion Rate</p>
+              <p className="text-3xl font-bold text-purple-400 mt-2">{conversionRate}<span className="text-base text-gray-400 font-normal">%</span></p>
+              <p className="text-xs text-gray-600 mt-0.5">of total signups</p>
+            </div>
+            <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
+              <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Commissions Owed</p>
+              <p className="text-3xl font-bold text-yellow-400 mt-2">${commissionsOwed.toFixed(0)}</p>
+              {totalPaidOut > 0 && (
+                <p className="text-xs text-gray-500 mt-0.5">${totalPaidOut.toFixed(0)} paid</p>
+              )}
+            </div>
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-gray-500">
-            <svg className="w-10 h-10 mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <p className="text-sm">
-              {hasFilters ? 'No affiliates match your filters' : 'No affiliates yet. Add your first partner to start tracking referrals.'}
-            </p>
+
+          <HighlightsBanner />
+          <TierRewardsSection />
+          <MarketingAssetsSection />
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <input type="text" placeholder="Search by name, email, or code..." value={search} onChange={e => setSearch(e.target.value)} className="w-full bg-navy-800 border border-navy-700/50 rounded-lg pl-4 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue/50 transition-colors" />
+            </div>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40 min-w-[140px]">
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <select value={tierFilter} onChange={e => setTierFilter(e.target.value)} className="bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/40 min-w-[140px]">
+              <option value="all">All Tiers</option>
+              <option value="diamond">Diamond (30+ refs)</option>
+              <option value="gold">Gold (15+ refs)</option>
+              <option value="silver">Silver (5+ refs)</option>
+              <option value="bronze">Bronze (1+ refs)</option>
+              <option value="none">No Referrals</option>
+            </select>
             {hasFilters && (
-              <button
-                onClick={() => { setSearch(''); setStatusFilter('all'); setTierFilter('all') }}
-                className="mt-2 text-xs text-brand-blue hover:underline"
-              >
-                Clear filters
+              <button onClick={() => { setSearch(''); setStatusFilter('all'); setTierFilter('all') }} className="px-3 py-2 text-sm text-gray-400 hover:text-white border border-navy-700/50 rounded-lg transition-colors">
+                Clear
               </button>
             )}
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-navy-700/50 bg-navy-900/30">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Affiliate</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Code</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Referrals</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Tier</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Commission</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Owed</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-navy-700/30">
-                {filtered.map(a => {
-                  const refs = referralCounts[a.referral_code] || 0
-                  const commission = calcCommission(a, refs)
-                  const isExpanded = expandedId === a.id
 
-                  return (
-                    <>
-                      <tr
-                        key={a.id}
-                        className="hover:bg-navy-700/30 transition-colors cursor-pointer"
-                        onClick={() => setExpandedId(isExpanded ? null : a.id)}
-                      >
-                        {/* Affiliate */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-brand-blue/20 flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs font-bold text-brand-blue">
-                                {(a.name || '?')[0].toUpperCase()}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-white leading-tight">{a.name}</p>
-                              {a.email && <p className="text-xs text-gray-400">{a.email}</p>}
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Code */}
-                        <td className="px-4 py-3">
-                          <code className="text-xs bg-navy-900/60 border border-navy-700/40 px-2 py-1 rounded font-mono text-brand-light">
-                            {a.referral_code}
-                          </code>
-                        </td>
-
-                        {/* Referrals */}
-                        <td className="px-4 py-3">
-                          <span className="text-sm font-medium text-white">{refs}</span>
-                        </td>
-
-                        {/* Tier */}
-                        <td className="px-4 py-3">
-                          <PerfBadge referrals={refs} />
-                        </td>
-
-                        {/* Rate */}
-                        <td className="px-4 py-3 text-sm text-gray-400">
-                          {a.commission_type === 'per_signup'
-                            ? `$${a.commission_rate}/signup`
-                            : `${a.commission_rate}%/sale`}
-                        </td>
-
-                        {/* Owed */}
-                        <td className="px-4 py-3">
-                          {commission !== null ? (
-                            <span className={commission > 0 ? 'text-sm font-medium text-yellow-400' : 'text-sm text-gray-600'}>
-                              ${commission.toFixed(2)}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-600">—</span>
+          <div className="bg-navy-800 border border-navy-700/50 rounded-xl overflow-hidden">
+            {loading ? (
+              <div className="flex items-center justify-center h-48">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 text-gray-500">
+                <p className="text-sm">
+                  {hasFilters ? 'No affiliates match your filters' : 'No affiliates yet. Add your first partner to start tracking referrals.'}
+                </p>
+                {hasFilters && (
+                  <button onClick={() => { setSearch(''); setStatusFilter('all'); setTierFilter('all') }} className="mt-2 text-xs text-brand-blue hover:underline">
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-navy-700/50 bg-navy-900/30">
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Affiliate</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Code</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Referrals</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Tier</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Commission</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Owed</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-navy-700/30">
+                    {filtered.map(a => {
+                      const refs = referralCounts[a.referral_code] || 0
+                      const commission = calcCommission(a, refs)
+                      const isExpanded = expandedId === a.id
+                      return (
+                        <Fragment key={a.id}>
+                          <tr className="hover:bg-navy-700/30 transition-colors cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : a.id)}>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-brand-blue/20 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-xs font-bold text-brand-blue">{(a.name || '?')[0].toUpperCase()}</span>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-white leading-tight">{a.name}</p>
+                                  {a.email && <p className="text-xs text-gray-400">{a.email}</p>}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <code className="text-xs bg-navy-900/60 border border-navy-700/40 px-2 py-1 rounded font-mono text-brand-light">{a.referral_code}</code>
+                            </td>
+                            <td className="px-4 py-3"><span className="text-sm font-medium text-white">{refs}</span></td>
+                            <td className="px-4 py-3"><PerfBadge referrals={refs} /></td>
+                            <td className="px-4 py-3 text-sm text-gray-400">
+                              {a.commission_type === 'per_signup' ? `$${a.commission_rate}/signup` : `${a.commission_rate}%/sale`}
+                            </td>
+                            <td className="px-4 py-3">
+                              {commission !== null ? (
+                                <span className={commission > 0 ? 'text-sm font-medium text-yellow-400' : 'text-sm text-gray-600'}>${commission.toFixed(2)}</span>
+                              ) : (
+                                <span className="text-xs text-gray-600">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3"><StatusBadge active={a.is_active} /></td>
+                            <td className="px-4 py-3">
+                              <svg className={`w-4 h-4 text-gray-500 transition-transform ml-auto ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={8} className="p-0">
+                                <AffiliateDetail affiliate={a} referralCount={refs} onMarkPaid={handleMarkPaid} onToggleActive={toggleActive} onEdit={openEdit} />
+                              </td>
+                            </tr>
                           )}
-                        </td>
-
-                        {/* Status */}
-                        <td className="px-4 py-3">
-                          <StatusBadge active={a.is_active} />
-                        </td>
-
-                        {/* Chevron */}
-                        <td className="px-4 py-3">
-                          <svg
-                            className={`w-4 h-4 text-gray-500 transition-transform ml-auto ${isExpanded ? 'rotate-180' : ''}`}
-                            fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </td>
-                      </tr>
-
-                      {/* Expanded Detail */}
-                      {isExpanded && (
-                        <tr key={`${a.id}-detail`}>
-                          <td colSpan={8} className="p-0">
-                            <AffiliateDetail
-                              affiliate={a}
-                              referralCount={refs}
-                              onMarkPaid={handleMarkPaid}
-                              onToggleActive={toggleActive}
-                              onEdit={openEdit}
-                            />
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  )
-                })}
-              </tbody>
-            </table>
+                        </Fragment>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Footer count */}
-      {!loading && filtered.length > 0 && filtered.length !== affiliates.length && (
-        <p className="text-xs text-gray-500 text-center">
-          Showing {filtered.length} of {affiliates.length} affiliates
-        </p>
+          {!loading && filtered.length > 0 && filtered.length !== affiliates.length && (
+            <p className="text-xs text-gray-500 text-center">
+              Showing {filtered.length} of {affiliates.length} affiliates
+            </p>
+          )}
+        </>
       )}
 
-      {/* Manual add/edit modal */}
       {showModal && (
-        <AffiliateModal
-          editing={editingAffiliate}
-          onClose={closeModal}
-          onSaved={fetchData}
-        />
+        <AffiliateModal editing={editingAffiliate} onClose={closeModal} onSaved={fetchData} />
       )}
-      {/* Invite Creator (wizard-based onboarding) */}
       {showInviteModal && (
-        <InviteAffiliateModal
-          invitedBy={profile?.id}
-          onClose={() => setShowInviteModal(false)}
-          onCreated={() => { setShowInviteModal(false); fetchData() }}
-        />
+        <InviteAffiliateModal invitedBy={profile?.id} onClose={() => setShowInviteModal(false)} onCreated={() => { setShowInviteModal(false); fetchData() }} />
+      )}
+      {showBulkModal && (
+        <BulkInviteModal onClose={() => setShowBulkModal(false)} onSaved={fetchData} />
       )}
     </div>
   )

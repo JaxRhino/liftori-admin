@@ -2,19 +2,38 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 const FLOW_TYPES = [
-  { value: 'standard', label: 'Standard', desc: 'Web App, Mobile, E-Commerce, Dashboard…', color: 'blue', steps: 9 },
-  { value: 'book', label: 'Book', desc: 'Book Writing App', color: 'amber', steps: 11 },
-  { value: 'crm', label: 'CRM', desc: 'CRM Builder', color: 'violet', steps: 9 },
-  { value: 'website', label: 'Website', desc: 'Website Builder', color: 'emerald', steps: 9 },
-  { value: 'consulting', label: 'Consulting', desc: 'Business Audit & AI Automation', color: 'rose', steps: 7 },
+  // Customer flows
+  { value: 'standard',   label: 'Standard',   desc: 'Web App, Mobile, E-Commerce, Dashboard…', color: 'blue',    category: 'customer', steps: 9 },
+  { value: 'book',       label: 'Book',       desc: 'Book Writing App',                         color: 'amber',   category: 'customer', steps: 11 },
+  { value: 'crm',        label: 'CRM',        desc: 'CRM Builder',                              color: 'violet',  category: 'customer', steps: 9 },
+  { value: 'website',    label: 'Website',    desc: 'Website Builder',                          color: 'emerald', category: 'customer', steps: 9 },
+  { value: 'consulting', label: 'Consulting', desc: 'Business Audit & AI Automation',           color: 'rose',    category: 'customer', steps: 7 },
+  // Team onboarding flows
+  { value: 'tester_onboarding',     label: 'Tester Onboarding',     desc: 'NDA, 1099, platform access, first assignment',       color: 'cyan',    category: 'team', steps: 12 },
+  { value: 'sales_onboarding',      label: 'Sales Onboarding',      desc: 'CRM training, scripts, pipeline rules, first calls', color: 'green',   category: 'team', steps: 10 },
+  { value: 'consultant_onboarding', label: 'Consultant Onboarding', desc: 'Scorecards, call hub, availability, compliance',     color: 'fuchsia', category: 'team', steps: 9 },
+  { value: 'dev_onboarding',        label: 'Dev Onboarding',        desc: 'GitHub, Supabase, deploy pipeline, code standards',  color: 'sky',     category: 'team', steps: 8 },
+  { value: 'pm_onboarding',         label: 'PM Onboarding',         desc: 'Project lifecycle, tools, communication cadence',    color: 'indigo',  category: 'team', steps: 8 },
+  { value: 'ops_onboarding',        label: 'Ops Onboarding',        desc: 'Ticket queue, SLAs, internal systems',               color: 'slate',   category: 'team', steps: 7 },
+]
+
+const FLOW_CATEGORIES = [
+  { key: 'customer', label: 'Customer Flows',  hint: 'Used on the public onboarding wizard at /onboard' },
+  { key: 'team',     label: 'Team Onboarding', hint: 'Used internally — trigger after a team member is invited' },
 ]
 
 const FLOW_COLOR = {
-  standard:    { pill: 'bg-blue-500/10 text-blue-400 border-blue-500/20', active: 'bg-blue-600 text-white', badge: 'bg-blue-600/20 border-blue-500/30 text-blue-400' },
-  book:        { pill: 'bg-amber-500/10 text-amber-400 border-amber-500/20', active: 'bg-amber-600 text-white', badge: 'bg-amber-600/20 border-amber-500/30 text-amber-400' },
-  crm:         { pill: 'bg-violet-500/10 text-violet-400 border-violet-500/20', active: 'bg-violet-600 text-white', badge: 'bg-violet-600/20 border-violet-500/30 text-violet-400' },
+  standard:    { pill: 'bg-blue-500/10 text-blue-400 border-blue-500/20',       active: 'bg-blue-600 text-white',    badge: 'bg-blue-600/20 border-blue-500/30 text-blue-400' },
+  book:        { pill: 'bg-amber-500/10 text-amber-400 border-amber-500/20',    active: 'bg-amber-600 text-white',   badge: 'bg-amber-600/20 border-amber-500/30 text-amber-400' },
+  crm:         { pill: 'bg-violet-500/10 text-violet-400 border-violet-500/20', active: 'bg-violet-600 text-white',  badge: 'bg-violet-600/20 border-violet-500/30 text-violet-400' },
   website:     { pill: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', active: 'bg-emerald-600 text-white', badge: 'bg-emerald-600/20 border-emerald-500/30 text-emerald-400' },
-  consulting:  { pill: 'bg-rose-500/10 text-rose-400 border-rose-500/20', active: 'bg-rose-600 text-white', badge: 'bg-rose-600/20 border-rose-500/30 text-rose-400' },
+  consulting:  { pill: 'bg-rose-500/10 text-rose-400 border-rose-500/20',       active: 'bg-rose-600 text-white',    badge: 'bg-rose-600/20 border-rose-500/30 text-rose-400' },
+  tester_onboarding:     { pill: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',          active: 'bg-cyan-600 text-white',    badge: 'bg-cyan-600/20 border-cyan-500/30 text-cyan-400' },
+  sales_onboarding:      { pill: 'bg-green-500/10 text-green-400 border-green-500/20',       active: 'bg-green-600 text-white',   badge: 'bg-green-600/20 border-green-500/30 text-green-400' },
+  consultant_onboarding: { pill: 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20', active: 'bg-fuchsia-600 text-white', badge: 'bg-fuchsia-600/20 border-fuchsia-500/30 text-fuchsia-400' },
+  dev_onboarding:        { pill: 'bg-sky-500/10 text-sky-400 border-sky-500/20',             active: 'bg-sky-600 text-white',     badge: 'bg-sky-600/20 border-sky-500/30 text-sky-400' },
+  pm_onboarding:         { pill: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',    active: 'bg-indigo-600 text-white',  badge: 'bg-indigo-600/20 border-indigo-500/30 text-indigo-400' },
+  ops_onboarding:        { pill: 'bg-slate-500/10 text-slate-300 border-slate-500/20',       active: 'bg-slate-600 text-white',   badge: 'bg-slate-600/20 border-slate-500/30 text-slate-300' },
 }
 
 const FIELD_TYPES = [
@@ -27,6 +46,8 @@ const FIELD_TYPES = [
   { value: 'review',      label: 'Review / Summary' },
   { value: 'email',       label: 'Email' },
   { value: 'tel',         label: 'Phone' },
+  { value: 'file',        label: 'File Upload' },
+  { value: 'signature',   label: 'E-Signature' },
 ]
 
 export default function WizardBuilder() {
@@ -137,6 +158,22 @@ export default function WizardBuilder() {
     if (!error) fetchSteps()
   }
 
+  async function duplicateStep(step) {
+    const payload = {
+      flow_type: step.flow_type,
+      step_number: (step.step_number || 0) + 1,
+      question: `${step.question} (Copy)`,
+      subtitle: step.subtitle,
+      field_type: step.field_type,
+      options: step.options,
+      required: step.required,
+      placeholder: step.placeholder,
+    }
+    const { error } = await supabase.from('wizard_steps').insert([payload])
+    if (error) { alert(error.message); return }
+    fetchSteps()
+  }
+
   function openCreateStep() {
     setStepMode('create')
     setEditingStep(null)
@@ -178,8 +215,8 @@ export default function WizardBuilder() {
     )
   })
 
-  const flowInfo = FLOW_TYPES.find(f => f.value === selectedFlow)
-  const colors = FLOW_COLOR[selectedFlow]
+  const flowInfo = FLOW_TYPES.find(f => f.value === selectedFlow) || FLOW_TYPES[0]
+  const colors = FLOW_COLOR[selectedFlow] || FLOW_COLOR.standard
 
   return (
     <div className="p-6 max-w-6xl">
@@ -187,7 +224,7 @@ export default function WizardBuilder() {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Wizard Builder</h1>
-          <p className="text-slate-400 text-sm mt-1">View lead submissions and configure the onboarding wizard flow</p>
+          <p className="text-slate-400 text-sm mt-1">Manage every Liftori wizard — customer onboarding flows and internal team onboarding checklists.</p>
         </div>
         <button
           onClick={() => window.open('/onboard?test=true', '_blank')}
@@ -313,30 +350,43 @@ export default function WizardBuilder() {
       {activeTab === 'flow' && (
         <div className="space-y-4">
 
-          {/* Flow Type Selector */}
-          <div className="bg-[#0D1424] border border-white/10 rounded-xl p-4">
-            <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">Select flow to view / edit</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {FLOW_TYPES.map(flow => {
-                const fc = FLOW_COLOR[flow.value]
-                const isActive = selectedFlow === flow.value
-                return (
-                  <button
-                    key={flow.value}
-                    onClick={() => { setSelectedFlow(flow.value); setStepMode('list'); setEditingStep(null) }}
-                    className={`p-3 rounded-lg border text-left transition-all ${
-                      isActive
-                        ? `${fc.active} border-transparent`
-                        : `${fc.pill} border hover:opacity-80`
-                    }`}
-                  >
-                    <div className="font-semibold text-sm">{flow.label}</div>
-                    <div className={`text-xs mt-0.5 ${isActive ? 'text-white/70' : 'text-slate-500'}`}>{flow.desc}</div>
-                    <div className={`text-xs mt-1 font-medium ${isActive ? 'text-white/80' : ''}`}>{flow.steps} steps</div>
-                  </button>
-                )
-              })}
-            </div>
+          {/* Flow Type Selector — grouped by category */}
+          <div className="space-y-4">
+            {FLOW_CATEGORIES.map(cat => {
+              const flows = FLOW_TYPES.filter(f => f.category === cat.key)
+              return (
+                <div key={cat.key} className="bg-[#0D1424] border border-white/10 rounded-xl p-4">
+                  <div className="flex items-baseline justify-between mb-3">
+                    <div>
+                      <p className="text-slate-300 text-sm font-semibold">{cat.label}</p>
+                      <p className="text-slate-500 text-xs mt-0.5">{cat.hint}</p>
+                    </div>
+                    <span className="text-xs text-slate-500">{flows.length} flows</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {flows.map(flow => {
+                      const fc = FLOW_COLOR[flow.value] || FLOW_COLOR.standard
+                      const isActive = selectedFlow === flow.value
+                      return (
+                        <button
+                          key={flow.value}
+                          onClick={() => { setSelectedFlow(flow.value); setStepMode('list'); setEditingStep(null) }}
+                          className={`p-3 rounded-lg border text-left transition-all ${
+                            isActive
+                              ? `${fc.active} border-transparent`
+                              : `${fc.pill} border hover:opacity-80`
+                          }`}
+                        >
+                          <div className="font-semibold text-sm">{flow.label}</div>
+                          <div className={`text-xs mt-0.5 ${isActive ? 'text-white/70' : 'text-slate-500'}`}>{flow.desc}</div>
+                          <div className={`text-xs mt-1 font-medium ${isActive ? 'text-white/80' : ''}`}>{flow.steps} steps</div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {/* Flow Editor Header */}
@@ -346,6 +396,11 @@ export default function WizardBuilder() {
                 <h2 className="text-lg font-semibold text-white">{flowInfo?.label} Flow</h2>
                 <span className={`text-xs px-2 py-0.5 rounded-full border ${colors.pill}`}>
                   {steps.length} steps
+                </span>
+                <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                  flowInfo?.category === 'team' ? 'border-white/20 text-slate-400' : 'border-white/10 text-slate-500'
+                }`}>
+                  {flowInfo?.category === 'team' ? 'Internal' : 'Customer'}
                 </span>
               </div>
               <p className="text-slate-400 text-sm mt-0.5">{flowInfo?.desc} — {flowInfo?.steps}-step wizard</p>
@@ -511,6 +566,12 @@ export default function WizardBuilder() {
                     )}
                   </div>
                   <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => duplicateStep(step)}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 hover:text-white transition-colors"
+                    >
+                      Duplicate
+                    </button>
                     <button
                       onClick={() => openEditStep(step)}
                       className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 hover:text-white transition-colors"

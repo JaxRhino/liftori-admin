@@ -1,10 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   createLog, updateLog, resolveLog,
   LOG_CATEGORIES, LOG_SEVERITIES, LOG_STATUSES,
 } from '../../lib/timeTrackingService'
+import { supabase } from '../../lib/supabase'
+
+const MAX_SCREENSHOTS = 10
+const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024 // 10MB
 
 const CATEGORY_COLORS = {
   bug: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
@@ -198,6 +202,27 @@ function LogRow({ log, isSuperAdmin, userId, onChanged }) {
                 </div>
               )}
             </div>
+            {log.screenshots?.length > 0 && (
+              <div className="mt-4">
+                <div className="text-[10px] uppercase font-semibold text-gray-500 mb-2">
+                  Screenshots ({log.screenshots.length})
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                  {log.screenshots.map((url, i) => (
+                    <a
+                      key={i}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="relative aspect-video bg-navy-800 border border-navy-700/40 rounded overflow-hidden hover:border-brand-blue transition-colors"
+                    >
+                      <img src={url} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             {log.tags?.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {log.tags.map((t) => (
@@ -235,11 +260,72 @@ export function NewLogModal({ userId, orgId, timeEntryId, currentPath, onClose, 
   const [tagsText, setTagsText] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // Screenshots — local previews until submit, then upload + collect URLs
+  // Each item: { id, file, previewUrl }
+  const [screenshots, setScreenshots] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
+
+  function handleFiles(filesList) {
+    const incoming = Array.from(filesList || [])
+    if (incoming.length === 0) return
+    const remaining = MAX_SCREENSHOTS - screenshots.length
+    if (remaining <= 0) {
+      toast.error(`Maximum ${MAX_SCREENSHOTS} screenshots`)
+      return
+    }
+    const accepted = []
+    const rejected = []
+    for (const file of incoming.slice(0, remaining)) {
+      if (!file.type.startsWith('image/')) { rejected.push(`${file.name} (not an image)`); continue }
+      if (file.size > MAX_SCREENSHOT_BYTES) { rejected.push(`${file.name} (over 10MB)`); continue }
+      accepted.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      })
+    }
+    if (rejected.length > 0) toast.error(`Skipped: ${rejected.join(', ')}`)
+    if (incoming.length > remaining) toast.error(`Only added ${remaining} (max ${MAX_SCREENSHOTS} total)`)
+    if (accepted.length > 0) setScreenshots((prev) => [...prev, ...accepted])
+  }
+
+  function removeScreenshot(id) {
+    setScreenshots((prev) => {
+      const found = prev.find((s) => s.id === id)
+      if (found) URL.revokeObjectURL(found.previewUrl)
+      return prev.filter((s) => s.id !== id)
+    })
+  }
+
+  async function uploadAllScreenshots() {
+    if (screenshots.length === 0) return []
+    setUploading(true)
+    const urls = []
+    try {
+      for (const shot of screenshots) {
+        const ext = (shot.file.name.split('.').pop() || 'png').toLowerCase()
+        const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : 'png'
+        const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`
+        const { error: upErr } = await supabase.storage
+          .from('tester-screenshots')
+          .upload(path, shot.file, { contentType: shot.file.type, upsert: false })
+        if (upErr) throw upErr
+        const { data } = supabase.storage.from('tester-screenshots').getPublicUrl(path)
+        urls.push(data.publicUrl)
+      }
+      return urls
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function submit(e) {
     e.preventDefault()
     if (!title.trim()) { toast.error('Title is required'); return }
     setSaving(true)
     try {
+      const screenshotUrls = await uploadAllScreenshots()
       await createLog({
         userId, orgId, timeEntryId, category, severity,
         title: title.trim(),
@@ -248,13 +334,16 @@ export function NewLogModal({ userId, orgId, timeEntryId, currentPath, onClose, 
         expectedResult: expected.trim() || null,
         actualResult: actual.trim() || null,
         screenPath: screenPath.trim() || null,
+        screenshots: screenshotUrls,
         tags: tagsText.split(',').map((t) => t.trim()).filter(Boolean),
       })
+      // Clean up object URLs
+      screenshots.forEach((s) => URL.revokeObjectURL(s.previewUrl))
       toast.success(severity === 'critical' ? 'Logged — Sage alerted #critical-bugs' : 'Log saved')
       onCreated()
     } catch (err) {
       console.error(err)
-      toast.error('Save failed')
+      toast.error(err?.message ? `Save failed: ${err.message}` : 'Save failed')
     } finally {
       setSaving(false)
     }
@@ -285,6 +374,68 @@ export function NewLogModal({ userId, orgId, timeEntryId, currentPath, onClose, 
             </>
           )}
           <TextInput label="Tags (comma-separated)" value={tagsText} onChange={setTagsText} placeholder="e.g. mobile, chrome, regression" />
+
+          {/* Screenshots */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] uppercase font-semibold text-gray-500">
+                Screenshots ({screenshots.length}/{MAX_SCREENSHOTS})
+              </label>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={screenshots.length >= MAX_SCREENSHOTS}
+                className="text-xs text-brand-blue hover:text-brand-blue/80 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                + Add image{screenshots.length === 0 ? 's' : ''}
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              capture="environment"
+              onChange={(e) => { handleFiles(e.target.files); e.target.value = '' }}
+              className="hidden"
+            />
+            {screenshots.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-navy-700/60 hover:border-brand-blue/60 rounded-lg py-6 text-center text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                Tap to add up to 10 screenshots (10MB each)
+              </button>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {screenshots.map((s) => (
+                  <div key={s.id} className="relative group aspect-square bg-navy-800 border border-navy-700/40 rounded overflow-hidden">
+                    <img src={s.previewUrl} alt="Screenshot preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeScreenshot(s.id)}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white text-xs flex items-center justify-center hover:bg-rose-500 transition-colors"
+                      aria-label="Remove screenshot"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {screenshots.length < MAX_SCREENSHOTS && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="aspect-square border-2 border-dashed border-navy-700/60 hover:border-brand-blue/60 rounded text-3xl text-gray-600 hover:text-brand-blue transition-colors"
+                    aria-label="Add more screenshots"
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
           {severity === 'critical' && (
             <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
               Saving will trigger Sage to auto-post this alert to the #critical-bugs channel.
@@ -293,8 +444,8 @@ export function NewLogModal({ userId, orgId, timeEntryId, currentPath, onClose, 
         </div>
         <div className="flex items-center justify-end gap-2 p-4 border-t border-navy-700/50 bg-navy-950/40 rounded-b-xl">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
-          <button type="submit" disabled={saving} className="px-4 py-2 bg-brand-blue hover:bg-brand-blue/80 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-            {saving ? 'Saving…' : 'Save log'}
+          <button type="submit" disabled={saving || uploading} className="px-4 py-2 bg-brand-blue hover:bg-brand-blue/80 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+            {uploading ? 'Uploading screenshots…' : saving ? 'Saving…' : 'Save log'}
           </button>
         </div>
       </form>
