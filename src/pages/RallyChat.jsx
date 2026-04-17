@@ -1667,7 +1667,7 @@ export const Chat = () => {
                 )}
 
                 {/* Message Input */}
-                <div className="border-t p-4 bg-card flex-shrink-0">
+                <div className="border-t p-4 bg-card flex-shrink-0 relative">
                   {/* Mention Suggestions */}
                   {showMentionSuggestions && mentionSuggestions.length > 0 && (
                     <div className="absolute bottom-full left-4 right-4 mb-2 bg-popover border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50">
