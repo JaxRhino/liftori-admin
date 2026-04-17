@@ -1,176 +1,383 @@
-export default function EmailCampaigns() {
-  const capabilities = [
-    {
-      title: 'Drag-and-Drop Builder',
-      description: 'Beautiful email builder with pre-designed blocks for headers, CTAs, images, testimonials, and footers. No coding required — just drag, drop, and customize.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 7.5V21m0 0H4.5a2.25 2.25 0 01-2.25-2.25V7.5m0 0H21m-18 0h18m-18 0v7.5a2.25 2.25 0 002.25 2.25h13.5a2.25 2.25 0 002.25-2.25v-7.5m0 0V4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v3" />
-        </svg>
-      ),
-    },
-    {
-      title: 'AI Personalization',
-      description: 'Dynamic content blocks that change based on recipient data — name, company, plan tier, last interaction. Every email feels personally written.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Drip Sequences',
-      description: 'Build automated email sequences triggered by user actions — signup, purchase, inactivity, milestone. Nurture leads on autopilot.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75l3 3m0 0l3-3m-3 3v-7.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Audience Segmentation',
-      description: 'Segment contacts by behavior, demographics, plan tier, engagement level, and custom tags. Send the right message to the right people.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h17.25c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125H3.375c-.621 0-1.125-.504-1.125-1.125V7.125z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'A/B Testing',
-      description: 'Test subject lines, send times, content variants, and CTAs. AI automatically sends the winner to the remaining audience for maximum performance.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Template Library',
-      description: '50+ professionally designed email templates for announcements, newsletters, promotions, onboarding, and re-engagement. Fully customizable.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0013.5 7.125v-1.36c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h9.375c.621 0 1.125-.504 1.125-1.125v-9.25m0 0a3.375 3.375 0 013.375 3.375m0 0h3.375c.621 0 1.125-.504 1.125-1.125v-9.25" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Deliverability Monitor',
-      description: 'Track inbox placement rates, spam scores, bounce rates, and sender reputation. Get alerts before deliverability issues impact campaigns.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0M3.124 7.5A6 6 0 0015.75 13.5H15" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Revenue Attribution',
-      description: 'Track which emails drive actual revenue. See conversion paths from email open to purchase with full revenue attribution per campaign.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-        </svg>
-      ),
-    },
-  ];
+import { useEffect, useState } from 'react'
+import {
+  listEmailCampaigns, createEmailCampaign, updateEmailCampaign, deleteEmailCampaign,
+  sendEmailCampaign, previewAudienceCount, listOutboundEmails, emailCampaignMetrics,
+  listEmailSubscribers, createEmailSubscriber, toggleSubscriberActive, deleteEmailSubscriber,
+  listSegments, renderMergeTags,
+  EMAIL_CATEGORIES, EMAIL_STATUSES, AUDIENCE_TYPES, EMAIL_MERGE_TAGS,
+  formatInt, formatPct,
+} from '../../lib/marketingService'
 
-  const flowSteps = [
-    { step: '1', label: 'Build', detail: 'Design beautiful emails with drag-and-drop builder' },
-    { step: '2', label: 'Segment', detail: 'Target specific audience groups with precision' },
-    { step: '3', label: 'Personalize', detail: 'Add dynamic content based on recipient data' },
-    { step: '4', label: 'Send', detail: 'Deploy campaign with optimal send time' },
-    { step: '5', label: 'Track', detail: 'Monitor opens, clicks, and conversions in real-time' },
-    { step: '6', label: 'Optimize', detail: 'Use insights to improve future campaigns' },
-  ];
+const emptyForm = {
+  name: '', subject: '', body: '', category: 'platform_announcement',
+  status: 'draft', audience_type: 'all_subscribers', audience_filter: {},
+  scheduled_at: '', segment_id: '', custom_emails: '',
+}
+
+const SAMPLE_VARS = { first_name: 'Vanessa', email: 'vanessa@example.com', full_name: 'Vanessa Martinez', company: 'VJ Thrift Finds', today: new Date().toLocaleDateString() }
+
+export default function EmailCampaigns() {
+  const [tab, setTab] = useState('campaigns')
+  const [rows, setRows] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [outbound, setOutbound] = useState([])
+  const [segments, setSegments] = useState([])
+  const [subscribers, setSubscribers] = useState([])
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
+  const [q, setQ] = useState('')
+  const [composing, setComposing] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { tab === 'campaigns' ? loadCampaigns() : loadSubscribers() }, [tab, filterStatus, filterCategory])
+  useEffect(() => { listSegments().then(setSegments).catch(() => {}) }, [])
+  useEffect(() => { if (selected) listOutboundEmails({ campaign_id: selected.id, limit: 500 }).then(setOutbound).catch(() => setOutbound([])) }, [selected])
+
+  async function loadCampaigns() {
+    setLoading(true)
+    try {
+      const data = await listEmailCampaigns({
+        status: filterStatus || undefined,
+        category: filterCategory || undefined,
+        q: q || undefined,
+      })
+      setRows(data || [])
+    } catch (e) { console.error('Campaigns load:', e) }
+    finally { setLoading(false) }
+  }
+
+  async function loadSubscribers() {
+    setLoading(true)
+    try { const data = await listEmailSubscribers({ q: q || undefined, limit: 500 }); setSubscribers(data || []) }
+    catch (e) { console.error('Subs load:', e) }
+    finally { setLoading(false) }
+  }
+
+  async function removeCampaign(id) {
+    if (!confirm('Delete this campaign?')) return
+    try { await deleteEmailCampaign(id); setSelected(null); loadCampaigns() } catch (e) { alert(e.message) }
+  }
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-600/20 via-navy-800/60 to-orange-500/20 border border-red-500/20 p-8">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-red-500/10 via-transparent to-transparent" />
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center">
-              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 7.5V21m0 0H4.5a2.25 2.25 0 01-2.25-2.25V7.5m0 0H21m-18 0h18m-18 0v7.5a2.25 2.25 0 002.25 2.25h13.5a2.25 2.25 0 002.25-2.25v-7.5m0 0V4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v3" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Email Campaigns</h1>
-              <p className="text-red-300/70 text-sm">AI-personalized automation</p>
-            </div>
-          </div>
-          <p className="text-gray-400 max-w-2xl text-sm leading-relaxed">
-            Professional email marketing with AI-powered personalization. Build beautiful campaigns, automate drip sequences, segment audiences, and track every open and click.
-          </p>
-          <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-            </span>
-            <span className="text-red-300 text-xs font-medium">Coming Soon — Full Attribution</span>
-          </div>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Email Campaigns</h1>
+          <p className="text-sm text-gray-400 mt-1">Compose, schedule, send, and track email campaigns to subscribers, customers, segments, or custom lists.</p>
         </div>
+        <button onClick={() => setComposing(true)} className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm font-semibold">+ New Campaign</button>
       </div>
 
-      {/* Capabilities Grid */}
-      <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Email Campaign Capabilities</h2>
+      <div className="flex border-b border-navy-700">
+        <TabBtn active={tab === 'campaigns'} onClick={() => { setTab('campaigns'); setSelected(null) }}>Campaigns</TabBtn>
+        <TabBtn active={tab === 'subscribers'} onClick={() => setTab('subscribers')}>Subscribers</TabBtn>
+      </div>
+
+      {tab === 'campaigns' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 rounded-xl bg-navy-800/50 border border-navy-700/50 overflow-hidden">
+            <div className="p-3 border-b border-navy-700 flex gap-2 flex-wrap">
+              <input value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadCampaigns()} placeholder="Search…" className="bg-navy-900 border border-navy-700 text-white text-sm rounded px-2 py-1" />
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-navy-900 border border-navy-700 text-white text-sm rounded px-2 py-1">
+                <option value="">All statuses</option>
+                {EMAIL_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+              </select>
+              <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="bg-navy-900 border border-navy-700 text-white text-sm rounded px-2 py-1">
+                <option value="">All categories</option>
+                {EMAIL_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+            {loading ? <p className="p-4 text-gray-400 text-sm">Loading…</p> :
+             rows.length === 0 ? <p className="p-4 text-gray-500 text-sm">No campaigns.</p> : (
+              <table className="w-full text-sm">
+                <thead className="bg-navy-900/60 text-[11px] uppercase tracking-wide text-gray-400">
+                  <tr>
+                    <th className="text-left py-2 px-3">Name</th>
+                    <th className="text-left py-2 px-3">Category</th>
+                    <th className="text-left py-2 px-3">Status</th>
+                    <th className="text-right py-2 px-3">Sent</th>
+                    <th className="text-right py-2 px-3">Open %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(r => (
+                    <tr key={r.id} onClick={() => setSelected(r)} className={`cursor-pointer border-t border-navy-700/40 hover:bg-navy-900/40 ${selected?.id === r.id ? 'bg-navy-900/60' : ''}`}>
+                      <td className="py-2 px-3 text-white">{r.name}</td>
+                      <td className="py-2 px-3 text-gray-300 text-xs capitalize">{r.category?.replaceAll('_', ' ')}</td>
+                      <td className="py-2 px-3 text-gray-300 capitalize">{r.status}</td>
+                      <td className="py-2 px-3 text-right text-gray-300">{formatInt(r.delivered_count || 0)}</td>
+                      <td className="py-2 px-3 text-right text-gray-300">{r.delivered_count ? formatPct((r.opened_count || 0) / r.delivered_count) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-4 space-y-3">
+            {selected ? (() => {
+              const m = emailCampaignMetrics(selected, outbound)
+              return (
+                <>
+                  <div className="flex items-start justify-between">
+                    <h3 className="text-white font-semibold">{selected.name}</h3>
+                    <button onClick={() => removeCampaign(selected.id)} className="text-rose-400 hover:underline text-xs">Del</button>
+                  </div>
+                  <p className="text-xs text-gray-400 capitalize">{selected.category?.replaceAll('_', ' ')} · {selected.status}</p>
+                  <div className="text-sm text-gray-300">
+                    <p className="text-xs text-gray-400">Subject</p>
+                    <p className="text-white">{selected.subject || '—'}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <Stat label="Queued" value={formatInt(m.queued)} />
+                    <Stat label="Sent" value={formatInt(m.sent)} />
+                    <Stat label="Delivered" value={formatInt(m.delivered)} />
+                    <Stat label="Failed" value={formatInt(m.failed)} />
+                    <Stat label="Open rate" value={formatPct(m.openRate)} />
+                    <Stat label="Click rate" value={formatPct(m.clickRate)} />
+                  </div>
+                  <button onClick={async () => {
+                    if (!confirm(`Send "${selected.name}" now?`)) return
+                    try { await sendEmailCampaign(selected.id, {}); alert('Send queued'); loadCampaigns() } catch (e) { alert(e.message) }
+                  }} className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-semibold">Send Now</button>
+                </>
+              )
+            })() : <p className="text-gray-500 text-sm">Select a campaign to see details.</p>}
+          </div>
+        </div>
+      ) : (
+        <SubscribersTab subscribers={subscribers} q={q} setQ={setQ} reload={loadSubscribers} loading={loading} />
+      )}
+
+      {composing && (
+        <ComposerModal segments={segments} onClose={() => setComposing(false)} onSaved={() => { setComposing(false); loadCampaigns() }} />
+      )}
+    </div>
+  )
+}
+
+function ComposerModal({ segments, onClose, onSaved }) {
+  const [form, setForm] = useState(emptyForm)
+  const [audCount, setAudCount] = useState(null)
+  const [testEmail, setTestEmail] = useState('')
+
+  async function refreshAud() {
+    try {
+      const payload = buildPayload(form)
+      const c = await previewAudienceCount(payload)
+      setAudCount(c)
+    } catch { setAudCount(null) }
+  }
+
+  function buildPayload(f) {
+    const audience_filter = { ...(f.audience_filter || {}) }
+    if (f.audience_type === 'segment') audience_filter.segment_id = f.segment_id
+    if (f.audience_type === 'custom_list') audience_filter.emails = (f.custom_emails || '').split(/[\s,;]+/).filter(Boolean)
+    return { ...f, audience_filter, scheduled_at: f.scheduled_at || null }
+  }
+
+  async function save(status = 'draft') {
+    if (!form.name || !form.subject) { alert('Name + subject required'); return }
+    try {
+      const payload = { ...buildPayload(form), status }
+      await createEmailCampaign(payload)
+      onSaved()
+    } catch (e) { alert('Save failed: ' + e.message) }
+  }
+
+  async function sendTest() {
+    if (!testEmail) { alert('Test email required'); return }
+    const payload = buildPayload(form)
+    try {
+      const { data } = await createEmailCampaign({ ...payload, status: 'draft' })
+      if (data?.id) await sendEmailCampaign(data.id, { testEmail })
+      alert('Test sent to ' + testEmail)
+    } catch (e) { alert(e.message) }
+  }
+
+  const isHtml = /<[a-z][^>]*>/i.test(form.body || '')
+  const rendered = renderMergeTags(form.body || '', SAMPLE_VARS)
+  const renderedSubject = renderMergeTags(form.subject || '', SAMPLE_VARS)
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+      <div className="bg-navy-900 border border-navy-700 rounded-xl max-w-5xl w-full max-h-[92vh] overflow-y-auto p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">New Email Campaign</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">✕</button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {capabilities.map((cap, i) => (
-            <div key={i} className="group relative rounded-xl bg-navy-800/50 border border-navy-700/50 p-5 hover:border-red-500/30 transition-all duration-300">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 group-hover:bg-red-500/20 transition-colors">
-                  {cap.icon}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-white mb-1">{cap.title}</h3>
-                  <p className="text-xs text-gray-400 leading-relaxed">{cap.description}</p>
+          <div className="space-y-3">
+            <Field label="Name"><input className={inputCls} value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></Field>
+            <Field label="Subject"><input className={inputCls} value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} placeholder="Hi {{first_name}}, …" /></Field>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-400 uppercase">Body (HTML or plain)</span>
+                <div className="flex gap-1">
+                  {EMAIL_MERGE_TAGS.map(t => (
+                    <button key={t.tag} onClick={() => setForm({...form, body: (form.body || '') + t.tag})} className="text-[10px] bg-navy-800 border border-navy-700 text-sky-300 px-1.5 py-0.5 rounded">{t.tag}</button>
+                  ))}
                 </div>
               </div>
+              <textarea className={inputCls + ' h-64 font-mono text-xs'} value={form.body} onChange={e => setForm({...form, body: e.target.value})} />
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Category">
+                <select className={inputCls} value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
+                  {EMAIL_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Audience">
+                <select className={inputCls} value={form.audience_type} onChange={e => { setForm({...form, audience_type: e.target.value}); setAudCount(null) }}>
+                  {AUDIENCE_TYPES.map(t => <option key={t} value={t}>{t.replaceAll('_', ' ')}</option>)}
+                </select>
+              </Field>
+              {form.audience_type === 'segment' && (
+                <Field label="Segment">
+                  <select className={inputCls} value={form.segment_id} onChange={e => setForm({...form, segment_id: e.target.value})}>
+                    <option value="">— pick a segment —</option>
+                    {segments.map(s => <option key={s.id} value={s.id}>{s.name} ({s.member_count || 0})</option>)}
+                  </select>
+                </Field>
+              )}
+              {form.audience_type === 'custom_list' && (
+                <Field label="Emails (comma-separated)">
+                  <textarea className={inputCls + ' h-20 text-xs'} value={form.custom_emails} onChange={e => setForm({...form, custom_emails: e.target.value})} />
+                </Field>
+              )}
+              <Field label="Schedule (optional)">
+                <input type="datetime-local" className={inputCls} value={form.scheduled_at} onChange={e => setForm({...form, scheduled_at: e.target.value})} />
+              </Field>
+            </div>
+            <button onClick={refreshAud} className="text-xs text-sky-400 hover:underline">Preview audience count</button>
+            {audCount != null && <p className="text-xs text-emerald-300">{formatInt(audCount)} recipients</p>}
+          </div>
 
-      {/* Marketing Lifecycle */}
-      <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Email Campaign Lifecycle</h2>
-        <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-6">
-          <div className="relative">
-            <div className="absolute left-[19px] top-3 bottom-3 w-px bg-red-500/20" />
-            <div className="space-y-4">
-              {flowSteps.map((s, i) => (
-                <div key={i} className="flex gap-4 items-start">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 text-sm font-bold relative z-10">
-                    {s.step}
-                  </div>
-                  <div className="pt-1.5">
-                    <p className="text-sm font-medium text-white">{s.label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{s.detail}</p>
-                  </div>
-                </div>
-              ))}
+          <div className="space-y-3">
+            <div className="rounded-lg border border-navy-700 bg-navy-950/50 overflow-hidden">
+              <div className="bg-navy-900 px-3 py-2 border-b border-navy-700 text-xs">
+                <p className="text-gray-400">Subject:</p>
+                <p className="text-white font-medium">{renderedSubject || '—'}</p>
+              </div>
+              <div className="p-3 text-sm text-gray-200 max-h-[420px] overflow-y-auto">
+                {isHtml ? (
+                  <div className="bg-white text-slate-900 rounded p-3" dangerouslySetInnerHTML={{ __html: rendered }} />
+                ) : (
+                  <pre className="whitespace-pre-wrap font-sans text-sm">{rendered || '(empty)'}</pre>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-2 items-end">
+              <Field label="Send test to">
+                <input type="email" className={inputCls} value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@example.com" />
+              </Field>
+              <button onClick={sendTest} className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-sm font-semibold whitespace-nowrap">Send Test</button>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Aspirational Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: '99.2% Deliverability', value: 'Industry-Leading', sub: 'Inbox guaranteed' },
-          { label: 'AI-Personalized', value: 'Dynamic Content', sub: 'Every recipient unique' },
-          { label: 'Unlimited Sends', value: 'No Limits', sub: 'Scale without constraints' },
-          { label: 'Full Attribution', value: 'Revenue Tracking', sub: 'Know your ROI' },
-        ].map((s, i) => (
-          <div key={i} className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-4 text-center">
-            <p className="text-sm font-semibold text-red-400">{s.value}</p>
-            <p className="text-xs text-white font-medium mt-1">{s.label}</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">{s.sub}</p>
-          </div>
-        ))}
+        <div className="flex justify-end gap-2 mt-5 border-t border-navy-700 pt-4">
+          <button onClick={onClose} className="px-4 py-2 text-gray-400 text-sm">Cancel</button>
+          <button onClick={() => save('draft')} className="px-4 py-2 bg-navy-700 hover:bg-navy-600 text-white rounded-md text-sm font-semibold">Save Draft</button>
+          {form.scheduled_at && <button onClick={() => save('scheduled')} className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm font-semibold">Schedule</button>}
+          <button onClick={() => save('sending')} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-semibold">Send Now</button>
+        </div>
       </div>
     </div>
-  );
+  )
+}
+
+function SubscribersTab({ subscribers, q, setQ, reload, loading }) {
+  const [email, setEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+
+  async function add() {
+    if (!email) return
+    try { await createEmailSubscriber({ email, first_name: firstName }); setEmail(''); setFirstName(''); reload() }
+    catch (e) { alert(e.message) }
+  }
+
+  async function toggle(id, cur) {
+    try { await toggleSubscriberActive(id, !cur); reload() } catch (e) { alert(e.message) }
+  }
+
+  async function remove(id) {
+    if (!confirm('Delete subscriber?')) return
+    try { await deleteEmailSubscriber(id); reload() } catch (e) { alert(e.message) }
+  }
+
+  const active = subscribers.filter(s => s.is_active !== false).length
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Kpi label="Total" value={formatInt(subscribers.length)} />
+        <Kpi label="Active" value={formatInt(active)} tone="emerald" />
+        <Kpi label="Inactive" value={formatInt(subscribers.length - active)} tone="rose" />
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        <input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" className="bg-navy-900 border border-navy-700 text-white text-sm rounded px-2 py-1" />
+        <input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First name" className="bg-navy-900 border border-navy-700 text-white text-sm rounded px-2 py-1" />
+        <button onClick={add} className="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded text-sm">+ Add</button>
+        <input value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && reload()} placeholder="Search…" className="bg-navy-900 border border-navy-700 text-white text-sm rounded px-2 py-1 ml-auto" />
+      </div>
+
+      <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 overflow-hidden">
+        {loading ? <p className="p-4 text-gray-400 text-sm">Loading…</p> :
+         subscribers.length === 0 ? <p className="p-4 text-gray-500 text-sm">No subscribers.</p> : (
+          <table className="w-full text-sm">
+            <thead className="bg-navy-900/60 text-[11px] uppercase tracking-wide text-gray-400">
+              <tr>
+                <th className="text-left py-2 px-3">Email</th>
+                <th className="text-left py-2 px-3">First Name</th>
+                <th className="text-left py-2 px-3">Source</th>
+                <th className="text-left py-2 px-3">Status</th>
+                <th className="text-right py-2 px-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {subscribers.map(s => (
+                <tr key={s.id} className="border-t border-navy-700/40">
+                  <td className="py-2 px-3 text-white">{s.email}</td>
+                  <td className="py-2 px-3 text-gray-300">{s.first_name || '—'}</td>
+                  <td className="py-2 px-3 text-gray-400 text-xs">{s.source || '—'}</td>
+                  <td className="py-2 px-3">{s.is_active !== false ? <span className="text-emerald-300 text-xs">Active</span> : <span className="text-rose-300 text-xs">Inactive</span>}</td>
+                  <td className="py-2 px-3 text-right text-xs whitespace-nowrap">
+                    <button onClick={() => toggle(s.id, s.is_active !== false)} className="text-sky-400 hover:underline mr-3">{s.is_active !== false ? 'Deactivate' : 'Activate'}</button>
+                    <button onClick={() => remove(s.id)} className="text-rose-400 hover:underline">Del</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const inputCls = 'w-full bg-navy-800 border border-navy-700 text-white text-sm rounded-md px-3 py-2'
+
+function TabBtn({ active, onClick, children }) {
+  return <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold border-b-2 ${active ? 'border-sky-500 text-white' : 'border-transparent text-gray-400 hover:text-white'}`}>{children}</button>
+}
+function Field({ label, children }) {
+  return <label className="block"><span className="text-xs text-gray-400 block mb-1">{label}</span>{children}</label>
+}
+function Kpi({ label, value, tone = 'slate' }) {
+  const tones = { slate: 'text-white', emerald: 'text-emerald-300', rose: 'text-rose-300' }
+  return (
+    <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-4">
+      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+      <p className={`text-xl font-bold mt-1 ${tones[tone] || tones.slate}`}>{value}</p>
+    </div>
+  )
+}
+function Stat({ label, value }) {
+  return (
+    <div className="bg-navy-900/40 rounded p-2">
+      <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="text-sm font-semibold text-white">{value}</p>
+    </div>
+  )
 }

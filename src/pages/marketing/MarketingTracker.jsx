@@ -1,176 +1,207 @@
-export default function MarketingTracker() {
-  const capabilities = [
-    {
-      title: 'Campaign Timeline',
-      description: 'Visual Gantt-style timeline showing all active and planned campaigns. Drag to reschedule, see overlaps, and manage launch windows.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0121 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Deliverable Tracking',
-      description: 'Track every piece of content, creative, and asset through its production lifecycle. Assign owners, set deadlines, and monitor completion.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Team Workload View',
-      description: 'See what each marketing team member is working on. Balance workloads, prevent bottlenecks, and ensure nothing falls through the cracks.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Milestone Alerts',
-      description: 'Automated notifications when campaigns hit key milestones — creative approved, landing page live, ads launched, first conversion. Never miss a beat.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Cross-Channel Sync',
-      description: 'Coordinate campaigns across email, social, paid, SEO, and events. Ensure messaging consistency and timing alignment across every channel.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-1.135a4.5 4.5 0 00-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Version History',
-      description: 'Track every change to campaigns, creatives, and copy. Roll back to previous versions, compare A/B variants, and maintain an audit trail.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Client Approval Flow',
-      description: 'Built-in approval workflows for client-facing marketing. Send proofs, collect feedback, track revisions, and get sign-off — all in one place.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Sprint Planning',
-      description: 'Organize marketing work into 2-week sprints. Set priorities, estimate effort, track velocity, and run retrospectives to improve over time.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-        </svg>
-      ),
-    },
-  ];
+import { useEffect, useState } from 'react'
+import {
+  listCampaigns, createCampaign, updateCampaign, deleteCampaign,
+  CAMPAIGN_CHANNELS, CAMPAIGN_STATUSES,
+  formatMoney, formatInt, deriveKPIs,
+} from '../../lib/marketingService'
 
-  const flowSteps = [
-    { step: '1', label: 'Planned', detail: 'Campaign concept created and added to timeline' },
-    { step: '2', label: 'In Progress', detail: 'Creative work underway, deliverables tracked' },
-    { step: '3', label: 'Review', detail: 'Client or team review phase, feedback collected' },
-    { step: '4', label: 'Approved', detail: 'Sign-off received, ready for deployment' },
-    { step: '5', label: 'Live', detail: 'Campaign launched across all channels' },
-    { step: '6', label: 'Complete', detail: 'Campaign ended, results analyzed' },
-  ];
+const emptyForm = {
+  name: '', channel: 'google_ads', status: 'planned',
+  budget_cents: 0, spend_cents: 0, revenue_cents: 0,
+  impressions: 0, clicks: 0, conversions: 0,
+  start_date: '', end_date: '', notes: '',
+}
+
+export default function MarketingTracker() {
+  const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState(emptyForm)
+  const [filterChannel, setFilterChannel] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+
+  useEffect(() => { load() }, [filterChannel, filterStatus])
+
+  async function load() {
+    setLoading(true)
+    try {
+      const data = await listCampaigns({ channel: filterChannel || undefined, status: filterStatus || undefined })
+      setRows(data || [])
+    } catch (e) { console.error('load campaigns:', e) }
+    finally { setLoading(false) }
+  }
+
+  function openNew() { setEditing('new'); setForm(emptyForm) }
+  function openEdit(r) {
+    setEditing(r.id)
+    setForm({
+      name: r.name || '', channel: r.channel || 'google_ads', status: r.status || 'planned',
+      budget_cents: r.budget_cents || 0, spend_cents: r.spend_cents || 0, revenue_cents: r.revenue_cents || 0,
+      impressions: r.impressions || 0, clicks: r.clicks || 0, conversions: r.conversions || 0,
+      start_date: r.start_date || '', end_date: r.end_date || '', notes: r.notes || '',
+    })
+  }
+  function cancel() { setEditing(null); setForm(emptyForm) }
+
+  async function save() {
+    try {
+      const payload = {
+        ...form,
+        budget_cents: Math.round(Number(form.budget_cents) || 0),
+        spend_cents: Math.round(Number(form.spend_cents) || 0),
+        revenue_cents: Math.round(Number(form.revenue_cents) || 0),
+        impressions: Math.round(Number(form.impressions) || 0),
+        clicks: Math.round(Number(form.clicks) || 0),
+        conversions: Math.round(Number(form.conversions) || 0),
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+      }
+      if (editing === 'new') await createCampaign(payload)
+      else await updateCampaign(editing, payload)
+      cancel(); load()
+    } catch (e) { alert('Save failed: ' + e.message) }
+  }
+
+  async function remove(id) {
+    if (!confirm('Delete this campaign?')) return
+    try { await deleteCampaign(id); load() } catch (e) { alert('Delete failed: ' + e.message) }
+  }
+
+  const totals = rows.reduce((acc, r) => {
+    acc.spend += Number(r.spend_cents || 0)
+    acc.revenue += Number(r.revenue_cents || 0)
+    acc.conv += Number(r.conversions || 0)
+    acc.budget += Number(r.budget_cents || 0)
+    return acc
+  }, { spend: 0, revenue: 0, conv: 0, budget: 0 })
+  const totalRoas = totals.spend > 0 ? (totals.revenue / totals.spend) : null
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600/20 via-navy-800/60 to-purple-600/20 border border-violet-500/20 p-8">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-violet-500/10 via-transparent to-transparent" />
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
-              <svg className="w-6 h-6 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0121 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Marketing Tracker</h1>
-              <p className="text-violet-300/70 text-sm">Campaign project management</p>
-            </div>
-          </div>
-          <p className="text-gray-400 max-w-2xl text-sm leading-relaxed">
-            Track every marketing initiative from concept to completion. Monitor campaign health, team assignments, and deliverable status across all channels.
-          </p>
-          <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
-            </span>
-            <span className="text-violet-300 text-xs font-medium">Coming Soon — Full Visibility</span>
-          </div>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Campaign Tracker</h1>
+          <p className="text-sm text-gray-400 mt-1">Track every marketing campaign across channels — spend, revenue, ROAS, conversions.</p>
         </div>
+        <button onClick={openNew} className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm font-semibold">+ New Campaign</button>
       </div>
 
-      {/* Capabilities Grid */}
-      <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Tracker Capabilities</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {capabilities.map((cap, i) => (
-            <div key={i} className="group relative rounded-xl bg-navy-800/50 border border-navy-700/50 p-5 hover:border-violet-500/30 transition-all duration-300">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:bg-violet-500/20 transition-colors">
-                  {cap.icon}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-white mb-1">{cap.title}</h3>
-                  <p className="text-xs text-gray-400 leading-relaxed">{cap.description}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi label="Campaigns" value={formatInt(rows.length)} />
+        <Kpi label="Total Spend" value={formatMoney(totals.spend)} tone="rose" />
+        <Kpi label="Total Revenue" value={formatMoney(totals.revenue)} tone="emerald" />
+        <Kpi label="Blended ROAS" value={totalRoas != null ? `${totalRoas.toFixed(2)}x` : '—'} tone={totalRoas && totalRoas >= 3 ? 'emerald' : 'amber'} />
       </div>
 
-      {/* Campaign Lifecycle */}
-      <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Campaign Lifecycle</h2>
-        <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-6">
-          <div className="relative">
-            <div className="absolute left-[19px] top-3 bottom-3 w-px bg-violet-500/20" />
-            <div className="space-y-4">
-              {flowSteps.map((s, i) => (
-                <div key={i} className="flex gap-4 items-start">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-violet-400 text-sm font-bold relative z-10">
-                    {s.step}
-                  </div>
-                  <div className="pt-1.5">
-                    <p className="text-sm font-medium text-white">{s.label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{s.detail}</p>
-                  </div>
-                </div>
-              ))}
+      <div className="flex gap-3 items-center">
+        <select value={filterChannel} onChange={e => setFilterChannel(e.target.value)} className="bg-navy-800 border border-navy-700 text-white text-sm rounded-md px-3 py-2">
+          <option value="">All channels</option>
+          {CAMPAIGN_CHANNELS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+        </select>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-navy-800 border border-navy-700 text-white text-sm rounded-md px-3 py-2">
+          <option value="">All statuses</option>
+          {CAMPAIGN_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+        </select>
+      </div>
+
+      <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 overflow-hidden">
+        {loading ? <p className="p-4 text-gray-400 text-sm">Loading…</p> :
+         rows.length === 0 ? <p className="p-4 text-gray-500 text-sm">No campaigns yet. Click "New Campaign" to log your first.</p> : (
+          <table className="w-full text-sm">
+            <thead className="bg-navy-900/60 text-[11px] uppercase tracking-wide text-gray-400">
+              <tr>
+                <th className="text-left py-2 px-3">Name</th>
+                <th className="text-left py-2 px-3">Channel</th>
+                <th className="text-left py-2 px-3">Status</th>
+                <th className="text-right py-2 px-3">Spend</th>
+                <th className="text-right py-2 px-3">Revenue</th>
+                <th className="text-right py-2 px-3">ROAS</th>
+                <th className="text-right py-2 px-3">CPA</th>
+                <th className="text-right py-2 px-3">Conv.</th>
+                <th className="text-right py-2 px-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => {
+                const k = deriveKPIs(r)
+                return (
+                  <tr key={r.id} className="border-t border-navy-700/40 hover:bg-navy-900/30">
+                    <td className="py-2 px-3 text-white">{r.name}</td>
+                    <td className="py-2 px-3 text-gray-300 capitalize">{(r.channel || '').replaceAll('_', ' ')}</td>
+                    <td className="py-2 px-3 text-gray-300 capitalize">{r.status}</td>
+                    <td className="py-2 px-3 text-right text-rose-300">{formatMoney(r.spend_cents || 0)}</td>
+                    <td className="py-2 px-3 text-right text-emerald-300">{formatMoney(r.revenue_cents || 0)}</td>
+                    <td className="py-2 px-3 text-right font-semibold">
+                      {k.roas != null ? <span className={k.roas >= 3 ? 'text-emerald-300' : k.roas >= 1 ? 'text-amber-300' : 'text-rose-300'}>{k.roas.toFixed(2)}x</span> : '—'}
+                    </td>
+                    <td className="py-2 px-3 text-right text-gray-300">{k.cpa != null ? formatMoney(Math.round(k.cpa)) : '—'}</td>
+                    <td className="py-2 px-3 text-right text-gray-300">{formatInt(r.conversions || 0)}</td>
+                    <td className="py-2 px-3 text-right">
+                      <button onClick={() => openEdit(r)} className="text-sky-400 hover:underline mr-3">Edit</button>
+                      <button onClick={() => remove(r.id)} className="text-rose-400 hover:underline">Del</button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {editing && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-navy-900 border border-navy-700 rounded-xl max-w-2xl w-full p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-white">{editing === 'new' ? 'New Campaign' : 'Edit Campaign'}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="Name"><input className={inputCls} value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></Field>
+              <Field label="Channel">
+                <select className={inputCls} value={form.channel} onChange={e => setForm({...form, channel: e.target.value})}>
+                  {CAMPAIGN_CHANNELS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Status">
+                <select className={inputCls} value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+                  {CAMPAIGN_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Budget (cents)"><input type="number" className={inputCls} value={form.budget_cents} onChange={e => setForm({...form, budget_cents: e.target.value})} /></Field>
+              <Field label="Spend (cents)"><input type="number" className={inputCls} value={form.spend_cents} onChange={e => setForm({...form, spend_cents: e.target.value})} /></Field>
+              <Field label="Revenue (cents)"><input type="number" className={inputCls} value={form.revenue_cents} onChange={e => setForm({...form, revenue_cents: e.target.value})} /></Field>
+              <Field label="Impressions"><input type="number" className={inputCls} value={form.impressions} onChange={e => setForm({...form, impressions: e.target.value})} /></Field>
+              <Field label="Clicks"><input type="number" className={inputCls} value={form.clicks} onChange={e => setForm({...form, clicks: e.target.value})} /></Field>
+              <Field label="Conversions"><input type="number" className={inputCls} value={form.conversions} onChange={e => setForm({...form, conversions: e.target.value})} /></Field>
+              <Field label="Start Date"><input type="date" className={inputCls} value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} /></Field>
+              <Field label="End Date"><input type="date" className={inputCls} value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} /></Field>
+            </div>
+            <Field label="Notes"><textarea className={inputCls + ' h-20'} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} /></Field>
+            <div className="flex justify-end gap-2">
+              <button onClick={cancel} className="px-4 py-2 text-gray-400 hover:text-white text-sm">Cancel</button>
+              <button onClick={save} className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm font-semibold">Save</button>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Aspirational Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Active Campaigns', value: '50+', sub: 'Tracked in real-time' },
-          { label: 'On-Time Rate', value: '99.2%', sub: 'Milestone delivery' },
-          { label: 'Channels', value: '8', sub: 'Cross-channel sync' },
-          { label: 'Visibility', value: '100%', sub: 'Full team transparency' },
-        ].map((s, i) => (
-          <div key={i} className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-4 text-center">
-            <p className="text-2xl font-bold text-white">{s.value}</p>
-            <p className="text-xs text-violet-400 font-medium mt-1">{s.label}</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">{s.sub}</p>
-          </div>
-        ))}
-      </div>
+      )}
     </div>
-  );
+  )
+}
+
+const inputCls = 'w-full bg-navy-800 border border-navy-700 text-white text-sm rounded-md px-3 py-2'
+
+function Kpi({ label, value, tone = 'slate' }) {
+  const tones = { slate: 'text-white', emerald: 'text-emerald-300', rose: 'text-rose-300', amber: 'text-amber-300', sky: 'text-sky-300' }
+  return (
+    <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-4">
+      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+      <p className={`text-xl font-bold mt-1 ${tones[tone] || tones.slate}`}>{value}</p>
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block">
+      <span className="text-xs uppercase tracking-wide text-gray-400 block mb-1">{label}</span>
+      {children}
+    </label>
+  )
 }
