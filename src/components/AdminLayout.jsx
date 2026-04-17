@@ -9,6 +9,7 @@ import ImpersonationBanner from './ImpersonationBanner'
 import { isFounder } from '../lib/testerProgramService'
 import VideoCallRoom from './VideoCallRoom'
 import OnboardingWizard from './OnboardingWizard'
+import AnnouncementModal from './AnnouncementModal'
 
 const freightNavItems = [
   {
@@ -1304,6 +1305,9 @@ export default function AdminLayout() {
       <IncomingCallModal />
       <GlobalPhoneCallPopup />
       <VideoCallRoom />
+
+      {/* Platform-wide announcement modal — internal team only, founder-posted */}
+      <AnnouncementModal />
       </div>
     </div>
   )

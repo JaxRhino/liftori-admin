@@ -22,8 +22,10 @@ import {
   TrendingUp, AlertTriangle, Star, Clock, Activity, DollarSign,
   UserCheck, Calendar, Target, Zap, ChevronRight, RefreshCw,
   Loader2, Building2, Headphones, FileText, CheckCircle,
-  ArrowUpRight, ArrowDownRight, Sparkles, ClipboardList, Bug, X, Plus, Heart, Mail
+  ArrowUpRight, ArrowDownRight, Sparkles, ClipboardList, Bug, X, Plus, Heart, Mail,
+  Megaphone
 } from 'lucide-react';
+import AnnouncementCenter from '../components/AnnouncementCenter';
 
 export default function SuperAdmin() {
   const navigate = useNavigate();
@@ -214,7 +216,7 @@ export default function SuperAdmin() {
   }));
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -243,6 +245,13 @@ export default function SuperAdmin() {
         <MetricCard icon={Calendar} label="Appointments" value={stats.totalAppointments} sub={`${stats.scheduledAppts} scheduled`} color="purple" />
         <MetricCard icon={Star} label="Avg Score" value={stats.avgScore} sub={`${stats.totalScorecards} reviewed`} color={parseFloat(stats.avgScore) >= 7 ? 'green' : 'orange'} />
         <MetricCard icon={AlertTriangle} label="Flagged" value={stats.flaggedCount} sub="calls under 5/10" color={stats.flaggedCount > 0 ? 'red' : 'green'} />
+      </div>
+
+      {/* ═════════════════════════════════════════════════════ */}
+      {/* ANNOUNCEMENT CENTER — founder-posted, center-screen    */}
+      {/* ═════════════════════════════════════════════════════ */}
+      <div className="border-t border-slate-800 pt-6">
+        <AnnouncementCenter />
       </div>
 
       {/* Main Grid */}
@@ -431,7 +440,12 @@ export default function SuperAdmin() {
       {/* ═════════════════════════════════════════════════════ */}
       {/* COMMUNICATIONS HUB — campaigns, templates, audit log   */}
       {/* ═════════════════════════════════════════════════════ */}
-      <div className="border-t border-slate-800 pt-6 mt-2">
+      <div className="border-t border-slate-800 pt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Mail className="w-5 h-5 text-pink-400" />
+          <h2 className="text-lg font-bold text-white">Communications Hub</h2>
+          <span className="text-xs text-gray-500">campaigns, templates, audit log</span>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <button
             onClick={() => navigate('/admin/comms/campaigns')}
@@ -484,7 +498,7 @@ export default function SuperAdmin() {
       {/* ═════════════════════════════════════════════════════ */}
       {/* TESTER PROGRAM — founder-only oversight + management   */}
       {/* ═════════════════════════════════════════════════════ */}
-      <div className="border-t border-slate-800 pt-6 mt-2">
+      <div className="border-t border-slate-800 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-pink-400" />
@@ -578,7 +592,7 @@ export default function SuperAdmin() {
       {/* ═════════════════════════════════════════════════════ */}
       {/* AFFILIATE / CREATOR PROGRAM — founder-only oversight  */}
       {/* ═════════════════════════════════════════════════════ */}
-      <div className="border-t border-slate-800 pt-6 mt-2">
+      <div className="border-t border-slate-800 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-pink-400" />
