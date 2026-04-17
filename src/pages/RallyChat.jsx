@@ -1670,8 +1670,8 @@ export const Chat = () => {
                 <div className="border-t p-4 bg-card flex-shrink-0 relative">
                   {/* Mention Suggestions */}
                   {showMentionSuggestions && mentionSuggestions.length > 0 && (
-                    <div className="absolute bottom-full left-4 right-4 mb-2 bg-popover border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50">
-                      <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground border-b bg-muted/40">
+                    <div className="absolute bottom-full left-4 right-4 mb-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto z-50">
+                      <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                         People {mentionSearchText ? `matching "${mentionSearchText}"` : ''}
                       </div>
                       {mentionSuggestions.map((u, idx) => (
@@ -1681,18 +1681,20 @@ export const Chat = () => {
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => insertMention(u)}
                       onMouseEnter={() => setMentionSelectedIndex(idx)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 transition-colors text-left ${
-                        idx === mentionSelectedIndex ? 'bg-accent' : 'hover:bg-accent/60'
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${
+                        idx === mentionSelectedIndex
+                          ? 'bg-sky-100 dark:bg-sky-900/40'
+                          : 'bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
                       <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                        <AvatarFallback className="text-xs bg-sky-500 text-white">
                           {u.name.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">{u.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">@{u.username}{u.role ? ` · ${u.role}` : ''}</div>
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{u.name}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">@{u.username}{u.role ? ` · ${u.role}` : ''}</div>
                       </div>
                     </button>
                   ))}
