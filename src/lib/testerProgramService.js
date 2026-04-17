@@ -213,6 +213,51 @@ export async function listAssignments({ assignedTo = null, status = null, limit 
   return data || []
 }
 
+/**
+ * Pool tasks — unclaimed work any tester can pick up. Ordered by priority then age.
+ */
+export async function listPoolAssignments({ limit = 100 } = {}) {
+  const { data, error } = await supabase
+    .from('tester_assignments')
+    .select('*')
+    .is('assigned_to', null)
+    .in('status', ['assigned'])
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: true })
+    .limit(limit)
+  if (error) err(error, 'listPoolAssignments')
+  return data || []
+}
+
+/**
+ * Claim a pool task. Atomic: update only succeeds if assigned_to is still NULL,
+ * so two testers clicking Claim at the same moment cannot both grab the same row.
+ * Returns the claimed row, or throws if someone else beat you to it.
+ */
+export async function claimAssignment(id, userId) {
+  const { data, error } = await supabase
+    .from('tester_assignments')
+    .update({ assigned_to: userId, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('assigned_to', null)
+    .select()
+    .maybeSingle()
+  if (error) err(error, 'claimAssignment')
+  if (!data) throw new Error('Task was claimed by another tester — refreshing…')
+  return data
+}
+
+/**
+ * Release a claimed task back to the pool. Uses SECURITY DEFINER RPC so the tester
+ * can null out their own assigned_to even though the RLS WITH CHECK forbids it directly.
+ * Blocked on completed tasks — you can't release something you already finished.
+ */
+export async function releaseAssignment(id) {
+  const { data, error } = await supabase.rpc('release_assignment', { p_assignment_id: id })
+  if (error) err(error, 'releaseAssignment')
+  return data
+}
+
 export async function updateAssignment(id, updates) {
   const payload = { ...updates, updated_at: new Date().toISOString() }
   if (updates.status === 'in_progress' && !updates.started_at) payload.started_at = new Date().toISOString()

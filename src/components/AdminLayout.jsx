@@ -577,7 +577,10 @@ const navItems = [
 
 // Role-based nav visibility
 const FULL_ACCESS_ROLES = ['super_admin', 'admin', 'dev']
-const MANAGEMENT_ROLES = ['super_admin', 'admin', 'dev', 'sales_director']
+// Testers are NDA'd 1099 contractors who need to test every hub — give them
+// Operations + Tools nav visibility. Row-level data access is still gated by
+// Supabase RLS, so opening a page they shouldn't edit won't leak anything.
+const MANAGEMENT_ROLES = ['super_admin', 'admin', 'dev', 'sales_director', 'tester']
 
 // Items hidden from call_agent role (they only see Call Center, Sales Hub, Chat, Rally)
 const CALL_AGENT_HIDDEN = ['Super Admin', 'Dashboard', 'Marketing', 'Communications', 'Finance', 'Support Tickets', 'Settings']

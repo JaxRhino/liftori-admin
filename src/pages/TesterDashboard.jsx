@@ -29,7 +29,7 @@ import {
   formatCurrency,
   liveDuration,
 } from '../lib/timeTrackingService'
-import { listAssignments, updateAssignment } from '../lib/testerProgramService'
+import { listAssignments, listPoolAssignments, claimAssignment, releaseAssignment, updateAssignment } from '../lib/testerProgramService'
 import NewAssignmentsAlert from '../components/NewAssignmentsAlert'
 
 const PRIORITY_COLORS = {
@@ -54,6 +54,7 @@ export default function TesterDashboard() {
   const [entries, setEntries] = useState([])
   const [logs, setLogs] = useState([])
   const [assignments, setAssignments] = useState([])
+  const [poolAssignments, setPoolAssignments] = useState([])
   const [periods, setPeriods] = useState([])
   const [allocations, setAllocations] = useState([])
   const [activeTesterCount, setActiveTesterCount] = useState(1)
@@ -64,7 +65,7 @@ export default function TesterDashboard() {
   const load = useCallback(async () => {
     if (!user?.id) return
     try {
-      const [act, enr, ent, lg, asg, pds, allocs] = await Promise.all([
+      const [act, enr, ent, lg, asg, pds, allocs, pool] = await Promise.all([
         fetchActiveEntry(user.id),
         fetchMyEnrollment(user.id),
         fetchEntries({ userId: user.id, limit: 100 }),
@@ -72,6 +73,7 @@ export default function TesterDashboard() {
         listAssignments({ assignedTo: user.id, limit: 50 }),
         fetchPeriods({ limit: 6 }),
         fetchMyAllocations(user.id),
+        listPoolAssignments({ limit: 100 }),
       ])
       setActive(act)
       setEnrollment(enr)
@@ -80,6 +82,7 @@ export default function TesterDashboard() {
       setAssignments(asg)
       setPeriods(pds)
       setAllocations(allocs)
+      setPoolAssignments(pool)
 
       // Active testers + per-closed-period qualifier counts (privacy-safe RPCs)
       const activeCount = await countActiveTesters()
@@ -101,6 +104,28 @@ export default function TesterDashboard() {
   }, [user?.id])
 
   useEffect(() => { load() }, [load])
+
+  async function handleClaim(id) {
+    try {
+      await claimAssignment(id, user.id)
+      toast.success("Task claimed — it's yours now")
+      load()
+    } catch (e) {
+      toast.error(e.message || 'Claim failed — someone may have beat you to it')
+      load()
+    }
+  }
+
+  async function handleRelease(id) {
+    if (!confirm('Release this task back to the pool? Another tester will be able to claim it.')) return
+    try {
+      await releaseAssignment(id)
+      toast.success('Returned to pool')
+      load()
+    } catch (e) {
+      toast.error(e.message || 'Release failed')
+    }
+  }
 
   useEffect(() => {
     if (!active) return
@@ -451,6 +476,39 @@ export default function TesterDashboard() {
           </div>
         </div>
 
+        {/* Available Tasks (shared pool) */}
+        <div className="bg-gradient-to-br from-sky-500/10 to-sky-600/5 border border-sky-500/30 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-sky-500/20 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400"></span>
+              </span>
+              <div>
+                <h2 className="text-sm font-semibold text-white">Available Tasks</h2>
+                <p className="text-[11px] text-gray-400">{poolAssignments.length} unclaimed · grab one before another tester does</p>
+              </div>
+            </div>
+            <button onClick={load} className="text-xs text-sky-300 hover:text-sky-200 hover:underline">Refresh</button>
+          </div>
+          {poolAssignments.length === 0 ? (
+            <div className="px-5 py-8 text-center text-sm text-gray-500">
+              No unclaimed tasks right now. Check back soon.
+            </div>
+          ) : (
+            <div className="divide-y divide-sky-500/10">
+              {poolAssignments.map((a) => (
+                <PoolAssignmentRow
+                  key={a.id}
+                  assignment={a}
+                  onClaim={() => handleClaim(a.id)}
+                  onOpen={() => a.screen_path && navigate(a.screen_path)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* My Assignments */}
         <div className="bg-navy-800/60 border border-navy-700/50 rounded-xl overflow-hidden">
           <div className="px-5 py-3 border-b border-navy-700/50 flex items-center justify-between">
@@ -461,7 +519,7 @@ export default function TesterDashboard() {
           </div>
           {openAssignments.length === 0 ? (
             <div className="px-5 py-8 text-center text-sm text-gray-500">
-              No open assignments. You're free to test wherever you see fit.
+              No open assignments. Claim one from the pool above, or test wherever you see fit.
             </div>
           ) : (
             <div className="divide-y divide-navy-700/40">
@@ -471,6 +529,7 @@ export default function TesterDashboard() {
                   assignment={a}
                   onChangeStatus={(s) => changeAssignmentStatus(a.id, s)}
                   onOpen={() => a.screen_path && navigate(a.screen_path)}
+                  onRelease={() => handleRelease(a.id)}
                 />
               ))}
             </div>
@@ -520,7 +579,7 @@ function CommMetric({ label, value, hint, color = 'text-white' }) {
   )
 }
 
-function AssignmentRow({ assignment: a, onChangeStatus, onOpen }) {
+function AssignmentRow({ assignment: a, onChangeStatus, onOpen, onRelease }) {
   const [expanded, setExpanded] = useState(false)
   const overdue = a.due_date && new Date(a.due_date) < new Date() && a.status !== 'completed'
   return (
@@ -566,12 +625,81 @@ function AssignmentRow({ assignment: a, onChangeStatus, onOpen }) {
               ))}
             </div>
           )}
+          <div className="flex flex-wrap gap-2">
+            {a.screen_path && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpen() }}
+                className="text-xs px-3 py-1.5 bg-brand-blue/15 hover:bg-brand-blue/25 border border-brand-blue/40 text-brand-blue rounded-md font-medium"
+              >
+                Open {a.screen_path} →
+              </button>
+            )}
+            {onRelease && a.status !== 'completed' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRelease() }}
+                className="text-xs px-3 py-1.5 bg-slate-500/15 hover:bg-slate-500/25 border border-slate-500/40 text-slate-300 rounded-md font-medium"
+                title="Return this task to the shared pool so another tester can claim it"
+              >
+                ↩ Release to pool
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function PoolAssignmentRow({ assignment: a, onClaim, onOpen }) {
+  const [expanded, setExpanded] = useState(false)
+  const [claiming, setClaiming] = useState(false)
+  async function doClaim(e) {
+    e.stopPropagation()
+    if (claiming) return
+    setClaiming(true)
+    try { await onClaim() } finally { setClaiming(false) }
+  }
+  return (
+    <>
+      <div className="px-5 py-3 hover:bg-sky-500/5 transition cursor-pointer" onClick={() => setExpanded((x) => !x)}>
+        <div className="flex items-start gap-3">
+          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded border whitespace-nowrap ${PRIORITY_COLORS[a.priority] || PRIORITY_COLORS.medium}`}>
+            {a.priority}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm text-white font-medium truncate">{a.title}</div>
+            {a.screen_path && <div className="text-[10px] text-gray-500 font-mono mt-0.5 truncate">{a.screen_path}</div>}
+          </div>
+          <button
+            onClick={doClaim}
+            disabled={claiming}
+            className="text-xs px-3 py-1.5 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 disabled:cursor-not-allowed text-navy-950 rounded-md font-semibold whitespace-nowrap flex-shrink-0"
+          >
+            {claiming ? 'Claiming…' : 'Claim'}
+          </button>
+        </div>
+      </div>
+      {expanded && (
+        <div className="px-5 py-4 bg-navy-900/60 border-t border-sky-500/10 space-y-3">
+          {a.instructions && (
+            <div>
+              <div className="text-[10px] uppercase font-semibold text-gray-500 mb-1">Instructions</div>
+              <div className="text-sm text-gray-200 whitespace-pre-wrap">{a.instructions}</div>
+            </div>
+          )}
+          {a.tags?.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap">
+              {a.tags.map((t) => (
+                <span key={t} className="text-[10px] text-gray-400 bg-navy-800 border border-navy-700/50 rounded px-2 py-0.5">#{t}</span>
+              ))}
+            </div>
+          )}
           {a.screen_path && (
             <button
               onClick={(e) => { e.stopPropagation(); onOpen() }}
               className="text-xs px-3 py-1.5 bg-brand-blue/15 hover:bg-brand-blue/25 border border-brand-blue/40 text-brand-blue rounded-md font-medium"
             >
-              Open {a.screen_path} →
+              Preview {a.screen_path} →
             </button>
           )}
         </div>
@@ -579,3 +707,4 @@ function AssignmentRow({ assignment: a, onChangeStatus, onOpen }) {
     </>
   )
 }
+

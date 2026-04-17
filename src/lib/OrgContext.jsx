@@ -133,8 +133,11 @@ export function OrgProvider({ children }) {
   const hasFeature = useCallback((key) => {
     // Super admins viewing their own org see everything
     if (isAdmin && !isImpersonating) return true;
+    // Testers (NDA'd 1099 contractors) need to exercise every hub — treat them
+    // like admins for nav visibility when not impersonating. RLS still gates data.
+    if (profile?.role === 'tester' && !isImpersonating) return true;
     return features.has(key);
-  }, [features, isAdmin, isImpersonating]);
+  }, [features, isAdmin, isImpersonating, profile?.role]);
 
   const value = useMemo(() => ({
     currentOrg,
