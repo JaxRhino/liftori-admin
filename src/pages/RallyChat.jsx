@@ -140,6 +140,7 @@ export const Chat = () => {
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [mentionSearchText, setMentionSearchText] = useState('');
+  const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
 
   // AI Summary
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
@@ -748,18 +749,26 @@ export const Chat = () => {
     // Check if @ was just typed
     const lastAtIndex = text.lastIndexOf('@');
     if (lastAtIndex !== -1) {
+      // Only trigger if @ is at start OR preceded by whitespace (avoids email addresses etc.)
+      const charBeforeAt = lastAtIndex === 0 ? ' ' : text[lastAtIndex - 1];
+      if (!/\s/.test(charBeforeAt)) {
+        setShowMentionSuggestions(false);
+        return;
+      }
+
       const textAfterAt = text.substring(lastAtIndex + 1);
       const spaceIndex = textAfterAt.indexOf(' ');
-      
-      if (spaceIndex === -1 || spaceIndex > textAfterAt.length) {
-        // Still typing mention
+
+      if (spaceIndex === -1) {
+        // Still typing mention — no space yet after @
         setMentionSearchText(textAfterAt);
-        const filtered = users.filter(u => 
+        const filtered = users.filter(u =>
           u.name.toLowerCase().includes(textAfterAt.toLowerCase()) ||
           u.username.toLowerCase().includes(textAfterAt.toLowerCase())
-        ).slice(0, 5);
+        ).slice(0, 8);
         setMentionSuggestions(filtered);
-        setShowMentionSuggestions(true);
+        setMentionSelectedIndex(0);
+        setShowMentionSuggestions(filtered.length > 0);
       } else {
         setShowMentionSuggestions(false);
       }
@@ -771,12 +780,38 @@ export const Chat = () => {
   const insertMention = (user) => {
     const lastAtIndex = newMessage.lastIndexOf('@');
     const beforeMention = newMessage.substring(0, lastAtIndex);
-    const afterMention = newMessage.substring(lastAtIndex);
-    const textAfterAt = afterMention.substring(1);
-    
+
     const newText = beforeMention + `@${user.username} `;
     setNewMessage(newText);
     setShowMentionSuggestions(false);
+    setMentionSelectedIndex(0);
+  };
+
+  const handleMentionKeyDown = (e) => {
+    if (!showMentionSuggestions || mentionSuggestions.length === 0) return false;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setMentionSelectedIndex(i => (i + 1) % mentionSuggestions.length);
+      return true;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setMentionSelectedIndex(i => (i - 1 + mentionSuggestions.length) % mentionSuggestions.length);
+      return true;
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      const picked = mentionSuggestions[mentionSelectedIndex] || mentionSuggestions[0];
+      if (picked) insertMention(picked);
+      return true;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setShowMentionSuggestions(false);
+      return true;
+    }
+    return false;
   };
 
   // Mark chat notifications as read when viewing channel
@@ -1635,13 +1670,20 @@ export const Chat = () => {
                 <div className="border-t p-4 bg-card flex-shrink-0">
                   {/* Mention Suggestions */}
                   {showMentionSuggestions && mentionSuggestions.length > 0 && (
-                    <div className="absolute bottom-full left-4 right-4 mb-2 bg-popover border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {mentionSuggestions.map((u) => (
+                    <div className="absolute bottom-full left-4 right-4 mb-2 bg-popover border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50">
+                      <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground border-b bg-muted/40">
+                        People {mentionSearchText ? `matching "${mentionSearchText}"` : ''}
+                      </div>
+                      {mentionSuggestions.map((u, idx) => (
                     <button
                       key={u.id}
                       type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => insertMention(u)}
-                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent transition-colors text-left"
+                      onMouseEnter={() => setMentionSelectedIndex(idx)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 transition-colors text-left ${
+                        idx === mentionSelectedIndex ? 'bg-accent' : 'hover:bg-accent/60'
+                      }`}
                     >
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="text-xs bg-primary text-primary-foreground">
@@ -1650,7 +1692,7 @@ export const Chat = () => {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{u.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">@{u.username}</div>
+                        <div className="text-xs text-muted-foreground truncate">@{u.username}{u.role ? ` · ${u.role}` : ''}</div>
                       </div>
                     </button>
                   ))}
@@ -1665,6 +1707,8 @@ export const Chat = () => {
                   className="pr-24 resize-none"
                   rows={1}
                   onKeyDown={(e) => {
+                    // Mention dropdown captures keys first
+                    if (handleMentionKeyDown(e)) return;
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       handleSendMessage(e);

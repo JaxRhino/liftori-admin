@@ -182,7 +182,7 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
       if (memberIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, email, role')
+          .select('id, full_name, first_name, last_name, email, role, title, avatar_url')
           .in('id', memberIds);
         profileMembers = profiles || [];
       }
@@ -485,19 +485,23 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
 
                   <h5 className="font-medium mb-2">Members</h5>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {channelDetails.members.map((member) => (
+                    {channelDetails.members.map((member) => {
+                      const firstLast = [member.first_name, member.last_name].filter(Boolean).join(' ').trim();
+                      const displayName = member.full_name || firstLast || member.email || 'Unknown user';
+                      const initial = (displayName[0] || '?').toUpperCase();
+                      return (
                       <div key={member.id} className="flex items-center justify-between p-2 rounded hover:bg-muted">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
                             <AvatarFallback className="text-xs">
-                              {member.first_name?.charAt(0) || member.email?.charAt(0) || '?'}
+                              {initial}
                             </AvatarFallback>
                           </Avatar>
                           <div>
                             <p className="text-sm font-medium">
-                              {member.first_name} {member.last_name}
+                              {displayName}
                             </p>
-                            <p className="text-xs text-muted-foreground">{member.role}</p>
+                            <p className="text-xs text-muted-foreground">{member.title || member.role}</p>
                           </div>
                         </div>
                         <Button
@@ -509,7 +513,8 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
                           <UserMinus className="h-4 w-4" />
                         </Button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

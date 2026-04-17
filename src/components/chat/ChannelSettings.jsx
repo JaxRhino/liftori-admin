@@ -61,7 +61,7 @@ const ChannelSettings = ({ channel, isOpen, onClose, onUpdate, currentUser, user
       if (memberIds.length > 0) {
         const { data: profiles, error: profileError } = await supabase
           .from('profiles')
-          .select('id, full_name, email, role')
+          .select('id, full_name, first_name, last_name, email, role, title, avatar_url')
           .in('id', memberIds);
 
         if (profileError) throw profileError;
@@ -413,9 +413,11 @@ const ChannelSettings = ({ channel, isOpen, onClose, onUpdate, currentUser, user
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {members.map((member) => {
                 const memberId = member.id || member;
-                const memberName = member.first_name 
-                  ? `${member.first_name} ${member.last_name}` 
-                  : memberId;
+                const firstLast = [member.first_name, member.last_name].filter(Boolean).join(' ').trim();
+                const memberName = member.full_name
+                  || (firstLast || null)
+                  || member.email
+                  || 'Unknown user';
                 const isCurrentUser = memberId === currentUser?.id;
                 const presence = member.presence?.status || 'offline';
                 

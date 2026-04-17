@@ -492,24 +492,44 @@ export async function createOrGetDM(currentUserId, otherUserId) {
 
 // ─── Users ───────────────────────────────────────────────────
 
+// Roles considered "Liftori team" for chat + mentions.
+// Keep in sync with handle_new_team_member() Postgres trigger.
+export const TEAM_ROLES = [
+  'admin',
+  'super_admin',
+  'sales_director',
+  'sales_rep',
+  'call_agent',
+  'dev',
+  'project_manager',
+  'consultant',
+  'tester',
+]
+
 export async function fetchUsers() {
-  // Return team members (admin roles) — customers use a separate DM section
+  // Return all Liftori team members — customers/affiliates are excluded
+  // and surfaced in a separate DM section.
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role, title')
-    .in('role', ['admin', 'super_admin', 'sales_director', 'call_agent'])
+    .select('id, full_name, first_name, last_name, email, role, title, avatar_url')
+    .in('role', TEAM_ROLES)
     .order('full_name', { ascending: true })
 
   if (error) throw error
   return {
-    users: (data || []).map(u => ({
-      id: u.id,
-      name: u.full_name || u.email || 'Unknown',
-      username: (u.full_name || u.email || 'unknown').toLowerCase().replace(/\s+/g, '.'),
-      email: u.email,
-      role: u.role,
-      avatar: null
-    }))
+    users: (data || []).map(u => {
+      const firstLast = [u.first_name, u.last_name].filter(Boolean).join(' ').trim()
+      const name = u.full_name || firstLast || u.email || 'Unknown'
+      return {
+        id: u.id,
+        name,
+        username: name.toLowerCase().replace(/\s+/g, '.'),
+        email: u.email,
+        role: u.role,
+        title: u.title || null,
+        avatar: u.avatar_url || null,
+      }
+    })
   }
 }
 
