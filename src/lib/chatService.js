@@ -352,9 +352,10 @@ export async function fetchDirectMessages(userId, filterRole = null) {
       otherUser = profile
     }
 
-    // Filter by role if specified (e.g. 'admin' for team, 'customer' for customers)
-    const teamRoles = ['admin', 'super_admin', 'sales_director', 'call_agent']
-    if (filterRole === 'admin' && !teamRoles.includes(otherUser?.role)) continue
+    // Filter by role if specified (e.g. 'admin' for team, 'customer' for customers).
+    // Use canonical TEAM_ROLES (declared below) so tester/dev/PM/consultant DMs
+    // show up in Team Messages instead of being silently dropped.
+    if (filterRole === 'admin' && !TEAM_ROLES.includes(otherUser?.role)) continue
     else if (filterRole && filterRole !== 'admin' && otherUser?.role !== filterRole) continue
 
     // Get last message
