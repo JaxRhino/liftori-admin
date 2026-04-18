@@ -75,6 +75,43 @@ export default function ConsultingClients() {
   const [selectedStage, setSelectedStage] = useState(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [creatingDraft, setCreatingDraft] = useState(false);
+
+  /**
+   * Create a minimal draft engagement record and navigate straight into the
+   * 7-step ConsultingOnboardingWizard. The wizard's Step 1 (basics) collects
+   * client_name / company_name / client_email — no need to ask twice.
+   */
+  async function startNewClientWizard() {
+    if (creatingDraft) return;
+    setCreatingDraft(true);
+    try {
+      const { data: inserted, error } = await supabase
+        .from('consulting_engagements')
+        .insert({
+          client_name: 'New Client',
+          company_name: 'Untitled',
+          engagement_tier: 'discovery',
+          engagement_stage: 'lead',
+          consultant_id: user?.id || null,
+          health_score: 5,
+          onboarding_step: 1,
+          onboarding_completed: false,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      if (inserted?.id) {
+        navigate(`/admin/consulting/onboard/${inserted.id}`);
+      }
+    } catch (err) {
+      console.error('Draft engagement create failed:', err);
+      toast.error(err?.message || 'Could not start onboarding wizard');
+    } finally {
+      setCreatingDraft(false);
+    }
+  }
 
   // Form state
   const [form, setForm] = useState({
@@ -259,11 +296,12 @@ export default function ConsultingClients() {
           <p className="text-sm text-gray-400 mt-1">Manage active consulting engagements across the pipeline</p>
         </div>
         <button
-          onClick={() => setShowNewDialog(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition"
+          onClick={startNewClientWizard}
+          disabled={creatingDraft}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />
-          New Client
+          {creatingDraft ? 'Starting…' : 'New Client'}
         </button>
       </div>
 
@@ -421,243 +459,6 @@ export default function ConsultingClients() {
         </table>
       </div>
 
-      {/* New Client Dialog */}
-      {showNewDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 px-6 py-4 border-b border-slate-700 bg-slate-900">
-              <h2 className="text-lg font-bold">New Consulting Client</h2>
-              <p className="text-sm text-gray-400 mt-1">Create a new consulting engagement</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Client Name */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Client Name *</label>
-                <input
-                  type="text"
-                  value={form.client_name}
-                  onChange={e => setForm(prev => ({ ...prev, client_name: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                  placeholder="e.g., Jane Smith"
-                />
-              </div>
-
-              {/* Client Email */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Client Email *</label>
-                <input
-                  type="email"
-                  value={form.client_email}
-                  onChange={e => setForm(prev => ({ ...prev, client_email: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                  placeholder="jane@company.com"
-                />
-              </div>
-
-              {/* Client Phone */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Client Phone</label>
-                <input
-                  type="tel"
-                  value={form.client_phone}
-                  onChange={e => setForm(prev => ({ ...prev, client_phone: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                  placeholder="+1 (555) 000-0000"
-                />
-              </div>
-
-              {/* Company Name */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Company Name *</label>
-                <input
-                  type="text"
-                  value={form.company_name}
-                  onChange={e => setForm(prev => ({ ...prev, company_name: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                  placeholder="e.g., Acme Corp"
-                />
-              </div>
-
-              {/* Industry */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Industry</label>
-                <input
-                  type="text"
-                  value={form.industry}
-                  onChange={e => setForm(prev => ({ ...prev, industry: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                  placeholder="e.g., SaaS"
-                />
-              </div>
-
-              {/* Engagement Tier */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Engagement Tier</label>
-                <select
-                  value={form.engagement_tier}
-                  onChange={e => setForm(prev => ({ ...prev, engagement_tier: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                >
-                  <option value="discovery">Discovery Call</option>
-                  <option value="audit">Business Audit</option>
-                  <option value="weekly_advisory">Weekly Advisory</option>
-                  <option value="annual_contract">Annual Contract</option>
-                </select>
-              </div>
-
-              {/* Lead Source */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Lead Source</label>
-                <select
-                  value={form.lead_source}
-                  onChange={e => setForm(prev => ({ ...prev, lead_source: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                >
-                  <option value="">— Select source —</option>
-                  {LEAD_SOURCES.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Engagement Stage */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Starting Stage</label>
-                <select
-                  value={form.engagement_stage}
-                  onChange={e => setForm(prev => ({ ...prev, engagement_stage: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                >
-                  {PIPELINE_STAGES.map(stage => (
-                    <option key={stage.id} value={stage.id}>{stage.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Team Assignments */}
-              <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-700/60 bg-slate-800/30 p-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Consultant</label>
-                  <TeamMemberSelect
-                    value={form.consultant_id}
-                    onChange={(uuid) => setForm(prev => ({ ...prev, consultant_id: uuid || '' }))}
-                    placeholder="Pick consultant"
-                  />
-                  <p className="text-[11px] text-gray-500 mt-1">Team member delivering the engagement.</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Selling Team Member</label>
-                  <TeamMemberSelect
-                    value={form.sales_rep_id}
-                    onChange={(uuid) => setForm(prev => ({ ...prev, sales_rep_id: uuid || '' }))}
-                    placeholder="Pick sales rep"
-                  />
-                  <p className="text-[11px] text-gray-500 mt-1">Rep credited with the sale (commission attaches here).</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Discovery Call Team Member</label>
-                  <TeamMemberSelect
-                    value={form.discovery_rep_id}
-                    onChange={(uuid) => setForm(prev => ({ ...prev, discovery_rep_id: uuid || '' }))}
-                    placeholder="Pick discovery rep"
-                  />
-                  <p className="text-[11px] text-gray-500 mt-1">Who ran the discovery call (may differ from closer).</p>
-                </div>
-              </div>
-
-              {/* Contract Value */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Contract Value</label>
-                <input
-                  type="number"
-                  value={form.contract_value}
-                  onChange={e => setForm(prev => ({ ...prev, contract_value: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                  placeholder="0.00"
-                  step="0.01"
-                />
-              </div>
-
-              {/* Weekly Meeting Day */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Weekly Meeting Day</label>
-                <select
-                  value={form.weekly_meeting_day}
-                  onChange={e => setForm(prev => ({ ...prev, weekly_meeting_day: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                >
-                  {DAYS_OF_WEEK.map((day, idx) => (
-                    <option key={idx} value={idx}>{day}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Weekly Meeting Time */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Weekly Meeting Time</label>
-                <input
-                  type="time"
-                  value={form.weekly_meeting_time}
-                  onChange={e => setForm(prev => ({ ...prev, weekly_meeting_time: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              {/* Health Score */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Initial Health Score (1-10)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={form.health_score}
-                  onChange={e => setForm(prev => ({ ...prev, health_score: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Notes</label>
-                <textarea
-                  value={form.notes}
-                  onChange={e => setForm(prev => ({ ...prev, notes: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500 min-h-[80px]"
-                  placeholder="Any additional notes..."
-                />
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowNewDialog(false)}
-                  className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm font-semibold text-gray-300 hover:text-white transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition disabled:opacity-50"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-3 h-3 animate-spin inline mr-2" />
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Client'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
