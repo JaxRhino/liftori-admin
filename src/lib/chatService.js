@@ -122,12 +122,63 @@ export async function fetchMessages(channelId) {
     }
   }
 
-  const messages = (data || []).map(m => ({
-    ...m,
-    reactions: reactionsMap[m.id] || []
-  }))
+  // Enrich with sender profile info (avatar_url, full_name, role, title)
+  // so historical messages render the same way as freshly-sent ones.
+  const senderIds = Array.from(new Set((data || []).map(m => m.sender_id).filter(Boolean)))
+  let profileMap = {}
+  if (senderIds.length > 0) {
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, role, avatar_url, title')
+      .in('id', senderIds)
+    if (profs) {
+      profileMap = profs.reduce((acc, p) => {
+        acc[p.id] = p
+        return acc
+      }, {})
+    }
+  }
+
+  const messages = (data || []).map(m => {
+    const p = m.sender_id ? profileMap[m.sender_id] : null
+    return {
+      ...m,
+      // Don't clobber values the message row may already carry; fall back to profile.
+      sender_name: m.sender_name || p?.full_name || p?.email || 'Unknown',
+      sender_avatar_url: m.sender_avatar_url || p?.avatar_url || null,
+      sender_role: m.sender_role || p?.role || null,
+      sender_title: m.sender_title || p?.title || null,
+      reactions: reactionsMap[m.id] || []
+    }
+  })
 
   return { messages }
+}
+
+// Enrich a single raw chat_messages row with sender profile info.
+// Used by realtime subscription handlers so incoming messages render with
+// avatar / name / role / title — not just initials.
+export async function enrichMessageWithProfile(msg) {
+  if (!msg?.sender_id) return msg
+  // If already enriched, no-op.
+  if (msg.sender_avatar_url || msg.sender_name) return msg
+  try {
+    const { data: p } = await supabase
+      .from('profiles')
+      .select('full_name, email, role, avatar_url, title')
+      .eq('id', msg.sender_id)
+      .maybeSingle()
+    if (!p) return msg
+    return {
+      ...msg,
+      sender_name: msg.sender_name || p.full_name || p.email || 'Unknown',
+      sender_avatar_url: msg.sender_avatar_url || p.avatar_url || null,
+      sender_role: msg.sender_role || p.role || null,
+      sender_title: msg.sender_title || p.title || null,
+    }
+  } catch {
+    return msg
+  }
 }
 
 export async function sendMessage(channelId, { content, attachments = [], thread_id = null }, user) {

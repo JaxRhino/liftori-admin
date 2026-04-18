@@ -298,21 +298,24 @@ export const Chat = () => {
     const msgSub = chatSvc.subscribeToChannel(
       selectedChannel.id,
       // onNewMessage
-      (newMsg) => {
+      async (newMsg) => {
+        // Enrich with profile info (avatar_url, name, role, title) so the
+        // main chat panel renders the sender's actual profile pic, not just initials.
+        const enriched = await chatSvc.enrichMessageWithProfile(newMsg);
         setMessages(prev => {
           // Dedup: already in list by ID
-          if (prev.some(m => m.id === newMsg.id)) return prev;
+          if (prev.some(m => m.id === enriched.id)) return prev;
           // Check if this is our own message arriving via realtime — replace the optimistic version
-          const pendingIdx = prev.findIndex(m => m.pending && m.sender_id === newMsg.sender_id);
+          const pendingIdx = prev.findIndex(m => m.pending && m.sender_id === enriched.sender_id);
           if (pendingIdx !== -1) {
             const updated = [...prev];
-            updated[pendingIdx] = { ...newMsg, reactions: [] };
+            updated[pendingIdx] = { ...enriched, reactions: [] };
             return updated;
           }
-          return [...prev, { ...newMsg, reactions: [] }];
+          return [...prev, { ...enriched, reactions: [] }];
         });
         // Keep last_read_at current while viewing this channel — prevents unread badges from coming back
-        if (newMsg.sender_id !== user?.id) {
+        if (enriched.sender_id !== user?.id) {
           chatSvc.markNotificationsRead(selectedChannel.id, user?.id).catch(() => {});
         }
       },
@@ -1321,13 +1324,13 @@ export const Chat = () => {
           <div className="border-t p-3">
             <div className="flex items-center gap-2">
               <div className="relative flex-shrink-0">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                    {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <PresenceIndicator 
-                  status={userStatus?.status || 'online'} 
+                <UserAvatar
+                  name={profile?.full_name || user?.email}
+                  avatarUrl={profile?.avatar_url}
+                  size="sm"
+                />
+                <PresenceIndicator
+                  status={userStatus?.status || 'online'}
                   size="xs"
                   className="absolute -bottom-0.5 -right-0.5"
                 />
@@ -1767,11 +1770,7 @@ export const Chat = () => {
                           : 'bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs bg-sky-500 text-white">
-                          {u.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar name={u.name} avatarUrl={u.avatar_url} size="xs" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{u.name}</div>
                         <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{u.roleLabel || ''}{u.title ? ` · ${u.title}` : ''}</div>
@@ -2113,11 +2112,7 @@ export const Chat = () => {
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {readReceipts.map((receipt) => (
                   <div key={receipt.user_id} className="flex items-center gap-3 p-2 rounded hover:bg-accent">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                        {receipt.name.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar name={receipt.name} avatarUrl={receipt.avatar_url} size="sm" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{receipt.name}</div>
                       <div className="text-xs text-muted-foreground">
