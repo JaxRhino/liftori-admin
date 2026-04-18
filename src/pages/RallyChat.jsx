@@ -1003,7 +1003,15 @@ export const Chat = () => {
   const getChannelIcon = (type) => {
     if (type === 'private') return <Lock className="h-4 w-4" />;
     if (type === 'direct') return <MessageSquare className="h-4 w-4" />;
-    return <Hash className="h-4 w-4" />;
+    // Public channels: small filled bullet, no '#' prefix.
+    return <span className="inline-block h-1.5 w-1.5 rounded-full bg-current opacity-60" aria-hidden="true" />;
+  };
+
+  // Capitalize first letter of channel name for display (strips leading '#' if present).
+  const formatChannelName = (name) => {
+    if (!name) return '';
+    const trimmed = name.replace(/^#+/, '');
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
   };
 
   const filteredChannels = channels.filter(c => 
@@ -1095,7 +1103,7 @@ export const Chat = () => {
                         }`}
                       >
                         {getChannelIcon(channel.type)}
-                        <span className="flex-1 text-left truncate">{channel.name}</span>
+                        <span className="flex-1 text-left truncate">{formatChannelName(channel.name)}</span>
                         <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                       </button>
                     ))}
@@ -1129,7 +1137,7 @@ export const Chat = () => {
                       } ${userPreferences.muted_channels?.includes(channel.id) ? 'opacity-50' : ''}`}
                     >
                       {getChannelIcon(channel.type)}
-                      <span className="flex-1 text-left truncate">{channel.name}</span>
+                      <span className="flex-1 text-left truncate">{formatChannelName(channel.name)}</span>
                       {userPreferences.muted_channels?.includes(channel.id) && (
                         <Bell className="h-3 w-3 line-through" />
                       )}
@@ -1338,7 +1346,7 @@ export const Chat = () => {
                           // Last resort - never show the dm-xxx ID
                           return 'Direct Message';
                         })()
-                      : selectedChannel.name
+                      : formatChannelName(selectedChannel.name)
                     }
                   </h2>
                   {selectedChannel.type !== 'direct' && selectedChannel.description && (
@@ -1405,7 +1413,7 @@ export const Chat = () => {
                   <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No messages yet</h3>
                   <p className="text-sm text-muted-foreground">
-                    Be the first to start the conversation in #{selectedChannel.name}
+                    Be the first to start the conversation in {formatChannelName(selectedChannel.name)}
                   </p>
                 </div>
               ) : (
@@ -1480,8 +1488,12 @@ export const Chat = () => {
                           </div>
                         ) : (
                           <>
-                            {/* Message content with formatting */}
-                            <div className={`text-sm whitespace-pre-wrap break-words ${item.message.pending ? 'opacity-60' : ''}`}>
+                            {/* Message content with formatting — bubble wrapper */}
+                            <div className={`inline-block max-w-[78%] px-3 py-2 rounded-2xl shadow-sm text-sm whitespace-pre-wrap break-words ${
+                              item.message.sender_id === user?.id
+                                ? 'bg-sky-500 text-white rounded-br-md'
+                                : 'bg-emerald-500 text-white rounded-bl-md'
+                            } ${item.message.pending ? 'opacity-60' : ''}`}>
                               {item.message.content.split(/(\*\*.*?\*\*|__.*?__|@\w+)/g).map((part, idx) => {
                                 if (part.startsWith('**') && part.endsWith('**')) {
                                   return <strong key={idx}>{part.slice(2, -2)}</strong>;
@@ -1489,7 +1501,7 @@ export const Chat = () => {
                                   return <em key={idx}>{part.slice(2, -2)}</em>;
                                 } else if (part.startsWith('@')) {
                                   return (
-                                    <span key={idx} className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1 rounded font-medium">
+                                    <span key={idx} className="bg-white/25 text-white px-1 rounded font-semibold">
                                       {part}
                                     </span>
                                   );
