@@ -14,7 +14,12 @@ import {
   FileText,
   AlertCircle,
   Loader,
+  Building2,
+  Users2,
+  Globe,
+  Target,
 } from 'lucide-react';
+import { CompanyTab, OrgChartTab, WebSeoTab, EosTab } from '../components/consulting/ConsultingClientTabs';
 
 const STAGES = [
   { id: 'lead', label: 'Lead', color: 'bg-blue-900/30 text-blue-300' },
@@ -321,6 +326,10 @@ export default function ConsultingClientDetail() {
         <div className="flex border-b border-slate-700/50">
           {[
             { id: 'overview', label: 'Overview' },
+            { id: 'company', label: 'Company' },
+            { id: 'org', label: 'Org Chart' },
+            { id: 'web', label: 'Web & SEO' },
+            { id: 'eos', label: 'EOS' },
             { id: 'audit', label: 'Audit' },
             { id: 'plan', label: 'Plan' },
             { id: 'progress', label: 'Progress' },
@@ -491,6 +500,26 @@ export default function ConsultingClientDetail() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Company Tab */}
+          {activeTab === 'company' && (
+            <CompanyTab engagement={engagement} onUpdate={loadData} />
+          )}
+
+          {/* Org Chart Tab */}
+          {activeTab === 'org' && (
+            <OrgChartTab engagement={engagement} />
+          )}
+
+          {/* Web & SEO Tab */}
+          {activeTab === 'web' && (
+            <WebSeoTab engagement={engagement} onUpdate={loadData} />
+          )}
+
+          {/* EOS Tab */}
+          {activeTab === 'eos' && (
+            <EosTab engagement={engagement} onUpdate={loadData} />
           )}
 
           {/* Audit Tab */}
