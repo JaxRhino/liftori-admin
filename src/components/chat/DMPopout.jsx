@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Minus, Video, Send } from 'lucide-react'
+import { X, Minus, Video, Send, Paperclip, Smile, File as FileIcon, Download } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/AuthContext'
 import { usePopoutChat } from '../../contexts/PopoutChatContext'
 import { useVideoCallContext } from '../../contexts/VideoCallContext'
 import * as chatSvc from '../../lib/chatService'
 import TypingIndicator from './TypingIndicator'
+import EmojiPicker from './EmojiPicker'
+import { playSendSwoosh } from '../../lib/chatSounds'
 
 /**
  * Messenger-style DM pop-out window.
@@ -15,6 +17,8 @@ import TypingIndicator from './TypingIndicator'
  * - Subscribes to new messages + typing presence for this channel.
  * - Sends messages on Enter; Shift+Enter inserts a newline.
  * - Video call button hands off to VideoCallContext.startCall().
+ * - Supports file/image uploads (multiple) + emoji picker.
+ * - Renders avatars on every message (mine + theirs) and inline attachments.
  */
 export default function DMPopout({ entry, offsetIndex }) {
   const { channel, channelId, minimized } = entry
@@ -27,11 +31,14 @@ export default function DMPopout({ entry, offsetIndex }) {
   const [sending, setSending] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [typingUsers, setTypingUsers] = useState([])
+  const [uploadingFiles, setUploadingFiles] = useState(false)
 
   const scrollRef = useRef(null)
   const typingChannelRef = useRef(null)
   const typingDebounceRef = useRef(null)
   const myselfTypingRef = useRef(false)
+  const fileInputRef = useRef(null)
+  const textareaRef = useRef(null)
 
   const otherUserName =
     channel?.other_user_name ||
@@ -142,19 +149,19 @@ export default function DMPopout({ entry, offsetIndex }) {
     if (!text || sending || !channelId) return
     setSending(true)
     setDraft('')
+    // Swoosh on send (synchronous — survives optimistic failures too)
+    playSendSwoosh()
     try {
       const saved = await chatSvc.sendMessage(channelId, { content: text }, user)
       if (saved) {
         setMessages(prev => prev.some(m => m.id === saved.id) ? prev : [...prev, saved])
       }
-      // Clear my own typing state
       if (myselfTypingRef.current) {
         myselfTypingRef.current = false
         broadcastTyping(false)
       }
     } catch (err) {
       console.error('DMPopout send failed:', err)
-      // Restore the draft so user doesn't lose their text
       setDraft(text)
     } finally {
       setSending(false)
@@ -175,6 +182,62 @@ export default function DMPopout({ entry, offsetIndex }) {
     } catch (err) {
       console.error('Failed to start video call:', err)
     }
+  }
+
+  const handleFileSelect = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files || [])
+    if (!files.length || !channelId) {
+      e.target.value = ''
+      return
+    }
+
+    const oversized = files.filter(f => f.size > 10 * 1024 * 1024)
+    if (oversized.length > 0) {
+      // eslint-disable-next-line no-alert
+      alert(`These files are over 10MB and won't upload:\n${oversized.map(f => f.name).join('\n')}`)
+    }
+    const accepted = files.filter(f => f.size <= 10 * 1024 * 1024)
+    if (!accepted.length) {
+      e.target.value = ''
+      return
+    }
+
+    setUploadingFiles(true)
+    try {
+      const attachments = await Promise.all(
+        accepted.map(f => chatSvc.uploadFile(f, user.id))
+      )
+
+      const content = accepted.length === 1
+        ? `Shared ${attachments[0].file_type}: ${attachments[0].filename}`
+        : `Shared ${accepted.length} files`
+
+      const saved = await chatSvc.sendMessage(
+        channelId,
+        { content, attachments },
+        user,
+      )
+      if (saved) {
+        setMessages(prev => prev.some(m => m.id === saved.id) ? prev : [...prev, saved])
+        playSendSwoosh()
+      }
+    } catch (err) {
+      console.error('DMPopout file upload failed:', err)
+      // eslint-disable-next-line no-alert
+      alert('File upload failed. Please try again.')
+    } finally {
+      setUploadingFiles(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleEmojiSelect = (emoji) => {
+    setDraft(prev => prev + emoji)
+    setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
   // Stagger pop-outs across the right edge: 320px wide each + 12px gap.
@@ -202,8 +265,12 @@ export default function DMPopout({ entry, offsetIndex }) {
         className="flex items-center justify-between w-full px-3 py-2 bg-slate-900 text-white hover:bg-slate-800 transition-colors text-left"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-            {(otherUserName || '?').charAt(0).toUpperCase()}
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden">
+            {channel?.other_user?.avatar_url ? (
+              <img src={channel.other_user.avatar_url} alt={otherUserName} className="w-full h-full object-cover" />
+            ) : (
+              (otherUserName || '?').charAt(0).toUpperCase()
+            )}
           </div>
           <span className="text-sm font-medium truncate">{otherUserName}</span>
         </div>
@@ -248,7 +315,7 @@ export default function DMPopout({ entry, offsetIndex }) {
         <>
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto px-3 py-2 bg-slate-950 space-y-1.5"
+            className="flex-1 overflow-y-auto px-3 py-2 bg-slate-950 space-y-2"
           >
             {!loaded && (
               <div className="text-xs text-slate-500 text-center py-4">Loading...</div>
@@ -260,20 +327,104 @@ export default function DMPopout({ entry, offsetIndex }) {
             )}
             {messages.map((m) => {
               const isMine = m.sender_id === user?.id
+              const avatarUrl = isMine
+                ? (profile?.avatar_url || m.sender_avatar_url || null)
+                : (m.sender_avatar_url || channel?.other_user?.avatar_url || null)
+              const displayName = isMine
+                ? (profile?.full_name || user?.email || 'Me')
+                : (m.sender_name || otherUserName)
+              const initial = (displayName || '?').charAt(0).toUpperCase()
+              const attachments = Array.isArray(m.attachments) ? m.attachments : []
+              const hasContent = !!(m.content && String(m.content).trim().length > 0)
+
               return (
                 <div
                   key={m.id}
-                  className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+                  className={`flex items-end gap-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div
-                    className={`max-w-[78%] px-3 py-1.5 rounded-2xl text-sm break-words ${
-                      isMine
-                        ? 'bg-sky-500 text-white rounded-br-sm'
-                        : 'bg-emerald-500 text-white rounded-bl-sm'
-                    }`}
-                  >
-                    {m.content}
+                  {!isMine && (
+                    avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={displayName}
+                        className="w-6 h-6 rounded-full object-cover flex-shrink-0 border border-slate-700"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white text-[10px] font-semibold flex items-center justify-center flex-shrink-0">
+                        {initial}
+                      </div>
+                    )
+                  )}
+
+                  <div className={`flex flex-col gap-1 max-w-[78%] ${isMine ? 'items-end' : 'items-start'}`}>
+                    {hasContent && (
+                      <div
+                        className={`px-3 py-1.5 rounded-2xl text-sm break-words whitespace-pre-wrap ${
+                          isMine
+                            ? 'bg-sky-500 text-white rounded-br-sm'
+                            : 'bg-emerald-500 text-white rounded-bl-sm'
+                        }`}
+                      >
+                        {m.content}
+                      </div>
+                    )}
+
+                    {attachments.length > 0 && (
+                      <div className="flex flex-col gap-1 w-full">
+                        {attachments.map((att, idx) => (
+                          <div
+                            key={`${m.id}-att-${idx}`}
+                            className="rounded-lg overflow-hidden border border-slate-700 bg-slate-800 max-w-[260px]"
+                          >
+                            {att.file_type === 'image' ? (
+                              <img
+                                src={att.url}
+                                alt={att.filename}
+                                className="w-full h-auto max-h-64 object-cover cursor-pointer"
+                                onClick={() => window.open(att.url, '_blank', 'noopener')}
+                              />
+                            ) : (
+                              <div className="flex items-center gap-2 p-2">
+                                <FileIcon className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-white truncate">{att.filename}</p>
+                                  {typeof att.size === 'number' && (
+                                    <p className="text-[10px] text-slate-400">
+                                      {(att.size / 1024).toFixed(1)} KB
+                                    </p>
+                                  )}
+                                </div>
+                                <a
+                                  href={att.url}
+                                  download={att.filename}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white"
+                                  title="Download"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
+
+                  {isMine && (
+                    avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={displayName}
+                        className="w-6 h-6 rounded-full object-cover flex-shrink-0 border border-slate-700"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 text-white text-[10px] font-semibold flex items-center justify-center flex-shrink-0">
+                        {initial}
+                      </div>
+                    )
+                  )}
                 </div>
               )
             })}
@@ -286,9 +437,51 @@ export default function DMPopout({ entry, offsetIndex }) {
 
           <form
             onSubmit={handleSend}
-            className="flex items-end gap-1.5 px-2 py-2 border-t border-slate-700 bg-slate-900"
+            className="flex items-end gap-1 px-2 py-2 border-t border-slate-700 bg-slate-900"
           >
+            {/* Hidden file input — supports multiple selection */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileUpload}
+              accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip"
+            />
+
+            {/* Upload button */}
+            <button
+              type="button"
+              onClick={handleFileSelect}
+              disabled={uploadingFiles}
+              title="Attach files or images"
+              aria-label="Attach files"
+              className="p-2 rounded-full text-slate-300 hover:text-sky-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+            >
+              {uploadingFiles ? (
+                <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+              ) : (
+                <Paperclip className="w-4 h-4" />
+              )}
+            </button>
+
+            {/* Emoji picker */}
+            <EmojiPicker
+              onSelect={handleEmojiSelect}
+              trigger={
+                <button
+                  type="button"
+                  title="Add emoji"
+                  aria-label="Add emoji"
+                  className="p-2 rounded-full text-slate-300 hover:text-sky-300 hover:bg-slate-800 transition-colors flex-shrink-0"
+                >
+                  <Smile className="w-4 h-4" />
+                </button>
+              }
+            />
+
             <textarea
+              ref={textareaRef}
               value={draft}
               onChange={handleDraftChange}
               onKeyDown={handleKeyDown}

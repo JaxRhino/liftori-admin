@@ -24,17 +24,56 @@ export default function NotificationBell() {
   }, [user])
 
   // Play notification sound
-  const playAlert = useCallback((isRally = false) => {
+  // kind: 'chat' = loud triple-whistle (same pattern as IncomingCallModal);
+  //       'rally' = urgent double-chime; default = single soft chime.
+  const playAlert = useCallback((kind = 'default') => {
+    // Respect the same mute flag used for the incoming-call ring.
+    const muted = (typeof localStorage !== 'undefined') && localStorage.getItem('liftori_ring_muted') === '1'
+    if (muted) return
+
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      // Chrome/Safari may suspend the context until a user gesture — resume it.
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {})
+      }
+
+      if (kind === 'chat') {
+        // Triple-whistle pattern: three quick upward glides, loud.
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start()
+
+        const scheduleWhistle = (t) => {
+          const dur = 0.18
+          osc.frequency.cancelScheduledValues(t)
+          osc.frequency.setValueAtTime(660, t)
+          osc.frequency.exponentialRampToValueAtTime(1320, t + dur)
+          gain.gain.cancelScheduledValues(t)
+          gain.gain.setValueAtTime(0.0001, t)
+          gain.gain.exponentialRampToValueAtTime(0.45, t + 0.02)
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+          gain.gain.setValueAtTime(0, t + dur + 0.001)
+        }
+
+        const t0 = ctx.currentTime + 0.02
+        scheduleWhistle(t0)
+        scheduleWhistle(t0 + 0.28)
+        scheduleWhistle(t0 + 0.56)
+        osc.stop(t0 + 0.9)
+        return
+      }
+
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.connect(gain)
       gain.connect(ctx.destination)
       gain.gain.value = 0.3
 
-      if (isRally) {
-        // Urgent double-chime for Rally calls
+      if (kind === 'rally') {
         osc.frequency.value = 880
         osc.type = 'sine'
         osc.start(ctx.currentTime)
@@ -46,7 +85,6 @@ export default function NotificationBell() {
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7)
         osc.stop(ctx.currentTime + 0.7)
       } else {
-        // Single soft chime for regular notifications
         osc.frequency.value = 660
         osc.type = 'sine'
         osc.start(ctx.currentTime)
@@ -55,6 +93,7 @@ export default function NotificationBell() {
       }
     } catch (e) { /* audio context not available */ }
   }, [])
+
 
   // Real-time subscription for new notifications
   useEffect(() => {
@@ -71,11 +110,14 @@ export default function NotificationBell() {
         setNotifications(prev => [notif, ...prev])
         setUnreadCount(prev => prev + 1)
 
-        // Check if this is a Rally notification
+        // Categorize: chat/DM messages get the loud triple-whistle.
         const isRally = notif.title?.toLowerCase().includes('rally') || notif.link?.includes('rally')
+        const isChat = notif.type === 'message' || notif.link?.includes('/chat') || notif.title?.toLowerCase().includes('new message')
 
-        // Play sound
-        playAlert(isRally)
+        // Play sound — chat wins over default; rally wins over both.
+        const soundKind = isRally ? 'rally' : (isChat ? 'chat' : 'default')
+        playAlert(soundKind)
+
 
         // Show toast and auto-trigger incoming call modal
         if (isRally) {

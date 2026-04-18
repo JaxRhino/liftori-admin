@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '../components/ui/badge';
 import MessageActions from '../components/chat/MessageActions';
 import EmojiPicker from '../components/chat/EmojiPicker';
+import { playSendSwoosh } from '../lib/chatSounds';
 import ThreadPanel from '../components/chat/ThreadPanel';
 import DateDivider from '../components/chat/DateDivider';
 import ChannelSettings from '../components/chat/ChannelSettings';
@@ -407,6 +408,8 @@ export const Chat = () => {
     const messageContent = newMessage;
     setMessages(prev => [...prev, optimisticMessage]);
     setNewMessage('');
+    // Swoosh on send
+    playSendSwoosh();
 
     try {
       const savedMsg = await chatSvc.sendMessage(selectedChannel.id, {
