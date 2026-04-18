@@ -30,11 +30,13 @@ import {
   sessionsToCSV,
   downloadCSV,
   reapIdle,
+  resetAllPulseData,
 } from '../lib/pulseService'
 import SessionEditor from '../components/SessionEditor'
 import {
   Activity, Clock, Calendar, Trophy, Crown, Flame, Sparkles,
   ChevronRight, Plus, Download, RefreshCw, Users, TrendingUp,
+  Edit3, UserPlus, AlertOctagon,
 } from 'lucide-react'
 
 const TABS = [
@@ -45,6 +47,7 @@ const TABS = [
 
 export default function Pulse() {
   const { user } = useAuth()
+  const isFounder = isFounderEmail(user?.email)
   const [tab, setTab] = useState('live')
   const [loading, setLoading] = useState(true)
   const [liveNow, setLiveNow] = useState([])
@@ -54,8 +57,10 @@ export default function Pulse() {
   const [, setTick] = useState(0)
 
   const [editorOpen, setEditorOpen] = useState(false)
-  const [editorSession, setEditorSession] = useState(null)   // session row or null for new offline entry
-  const [editorMode, setEditorMode] = useState('offline')    // 'offline' | 'edit'
+  const [editorSession, setEditorSession] = useState(null)   // session row or null
+  const [editorMode, setEditorMode] = useState('offline')    // 'offline' | 'edit' | 'add_for_user'
+  const [editorTargetUser, setEditorTargetUser] = useState(null)
+  const [editorDefaultDate, setEditorDefaultDate] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -104,13 +109,45 @@ export default function Pulse() {
   function openOfflineEditor() {
     setEditorMode('offline')
     setEditorSession(null)
+    setEditorTargetUser(null)
+    setEditorDefaultDate(null)
     setEditorOpen(true)
   }
 
   function openEditExisting(sess) {
     setEditorMode('edit')
     setEditorSession(sess)
+    setEditorTargetUser(null)
+    setEditorDefaultDate(null)
     setEditorOpen(true)
+  }
+
+  function openAddForUser(targetUser, date = null) {
+    setEditorMode('add_for_user')
+    setEditorSession(null)
+    setEditorTargetUser(targetUser)
+    setEditorDefaultDate(date)
+    setEditorOpen(true)
+  }
+
+  async function handleResetAll() {
+    if (!isFounder) return
+    const ok = window.confirm(
+      'RESET all Pulse data?\n\n' +
+      'This wipes every work_session and audit row.\n' +
+      'Your own session from today will be preserved.\n\n' +
+      'This cannot be undone. Continue?'
+    )
+    if (!ok) return
+    const reason = window.prompt('Reason for reset (audit log):', 'Manual data reset')
+    if (!reason || reason.trim().length < 3) return
+    try {
+      const deleted = await resetAllPulseData({ preserve_today: true, reason })
+      await load()
+      alert(`Pulse data reset. Deleted ${deleted} session(s). Your today session preserved.`)
+    } catch (err) {
+      alert('Reset failed: ' + err.message)
+    }
   }
 
   async function handleReap() {
@@ -164,6 +201,16 @@ export default function Pulse() {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
+          {isFounder && (
+            <button
+              onClick={handleResetAll}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:bg-rose-500/25 text-xs font-semibold"
+              title="Founder only — wipe Pulse data (preserves your today session)"
+            >
+              <AlertOctagon className="w-4 h-4" />
+              Reset Pulse
+            </button>
+          )}
         </div>
       </div>
 
@@ -199,14 +246,40 @@ export default function Pulse() {
 
       {/* Tab content */}
       {tab === 'live'    && <LiveNow rows={liveNow} loading={loading} />}
-      {tab === 'week'    && <WeeklyLeaderboard rows={weekly} byUser={weekByUser} loading={loading} onEdit={openEditExisting} currentUserId={user?.id} />}
-      {tab === 'allTime' && <AllTimeLeaderboard rows={allTime} loading={loading} onReap={handleReap} />}
+      {tab === 'week'    && (
+        <WeeklyLeaderboard
+          rows={weekly}
+          byUser={weekByUser}
+          loading={loading}
+          onEdit={openEditExisting}
+          onAddForUser={openAddForUser}
+          currentUserId={user?.id}
+          isFounder={isFounder}
+        />
+      )}
+      {tab === 'allTime' && (
+        <AllTimeLeaderboard
+          rows={allTime}
+          loading={loading}
+          onReap={handleReap}
+          onAddForUser={openAddForUser}
+          isFounder={isFounder}
+        />
+      )}
 
       {editorOpen && (
         <SessionEditor
           mode={editorMode}
           session={editorSession}
-          onClose={() => { setEditorOpen(false); setEditorSession(null); load() }}
+          targetUser={editorTargetUser}
+          defaultDate={editorDefaultDate}
+          onClose={() => {
+            setEditorOpen(false)
+            setEditorSession(null)
+            setEditorTargetUser(null)
+            setEditorDefaultDate(null)
+            load()
+          }}
         />
       )}
     </div>
@@ -297,8 +370,18 @@ function LiveCard({ row }) {
 // ═══════════════════════════════════════════════════════════════════════
 // WEEKLY
 // ═══════════════════════════════════════════════════════════════════════
-function WeeklyLeaderboard({ rows, byUser, loading, onEdit, currentUserId }) {
+function WeeklyLeaderboard({ rows, byUser, loading, onEdit, onAddForUser, currentUserId, isFounder }) {
   const [expanded, setExpanded] = useState(null)
+
+  // Compute start-of-week (Monday) so day cells can be converted to dates.
+  const weekStart = (() => {
+    const d = new Date()
+    const day = d.getDay() // 0 = Sun
+    const diff = (day === 0 ? -6 : 1 - day)
+    d.setDate(d.getDate() + diff)
+    d.setHours(0, 0, 0, 0)
+    return d
+  })()
 
   if (loading && !rows.length) {
     return <div className="py-12 text-center text-gray-500 text-sm">Loading…</div>
@@ -358,24 +441,46 @@ function WeeklyLeaderboard({ rows, byUser, loading, onEdit, currentUserId }) {
                   {DAY_LABELS.map((label, i) => {
                     const sec = days[i] || 0
                     const hPct = (sec / dayMax) * 100
+                    const dayDate = new Date(weekStart.getTime() + i * 86400000)
+                    const dayClickable = isFounder
                     return (
                       <div key={label} className="text-center">
-                        <div className="h-12 flex items-end justify-center">
+                        <button
+                          type="button"
+                          onClick={dayClickable
+                            ? () => onAddForUser({ id: r.user_id, full_name: r.full_name, email: r.email }, dayDate.toISOString())
+                            : undefined}
+                          disabled={!dayClickable}
+                          className={`h-12 w-full flex items-end justify-center ${dayClickable ? 'hover:bg-amber-500/10 rounded cursor-pointer' : ''}`}
+                          title={dayClickable
+                            ? `Add session for ${r.full_name || r.email} on ${dayDate.toLocaleDateString()}`
+                            : `${label}: ${formatDuration(sec)}`}
+                        >
                           <div
                             className="w-full rounded-t bg-emerald-500/40 hover:bg-emerald-500/70 transition-colors"
                             style={{ height: `${Math.max(hPct, sec > 0 ? 6 : 0)}%` }}
-                            title={`${label}: ${formatDuration(sec)}`}
                           />
-                        </div>
+                        </button>
                         <p className="text-[9px] text-gray-500 mt-1 uppercase tracking-wider">{label}</p>
                         <p className="text-[10px] text-gray-400 font-semibold">{formatHours(sec)}</p>
                       </div>
                     )
                   })}
                 </div>
-                {isMe && (
+                {isFounder && (
+                  <div className="mt-3 flex items-center justify-end">
+                    <button
+                      onClick={() => onAddForUser({ id: r.user_id, full_name: r.full_name, email: r.email }, null)}
+                      className="text-[11px] text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 px-2 py-1 rounded flex items-center gap-1"
+                    >
+                      <UserPlus className="w-3 h-3" />
+                      Add session for {r.full_name?.split(' ')[0] || 'user'}
+                    </button>
+                  </div>
+                )}
+                {(isMe || isFounder) && (
                   <div className="mt-3 pt-3 border-t border-navy-700/50">
-                    <SessionRowsForUser userId={r.user_id} onEdit={onEdit} />
+                    <SessionRowsForUser userId={r.user_id} userName={r.full_name || r.email} onEdit={onEdit} isFounder={isFounder} />
                   </div>
                 )}
               </div>
@@ -387,7 +492,7 @@ function WeeklyLeaderboard({ rows, byUser, loading, onEdit, currentUserId }) {
   )
 }
 
-function SessionRowsForUser({ userId, onEdit }) {
+function SessionRowsForUser({ userId, userName, onEdit, isFounder }) {
   const [sessions, setSessions] = useState(null)
   useEffect(() => {
     let cancelled = false
@@ -407,7 +512,9 @@ function SessionRowsForUser({ userId, onEdit }) {
 
   return (
     <div className="space-y-1">
-      <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Your recent sessions</p>
+      <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">
+        {userName ? `${userName}'s recent sessions` : 'Recent sessions'}
+      </p>
       {sessions.slice(0, 5).map((s) => (
         <div
           key={s.id}
@@ -424,6 +531,7 @@ function SessionRowsForUser({ userId, onEdit }) {
             <span className="text-[9px] uppercase text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">Offline</span>
           )}
           <span className="tabular-nums text-white font-semibold">{formatDuration(s.duration_seconds || 0)}</span>
+          {isFounder && <Edit3 className="w-3 h-3 text-amber-400/70" />}
         </div>
       ))}
     </div>
@@ -433,7 +541,7 @@ function SessionRowsForUser({ userId, onEdit }) {
 // ═══════════════════════════════════════════════════════════════════════
 // ALL TIME
 // ═══════════════════════════════════════════════════════════════════════
-function AllTimeLeaderboard({ rows, loading, onReap }) {
+function AllTimeLeaderboard({ rows, loading, onReap, onAddForUser, isFounder }) {
   if (loading && !rows.length) {
     return <div className="py-12 text-center text-gray-500 text-sm">Loading…</div>
   }
@@ -485,6 +593,15 @@ function AllTimeLeaderboard({ rows, loading, onReap }) {
                 <p className="text-lg font-bold text-white tabular-nums">{formatHours(r.ttd_seconds || 0)}</p>
                 <p className="text-[10px] text-gray-500">TTD</p>
               </div>
+              {isFounder && (
+                <button
+                  onClick={() => onAddForUser({ id: r.user_id, full_name: r.full_name, email: r.email }, null)}
+                  className="flex-shrink-0 p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
+                  title={`Add a retroactive session for ${r.full_name || r.email}`}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           )
         })}

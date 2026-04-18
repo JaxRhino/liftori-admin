@@ -169,6 +169,31 @@ export async function editSession({ session_id, started_at, ended_at, reason }) 
   return data
 }
 
+/** Founder-only. Add a retroactive session on behalf of a team member. Reason required. */
+export async function addSessionForUser({ user_id, started_at, ended_at, reason }) {
+  if (!user_id) throw new Error('user_id required')
+  if (!started_at || !ended_at) throw new Error('Start and end required')
+  if (!reason || reason.trim().length < 3) throw new Error('Reason required')
+  const { data, error } = await supabase.rpc('add_session_for_user', {
+    p_user_id:    user_id,
+    p_started_at: new Date(started_at).toISOString(),
+    p_ended_at:   new Date(ended_at).toISOString(),
+    p_reason:     reason.trim(),
+  })
+  if (error) throw error
+  return data
+}
+
+/** Founder-only. Nuke all work_sessions (optionally preserving caller's today). */
+export async function resetAllPulseData({ preserve_today = true, reason = 'manual reset' } = {}) {
+  const { data, error } = await supabase.rpc('reset_all_pulse_data', {
+    p_preserve_today: !!preserve_today,
+    p_reason: reason,
+  })
+  if (error) throw error
+  return data
+}
+
 /** Founder-only. Hard-delete a session. Reason required. */
 export async function deleteSessionAdmin({ session_id, reason }) {
   if (!session_id) throw new Error('session_id required')

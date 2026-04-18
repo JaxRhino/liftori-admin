@@ -1,9 +1,13 @@
 /**
  * SessionEditor — modal for adding/editing Pulse work sessions.
  *
- * Two modes:
- *   mode="offline"  — any user logs work done outside the platform (notes required)
- *   mode="edit"     — founder-only edit of an existing session (reason required)
+ * Modes:
+ *   mode="offline"        — any user logs offline work for themselves (notes required)
+ *   mode="edit"           — founder-only edit of an existing session (reason required)
+ *   mode="add_for_user"   — founder-only: log a retroactive session for a team member
+ *
+ * `targetUser` prop ({ id, full_name, email }) is required in add_for_user mode.
+ * If a founder passes targetUser in "offline" mode, it auto-upgrades to add_for_user.
  *
  * All changes are logged to pulse_adjustments by the RPCs, so the audit trail
  * is automatic. The modal never writes to work_sessions directly.
@@ -12,6 +16,7 @@ import { useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import {
   addOfflineSession,
+  addSessionForUser,
   editSession,
   deleteSessionAdmin,
   deleteMyOfflineSession,
@@ -19,28 +24,48 @@ import {
   isFounderEmail,
   formatDuration,
 } from '../lib/pulseService'
-import { X, Save, Trash2, AlertTriangle, Plus } from 'lucide-react'
+import { X, Save, Trash2, AlertTriangle, Plus, User } from 'lucide-react'
 
-export default function SessionEditor({ mode = 'offline', session, onClose }) {
+export default function SessionEditor({ mode = 'offline', session, targetUser, defaultDate, onClose }) {
   const { user } = useAuth()
   const isFounder = isFounderEmail(user?.email)
-  const isEdit = mode === 'edit' && session
+
+  // If a founder is adding offline time for someone else, treat it as add_for_user.
+  const effectiveMode =
+    (mode === 'offline' && targetUser && targetUser.id !== user?.id && isFounder)
+      ? 'add_for_user'
+      : mode
+
+  const isEdit = effectiveMode === 'edit' && session
+  const isAddForUser = effectiveMode === 'add_for_user'
   const isOwnSession = session && session.user_id === user?.id
   const canEdit = isEdit && (isFounder || (isOwnSession && session.is_offline))
 
-  // Seed values
-  const [startedAt, setStartedAt] = useState(
-    isEdit ? toLocalInputValue(session.started_at) : toLocalInputValue(new Date().toISOString())
-  )
-  const [endedAt, setEndedAt] = useState(
-    isEdit && session.ended_at ? toLocalInputValue(session.ended_at) : toLocalInputValue(new Date().toISOString())
-  )
+  // Seed times — if founder is adding for a day, default to 09:00–17:00 on that date
+  const seedStart = (() => {
+    if (isEdit) return toLocalInputValue(session.started_at)
+    if (isAddForUser && defaultDate) {
+      const d = new Date(defaultDate); d.setHours(9, 0, 0, 0)
+      return toLocalInputValue(d.toISOString())
+    }
+    return toLocalInputValue(new Date().toISOString())
+  })()
+  const seedEnd = (() => {
+    if (isEdit && session.ended_at) return toLocalInputValue(session.ended_at)
+    if (isAddForUser && defaultDate) {
+      const d = new Date(defaultDate); d.setHours(17, 0, 0, 0)
+      return toLocalInputValue(d.toISOString())
+    }
+    return toLocalInputValue(new Date().toISOString())
+  })()
+
+  const [startedAt, setStartedAt] = useState(seedStart)
+  const [endedAt, setEndedAt] = useState(seedEnd)
   const [notes, setNotes] = useState(isEdit ? (session.notes || '') : '')
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
-  // Compute delta for preview
   const previewSeconds = (() => {
     try {
       const s = new Date(startedAt).getTime()
@@ -48,6 +73,8 @@ export default function SessionEditor({ mode = 'offline', session, onClose }) {
       return Math.max(0, Math.floor((e - s) / 1000))
     } catch (_) { return 0 }
   })()
+
+  const maxHours = isAddForUser ? 24 : 12
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -59,8 +86,8 @@ export default function SessionEditor({ mode = 'offline', session, onClose }) {
         setError('End time must be after start time.')
         return
       }
-      if (previewSeconds > 12 * 3600) {
-        setError('Sessions cannot exceed 12 hours. Split into multiple entries.')
+      if (previewSeconds > maxHours * 3600) {
+        setError(`Sessions cannot exceed ${maxHours} hours.`)
         return
       }
 
@@ -74,6 +101,23 @@ export default function SessionEditor({ mode = 'offline', session, onClose }) {
         }
         await editSession({
           session_id: session.id,
+          started_at: startedAt,
+          ended_at: endedAt,
+          reason,
+        })
+      } else if (isAddForUser) {
+        if (!targetUser?.id) {
+          setError('Target user missing.')
+          setBusy(false)
+          return
+        }
+        if (!reason || reason.trim().length < 3) {
+          setError('Reason (min 3 chars) is required when adding on behalf of a user.')
+          setBusy(false)
+          return
+        }
+        await addSessionForUser({
+          user_id: targetUser.id,
           started_at: startedAt,
           ended_at: endedAt,
           reason,
@@ -130,8 +174,12 @@ export default function SessionEditor({ mode = 'offline', session, onClose }) {
     }
   }
 
-  const title = isEdit ? 'Edit Session' : 'Log Offline Work'
-  const Icon = isEdit ? Save : Plus
+  const title = isEdit
+    ? 'Edit Session'
+    : isAddForUser
+      ? `Add Session for ${targetUser?.full_name || targetUser?.email || 'user'}`
+      : 'Log Offline Work'
+  const Icon = isEdit ? Save : (isAddForUser ? User : Plus)
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -164,6 +212,17 @@ export default function SessionEditor({ mode = 'offline', session, onClose }) {
                   <span className="text-white">{session.ended_reason}</span>
                 </p>
               )}
+            </div>
+          )}
+
+          {isAddForUser && targetUser && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/40 text-xs text-amber-200 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div>
+                You are logging retroactive work on behalf of{' '}
+                <span className="font-semibold">{targetUser.full_name || targetUser.email}</span>.
+                This will appear in their leaderboard totals and is logged to the Pulse audit trail.
+              </div>
             </div>
           )}
 
@@ -203,12 +262,12 @@ export default function SessionEditor({ mode = 'offline', session, onClose }) {
 
           <div className="text-[11px] text-gray-500">
             Duration: <span className="text-emerald-300 font-semibold">{formatDuration(previewSeconds)}</span>
-            {previewSeconds > 12 * 3600 && (
-              <span className="ml-2 text-rose-400">— over 12h max</span>
+            {previewSeconds > maxHours * 3600 && (
+              <span className="ml-2 text-rose-400">— over {maxHours}h max</span>
             )}
           </div>
 
-          {!isEdit && (
+          {!isEdit && !isAddForUser && (
             <div>
               <label className="text-[11px] uppercase tracking-widest text-gray-500 font-semibold">Notes (what did you do?)</label>
               <textarea
@@ -222,19 +281,23 @@ export default function SessionEditor({ mode = 'offline', session, onClose }) {
             </div>
           )}
 
-          {isEdit && canEdit && (
+          {(isEdit && canEdit) || isAddForUser ? (
             <div>
-              <label className="text-[11px] uppercase tracking-widest text-gray-500 font-semibold">Reason for edit (audit log)</label>
+              <label className="text-[11px] uppercase tracking-widest text-gray-500 font-semibold">
+                {isAddForUser ? 'Reason / note (audit log)' : 'Reason for edit (audit log)'}
+              </label>
               <input
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g. wrong time zone, corrected end time"
+                placeholder={isAddForUser
+                  ? 'e.g. backfilled tester hours from pre-Pulse logs'
+                  : 'e.g. wrong time zone, corrected end time'}
                 className="w-full mt-1 p-2 rounded-lg bg-navy-800 border border-navy-700 text-sm text-white focus:border-emerald-500 focus:outline-none"
                 required
               />
             </div>
-          )}
+          ) : null}
 
           {error && (
             <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/40 text-xs text-rose-300 flex items-start gap-2">
