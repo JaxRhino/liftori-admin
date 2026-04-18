@@ -15,6 +15,19 @@ import {
   Activity
 } from 'lucide-react';
 import { toast } from 'sonner';
+import TeamMemberSelect from '../components/TeamMemberSelect';
+
+const LEAD_SOURCES = [
+  { value: 'inbound_web', label: 'Inbound (Website)' },
+  { value: 'referral', label: 'Referral' },
+  { value: 'outbound', label: 'Outbound' },
+  { value: 'affiliate', label: 'Affiliate' },
+  { value: 'event', label: 'Event / Conference' },
+  { value: 'partner', label: 'Partner' },
+  { value: 'cold_call', label: 'Cold Call' },
+  { value: 'social', label: 'Social Media' },
+  { value: 'other', label: 'Other' },
+];
 
 const PIPELINE_STAGES = [
   { id: 'lead', label: 'Lead', color: 'blue' },
@@ -70,9 +83,12 @@ export default function ConsultingClients() {
     client_phone: '',
     company_name: '',
     industry: '',
-    engagement_type: 'discovery',
+    engagement_tier: 'discovery',
     engagement_stage: 'lead',
     consultant_id: user?.id || '',
+    sales_rep_id: '',
+    discovery_rep_id: '',
+    lead_source: '',
     contract_value: '',
     weekly_meeting_day: '1',
     weekly_meeting_time: '10:00',
@@ -118,9 +134,12 @@ export default function ConsultingClients() {
         client_phone: form.client_phone || null,
         company_name: form.company_name,
         industry: form.industry || null,
-        engagement_type: form.engagement_type,
+        engagement_tier: form.engagement_tier,
         engagement_stage: form.engagement_stage,
-        consultant_id: form.consultant_id,
+        consultant_id: form.consultant_id || null,
+        sales_rep_id: form.sales_rep_id || null,
+        discovery_rep_id: form.discovery_rep_id || null,
+        lead_source: form.lead_source || null,
         contract_value: form.contract_value ? parseFloat(form.contract_value) : null,
         weekly_meeting_day: form.weekly_meeting_day,
         weekly_meeting_time: form.weekly_meeting_time,
@@ -139,9 +158,12 @@ export default function ConsultingClients() {
         client_phone: '',
         company_name: '',
         industry: '',
-        engagement_type: 'discovery',
+        engagement_tier: 'discovery',
         engagement_stage: 'lead',
         consultant_id: user?.id || '',
+        sales_rep_id: '',
+        discovery_rep_id: '',
+        lead_source: '',
         contract_value: '',
         weekly_meeting_day: '1',
         weekly_meeting_time: '10:00',
@@ -347,9 +369,9 @@ export default function ConsultingClients() {
                     </div>
                   </td>
 
-                  {/* Engagement Type */}
+                  {/* Engagement Tier */}
                   <td className="px-4 py-3">
-                    <p className="text-sm text-gray-300">{ENGAGEMENT_TYPES[client.engagement_type] || client.engagement_type}</p>
+                    <p className="text-sm text-gray-300">{ENGAGEMENT_TYPES[client.engagement_tier] || client.engagement_tier || '—'}</p>
                   </td>
 
                   {/* Consultant */}
@@ -463,18 +485,33 @@ export default function ConsultingClients() {
                 />
               </div>
 
-              {/* Engagement Type */}
+              {/* Engagement Tier */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Engagement Type</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Engagement Tier</label>
                 <select
-                  value={form.engagement_type}
-                  onChange={e => setForm(prev => ({ ...prev, engagement_type: e.target.value }))}
+                  value={form.engagement_tier}
+                  onChange={e => setForm(prev => ({ ...prev, engagement_tier: e.target.value }))}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
                 >
                   <option value="discovery">Discovery Call</option>
                   <option value="audit">Business Audit</option>
                   <option value="weekly_advisory">Weekly Advisory</option>
                   <option value="annual_contract">Annual Contract</option>
+                </select>
+              </div>
+
+              {/* Lead Source */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Lead Source</label>
+                <select
+                  value={form.lead_source}
+                  onChange={e => setForm(prev => ({ ...prev, lead_source: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
+                >
+                  <option value="">— Select source —</option>
+                  {LEAD_SOURCES.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
                 </select>
               </div>
 
@@ -492,16 +529,37 @@ export default function ConsultingClients() {
                 </select>
               </div>
 
-              {/* Consultant Assignment */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Consultant</label>
-                <input
-                  type="text"
-                  value={form.consultant_id}
-                  onChange={e => setForm(prev => ({ ...prev, consultant_id: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
-                  placeholder="Consultant ID or name"
-                />
+              {/* Team Assignments */}
+              <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-700/60 bg-slate-800/30 p-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Consultant</label>
+                  <TeamMemberSelect
+                    value={form.consultant_id}
+                    onChange={(uuid) => setForm(prev => ({ ...prev, consultant_id: uuid || '' }))}
+                    placeholder="Pick consultant"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">Team member delivering the engagement.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Selling Team Member</label>
+                  <TeamMemberSelect
+                    value={form.sales_rep_id}
+                    onChange={(uuid) => setForm(prev => ({ ...prev, sales_rep_id: uuid || '' }))}
+                    placeholder="Pick sales rep"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">Rep credited with the sale (commission attaches here).</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Discovery Call Team Member</label>
+                  <TeamMemberSelect
+                    value={form.discovery_rep_id}
+                    onChange={(uuid) => setForm(prev => ({ ...prev, discovery_rep_id: uuid || '' }))}
+                    placeholder="Pick discovery rep"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">Who ran the discovery call (may differ from closer).</p>
+                </div>
               </div>
 
               {/* Contract Value */}
