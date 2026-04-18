@@ -83,7 +83,7 @@ export async function sendCallReminderEmail({ to, leadName, joinUrl, consultantN
         <div style="background-color:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:12px;padding:16px;margin:0 0 24px;">
           <div style="text-align:center;">
             <div style="color:#a78bfa;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Video Call</div>
-            <div style="color:white;font-size:15px;">Powered by Liftori Rally</div>
+            <div style="color:white;font-size:15px;">Powered by Liftori Video Chat</div>
           </div>
         </div>
       </div>

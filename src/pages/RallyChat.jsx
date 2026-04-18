@@ -62,13 +62,16 @@ import {
   Video,
   Briefcase,
   User,
-  Zap
+  Zap,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import * as chatSvc from '../lib/chatService';
+import { usePopoutChat } from '../contexts/PopoutChatContext';
 
 export const Chat = () => {
   const { user, profile, token } = useAuth();
+  const { openPopout } = usePopoutChat();
   const { sidebarOpen } = useOutletContext() || {};
   const [searchParams, setSearchParams] = useSearchParams();
   const onlineUsers = usePresence();
@@ -1165,32 +1168,46 @@ export const Chat = () => {
                     // Ensure the dm object has other_user_name when selected
                     const enrichedDM = { ...dm, other_user_name: userName, is_prime_channel: isPrimeChannel };
                     return (
-                      <button
+                      <div
                         key={dm.id}
-                        onClick={() => setSelectedChannel(enrichedDM)}
-                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${
+                        className={`group w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${
                           selectedChannel?.id === dm.id
                             ? 'bg-primary/10 text-primary font-medium'
                             : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                         }`}
                       >
-                        <div className="relative">
-                          <Avatar className="h-5 w-5">
-                            <AvatarFallback className={`text-xs ${isPrimeChannel ? 'bg-purple-500 text-white' : 'bg-primary text-primary-foreground'}`}>
-                              {userName.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          {!isPrimeChannel && dm.other_user_id && onlineUsers.has(dm.other_user_id) && (
-                            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#060B18]" title="Online" />
+                        <button
+                          type="button"
+                          onClick={() => setSelectedChannel(enrichedDM)}
+                          className="flex-1 flex items-center gap-2 min-w-0 text-left"
+                        >
+                          <div className="relative">
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className={`text-xs ${isPrimeChannel ? 'bg-purple-500 text-white' : 'bg-primary text-primary-foreground'}`}>
+                                {userName.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            {!isPrimeChannel && dm.other_user_id && onlineUsers.has(dm.other_user_id) && (
+                              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#060B18]" title="Online" />
+                            )}
+                          </div>
+                          <span className="flex-1 text-left truncate">{userName}</span>
+                          {dm.unread_count > 0 && (
+                            <Badge variant="destructive" className="h-5 px-1.5 text-xs">
+                              {dm.unread_count}
+                            </Badge>
                           )}
-                        </div>
-                        <span className="flex-1 text-left truncate">{userName}</span>
-                        {dm.unread_count > 0 && (
-                          <Badge variant="destructive" className="h-5 px-1.5 text-xs">
-                            {dm.unread_count}
-                          </Badge>
-                        )}
-                      </button>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openPopout(enrichedDM); }}
+                          title="Pop out chat"
+                          aria-label="Pop out chat"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-opacity flex-shrink-0"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     );
                   })
                 )}

@@ -96,7 +96,7 @@ export default function NotificationBell() {
               onClick: () => {
                 triggerRef.current(callIdMatch[1]);
               }
-            } : notif.link ? { label: 'Open Rally', onClick: () => { navigate(notif.link) } } : undefined,
+            } : notif.link ? { label: 'Open Video Chat', onClick: () => { navigate(notif.link) } } : undefined,
           })
         } else {
           toast(notif.title, {

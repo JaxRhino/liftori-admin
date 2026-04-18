@@ -43,7 +43,7 @@ export async function createCall({ channelId, callType = 'video', participants =
       .map(uid => ({
         user_id: uid,
         type: 'general',
-        title: 'Incoming Rally Call',
+        title: 'Incoming Video Call',
         body: `${profile?.full_name || 'Someone'} is calling you`,
         link: `/admin/chat?callId=${call.id}`,
       }))

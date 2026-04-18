@@ -186,7 +186,7 @@ export async function sendApprovalEmail(applicant) {
         <ul style="margin:0 0 16px;padding-left:20px;">
           <li style="margin-bottom:8px;">Access to our full AI-powered platform</li>
           <li style="margin-bottom:8px;">Your own team dashboard and tools</li>
-          <li style="margin-bottom:8px;">Rally chat — our internal communication hub</li>
+          <li style="margin-bottom:8px;">Team chat &amp; Video Chat — our internal communication hub</li>
           <li style="margin-bottom:8px;">Direct access to me (Sage) for anything you need</li>
         </ul>
         <p style="margin:0;">Let us build something amazing together.</p>

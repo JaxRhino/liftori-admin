@@ -10,6 +10,8 @@ import { isFounder } from '../lib/testerProgramService'
 import VideoCallRoom from './VideoCallRoom'
 import OnboardingWizard from './OnboardingWizard'
 import AnnouncementModal from './AnnouncementModal'
+import { PopoutChatProvider } from '../contexts/PopoutChatContext'
+import PopoutDock from './chat/PopoutDock'
 
 const freightNavItems = [
   {
@@ -72,7 +74,7 @@ const toolItems = [
     )
   },
   {
-    label: 'Rally', path: '/admin/rally', icon: (
+    label: 'Video Chat', path: '/admin/rally', icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
       </svg>
@@ -625,7 +627,7 @@ export default function AdminLayout() {
   }
 
   // Items that are Liftori-admin-only (never shown to customer tenants)
-  const ADMIN_ONLY_ITEMS = ['Super Admin', 'Support Tickets', 'Rally']
+  const ADMIN_ONLY_ITEMS = ['Super Admin', 'Support Tickets', 'Video Chat']
 
   // Founder-only nav items (Ryan + Mike via email allowlist)
   const founder = isFounder({ email: user?.email, personal_email: profile?.personal_email })
@@ -715,6 +717,7 @@ export default function AdminLayout() {
   }
 
   return (
+    <PopoutChatProvider>
     <div className="h-screen flex flex-col overflow-hidden">
       {/* User-level view-as banner — shows when a founder is impersonating a team member.
           Sits above everything (including the org-impersonation banner) so "Return to admin"
@@ -1315,7 +1318,11 @@ export default function AdminLayout() {
 
       {/* Platform-wide announcement modal — internal team only, founder-posted */}
       <AnnouncementModal />
+
+      {/* Messenger-style DM pop-outs — persist across all admin routes */}
+      <PopoutDock />
       </div>
     </div>
+    </PopoutChatProvider>
   )
 }

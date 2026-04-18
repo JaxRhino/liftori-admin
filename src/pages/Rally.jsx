@@ -165,7 +165,7 @@ export default function Rally({ embedded = false }) {
             </div>
           )}
           <div>
-            <h1 className={embedded ? "text-lg font-bold" : "text-2xl font-bold"}>Rally Video Calls</h1>
+            <h1 className={embedded ? "text-lg font-bold" : "text-2xl font-bold"}>Video Chat</h1>
             {!embedded && <p className="text-muted-foreground text-sm">Video calls and guest meeting links</p>}
           </div>
         </div>
@@ -192,7 +192,7 @@ export default function Rally({ embedded = false }) {
               <Link2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-2">No guest links yet</p>
               <p className="text-sm text-muted-foreground mb-4">
-                Create a link to invite external people to a Rally video call
+                Create a link to invite external people to a video call
               </p>
               <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />

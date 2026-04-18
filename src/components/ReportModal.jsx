@@ -19,7 +19,7 @@ const PRIORITY_LEVELS = [
 const PAGE_OPTIONS = [
   'Dashboard', 'Call Center', 'Lead Hunter', 'Customers', 'Projects', 'Pipeline',
   'Estimates', 'Agreements', 'Commissions', 'Waitlist', 'Platforms', 'Marketing',
-  'Chat', 'Rally', 'EOS', 'Finance', 'Operations', 'Team', 'Settings', 'Freight',
+  'Chat', 'Video Chat', 'EOS', 'Finance', 'Operations', 'Team', 'Settings', 'Freight',
   'Builds', 'Support Tickets', 'Other'
 ]
 

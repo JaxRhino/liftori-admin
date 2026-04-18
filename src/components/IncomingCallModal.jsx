@@ -41,38 +41,42 @@ export default function IncomingCallModal() {
 
     startMedia();
 
-    // Initialize Web Audio API for ringing
+    // Initialize Web Audio API for triple-whistle ring tone.
+    // Pattern: three quick upward glides ("fweet fweet fweet"), then 2s pause, repeat.
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-
+    osc.type = 'sine';
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    osc.frequency.value = 440;
     gain.gain.value = 0;
-
+    osc.frequency.value = 660;
     osc.start();
     oscillatorRef.current = osc;
 
-    // Ring pattern
-    let ringPhase = 0;
-    const interval = setInterval(() => {
-      const time = audioCtx.currentTime;
-      if (ringPhase === 0) {
-        gain.gain.setValueAtTime(0.3, time);
-        ringPhase = 1;
-      } else if (ringPhase === 1) {
-        gain.gain.setValueAtTime(0, time);
-        ringPhase = 2;
-      } else if (ringPhase === 2) {
-        gain.gain.setValueAtTime(0.3, time);
-        ringPhase = 3;
-      } else {
-        gain.gain.setValueAtTime(0, time);
-        ringPhase = 0;
-      }
-    }, 250);
+    // Schedule one whistle burst starting at time `t`.
+    // Upward glide 660 -> 1320 Hz over 180ms, gain envelope 0 -> 0.25 -> 0.
+    const scheduleWhistle = (t) => {
+      const dur = 0.18;
+      osc.frequency.cancelScheduledValues(t);
+      osc.frequency.setValueAtTime(660, t);
+      osc.frequency.exponentialRampToValueAtTime(1320, t + dur);
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.25, t + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      gain.gain.setValueAtTime(0, t + dur + 0.001);
+    };
+
+    // Play the triple-whistle pattern every 2.5s until the modal unmounts.
+    const playTriple = () => {
+      const t0 = audioCtx.currentTime + 0.02;
+      scheduleWhistle(t0);                // whistle 1
+      scheduleWhistle(t0 + 0.28);         // whistle 2
+      scheduleWhistle(t0 + 0.56);         // whistle 3
+    };
+    playTriple();
+    const interval = setInterval(playTriple, 2500);
 
     setRingingIntervalId(interval);
 
