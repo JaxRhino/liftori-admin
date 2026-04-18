@@ -1735,7 +1735,7 @@ export const Chat = () => {
                   value={newMessage}
                   onChange={handleTyping}
                   placeholder="Enter chat here"
-                  className="pr-24 resize-none"
+                  className="pr-24 resize-none border-2 border-sky-500/60 focus-visible:border-sky-400 focus-visible:ring-2 focus-visible:ring-sky-400/30 bg-slate-900/40 transition-colors"
                   rows={1}
                   onKeyDown={(e) => {
                     // Mention dropdown captures keys first

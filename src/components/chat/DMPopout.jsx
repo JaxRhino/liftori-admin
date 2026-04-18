@@ -185,7 +185,7 @@ export default function DMPopout({ entry, offsetIndex }) {
 
   return (
     <div
-      className="fixed bottom-0 z-50 bg-white rounded-t-lg shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
+      className="fixed bottom-0 z-50 bg-slate-900 rounded-t-lg shadow-2xl border border-slate-700 flex flex-col overflow-hidden"
       style={{
         right: `${right}px`,
         width: `${width}px`,
@@ -248,13 +248,13 @@ export default function DMPopout({ entry, offsetIndex }) {
         <>
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto px-3 py-2 bg-slate-50 space-y-1.5"
+            className="flex-1 overflow-y-auto px-3 py-2 bg-slate-950 space-y-1.5"
           >
             {!loaded && (
-              <div className="text-xs text-slate-400 text-center py-4">Loading...</div>
+              <div className="text-xs text-slate-500 text-center py-4">Loading...</div>
             )}
             {loaded && messages.length === 0 && (
-              <div className="text-xs text-slate-400 text-center py-4">
+              <div className="text-xs text-slate-500 text-center py-4">
                 No messages yet. Say hello.
               </div>
             )}
@@ -268,8 +268,8 @@ export default function DMPopout({ entry, offsetIndex }) {
                   <div
                     className={`max-w-[78%] px-3 py-1.5 rounded-2xl text-sm break-words ${
                       isMine
-                        ? 'bg-emerald-500 text-white rounded-br-sm'
-                        : 'bg-white text-slate-800 border border-slate-200 rounded-bl-sm'
+                        ? 'bg-sky-500 text-white rounded-br-sm'
+                        : 'bg-emerald-500 text-white rounded-bl-sm'
                     }`}
                   >
                     {m.content}
@@ -286,7 +286,7 @@ export default function DMPopout({ entry, offsetIndex }) {
 
           <form
             onSubmit={handleSend}
-            className="flex items-end gap-1.5 px-2 py-2 border-t border-slate-200 bg-white"
+            className="flex items-end gap-1.5 px-2 py-2 border-t border-slate-700 bg-slate-900"
           >
             <textarea
               value={draft}
@@ -294,13 +294,13 @@ export default function DMPopout({ entry, offsetIndex }) {
               onKeyDown={handleKeyDown}
               placeholder="Aa"
               rows={1}
-              className="flex-1 resize-none rounded-2xl border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-slate-50 max-h-24"
+              className="flex-1 resize-none rounded-2xl border border-slate-700 px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent bg-slate-800 max-h-24"
               style={{ minHeight: '32px' }}
             />
             <button
               type="submit"
               disabled={!draft.trim() || sending}
-              className="p-2 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              className="p-2 rounded-full bg-sky-500 text-white hover:bg-sky-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-colors flex-shrink-0"
               aria-label="Send"
             >
               <Send className="w-4 h-4" />
