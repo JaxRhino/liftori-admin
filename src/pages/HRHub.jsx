@@ -44,6 +44,16 @@ function ScoreStars({ value, max = 5 }) {
   );
 }
 
+// ─── Stat Tile (referral card) ───────────────────────────────
+function StatTile({ label, value, tone = 'text-white' }) {
+  return (
+    <div className="rounded-lg bg-navy-900/40 border border-white/10 px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-0.5">{label}</div>
+      <div className={`text-lg font-bold tabular-nums ${tone}`}>{value}</div>
+    </div>
+  );
+}
+
 // ─── AI Score Ring ───────────────────────────────────────────
 function AIScoreRing({ score }) {
   if (score == null) return null;
@@ -172,9 +182,20 @@ export default function HRHub() {
     }
   }
 
+  // Prefer the path-based /apply/<rep_handle> URL when the team member has
+  // claimed a handle (Wave 13) — it's stable, memorable, and shared with
+  // their /meet + /invest QRs. Fall back to the legacy /apply?ref=CODE
+  // path for anyone who hasn't claimed a handle yet.
+  function buildApplyUrl() {
+    const handle = profile?.rep_handle;
+    if (handle) return `${window.location.origin}/apply/${handle}`;
+    if (myReferral) return `${window.location.origin}/apply?ref=${myReferral.referral_code}`;
+    return null;
+  }
+
   function copyReferralLink() {
-    if (!myReferral) return;
-    const link = `${window.location.origin}/apply?ref=${myReferral.referral_code}`;
+    const link = buildApplyUrl();
+    if (!link) return;
     navigator.clipboard.writeText(link);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
@@ -628,36 +649,72 @@ export default function HRHub() {
       {/* ─── REFERRALS TAB ─────────────────────────────────────── */}
       {activeTab === 'referrals' && (
         <div className="space-y-6">
-          {/* My Referral Link */}
+          {/* My Hiring QR + Referral Link (Wave 15) */}
           <Card className="bg-navy-800/50 border-white/10 p-6">
-            <h3 className="text-lg font-semibold text-white mb-2">Your Referral Link</h3>
+            <div className="flex items-start justify-between gap-4 mb-2">
+              <h3 className="text-lg font-semibold text-white">Your Hiring QR</h3>
+              {profile?.rep_handle ? (
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-2 py-1">
+                  @{profile.rep_handle}
+                </span>
+              ) : null}
+            </div>
             <p className="text-sm text-gray-400 mb-4">
-              Share your unique link with potential hires. When someone you refer gets hired,
+              Share your unique link or QR with potential hires. When someone you refer gets hired,
               you earn <span className="text-sky-400 font-bold">5% bonus</span> on all sales they bring in during their first <span className="text-sky-400 font-bold">90 days</span>.
             </p>
-            {myReferral ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-navy-900/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-sky-400 font-mono truncate">
-                    {window.location.origin}/apply?ref={myReferral.referral_code}
-                  </div>
-                  <Button onClick={copyReferralLink} className={copiedLink ? 'bg-green-500' : 'bg-sky-500 hover:bg-sky-600'}>
-                    {copiedLink ? <><Check className="h-4 w-4 mr-1" /> Copied</> : 'Copy Link'}
+
+            {(() => {
+              const applyUrl = buildApplyUrl();
+              if (!applyUrl) {
+                return (
+                  <Button onClick={generateMyReferralLink} className="bg-sky-500 hover:bg-sky-600 gap-2">
+                    <ExternalLink className="h-4 w-4" />
+                    Generate My Referral Link
                   </Button>
+                );
+              }
+              const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(applyUrl)}`;
+              return (
+                <div className="flex flex-col md:flex-row gap-6 items-start">
+                  {/* QR image — printable / scannable */}
+                  <div className="shrink-0 bg-white rounded-lg p-3 border border-white/10">
+                    <img
+                      src={qrSrc}
+                      alt="Hiring referral QR code"
+                      width={220}
+                      height={220}
+                      className="block"
+                    />
+                  </div>
+
+                  {/* URL + stats */}
+                  <div className="flex-1 space-y-3 min-w-0 w-full">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-navy-900/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-sky-400 font-mono truncate">
+                        {applyUrl}
+                      </div>
+                      <Button onClick={copyReferralLink} className={copiedLink ? 'bg-green-500' : 'bg-sky-500 hover:bg-sky-600'}>
+                        {copiedLink ? <><Check className="h-4 w-4 mr-1" /> Copied</> : 'Copy Link'}
+                      </Button>
+                    </div>
+
+                    {!profile?.rep_handle ? (
+                      <p className="text-[11px] text-amber-300/80">
+                        Tip: claim a <span className="font-mono">rep_handle</span> in the mobile app's My QR screen to switch this to a cleaner /apply/@handle URL.
+                      </p>
+                    ) : null}
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+                      <StatTile label="Applicants" value={myReferral?.total_referrals ?? 0} tone="text-white" />
+                      <StatTile label="Hired" value={myReferral?.total_hired ?? 0} tone="text-green-400" />
+                      <StatTile label="Bonus" value={`${myReferral?.bonus_percent ?? 5}%`} tone="text-sky-400" />
+                      <StatTile label="Window" value={`${myReferral?.bonus_duration_days ?? 90}d`} tone="text-sky-400" />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex gap-6 text-sm">
-                  <div className="text-gray-400">Referrals: <span className="text-white font-medium">{myReferral.total_referrals}</span></div>
-                  <div className="text-gray-400">Hired: <span className="text-green-400 font-medium">{myReferral.total_hired}</span></div>
-                  <div className="text-gray-400">Bonus Rate: <span className="text-sky-400 font-medium">{myReferral.bonus_percent}%</span></div>
-                  <div className="text-gray-400">Window: <span className="text-sky-400 font-medium">{myReferral.bonus_duration_days} days</span></div>
-                </div>
-              </div>
-            ) : (
-              <Button onClick={generateMyReferralLink} className="bg-sky-500 hover:bg-sky-600 gap-2">
-                <ExternalLink className="h-4 w-4" />
-                Generate My Referral Link
-              </Button>
-            )}
+              );
+            })()}
           </Card>
 
           {/* How It Works */}
