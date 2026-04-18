@@ -85,7 +85,7 @@ export default function ConsultingClientDetail() {
     try {
       setLoading(true);
 
-      // Fetch engagement
+      // Fetch engagement — this is the only hard requirement.
       const { data: engData, error: engError } = await supabase
         .from('consulting_engagements')
         .select('*')
@@ -95,39 +95,52 @@ export default function ConsultingClientDetail() {
       if (engError) throw engError;
       setEngagement(engData);
 
-      // Fetch progress entries
-      const { data: progData, error: progError } = await supabase
-        .from('consulting_progress')
-        .select('*')
-        .eq('engagement_id', id)
-        .order('week_of', { ascending: false });
+      // Sub-queries run independently so one failure doesn't nuke the page.
+      // Progress entries
+      try {
+        const { data: progData, error: progError } = await supabase
+          .from('consulting_progress')
+          .select('*')
+          .eq('engagement_id', id)
+          .order('week_of', { ascending: false });
+        if (progError) throw progError;
+        setProgressEntries(progData || []);
+      } catch (subErr) {
+        console.warn('consulting_progress load failed:', subErr);
+        setProgressEntries([]);
+      }
 
-      if (progError) throw progError;
-      setProgressEntries(progData || []);
+      // L10 meetings (column is meeting_date, not date)
+      try {
+        const { data: l10Data, error: l10Error } = await supabase
+          .from('l10_meetings')
+          .select('*')
+          .eq('context_type', 'client')
+          .eq('context_id', id)
+          .order('meeting_date', { ascending: false });
+        if (l10Error) throw l10Error;
+        setL10Meetings(l10Data || []);
+      } catch (subErr) {
+        console.warn('l10_meetings load failed:', subErr);
+        setL10Meetings([]);
+      }
 
-      // Fetch L10 meetings
-      const { data: l10Data, error: l10Error } = await supabase
-        .from('l10_meetings')
-        .select('*')
-        .eq('context_type', 'client')
-        .eq('context_id', id)
-        .order('date', { ascending: false });
-
-      if (l10Error) throw l10Error;
-      setL10Meetings(l10Data || []);
-
-      // Fetch documents
-      const { data: docData, error: docError } = await supabase
-        .from('consulting_documents')
-        .select('*')
-        .eq('engagement_id', id)
-        .order('created_at', { ascending: false });
-
-      if (docError) throw docError;
-      setDocuments(docData || []);
+      // Documents
+      try {
+        const { data: docData, error: docError } = await supabase
+          .from('consulting_documents')
+          .select('*')
+          .eq('engagement_id', id)
+          .order('created_at', { ascending: false });
+        if (docError) throw docError;
+        setDocuments(docData || []);
+      } catch (subErr) {
+        console.warn('consulting_documents load failed:', subErr);
+        setDocuments([]);
+      }
     } catch (error) {
       console.error('Error loading engagement:', error);
-      toast.error('Failed to load engagement');
+      toast.error(error?.message || 'Failed to load engagement');
     } finally {
       setLoading(false);
     }
@@ -313,7 +326,10 @@ export default function ConsultingClientDetail() {
                 </div>
               )}
             </div>
-            <button className="px-4 py-2 bg-emerald-600/30 hover:bg-emerald-600/40 border border-emerald-600/50 rounded-lg transition flex items-center gap-2">
+            <button
+              onClick={() => navigate(`/admin/consulting/onboard/${engagement.id}`)}
+              className="px-4 py-2 bg-emerald-600/30 hover:bg-emerald-600/40 border border-emerald-600/50 rounded-lg transition flex items-center gap-2"
+            >
               <Edit size={16} />
               Edit
             </button>
@@ -730,23 +746,32 @@ export default function ConsultingClientDetail() {
                 {l10Meetings.length === 0 ? (
                   <p className="text-slate-400 text-sm">No L10 meetings scheduled</p>
                 ) : (
-                  l10Meetings.map((meeting) => (
-                    <div key={meeting.id} className="bg-slate-700/30 border border-slate-700/50 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-semibold">{new Date(meeting.date).toLocaleDateString()}</p>
-                          <p className="text-slate-400 text-sm capitalize">{meeting.status}</p>
+                  l10Meetings.map((meeting) => {
+                    const attendeesCount = Array.isArray(meeting.attendees)
+                      ? meeting.attendees.length
+                      : (meeting.attendees && typeof meeting.attendees === 'object'
+                          ? Object.keys(meeting.attendees).length
+                          : 0);
+                    return (
+                      <div key={meeting.id} className="bg-slate-700/30 border border-slate-700/50 rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-semibold">
+                              {meeting.meeting_date ? new Date(meeting.meeting_date).toLocaleDateString() : 'No date'}
+                            </p>
+                            <p className="text-slate-400 text-sm capitalize">{meeting.status}</p>
+                          </div>
+                          {meeting.meeting_rating != null && (
+                            <div className="text-emerald-400 font-semibold">{meeting.meeting_rating}/10</div>
+                          )}
                         </div>
-                        {meeting.rating && (
-                          <div className="text-emerald-400 font-semibold">{meeting.rating}/10</div>
-                        )}
+                        <div className="flex items-center gap-2 text-slate-400 text-sm">
+                          <Users size={16} />
+                          {attendeesCount} attendees
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-slate-400 text-sm">
-                        <Users size={16} />
-                        {meeting.attendees_count || 0} attendees
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
