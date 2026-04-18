@@ -27,7 +27,7 @@ export default function GlobalHeader() {
         {/* Bug Report Button */}
         <button
           onClick={() => setReportOpen(true)}
-          className="relative p-2 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-navy-700/50 transition-colors group"
+          className="relative p-2 rounded-lg text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10 transition-colors group"
           title="Report Bug / Request Feature"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

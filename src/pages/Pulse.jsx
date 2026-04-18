@@ -347,7 +347,7 @@ function WeeklyLeaderboard({ rows, byUser, loading, onEdit, currentUserId }) {
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-base font-bold text-white tabular-nums">{formatDuration(r.weekly_seconds || 0)}</p>
-                <p className="text-[10px] text-gray-500">{(r.weekly_sessions || 0)} sessions</p>
+                <p className="text-[10px] text-gray-500">this week</p>
               </div>
               <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
             </button>
@@ -474,9 +474,9 @@ function AllTimeLeaderboard({ rows, loading, onReap }) {
                     {tier.label}
                   </span>
                   <span className="text-[11px] text-gray-500">
-                    {r.total_sessions || 0} session{(r.total_sessions || 0) === 1 ? '' : 's'}
-                    {r.streak_days > 0 && (
-                      <>{' · '}<Flame className="inline w-3 h-3 text-orange-400" /> {r.streak_days}-day streak</>
+                    {formatHours(r.mtd_seconds || 0)} MTD
+                    {r.current_streak > 0 && (
+                      <>{' · '}<Flame className="inline w-3 h-3 text-orange-400" /> {r.current_streak}-day streak</>
                     )}
                   </span>
                 </div>
