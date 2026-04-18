@@ -283,6 +283,13 @@ const salesHubItems = [
     )
   },
   {
+    label: 'Investors', path: '/admin/investors', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+      </svg>
+    )
+  },
+  {
     label: 'Estimates', path: '/admin/estimates', icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V13.5zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V18zm2.498-6.75h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V13.5zm0 2.25h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V18zm2.504-6.75h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V13.5zM8.25 6h7.5v2.25h-7.5V6zM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 002.25 2.25h10.5a2.25 2.25 0 002.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0012 2.25z" />
@@ -631,7 +638,7 @@ export default function AdminLayout() {
 
   // Founder-only nav items (Ryan + Mike via email allowlist)
   const founder = isFounder({ email: user?.email, personal_email: profile?.personal_email })
-  const FOUNDER_ONLY_ITEMS = ['Super Admin']
+  const FOUNDER_ONLY_ITEMS = ['Super Admin', 'Investors']
 
   // Filter nav items based on role AND tenant features
   const visibleNavItems = navItems.filter(item => {
@@ -673,7 +680,7 @@ export default function AdminLayout() {
 
   const isCallCenterRoute = ['/admin/call-center', '/admin/call-lists', '/admin/cc-team', '/admin/voicemails', '/admin/ai-agents'].some(p => location.pathname.startsWith(p))
   const [callCenterOpen, setCallCenterOpen] = useState(isCallCenterRoute)
-  const isSalesHubRoute = ['/admin/customers', '/admin/projects', '/admin/pipeline', '/admin/platforms', '/admin/lead-hunter', '/admin/estimates', '/admin/agreements', '/admin/commissions', '/admin/waitlist', '/admin/consulting', '/admin/sales-call', '/admin/crm'].some(p => location.pathname.startsWith(p))
+  const isSalesHubRoute = ['/admin/customers', '/admin/projects', '/admin/pipeline', '/admin/investors', '/admin/platforms', '/admin/lead-hunter', '/admin/estimates', '/admin/agreements', '/admin/commissions', '/admin/waitlist', '/admin/consulting', '/admin/sales-call', '/admin/crm'].some(p => location.pathname.startsWith(p))
   // Pick which Sales Hub items to show based on admin vs customer view
   const activeSalesHubItems = isImpersonating ? customerSalesHubItems : salesHubItems
   const [salesHubOpen, setSalesHubOpen] = useState(isSalesHubRoute)
