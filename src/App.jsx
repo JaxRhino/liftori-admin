@@ -46,6 +46,7 @@ import CallLists from './pages/CallLists'
 import AIAgents from './pages/AIAgents'
 import InHouseBuilds from './pages/InHouseBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
+import MobilePreview from './pages/MobilePreview'
 import SalesPipeline from './pages/SalesPipeline'
 import OpsDashboard from './pages/OpsDashboard'
 import WizardBuilder from './pages/WizardBuilder'
@@ -359,6 +360,7 @@ export default function App() {
             {/* In-House Builds */}
             <Route path="builds" element={<InHouseBuilds />} />
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
+            <Route path="mobile-preview" element={<MobilePreview />} />
             <Route path="pipeline" element={<SalesPipeline />} />
             {/* Marketing Hub */}
             <Route path="marketing" element={<MarketingDashboard />} />
