@@ -120,6 +120,7 @@ import SalesCall from './pages/SalesCall'
 import ConsultingAppointments from './pages/ConsultingAppointments'
 import ConsultingClients from './pages/ConsultingClients'
 import ConsultingClientDetail from './pages/ConsultingClientDetail'
+import ConsultingOnboardingWizard from './pages/ConsultingOnboardingWizard'
 import EOSL10Hub from './pages/EOSL10Hub'
 import TeamAvailability from './pages/TeamAvailability'
 import SuperAdmin from './pages/SuperAdmin'
@@ -398,6 +399,7 @@ export default function App() {
             <Route path="consulting" element={<ConsultingAppointments />} />
             <Route path="consulting/clients" element={<ConsultingClients />} />
             <Route path="consulting/client/:id" element={<ConsultingClientDetail />} />
+            <Route path="consulting/onboard/:engagementId" element={<ConsultingOnboardingWizard />} />
             <Route path="consulting/eos" element={<EOSL10Hub />} />
             <Route path="team-availability" element={<TeamAvailability />} />
             <Route path="sales-call/:roomId" element={<SalesCall />} />

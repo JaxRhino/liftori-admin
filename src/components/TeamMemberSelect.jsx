@@ -59,7 +59,10 @@ export default function TeamMemberSelect({ value, onChange, placeholder = 'Unass
   }, [])
 
   const baseCls =
-    'w-full bg-navy-800/50 border border-white/10 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500 disabled:opacity-50'
+    'w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500 disabled:opacity-50'
+
+  // Option styling — forces dark popup menu instead of browser-default white.
+  const optCls = 'bg-slate-800 text-white'
 
   return (
     <select
@@ -68,12 +71,14 @@ export default function TeamMemberSelect({ value, onChange, placeholder = 'Unass
       disabled={disabled || loading}
       className={`${baseCls} ${className}`}
     >
-      <option value="">{loading ? 'Loading team…' : `— ${placeholder} —`}</option>
+      <option value="" className={optCls}>
+        {loading ? 'Loading team…' : `— ${placeholder} —`}
+      </option>
       {members.map((m) => {
         const label = m.full_name || m.email || m.id.slice(0, 8)
         const tag = m.title || m.role
         return (
-          <option key={m.id} value={m.id}>
+          <option key={m.id} value={m.id} className={optCls}>
             {label}{tag ? ` · ${tag}` : ''}
           </option>
         )

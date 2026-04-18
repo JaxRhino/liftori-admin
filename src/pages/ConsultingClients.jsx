@@ -128,7 +128,7 @@ export default function ConsultingClients() {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('consulting_engagements').insert({
+      const { data: inserted, error } = await supabase.from('consulting_engagements').insert({
         client_name: form.client_name,
         client_email: form.client_email,
         client_phone: form.client_phone || null,
@@ -145,13 +145,19 @@ export default function ConsultingClients() {
         weekly_meeting_time: form.weekly_meeting_time,
         notes: form.notes || null,
         health_score: parseInt(form.health_score),
+        onboarding_step: 1,
+        onboarding_completed: false,
         created_at: new Date().toISOString()
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      toast.success('Client engagement created');
+      toast.success('Client engagement created — starting onboarding');
       setShowNewDialog(false);
+      if (inserted?.id) {
+        navigate(`/admin/consulting/onboard/${inserted.id}`);
+        return;
+      }
       setForm({
         client_name: '',
         client_email: '',

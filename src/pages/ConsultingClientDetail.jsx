@@ -222,6 +222,26 @@ export default function ConsultingClientDetail() {
           Back to Clients
         </button>
 
+        {!engagement.onboarding_completed && (
+          <div className="mb-4 bg-gradient-to-r from-purple-600/20 to-fuchsia-600/10 border border-purple-500/30 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-purple-200">
+                Onboarding in progress — step {Math.min(engagement.onboarding_step || 1, 7)} of 7
+              </p>
+              <p className="text-xs text-purple-300/80 mt-0.5">
+                Finish the profile to unlock the full audit, SEO scan, and EOS seeding.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate(`/admin/consulting/onboard/${engagement.id}`)}
+              className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition"
+            >
+              Resume onboarding
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div>
