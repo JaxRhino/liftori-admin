@@ -64,6 +64,16 @@ export default function DMPopout({ entry, offsetIndex }) {
     return () => { cancelled = true }
   }, [channelId])
 
+  // Mark channel as read whenever the popout is expanded (or un-minimized).
+  // Covers: first open, minimize → expand, and every render while expanded+viewing.
+  useEffect(() => {
+    if (!channelId || !user?.id || minimized) return
+    chatSvc.markNotificationsRead(channelId, user.id).catch(() => {})
+    try {
+      window.dispatchEvent(new CustomEvent('chat-dm-viewed', { detail: { channelId } }))
+    } catch { /* no-op */ }
+  }, [channelId, user?.id, minimized])
+
   // Subscribe to new/edited/deleted messages
   useEffect(() => {
     if (!channelId) return
@@ -71,6 +81,13 @@ export default function DMPopout({ entry, offsetIndex }) {
       channelId,
       (newMsg) => {
         setMessages(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
+        // If we're expanded and visible, instantly clear the badge + persist read state.
+        if (!minimized && user?.id && newMsg.sender_id !== user.id) {
+          chatSvc.markNotificationsRead(channelId, user.id).catch(() => {})
+          try {
+            window.dispatchEvent(new CustomEvent('chat-dm-viewed', { detail: { channelId } }))
+          } catch { /* no-op */ }
+        }
       },
       (updatedMsg) => {
         setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m))
@@ -80,7 +97,7 @@ export default function DMPopout({ entry, offsetIndex }) {
       }
     )
     return () => chatSvc.unsubscribe(sub)
-  }, [channelId])
+  }, [channelId, minimized, user?.id])
 
   // Subscribe to typing presence
   useEffect(() => {

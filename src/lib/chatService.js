@@ -346,7 +346,7 @@ export async function fetchDirectMessages(userId, filterRole = null) {
     if (otherUserId) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, full_name, email, role')
+        .select('id, full_name, email, role, avatar_url, title')
         .eq('id', otherUserId)
         .single()
       otherUser = profile
@@ -398,6 +398,8 @@ export async function fetchDirectMessages(userId, filterRole = null) {
       other_user: otherUser,
       other_user_name: displayName,
       other_user_id: otherUserId,
+      other_user_avatar_url: otherUser?.avatar_url || null,
+      other_user_title: otherUser?.title || null,
       name: displayName,
       last_message: lastMsg?.content || '',
       last_message_at: lastMsg?.created_at || dm.created_at,
@@ -411,7 +413,7 @@ export async function fetchDirectMessages(userId, filterRole = null) {
 export async function fetchCustomerUsers() {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role')
+    .select('id, full_name, email, role, avatar_url')
     .eq('role', 'customer')
     .order('full_name', { ascending: true })
 
@@ -423,6 +425,7 @@ export async function fetchCustomerUsers() {
       username: (u.full_name || u.email || 'unknown').toLowerCase().replace(/\s+/g, '.'),
       email: u.email,
       role: u.role,
+      avatar_url: u.avatar_url || null,
       avatar: null
     }))
   }

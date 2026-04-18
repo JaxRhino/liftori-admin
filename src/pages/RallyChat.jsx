@@ -72,7 +72,10 @@ import { usePopoutChat } from '../contexts/PopoutChatContext';
 
 export const Chat = () => {
   const { user, profile, token } = useAuth();
-  const { openPopout, isOpen } = usePopoutChat();
+  const { openPopout, isOpen, popouts } = usePopoutChat();
+  // Ref tracks channel IDs whose popout is expanded (not minimized).
+  // Used by global message subscription to skip badge increments for DMs the user is actively viewing.
+  const expandedPopoutIdsRef = useRef(new Set());
   const { sidebarOpen } = useOutletContext() || {};
   const [searchParams, setSearchParams] = useSearchParams();
   const onlineUsers = usePresence();
@@ -220,6 +223,12 @@ export const Chat = () => {
         if (!msg || msg.sender_id === user?.id || msg.thread_id) return;
         // Skip the currently active channel — user is already viewing it
         if (msg.channel_id === selectedChannelIdRef.current) return;
+        // Skip channels with an open, expanded DM popout — popout is the active view.
+        // Persist read state so refresh keeps it cleared.
+        if (expandedPopoutIdsRef.current.has(msg.channel_id)) {
+          chatSvc.markNotificationsRead(msg.channel_id, user.id).catch(() => {});
+          return;
+        }
 
         // Increment unread on channels list (non-DM)
         setChannels(prev => prev.map(ch =>
@@ -240,6 +249,38 @@ export const Chat = () => {
       chatSvc.unsubscribe(channelSub);
       supabase.removeChannel(globalMsgSub);
     };
+  }, []);
+
+  // Keep ref of expanded popout channel IDs in sync with PopoutChat state.
+  // Used by global message subscription to skip badge increments and persist
+  // read state when a DM popout is open and not minimized.
+  useEffect(() => {
+    const ids = new Set(
+      (popouts || [])
+        .filter(p => !p.minimized && p.channelId)
+        .map(p => p.channelId)
+    );
+    expandedPopoutIdsRef.current = ids;
+    // Also clear sidebar badges + persist read state for any newly-expanded popouts.
+    if (ids.size === 0 || !user?.id) return;
+    setDirectMessages(prev => prev.map(dm => ids.has(dm.id) ? { ...dm, unread_count: 0 } : dm));
+    setCustomerDMs(prev => prev.map(dm => ids.has(dm.id) ? { ...dm, unread_count: 0 } : dm));
+    ids.forEach(id => {
+      chatSvc.markNotificationsRead(id, user.id).catch(() => {});
+    });
+  }, [popouts, user?.id]);
+
+  // Listen for popout-driven read events so badges clear immediately even
+  // when the popout marks itself read (e.g. on incoming message while open).
+  useEffect(() => {
+    const handler = (e) => {
+      const channelId = e?.detail?.channelId;
+      if (!channelId) return;
+      setDirectMessages(prev => prev.map(dm => dm.id === channelId ? { ...dm, unread_count: 0 } : dm));
+      setCustomerDMs(prev => prev.map(dm => dm.id === channelId ? { ...dm, unread_count: 0 } : dm));
+    };
+    window.addEventListener('chat-dm-viewed', handler);
+    return () => window.removeEventListener('chat-dm-viewed', handler);
   }, []);
 
   // Supabase Realtime: Subscribe to messages for selected channel
@@ -1191,11 +1232,17 @@ export const Chat = () => {
                         }`}
                       >
                         <div className="relative flex-shrink-0">
-                          <Avatar className="h-5 w-5">
-                            <AvatarFallback className={`text-xs ${isPrimeChannel ? 'bg-purple-500 text-white' : 'bg-primary text-primary-foreground'}`}>
-                              {userName.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
+                          {isPrimeChannel ? (
+                            <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center">
+                              🔱
+                            </div>
+                          ) : (
+                            <UserAvatar
+                              name={userName}
+                              avatarUrl={dm.other_user_avatar_url || dm.other_user?.avatar_url || null}
+                              size="sm"
+                            />
+                          )}
                           {!isPrimeChannel && dm.other_user_id && onlineUsers.has(dm.other_user_id) && (
                             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#060B18]" title="Online" />
                           )}
@@ -1246,12 +1293,12 @@ export const Chat = () => {
                             : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                         }`}
                       >
-                        <div className="relative">
-                          <Avatar className="h-5 w-5">
-                            <AvatarFallback className="text-xs bg-emerald-600 text-white">
-                              {customerName.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
+                        <div className="relative flex-shrink-0">
+                          <UserAvatar
+                            name={customerName}
+                            avatarUrl={dm.other_user_avatar_url || dm.other_user?.avatar_url || null}
+                            size="sm"
+                          />
                           {dm.other_user_id && onlineUsers.has(dm.other_user_id) && (
                             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#060B18]" title="Online" />
                           )}
