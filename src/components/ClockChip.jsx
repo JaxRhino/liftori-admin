@@ -13,6 +13,7 @@
  *
  * Not gated by role — founders, admins, devs, sales, testers all clock here.
  */
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../lib/AuthContext'
@@ -28,10 +29,23 @@ export default function ClockChip() {
     seconds,
     busy,
     idleWarning,
+    revivedFlash,
     clockIn,
     clockOut,
     acknowledgeIdle,
   } = useClock()
+
+  // Toast once per revive event
+  const revivedToastedRef = useRef(false)
+  useEffect(() => {
+    if (revivedFlash && !revivedToastedRef.current) {
+      revivedToastedRef.current = true
+      toast.success('Welcome back — Pulse session resumed', {
+        description: 'Picked up where you left off (within the 15-min window)',
+      })
+    }
+    if (!revivedFlash) revivedToastedRef.current = false
+  }, [revivedFlash])
 
   // Don't render for anonymous or not-logged-in states
   if (!user) return null

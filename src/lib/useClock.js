@@ -2,15 +2,18 @@
  * useClock — React hook that owns the user's work session state.
  *
  * Responsibilities:
- *   - Restore in-progress session on mount
- *   - Clock in / clock out via RPC
+ *   - Auto clock-in on mount (login): if an open session exists, restore it;
+ *     otherwise call start_session() which will revive a closed session that
+ *     ended < 15 min ago, or start a fresh one. Logout/reload within the
+ *     15-min window is transparent — the user just picks up where they left off.
  *   - Heartbeat every 60s while clocked in (bumps session.updated_at)
  *   - Watch user activity (mouse/keyboard/focus). If none for IDLE_TIMEOUT, auto-end.
  *   - Warn at WARN_AT with a "Still working?" toast prompt
- *   - On tab close / reload, attempt to end the session (best-effort)
+ *   - No beforeunload auto-end — server-side idle reaper cleans up stale sessions.
  *
  * Exposes:
- *   { session, running, seconds, clockIn, clockOut, idleWarning, acknowledgeIdle }
+ *   { session, running, seconds, busy, idleWarning, revivedFlash,
+ *     clockIn, clockOut, acknowledgeIdle }
  */
 import { useEffect, useRef, useState, useCallback } from 'react'
 import {
@@ -30,11 +33,13 @@ export function useClock() {
   const [seconds, setSeconds] = useState(0)        // running seconds since start
   const [idleWarning, setIdleWarning] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [revivedFlash, setRevivedFlash] = useState(false) // true briefly after a revive
 
   const lastActivityRef = useRef(Date.now())
   const tickTimerRef    = useRef(null)
   const heartbeatRef    = useRef(null)
   const idleCheckRef    = useRef(null)
+  const didAutoStartRef = useRef(false)
 
   const running = !!session && !session.ended_at
 
@@ -50,14 +55,45 @@ export function useClock() {
     return () => events.forEach((e) => window.removeEventListener(e, markActivity))
   }, [markActivity])
 
-  // ─── Restore on mount ──────────────────────────────────────────────
+  // ─── Restore / auto-start on mount ─────────────────────────────────
+  // Priority:
+  //   1. Open session exists? → restore it silently
+  //   2. No open session? → auto-clock-in via start_session RPC
+  //      The RPC will revive a closed session if it ended < 15 min ago,
+  //      otherwise it creates a fresh one. Either way the user is now
+  //      clocked in without having to touch the header chip.
   useEffect(() => {
-    (async () => {
+    if (didAutoStartRef.current) return
+    didAutoStartRef.current = true
+
+    ;(async () => {
       try {
-        const s = await getMyOpenSession()
-        if (s) setSession(s)
+        const open = await getMyOpenSession()
+        if (open) {
+          setSession(open)
+          return
+        }
+        // No open session — try auto-start. start_session() is idempotent
+        // and gated to internal team members, so a non-team account silently
+        // 403s and we stay clocked-out (which is correct behavior).
+        const s = await startSession()
+        if (!s) return
+
+        setSession(s)
+        lastActivityRef.current = Date.now()
+
+        // Detect revive: if started_at is older than a minute it means
+        // we reopened an existing session rather than inserting a new one.
+        const startedMs = new Date(s.started_at).getTime()
+        if (Date.now() - startedMs > 60_000) {
+          setRevivedFlash(true)
+          setTimeout(() => setRevivedFlash(false), 5000)
+        }
       } catch (err) {
-        console.warn('[useClock] restore failed:', err?.message)
+        // Not-internal users hit the role gate — that's expected, not an error.
+        if (!/internal team/i.test(err?.message || '')) {
+          console.warn('[useClock] auto-start failed:', err?.message)
+        }
       }
     })()
   }, [])
@@ -106,19 +142,11 @@ export function useClock() {
     }
   }, [running])
 
-  // ─── beforeunload: best-effort clock-out ───────────────────────────
-  useEffect(() => {
-    if (!running) return
-    const onUnload = () => {
-      // Fire-and-forget — can't await in unload. The idle reaper will clean
-      // up if this doesn't land.
-      try {
-        endSession('browser_close')
-      } catch (_) {}
-    }
-    window.addEventListener('beforeunload', onUnload)
-    return () => window.removeEventListener('beforeunload', onUnload)
-  }, [running])
+  // NOTE: No beforeunload handler. Logout / reload / tab-close should NOT
+  // auto-end the session — if the user comes back within 15 min, the
+  // start_session RPC will revive it. Stale sessions are cleaned up by
+  // the server-side idle reaper (reap_idle_sessions) after 15 min of no
+  // heartbeat. See migration pulse_start_session_revive_within_15min.
 
   // ─── Public actions ────────────────────────────────────────────────
   const clockIn = useCallback(async () => {
@@ -158,6 +186,7 @@ export function useClock() {
     seconds,
     busy,
     idleWarning,
+    revivedFlash,
     clockIn,
     clockOut,
     acknowledgeIdle,
