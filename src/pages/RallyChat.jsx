@@ -71,7 +71,7 @@ import { usePopoutChat } from '../contexts/PopoutChatContext';
 
 export const Chat = () => {
   const { user, profile, token } = useAuth();
-  const { openPopout } = usePopoutChat();
+  const { openPopout, isOpen } = usePopoutChat();
   const { sidebarOpen } = useOutletContext() || {};
   const [searchParams, setSearchParams] = useSearchParams();
   const onlineUsers = usePresence();
@@ -1176,46 +1176,34 @@ export const Chat = () => {
                     // Ensure the dm object has other_user_name when selected
                     const enrichedDM = { ...dm, other_user_name: userName, is_prime_channel: isPrimeChannel };
                     return (
-                      <div
+                      <button
                         key={dm.id}
-                        className={`group w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${
-                          selectedChannel?.id === dm.id
-                            ? 'bg-primary/10 text-primary font-medium'
+                        type="button"
+                        onClick={() => openPopout(enrichedDM)}
+                        title="Open chat pop-out"
+                        className={`group w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left transition-colors ${
+                          isOpen(dm.id)
+                            ? 'bg-sky-500/10 text-sky-200 font-medium'
                             : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                         }`}
                       >
-                        <button
-                          type="button"
-                          onClick={() => setSelectedChannel(enrichedDM)}
-                          className="flex-1 flex items-center gap-2 min-w-0 text-left"
-                        >
-                          <div className="relative">
-                            <Avatar className="h-5 w-5">
-                              <AvatarFallback className={`text-xs ${isPrimeChannel ? 'bg-purple-500 text-white' : 'bg-primary text-primary-foreground'}`}>
-                                {userName.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            {!isPrimeChannel && dm.other_user_id && onlineUsers.has(dm.other_user_id) && (
-                              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#060B18]" title="Online" />
-                            )}
-                          </div>
-                          <span className="flex-1 text-left truncate">{userName}</span>
-                          {dm.unread_count > 0 && (
-                            <Badge variant="destructive" className="h-5 px-1.5 text-xs">
-                              {dm.unread_count}
-                            </Badge>
+                        <div className="relative flex-shrink-0">
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className={`text-xs ${isPrimeChannel ? 'bg-purple-500 text-white' : 'bg-primary text-primary-foreground'}`}>
+                              {userName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {!isPrimeChannel && dm.other_user_id && onlineUsers.has(dm.other_user_id) && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#060B18]" title="Online" />
                           )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); openPopout(enrichedDM); }}
-                          title="Pop out chat"
-                          aria-label="Pop out chat"
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-opacity flex-shrink-0"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                        </div>
+                        <span className="flex-1 text-left truncate">{userName}</span>
+                        {dm.unread_count > 0 && (
+                          <Badge variant="destructive" className="h-5 px-1.5 text-xs flex-shrink-0">
+                            {dm.unread_count}
+                          </Badge>
+                        )}
+                      </button>
                     );
                   })
                 )}
@@ -1246,10 +1234,12 @@ export const Chat = () => {
                     return (
                       <button
                         key={dm.id}
-                        onClick={() => setSelectedChannel(enrichedDM)}
+                        type="button"
+                        onClick={() => openPopout(enrichedDM)}
+                        title="Open chat pop-out"
                         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${
-                          selectedChannel?.id === dm.id
-                            ? 'bg-primary/10 text-primary font-medium'
+                          isOpen(dm.id)
+                            ? 'bg-sky-500/10 text-sky-200 font-medium'
                             : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                         }`}
                       >
@@ -1362,6 +1352,17 @@ export const Chat = () => {
                   <span>Live</span>
                 </div>
                 
+                {selectedChannel?.type === 'direct' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openPopout(selectedChannel)}
+                    title="Pop out chat to right edge"
+                    className="text-sky-400 hover:text-sky-300 hover:bg-sky-500/10"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button variant="ghost" size="icon" onClick={() => setChannelSettingsOpen(true)} title="Channel members">
                   <Users className="h-4 w-4" />
                 </Button>

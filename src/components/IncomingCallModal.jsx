@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Phone, PhoneOff } from 'lucide-react';
+import { Phone, PhoneOff, Volume2, VolumeX } from 'lucide-react';
 import { useVideoCallContext } from '../contexts/VideoCallContext';
 
 export default function IncomingCallModal() {
@@ -9,6 +9,21 @@ export default function IncomingCallModal() {
   const [previewStream, setPreviewStream] = useState(null);
   const [ringingIntervalId, setRingingIntervalId] = useState(null);
   const [joining, setJoining] = useState(false);
+  const [isMuted, setIsMuted] = useState(() => {
+    if (typeof localStorage === 'undefined') return false;
+    return localStorage.getItem('liftori_ring_muted') === '1';
+  });
+
+  const toggleMute = () => {
+    const next = !isMuted;
+    setIsMuted(next);
+    try { localStorage.setItem('liftori_ring_muted', next ? '1' : '0'); } catch {}
+    // If muting mid-ring, stop it now
+    if (next) {
+      if (ringingIntervalId) clearInterval(ringingIntervalId);
+      try { if (oscillatorRef.current) oscillatorRef.current.stop(); } catch (e) {}
+    }
+  };
   const videoPreviewRef = useRef(null);
   const oscillatorRef = useRef(null);
   const streamRef = useRef(null);
@@ -41,11 +56,20 @@ export default function IncomingCallModal() {
 
     startMedia();
 
+    // Respect mute setting — skip ring tone entirely if muted.
+    const muted = (typeof localStorage !== 'undefined') && localStorage.getItem('liftori_ring_muted') === '1';
+    let interval = null;
+    let audioCtx = null;
+    if (!muted) {
     // Initialize Web Audio API for triple-whistle ring tone.
     // Pattern: three quick upward glides ("fweet fweet fweet"), then 2s pause, repeat.
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Chrome/Safari may suspend the context until a user gesture — resume it.
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
     osc.type = 'sine';
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -76,15 +100,16 @@ export default function IncomingCallModal() {
       scheduleWhistle(t0 + 0.56);         // whistle 3
     };
     playTriple();
-    const interval = setInterval(playTriple, 2500);
+    interval = setInterval(playTriple, 2500);
+    } // end if(!muted)
 
     setRingingIntervalId(interval);
 
     return () => {
       cancelled = true;
-      clearInterval(interval);
-      try { osc.stop(); } catch (e) {}
-      try { audioCtx.close(); } catch (e) {}
+      if (interval) clearInterval(interval);
+      try { if (oscillatorRef.current) oscillatorRef.current.stop(); } catch (e) {}
+      try { if (audioCtx) audioCtx.close(); } catch (e) {}
       // Only stop stream if we didn't hand it off to the call
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
@@ -138,7 +163,7 @@ export default function IncomingCallModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl bg-slate-900 p-8 shadow-2xl">
+      <div className="relative w-full max-w-sm rounded-2xl bg-slate-900 p-8 shadow-2xl">
         {/* Caller Avatar with Pulsing Ring */}
         <div className="mb-6 flex justify-center">
           <div className="relative inline-block">
@@ -148,6 +173,17 @@ export default function IncomingCallModal() {
             </div>
           </div>
         </div>
+
+        {/* Mute toggle — top-right corner */}
+        <button
+          type="button"
+          onClick={toggleMute}
+          title={isMuted ? 'Unmute ring' : 'Mute ring'}
+          aria-label={isMuted ? 'Unmute ring' : 'Mute ring'}
+          className="absolute top-3 right-3 p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+        >
+          {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+        </button>
 
         {/* Caller Info */}
         <div className="mb-6 text-center">
