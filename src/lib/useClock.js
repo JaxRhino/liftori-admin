@@ -22,11 +22,21 @@ import {
   getMyOpenSession,
   heartbeat,
 } from './pulseService'
+import { supabase } from './supabase'
 
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000   // 15 min — auto-end
 const WARN_AT_MS      = 13 * 60 * 1000   // 13 min — show "still there?"
 const HEARTBEAT_MS    = 60 * 1000        // 1 min
 const TICK_MS         = 1000             // update running counter every second
+
+// Accounts that clock in at start of day and clock out at end of day —
+// the 15-min idle auto-end doesn't match their workflow (heads-down coding,
+// pushing to GitHub, away from the admin for long stretches). Heartbeat
+// still runs so server-side reaper won't touch them either.
+const IDLE_EXEMPT_EMAILS = new Set([
+  'ryan@liftori.ai',
+  'rhinomarch78@gmail.com',
+])
 
 export function useClock() {
   const [session, setSession] = useState(null)     // full row or null
@@ -40,6 +50,25 @@ export function useClock() {
   const heartbeatRef    = useRef(null)
   const idleCheckRef    = useRef(null)
   const didAutoStartRef = useRef(false)
+  const idleExemptRef   = useRef(false)  // set once on mount from auth email
+
+  // Resolve once on mount whether this account is exempt from idle auto-end.
+  // Synchronous-enough: the ref flips before the 15-min idle window elapses.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data } = await supabase.auth.getUser()
+        const email = (data?.user?.email || '').toLowerCase()
+        if (!cancelled && IDLE_EXEMPT_EMAILS.has(email)) {
+          idleExemptRef.current = true
+        }
+      } catch {
+        // leave ref at false — default behavior preserved
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   const running = !!session && !session.ended_at
 
@@ -125,6 +154,9 @@ export function useClock() {
     }, HEARTBEAT_MS)
 
     idleCheckRef.current = setInterval(() => {
+      // Exempt accounts: heartbeat keeps their session open all day until they
+      // manually clock out. Skip the idle warning + auto-end entirely.
+      if (idleExemptRef.current) return
       const idle = Date.now() - lastActivityRef.current
       if (idle >= IDLE_TIMEOUT_MS) {
         // Auto clock-out
