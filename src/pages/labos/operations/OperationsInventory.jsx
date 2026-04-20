@@ -1,11 +1,15 @@
 // =====================================================================
 // OperationsInventory — photo-centric listings manager for VJ.
 // Stats, search, filter chips, sort, grid/list view, New Listing drawer.
+// Wave B.3: ProductImageUploader wires drag-drop uploads to the
+// vj-products storage bucket and persists gallery to product_images.
 // =====================================================================
 
-import { useEffect, useMemo, useState } from 'react'
-import { Package, Search, Plus, Grid3x3, List, X, Camera, Sparkles, Image as ImageIcon, Upload, Check } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Package, Search, Plus, Grid3x3, List, X, Camera, Sparkles, Image as ImageIcon, Upload, Check, Trash2, GripVertical, Star, Loader2 } from 'lucide-react'
 import { HubPage, useLabosClient } from '../_shared'
+
+const PRODUCT_BUCKET = 'vj-products'
 
 const STATUS_FILTERS = [
   { key: 'all', label: 'All', match: () => true },
@@ -306,6 +310,14 @@ function EmptyState({ onNew }) {
 function ListingDrawer({ product, categories, onClose, onSaved, client }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const isEdit = !!product
+  // A stable folder key for this drawer session — used as the storage path prefix
+  // BEFORE we have a product id (new listings). Once saved, files live at this path permanently.
+  const draftKeyRef = useRef(product?.id || `draft-${crypto.randomUUID()}`)
+
+  // Images: { id?, image_url, sort_order, alt_text?, storage_path?, _pending?, _error? }
+  const [images, setImages] = useState([])
+
   const [form, setForm] = useState({
     title: product?.title || '',
     description: product?.description || '',
@@ -314,18 +326,46 @@ function ListingDrawer({ product, categories, onClose, onSaved, client }) {
     sku: product?.sku || '',
     condition: product?.condition || 'good',
     status: product?.status || 'draft',
-    main_image_url: product?.main_image_url || '',
     stock_quantity: product?.stock_quantity ?? 1,
     category_id: product?.category_id || '',
     tags: (product?.tags || []).join(', '),
     featured: product?.featured || false,
   })
-  const isEdit = !!product
+
+  // When editing, hydrate gallery from product_images + main_image_url
+  useEffect(() => {
+    let cancelled = false
+    async function loadImages() {
+      if (!product?.id || !client) return
+      const { data } = await client
+        .from('product_images')
+        .select('id, image_url, sort_order, alt_text')
+        .eq('product_id', product.id)
+        .order('sort_order', { ascending: true })
+      if (cancelled) return
+      const rows = (data || []).map(r => ({ ...r, storage_path: storagePathFromPublicUrl(r.image_url) }))
+      // If main_image_url isn't in product_images, prepend it so it shows as the hero thumbnail
+      if (product.main_image_url && !rows.some(r => r.image_url === product.main_image_url)) {
+        rows.unshift({
+          image_url: product.main_image_url,
+          sort_order: -1,
+          alt_text: product.title || '',
+          storage_path: storagePathFromPublicUrl(product.main_image_url),
+        })
+      }
+      setImages(rows.map((r, i) => ({ ...r, sort_order: i })))
+    }
+    loadImages()
+    return () => { cancelled = true }
+  }, [product?.id, client])
 
   async function save() {
+    if (!form.title.trim()) { setError('Title is required'); return }
+    if (images.some(i => i._pending)) { setError('Wait for image uploads to finish'); return }
     setSaving(true)
     setError('')
     try {
+      const mainUrl = images[0]?.image_url || null
       const payload = {
         title: form.title.trim(),
         description: form.description,
@@ -334,22 +374,40 @@ function ListingDrawer({ product, categories, onClose, onSaved, client }) {
         sku: form.sku || null,
         condition: form.condition,
         status: form.status,
-        main_image_url: form.main_image_url || null,
+        main_image_url: mainUrl,
         stock_quantity: Number(form.stock_quantity) || 0,
         category_id: form.category_id || null,
         tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         featured: form.featured,
-        slug: (product?.slug) || form.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60),
+        slug: (product?.slug) || slugify(form.title),
       }
       if (form.status === 'published' && !product?.published_at) payload.published_at = new Date().toISOString()
 
+      let savedId = product?.id
       if (isEdit) {
         const { error } = await client.from('products').update(payload).eq('id', product.id)
         if (error) throw error
       } else {
-        const { error } = await client.from('products').insert(payload)
+        const { data, error } = await client.from('products').insert(payload).select('id').single()
         if (error) throw error
+        savedId = data.id
       }
+
+      // Sync product_images: wipe + reinsert for simplicity. Tiny tables, always correct.
+      if (savedId) {
+        await client.from('product_images').delete().eq('product_id', savedId)
+        const gallery = images.slice(1).map((img, i) => ({
+          product_id: savedId,
+          image_url: img.image_url,
+          sort_order: i,
+          alt_text: img.alt_text || form.title,
+        }))
+        if (gallery.length) {
+          const { error: gErr } = await client.from('product_images').insert(gallery)
+          if (gErr) throw gErr
+        }
+      }
+
       onSaved()
     } catch (e) {
       setError(e.message || 'Save failed')
@@ -373,28 +431,15 @@ function ListingDrawer({ product, categories, onClose, onSaved, client }) {
         </div>
 
         <div className="p-5 space-y-5">
-          {/* Image preview */}
+          {/* Photos */}
           <div>
-            <Label>Main image URL</Label>
-            <div className="flex gap-3">
-              <div className="w-24 h-24 bg-navy-800 border border-navy-700/50 rounded-lg overflow-hidden flex items-center justify-center">
-                {form.main_image_url ? (
-                  <img src={form.main_image_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <Camera className="w-6 h-6 text-gray-600" />
-                )}
-              </div>
-              <input
-                value={form.main_image_url}
-                onChange={e => setForm({ ...form, main_image_url: e.target.value })}
-                placeholder="https://... (paste image URL)"
-                className="flex-1 bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue/50"
-              />
-            </div>
-            <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1.5">
-              <Upload className="w-3.5 h-3.5" />
-              Direct photo upload + AI-assist from mobile app coming in Wave B/C.
-            </p>
+            <Label>Photos <span className="text-gray-500 font-normal">(first photo is the cover)</span></Label>
+            <ProductImageUploader
+              client={client}
+              folderKey={draftKeyRef.current}
+              images={images}
+              setImages={setImages}
+            />
           </div>
 
           <div>
@@ -564,4 +609,210 @@ function ListingDrawer({ product, categories, onClose, onSaved, client }) {
 
 function Label({ children }) {
   return <label className="block text-xs font-medium text-gray-300 uppercase tracking-wider mb-1.5">{children}</label>
+}
+
+// ---------------------------------------------------------------------
+// ProductImageUploader — drag/drop + click, multi-file, with reorder.
+// Uploads immediately to PRODUCT_BUCKET under folderKey/<timestamp>-<name>.
+// Parent owns state; uploader just mutates the images array.
+// ---------------------------------------------------------------------
+function ProductImageUploader({ client, folderKey, images, setImages }) {
+  const inputRef = useRef(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const onFiles = useCallback(async (fileList) => {
+    const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'))
+    if (!files.length) return
+
+    // Create optimistic rows (sort_order is re-indexed on save, so it's a placeholder)
+    const newRows = files.map((f, i) => ({
+      _tempId: `tmp-${Date.now()}-${i}`,
+      _pending: true,
+      file: f,
+      image_url: URL.createObjectURL(f),
+      sort_order: 0,
+      alt_text: f.name.replace(/\.[^.]+$/, ''),
+    }))
+    setImages(prev => [...prev, ...newRows].map((r, i) => ({ ...r, sort_order: i })))
+
+    // Upload sequentially — less parallel pressure on free Supabase tier, simpler error reporting.
+    for (const row of newRows) {
+      try {
+        const ext = (row.file.name.split('.').pop() || 'jpg').toLowerCase()
+        const safe = row.file.name
+          .replace(/\.[^.]+$/, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 40) || 'photo'
+        const path = `${folderKey}/${Date.now()}-${safe}.${ext}`
+        const { error: upErr } = await client.storage
+          .from(PRODUCT_BUCKET)
+          .upload(path, row.file, { cacheControl: '3600', upsert: false, contentType: row.file.type })
+        if (upErr) throw upErr
+        const { data } = client.storage.from(PRODUCT_BUCKET).getPublicUrl(path)
+        setImages(prev => prev.map(p =>
+          p._tempId === row._tempId
+            ? { image_url: data.publicUrl, sort_order: p.sort_order, alt_text: p.alt_text, storage_path: path }
+            : p
+        ))
+      } catch (e) {
+        console.error('Upload failed', e)
+        setImages(prev => prev.map(p =>
+          p._tempId === row._tempId ? { ...p, _pending: false, _error: e.message || 'Upload failed' } : p
+        ))
+      }
+    }
+  }, [client, folderKey, setImages])
+
+  function onDrop(e) {
+    e.preventDefault(); e.stopPropagation(); setIsDragging(false)
+    if (e.dataTransfer?.files?.length) onFiles(e.dataTransfer.files)
+  }
+
+  function removeAt(idx) {
+    setImages(prev => {
+      const row = prev[idx]
+      // Fire-and-forget delete from storage if we know the path
+      if (row?.storage_path) {
+        client.storage.from(PRODUCT_BUCKET).remove([row.storage_path]).catch(() => {})
+      }
+      return prev.filter((_, i) => i !== idx).map((r, i) => ({ ...r, sort_order: i }))
+    })
+  }
+
+  function moveAt(idx, dir) {
+    setImages(prev => {
+      const next = [...prev]
+      const target = idx + dir
+      if (target < 0 || target >= next.length) return prev
+      ;[next[idx], next[target]] = [next[target], next[idx]]
+      return next.map((r, i) => ({ ...r, sort_order: i }))
+    })
+  }
+
+  function setAsCover(idx) {
+    if (idx === 0) return
+    setImages(prev => {
+      const next = [...prev]
+      const [pick] = next.splice(idx, 1)
+      next.unshift(pick)
+      return next.map((r, i) => ({ ...r, sort_order: i }))
+    })
+  }
+
+  const hasImages = images.length > 0
+
+  return (
+    <div>
+      <div
+        onDragEnter={e => { e.preventDefault(); setIsDragging(true) }}
+        onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
+        onDragLeave={e => { e.preventDefault(); setIsDragging(false) }}
+        onDrop={onDrop}
+        onClick={() => inputRef.current?.click()}
+        className={`cursor-pointer border-2 border-dashed rounded-xl px-4 py-6 text-center transition-colors ${
+          isDragging
+            ? 'border-brand-blue bg-brand-blue/10'
+            : 'border-navy-700/70 bg-navy-800/60 hover:border-brand-blue/50 hover:bg-navy-800'
+        }`}
+      >
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="w-10 h-10 rounded-full bg-navy-900/60 border border-navy-700/60 flex items-center justify-center">
+            <Upload className="w-5 h-5 text-brand-blue" />
+          </div>
+          <p className="text-sm text-white font-medium">
+            {isDragging ? 'Drop to upload' : 'Drag photos here or click to browse'}
+          </p>
+          <p className="text-xs text-gray-500">JPG, PNG, WEBP · up to 10 MB each</p>
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={e => { onFiles(e.target.files); e.target.value = '' }}
+        />
+      </div>
+
+      {hasImages && (
+        <ul className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {images.map((img, idx) => {
+            const isCover = idx === 0
+            return (
+              <li
+                key={img.id || img._tempId || img.image_url}
+                className={`relative group aspect-square rounded-lg overflow-hidden border ${
+                  isCover ? 'border-brand-blue/60 ring-1 ring-brand-blue/40' : 'border-navy-700/60'
+                }`}
+              >
+                <img src={img.image_url} alt={img.alt_text || ''} className="w-full h-full object-cover" />
+                {img._pending && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
+                {img._error && (
+                  <div className="absolute inset-0 bg-red-900/70 flex items-center justify-center px-2 text-center">
+                    <span className="text-[10px] text-red-100 leading-tight">Upload failed — remove and retry</span>
+                  </div>
+                )}
+                {isCover && (
+                  <span className="absolute top-1.5 left-1.5 bg-brand-blue text-white text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                    Cover
+                  </span>
+                )}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); moveAt(idx, -1) }}
+                      disabled={idx === 0}
+                      className="p-1 rounded bg-white/10 hover:bg-white/20 disabled:opacity-30 text-white"
+                      title="Move up"
+                    ><GripVertical className="w-3 h-3 rotate-90" /></button>
+                    {!isCover && (
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setAsCover(idx) }}
+                        className="p-1 rounded bg-white/10 hover:bg-amber-400/30 text-white"
+                        title="Set as cover"
+                      ><Star className="w-3 h-3" /></button>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); removeAt(idx) }}
+                    className="p-1 rounded bg-red-500/30 hover:bg-red-500/70 text-white"
+                    title="Remove"
+                  ><Trash2 className="w-3 h-3" /></button>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------
+function slugify(s) {
+  return (s || '').trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60)
+}
+
+// Extract the "vj-products/<path>" portion of a Supabase public URL so we can
+// delete files we own when the user removes them. Returns null for anything else.
+function storagePathFromPublicUrl(url) {
+  if (!url || typeof url !== 'string') return null
+  const marker = `/storage/v1/object/public/${PRODUCT_BUCKET}/`
+  const idx = url.indexOf(marker)
+  if (idx < 0) return null
+  return url.slice(idx + marker.length)
 }
