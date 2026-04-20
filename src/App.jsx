@@ -169,6 +169,16 @@ import OpsMeasurements from './pages/customer/ops/OpsMeasurements'
 import OpsHRHub from './pages/customer/ops/OpsHRHub'
 import OpsDocs from './pages/customer/ops/OpsDocs'
 import OpsProjects from './pages/customer/ops/OpsProjects'
+// LABOS — Liftori AI Business Operating System (per-client backend)
+import LabosLayout from './components/labos/LabosLayout'
+import LabosDashboard from './pages/labos/LabosDashboard'
+import LabosSales from './pages/labos/LabosSales'
+import LabosOperations from './pages/labos/LabosOperations'
+import LabosMarketing from './pages/labos/LabosMarketing'
+import LabosFinance from './pages/labos/LabosFinance'
+import LabosCommunications from './pages/labos/LabosCommunications'
+import LabosChat from './pages/labos/LabosChat'
+import LabosSupport from './pages/labos/LabosSupport'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -411,6 +421,25 @@ export default function App() {
             <Route path="testing" element={<Testing />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Route>
+
+          {/* LABOS — per-client backend (admin impersonation enters here) */}
+          <Route path="/labos/:platformId" element={
+            <ProtectedRoute>
+              <AdminRoute>
+                <LabosLayout />
+              </AdminRoute>
+            </ProtectedRoute>
+          }>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<LabosDashboard />} />
+            <Route path="sales" element={<LabosSales />} />
+            <Route path="operations" element={<LabosOperations />} />
+            <Route path="marketing" element={<LabosMarketing />} />
+            <Route path="finance" element={<LabosFinance />} />
+            <Route path="communications" element={<LabosCommunications />} />
+            <Route path="chat" element={<LabosChat />} />
+            <Route path="support" element={<LabosSupport />} />
           </Route>
 
           {/* Affiliate / Creator Portal routes */}

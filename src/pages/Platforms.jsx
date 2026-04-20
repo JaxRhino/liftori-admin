@@ -147,25 +147,47 @@ export default function Platforms() {
         <div className="text-center py-16"><p className="text-gray-500">No platforms found</p></div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(platform => (
-            <Link key={platform.id} to={`/admin/platforms/${platform.id}`}
-              className="bg-navy-800 border border-navy-700/50 rounded-xl p-5 hover:border-brand-blue/30 transition-all group">
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="text-white font-semibold group-hover:text-brand-blue transition-colors">{platform.client_name}</h3>
-                <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLORS[platform.status] || 'text-gray-400 border-gray-600'}`}>{platform.status}</span>
-              </div>
-              {platform.owner_name && <p className="text-gray-400 text-sm mb-2">{platform.owner_name}</p>}
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`text-xs font-medium ${TYPE_COLORS[platform.platform_type] || 'text-gray-400'}`}>{platform.platform_type}</span>
-                {platform.domain && (<><span className="text-gray-600">·</span><span className="text-xs text-gray-500">{platform.domain}</span></>)}
-              </div>
-              {platform.site_url && <p className="text-xs text-gray-500 truncate">{platform.site_url}</p>}
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-navy-700/50">
-                <span className="text-xs text-gray-500">{new Date(platform.created_at).toLocaleDateString()}</span>
-                {platform.monthly_revenue > 0 && <span className="text-xs text-brand-cyan font-medium">${(platform.monthly_revenue / 100).toLocaleString()}/mo</span>}
-              </div>
-            </Link>
-          ))}
+          {filtered.map(platform => {
+            // LABOS-enabled platforms link straight into the LABOS backend;
+            // legacy platforms keep the detail view.
+            const target = platform.labos_enabled
+              ? `/labos/${platform.id}/dashboard`
+              : `/admin/platforms/${platform.id}`
+            return (
+              <Link key={platform.id} to={target}
+                className="bg-navy-800 border border-navy-700/50 rounded-xl p-5 hover:border-brand-blue/30 transition-all group">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-white font-semibold group-hover:text-brand-blue transition-colors">{platform.client_name}</h3>
+                    {platform.labos_enabled && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-blue/15 text-brand-blue border border-brand-blue/30">
+                        LABOS
+                      </span>
+                    )}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLORS[platform.status] || 'text-gray-400 border-gray-600'}`}>{platform.status}</span>
+                </div>
+                {platform.owner_name && <p className="text-gray-400 text-sm mb-2">{platform.owner_name}</p>}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={`text-xs font-medium ${TYPE_COLORS[platform.platform_type] || 'text-gray-400'}`}>{platform.platform_type}</span>
+                  {platform.domain && (<><span className="text-gray-600">·</span><span className="text-xs text-gray-500">{platform.domain}</span></>)}
+                  {platform.industry && (<><span className="text-gray-600">·</span><span className="text-xs text-gray-500 capitalize">{platform.industry.replace('_',' ')}</span></>)}
+                </div>
+                {platform.site_url && <p className="text-xs text-gray-500 truncate">{platform.site_url}</p>}
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-navy-700/50">
+                  <span className="text-xs text-gray-500">{new Date(platform.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-2">
+                    {platform.monthly_revenue > 0 && <span className="text-xs text-brand-cyan font-medium">${(platform.monthly_revenue / 100).toLocaleString()}/mo</span>}
+                    {platform.labos_enabled && (
+                      <span className="text-xs text-brand-blue font-medium flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                        Enter →
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       )}
 
