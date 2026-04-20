@@ -174,6 +174,10 @@ import LabosLayout from './components/labos/LabosLayout'
 import LabosDashboard from './pages/labos/LabosDashboard'
 import LabosSales from './pages/labos/LabosSales'
 import LabosOperations from './pages/labos/LabosOperations'
+import OperationsDashboard from './pages/labos/operations/OperationsDashboard'
+import OperationsInventory from './pages/labos/operations/OperationsInventory'
+import OperationsFulfillment from './pages/labos/operations/OperationsFulfillment'
+import OperationsTeam from './pages/labos/operations/OperationsTeam'
 import LabosMarketing from './pages/labos/LabosMarketing'
 import LabosFinance from './pages/labos/LabosFinance'
 import LabosCommunications from './pages/labos/LabosCommunications'
@@ -433,7 +437,13 @@ export default function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<LabosDashboard />} />
             <Route path="sales" element={<LabosSales />} />
-            <Route path="operations" element={<LabosOperations />} />
+            <Route path="operations" element={<LabosOperations />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<OperationsDashboard />} />
+              <Route path="inventory" element={<OperationsInventory />} />
+              <Route path="fulfillment" element={<OperationsFulfillment />} />
+              <Route path="team" element={<OperationsTeam />} />
+            </Route>
             <Route path="marketing" element={<LabosMarketing />} />
             <Route path="finance" element={<LabosFinance />} />
             <Route path="communications" element={<LabosCommunications />} />
