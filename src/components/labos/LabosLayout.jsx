@@ -6,6 +6,7 @@
 
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { Bug } from 'lucide-react'
 import { LabosProvider, useLabos } from '../../contexts/LabosContext'
 import BugReportModal from './BugReportModal'
 
@@ -17,7 +18,6 @@ const HUB_DEFS = [
   { key: 'finance', label: 'Finance', path: 'finance', icon: FinanceIcon },
   { key: 'communications', label: 'Communications', path: 'communications', icon: CommsIcon },
   { key: 'chat', label: 'Chat', path: 'chat', icon: ChatIcon },
-  { key: 'support', label: 'Support', path: 'support', icon: SupportIcon },
 ]
 
 export default function LabosLayout() {
@@ -169,10 +169,10 @@ function LabosHeader() {
         {/* BUG REPORT */}
         <button
           onClick={() => setShowBugModal(true)}
-          className="w-9 h-9 rounded-lg hover:bg-navy-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-          title="Report a bug"
+          className="w-9 h-9 rounded-lg hover:bg-amber-500/10 flex items-center justify-center text-amber-400 hover:text-amber-300 transition-colors"
+          title="Report a bug or ask Liftori support"
         >
-          <BugIcon className="w-4 h-4" />
+          <Bug className="w-[18px] h-[18px]" strokeWidth={2} />
         </button>
 
         {/* NOTIFICATIONS BELL */}
@@ -230,6 +230,4 @@ function MarketingIcon({ className }) { return <svg className={className} fill="
 function FinanceIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> }
 function CommsIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg> }
 function ChatIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg> }
-function SupportIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" /></svg> }
 function BellIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg> }
-function BugIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> }

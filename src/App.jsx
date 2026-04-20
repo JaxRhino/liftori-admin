@@ -178,7 +178,6 @@ import LabosMarketing from './pages/labos/LabosMarketing'
 import LabosFinance from './pages/labos/LabosFinance'
 import LabosCommunications from './pages/labos/LabosCommunications'
 import LabosChat from './pages/labos/LabosChat'
-import LabosSupport from './pages/labos/LabosSupport'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -439,7 +438,6 @@ export default function App() {
             <Route path="finance" element={<LabosFinance />} />
             <Route path="communications" element={<LabosCommunications />} />
             <Route path="chat" element={<LabosChat />} />
-            <Route path="support" element={<LabosSupport />} />
           </Route>
 
           {/* Affiliate / Creator Portal routes */}
