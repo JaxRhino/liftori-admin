@@ -20,6 +20,7 @@ const TYPE_COLORS = {
 export default function Platforms() {
   const [platforms, setPlatforms] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
@@ -34,11 +35,20 @@ export default function Platforms() {
 
   async function fetchPlatforms() {
     setLoading(true)
+    setFetchError(null)
     const { data, error } = await supabase
       .from('platforms')
       .select('*')
       .order('created_at', { ascending: false })
-    if (!error) setPlatforms(data || [])
+    if (error) {
+      // Surface instead of silently swallowing — empty-state and RLS/auth
+      // failures used to look identical in the UI. Now we always know which.
+      console.error('[Platforms] fetch failed:', error)
+      setFetchError(error.message || String(error))
+      setPlatforms([])
+    } else {
+      setPlatforms(data || [])
+    }
     setLoading(false)
   }
 
@@ -143,6 +153,13 @@ export default function Platforms() {
         </select>
       </div>
 
+      {fetchError && (
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-200 px-4 py-3 text-sm">
+          <div className="font-semibold mb-1">Couldn't load platforms</div>
+          <div className="text-xs text-red-300/80 font-mono break-all">{fetchError}</div>
+          <button onClick={fetchPlatforms} className="mt-2 text-xs px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-100">Retry</button>
+        </div>
+      )}
       {filtered.length === 0 ? (
         <div className="text-center py-16"><p className="text-gray-500">No platforms found</p></div>
       ) : (

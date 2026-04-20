@@ -82,6 +82,7 @@ out
 .nuxt
 dist
 dist-verify
+dist-verify2
 
 # Gatsby files
 .cache/
