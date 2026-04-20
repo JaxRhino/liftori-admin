@@ -157,7 +157,7 @@ export default function AnnouncementModal() {
         )}
 
         <div
-          className={`relative w-full bg-slate-900 border-2 ${priorityStyle} rounded-2xl shadow-2xl overflow-hidden`}
+          className={`relative w-full bg-slate-900 border-2 ${priorityStyle} rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="announcement-title"
@@ -190,13 +190,14 @@ export default function AnnouncementModal() {
             </span>
           </div>
 
-          <div className="p-8 pt-6">
+          {/* Header — stays fixed at top (icon + label + title) */}
+          <div className="px-6 sm:px-8 pt-5 pb-3 flex-shrink-0">
             {/* Icon + label + stack counter */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`w-12 h-12 rounded-xl ${accent.bg} border ${accent.border} flex items-center justify-center flex-shrink-0`}>
-                <Icon className={`w-6 h-6 ${accent.text}`} />
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${accent.bg} border ${accent.border} flex items-center justify-center flex-shrink-0`}>
+                <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${accent.text}`} />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 pr-20">
                 <p className="text-[11px] uppercase tracking-widest text-gray-500 font-semibold">
                   Liftori Platform Announcement
                 </p>
@@ -211,47 +212,47 @@ export default function AnnouncementModal() {
             {/* Title */}
             <h2
               id="announcement-title"
-              className="text-2xl font-bold text-white mb-3 leading-tight"
+              className="text-xl sm:text-2xl font-bold text-white leading-tight"
             >
               {current.title}
             </h2>
+          </div>
 
-            {/* Body — preserves newlines */}
-            <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap mb-6">
-              {current.body}
-            </div>
+          {/* Body — scrollable when content is tall or viewport is short */}
+          <div className="px-6 sm:px-8 pb-4 text-sm text-gray-300 leading-relaxed whitespace-pre-wrap overflow-y-auto flex-1 min-h-0">
+            {current.body}
+          </div>
 
-            {/* Understood button */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[11px] text-gray-500">
-                {new Date(current.created_at).toLocaleDateString(undefined, {
-                  month: 'short', day: 'numeric', year: 'numeric',
-                })}
-              </div>
-              <button
-                onClick={handleAcknowledge}
-                disabled={busy}
-                className={`px-6 py-2.5 ${accent.btn} text-white rounded-lg font-semibold text-sm flex items-center gap-2 disabled:opacity-50 transition`}
-              >
-                {busy ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : hasMore ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    Got it · Next
-                    <ChevronRight className="w-4 h-4 -ml-1" />
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    Understood
-                  </>
-                )}
-              </button>
+          {/* Footer — stays fixed at bottom (Understood button always visible) */}
+          <div className="px-6 sm:px-8 py-4 flex items-center justify-between gap-3 flex-shrink-0 border-t border-slate-800/80 bg-slate-900">
+            <div className="text-[11px] text-gray-500">
+              {new Date(current.created_at).toLocaleDateString(undefined, {
+                month: 'short', day: 'numeric', year: 'numeric',
+              })}
             </div>
+            <button
+              onClick={handleAcknowledge}
+              disabled={busy}
+              className={`px-5 sm:px-6 py-2.5 ${accent.btn} text-white rounded-lg font-semibold text-sm flex items-center gap-2 disabled:opacity-50 transition`}
+            >
+              {busy ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : hasMore ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Got it · Next
+                  <ChevronRight className="w-4 h-4 -ml-1" />
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Understood
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
