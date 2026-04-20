@@ -6,7 +6,7 @@
 
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { Bug } from 'lucide-react'
+import { Bug, ExternalLink, Globe } from 'lucide-react'
 import { LabosProvider, useLabos } from '../../contexts/LabosContext'
 import BugReportModal from './BugReportModal'
 
@@ -101,6 +101,24 @@ function LabosShell() {
               </NavLink>
             )
           })}
+
+          {/* View live website — opens storefront in a new tab */}
+          {platform?.site_url && (
+            <>
+              <div className="h-px bg-navy-700/50 my-3 mx-1" />
+              <a
+                href={platform.site_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-navy-800 hover:text-white transition-colors"
+                title={`Open ${platform.site_url} in a new tab`}
+              >
+                <Globe className="w-4 h-4" />
+                <span className="flex-1">View Website</span>
+                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+              </a>
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t border-navy-700/50">
@@ -124,6 +142,7 @@ function LabosShell() {
 
 function LabosHeader() {
   const { client, platform, orgSettings } = useLabos()
+  const siteUrl = platform?.site_url
   const [showNotifications, setShowNotifications] = useState(false)
   const [showBugModal, setShowBugModal] = useState(false)
   const [notifications, setNotifications] = useState([])
@@ -157,6 +176,21 @@ function LabosHeader() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* VIEW WEBSITE — opens live storefront */}
+        {siteUrl && (
+          <a
+            href={siteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 h-9 rounded-lg border border-navy-700/60 bg-navy-800/60 hover:bg-navy-800 text-gray-300 hover:text-white text-xs font-medium transition-colors"
+            title={`Open ${siteUrl}`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            View Website
+            <ExternalLink className="w-3 h-3 opacity-60" />
+          </a>
+        )}
+
         {/* CHAT ICON — jumps to Chat hub */}
         <button
           onClick={() => navigate(`/labos/${platform.id}/chat`)}
