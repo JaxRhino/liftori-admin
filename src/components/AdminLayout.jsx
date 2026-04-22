@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+﻿import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useOrg } from '../lib/OrgContext'
 import React, { useState, useEffect, useRef } from 'react'
@@ -7,8 +7,7 @@ import GlobalPhoneCallPopup from './GlobalPhoneCallPopup'
 import GlobalHeader from './GlobalHeader'
 import ImpersonationBanner from './ImpersonationBanner'
 import { isFounder } from '../lib/testerProgramService'
-import VideoCallRoom from './VideoCallRoom'
-import OnboardingWizard from './OnboardingWizard'
+import FloatingCallWindow from './chat/FloatingCallWindow';import OnboardingWizard from './OnboardingWizard'
 import AnnouncementModal from './AnnouncementModal'
 import { PopoutChatProvider } from '../contexts/PopoutChatContext'
 import PopoutDock from './chat/PopoutDock'
@@ -594,14 +593,14 @@ const navItems = [
 
 // Role-based nav visibility
 const FULL_ACCESS_ROLES = ['super_admin', 'admin', 'dev']
-// Testers are NDA'd 1099 contractors who need to test every hub — give them
+// Testers are NDA'd 1099 contractors who need to test every hub â€” give them
 // Operations + Tools nav visibility. Row-level data access is still gated by
 // Supabase RLS, so opening a page they shouldn't edit won't leak anything.
 const MANAGEMENT_ROLES = ['super_admin', 'admin', 'dev', 'sales_director', 'tester']
 
 // Items hidden from call_agent role (they only see Call Center, Sales Hub, Chat, Rally)
 const CALL_AGENT_HIDDEN = ['Super Admin', 'Dashboard', 'Marketing', 'Communications', 'Finance', 'Support Tickets', 'Settings']
-// Items hidden from sales_director (they see everything except Super Admin — unless also granted)
+// Items hidden from sales_director (they see everything except Super Admin â€” unless also granted)
 const SALES_DIRECTOR_HIDDEN = []
 
 export default function AdminLayout() {
@@ -610,7 +609,7 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const mainRef = useRef(null)
-  // Sidebar pin state — persisted so pinned-open survives page refresh.
+  // Sidebar pin state â€” persisted so pinned-open survives page refresh.
   // Behavior: once pinned, stays pinned across navigations AND reloads until
   // the user clicks the pin toggle to switch back to auto-hide.
   const [sidebarPinned, setSidebarPinned] = useState(() => {
@@ -706,7 +705,7 @@ export default function AdminLayout() {
   const isCommsRoute = location.pathname.startsWith('/admin/comms')
   const [commsOpen, setCommsOpen] = useState(isCommsRoute)
 
-  // Onboarding gate — non-admin, non-customer users must complete onboarding first
+  // Onboarding gate â€” non-admin, non-customer users must complete onboarding first
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
   const needsOnboarding = profile &&
     profile.role !== 'admin' &&
@@ -726,12 +725,12 @@ export default function AdminLayout() {
   return (
     <PopoutChatProvider>
     <div className="h-screen flex flex-col overflow-hidden">
-      {/* User-level view-as banner — shows when a founder is impersonating a team member.
+      {/* User-level view-as banner â€” shows when a founder is impersonating a team member.
           Sits above everything (including the org-impersonation banner) so "Return to admin"
           is always reachable without touching page content. */}
       <ImpersonationBanner />
 
-      {/* Org-level impersonation banner — admin viewing a customer org */}
+      {/* Org-level impersonation banner â€” admin viewing a customer org */}
       {isImpersonating && (
         <div className="bg-purple-600 text-white text-xs font-semibold text-center py-1.5 px-4 flex items-center justify-center gap-3 flex-shrink-0 z-50">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -748,7 +747,7 @@ export default function AdminLayout() {
         </div>
       )}
       <div className="flex flex-1 overflow-hidden relative">
-      {/* Sidebar spacer — reserves collapsed/pinned width in flex layout */}
+      {/* Sidebar spacer â€” reserves collapsed/pinned width in flex layout */}
       <div className={`hidden md:block flex-shrink-0 transition-all duration-300 ${sidebarPinned ? 'w-60' : 'w-16'}`} />
 
       {/* Mobile backdrop */}
@@ -756,7 +755,7 @@ export default function AdminLayout() {
         <div className="absolute inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
       )}
 
-      {/* Sidebar — absolute overlay, expands on hover, slides in on mobile */}
+      {/* Sidebar â€” absolute overlay, expands on hover, slides in on mobile */}
       <aside
         onMouseEnter={() => { if (!sidebarPinned && !mobileMenuOpen) setSidebarHovered(true) }}
         onMouseLeave={() => setSidebarHovered(false)}
@@ -788,8 +787,8 @@ export default function AdminLayout() {
           )}
         </div>
 
-        {/* Nav — on link click: close mobile menu + collapse hover-opened sidebar.
-            DO NOT unpin — if the user explicitly pinned the sidebar, it stays pinned
+        {/* Nav â€” on link click: close mobile menu + collapse hover-opened sidebar.
+            DO NOT unpin â€” if the user explicitly pinned the sidebar, it stays pinned
             until they click the pin toggle again. */}
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto" onClick={(e) => { if (e.target.closest('a')) { setMobileMenuOpen(false); setSidebarHovered(false); } }}>
           {visibleNavItems.map((item, idx) => (
@@ -945,7 +944,7 @@ export default function AdminLayout() {
                 )}
               </>)}
 
-              {/* Sales Hub dropdown — inserted right after Call Center (below Marketing + Call Center in the rail) */}
+              {/* Sales Hub dropdown â€” inserted right after Call Center (below Marketing + Call Center in the rail) */}
               {item.label === 'Call Center' && showSalesHub && (<>
                 <div>
                   <button
@@ -1031,7 +1030,7 @@ export default function AdminLayout() {
                   )}
                 </div>
 
-                {/* Operations dropdown — right after Sales Hub */}
+                {/* Operations dropdown â€” right after Sales Hub */}
                 {showOps && showOpsHub && <div>
                   <button
                     onClick={() => { if (sidebarOpen) setOpsOpen(o => !o); else navigate(isImpersonating ? '/admin/ops/dashboard' : '/admin/wizard') }}
@@ -1080,7 +1079,7 @@ export default function AdminLayout() {
                   )}
                 </div>}
 
-                {/* HR Hub — standalone top-level link, sits just below Operations */}
+                {/* HR Hub â€” standalone top-level link, sits just below Operations */}
                 {showOps && !isImpersonating && (
                   <NavLink
                     to="/admin/hr-hub"
@@ -1102,7 +1101,7 @@ export default function AdminLayout() {
             </React.Fragment>
           ))}
 
-          {/* Tools group — admin only, hidden when viewing customer org */}
+          {/* Tools group â€” admin only, hidden when viewing customer org */}
           {showTools && !isImpersonating && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Tools</p>
@@ -1190,7 +1189,7 @@ export default function AdminLayout() {
             )}
           </div>}
 
-          {/* In-House Builds — admin only */}
+          {/* In-House Builds â€” admin only */}
           {showBuilds && !isImpersonating && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Internal</p>
@@ -1223,7 +1222,7 @@ export default function AdminLayout() {
             </NavLink>
           </div>}
 
-          {/* Freight AI — admin only */}
+          {/* Freight AI â€” admin only */}
           {showFreight && !isImpersonating && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Client Platforms</p>
@@ -1277,7 +1276,7 @@ export default function AdminLayout() {
             )}
           </div>}
 
-          {/* Client Portals — admin only */}
+          {/* Client Portals â€” admin only */}
           {!isImpersonating && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Portals</p>
@@ -1334,12 +1333,12 @@ export default function AdminLayout() {
       {/* Global call overlays */}
       <IncomingCallModal />
       <GlobalPhoneCallPopup />
-      <VideoCallRoom />
+      <FloatingCallWindow />
 
-      {/* Platform-wide announcement modal — internal team only, founder-posted */}
+      {/* Platform-wide announcement modal â€” internal team only, founder-posted */}
       <AnnouncementModal />
 
-      {/* Messenger-style DM pop-outs — persist across all admin routes */}
+      {/* Messenger-style DM pop-outs â€” persist across all admin routes */}
       <PopoutDock />
       </div>
     </div>

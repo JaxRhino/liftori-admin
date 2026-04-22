@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Minus, Video, Send, Paperclip, Smile, File as FileIcon, Download } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/AuthContext'
@@ -8,6 +8,7 @@ import * as chatSvc from '../../lib/chatService'
 import TypingIndicator from './TypingIndicator'
 import EmojiPicker from './EmojiPicker'
 import { playSendSwoosh } from '../../lib/chatSounds'
+import { decideStartOrJoin } from '../../lib/startOrJoinDmCall';
 
 /**
  * Messenger-style DM pop-out window.
@@ -65,7 +66,7 @@ export default function DMPopout({ entry, offsetIndex }) {
   }, [channelId])
 
   // Mark channel as read whenever the popout is expanded (or un-minimized).
-  // Covers: first open, minimize → expand, and every render while expanded+viewing.
+  // Covers: first open, minimize â†’ expand, and every render while expanded+viewing.
   useEffect(() => {
     if (!channelId || !user?.id || minimized) return
     chatSvc.markNotificationsRead(channelId, user.id).catch(() => {})
@@ -166,7 +167,7 @@ export default function DMPopout({ entry, offsetIndex }) {
     if (!text || sending || !channelId) return
     setSending(true)
     setDraft('')
-    // Swoosh on send (synchronous — survives optimistic failures too)
+    // Swoosh on send (synchronous â€” survives optimistic failures too)
     playSendSwoosh()
     try {
       const saved = await chatSvc.sendMessage(channelId, { content: text }, user)
@@ -192,14 +193,19 @@ export default function DMPopout({ entry, offsetIndex }) {
     }
   }
 
-  const handleVideoCall = () => {
-    if (!otherUserId) return
+  const handleVideoCall = async () => {
     try {
-      videoCall.startCall([otherUserId], channelId, 'video')
+      const result = await decideStartOrJoin(channelId);
+      if (result.mode === 'join' && result.callId) {
+        await videoCall.joinCall(result.callId);
+      } else {
+        await videoCall.startCall([otherUserId], channelId, 'video');
+      }
     } catch (err) {
-      console.error('Failed to start video call:', err)
+      console.error('[DMPopout] video call failed', err);
+      videoCall.startCall([otherUserId], channelId, 'video');
     }
-  }
+  };
 
   const handleFileSelect = () => {
     fileInputRef.current?.click()
@@ -275,7 +281,7 @@ export default function DMPopout({ entry, offsetIndex }) {
       role="dialog"
       aria-label={`Chat with ${otherUserName}`}
     >
-      {/* Header — always visible, click to toggle minimize */}
+      {/* Header â€” always visible, click to toggle minimize */}
       <button
         type="button"
         onClick={() => toggleMinimize(channelId)}
@@ -456,7 +462,7 @@ export default function DMPopout({ entry, offsetIndex }) {
             onSubmit={handleSend}
             className="flex items-end gap-1 px-2 py-2 border-t border-slate-700 bg-slate-900"
           >
-            {/* Hidden file input — supports multiple selection */}
+            {/* Hidden file input â€” supports multiple selection */}
             <input
               ref={fileInputRef}
               type="file"
