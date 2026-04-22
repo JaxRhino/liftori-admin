@@ -1,10 +1,10 @@
 /**
- * Rally Chat — Supabase Service Layer
+ * Rally Chat â€” Supabase Service Layer
  * Replaces all FastAPI/axios calls with direct Supabase queries.
  */
 import { supabase } from './supabase'
 
-// ─── Channels ────────────────────────────────────────────────
+// â”€â”€â”€ Channels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function fetchChannels(userId) {
   const { data, error } = await supabase
@@ -84,7 +84,7 @@ export async function createChannel({ name, description, type, members }, userId
   return data
 }
 
-// ─── Messages ────────────────────────────────────────────────
+// â”€â”€â”€ Messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function fetchMessages(channelId) {
   const { data, error } = await supabase
@@ -157,7 +157,7 @@ export async function fetchMessages(channelId) {
 
 // Enrich a single raw chat_messages row with sender profile info.
 // Used by realtime subscription handlers so incoming messages render with
-// avatar / name / role / title — not just initials.
+// avatar / name / role / title â€” not just initials.
 export async function enrichMessageWithProfile(msg) {
   if (!msg?.sender_id) return msg
   // If already enriched, no-op.
@@ -207,7 +207,7 @@ export async function sendMessage(channelId, { content, attachments = [], thread
 
   if (error) throw error
 
-  // ─── Chat Notifications ───────────────────────────────────
+  // â”€â”€â”€ Chat Notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Notify all channel members except the sender
   try {
     const { data: members } = await supabase
@@ -286,7 +286,7 @@ export async function deleteMessage(messageId) {
   if (error) throw error
 }
 
-// ─── Threads ─────────────────────────────────────────────────
+// â”€â”€â”€ Threads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function fetchThread(messageId) {
   const { data, error } = await supabase
@@ -318,7 +318,7 @@ export async function fetchThreadCounts(channelId) {
   return { thread_counts: counts }
 }
 
-// ─── Reactions ───────────────────────────────────────────────
+// â”€â”€â”€ Reactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function toggleReaction(messageId, emoji, userId, userName) {
   // Check if reaction exists
@@ -363,7 +363,7 @@ export async function toggleReaction(messageId, emoji, userId, userName) {
   return { reactions: grouped }
 }
 
-// ─── Direct Messages ─────────────────────────────────────────
+// â”€â”€â”€ Direct Messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function fetchDirectMessages(userId, filterRole = null) {
   // Get DM channels the user is a member of
@@ -545,7 +545,7 @@ export async function createOrGetDM(currentUserId, otherUserId) {
   return { ...newChannel, name: otherProfile?.full_name || otherProfile?.email || 'User' }
 }
 
-// ─── Users ───────────────────────────────────────────────────
+// â”€â”€â”€ Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // Roles considered "Liftori team" for chat + mentions.
 // Keep in sync with handle_new_team_member() Postgres trigger.
@@ -579,7 +579,7 @@ function prettyRole(role) {
 }
 
 export async function fetchUsers() {
-  // Return all Liftori team members — customers/affiliates are excluded
+  // Return all Liftori team members â€” customers/affiliates are excluded
   // and surfaced in a separate DM section.
   const { data, error } = await supabase
     .from('profiles')
@@ -604,14 +604,14 @@ export async function fetchUsers() {
 
   return {
     users: rows.map(({ u, name, first, lastInitial }) => {
-      // Handle = first name (e.g. "Ryan") — append last initial only on collision
+      // Handle = first name (e.g. "Ryan") â€” append last initial only on collision
       const collision = firstCounts[first.toLowerCase()] > 1 && lastInitial
       const handle = collision ? `${first}${lastInitial}` : first
       return {
         id: u.id,
         name,
-        username: handle,                       // e.g. "Ryan" — used in @mentions
-        roleLabel: prettyRole(u.role),          // e.g. "Super Admin" — for dropdown subtitle
+        username: handle,                       // e.g. "Ryan" â€” used in @mentions
+        roleLabel: prettyRole(u.role),          // e.g. "Super Admin" â€” for dropdown subtitle
         email: u.email,
         role: u.role,
         title: u.title || null,
@@ -621,7 +621,7 @@ export async function fetchUsers() {
   }
 }
 
-// ─── Preferences ─────────────────────────────────────────────
+// â”€â”€â”€ Preferences â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function fetchUserPreferences(userId) {
   const { data } = await supabase
@@ -641,7 +641,7 @@ export async function updateUserPreferences(userId, prefs) {
   if (error) throw error
 }
 
-// ─── Presence / Status ───────────────────────────────────────
+// â”€â”€â”€ Presence / Status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function fetchUserStatus(userId) {
   const { data } = await supabase
@@ -653,7 +653,7 @@ export async function fetchUserStatus(userId) {
   return data || { status: 'online', status_text: '', status_emoji: '' }
 }
 
-// ─── Permissions ─────────────────────────────────────────────
+// â”€â”€â”€ Permissions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function fetchChatPermissions(userId) {
   // For now, admin gets full permissions, others get basic
@@ -676,7 +676,7 @@ export async function fetchChatPermissions(userId) {
   }
 }
 
-// ─── Announcements ───────────────────────────────────────────
+// â”€â”€â”€ Announcements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function fetchAnnouncements(userId) {
   const { data, error } = await supabase
@@ -710,7 +710,7 @@ export async function acknowledgeAnnouncement(announcementId, userId) {
   if (error && error.code !== '23505') throw error // Ignore duplicate
 }
 
-// ─── Saved Messages ──────────────────────────────────────────
+// â”€â”€â”€ Saved Messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function saveMessage(messageId, userId) {
   // Toggle: check if already saved
@@ -730,7 +730,7 @@ export async function saveMessage(messageId, userId) {
   }
 }
 
-// ─── Pin Messages ────────────────────────────────────────────
+// â”€â”€â”€ Pin Messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function togglePin(channelId, messageId, currentlyPinned) {
   const { error } = await supabase
@@ -742,7 +742,7 @@ export async function togglePin(channelId, messageId, currentlyPinned) {
   if (error) throw error
 }
 
-// ─── Notifications ───────────────────────────────────────────
+// â”€â”€â”€ Notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function markNotificationsRead(channelId, userId) {
   const { error } = await supabase
@@ -756,7 +756,7 @@ export async function markNotificationsRead(channelId, userId) {
   if (error) throw error
 }
 
-// ─── Search ──────────────────────────────────────────────────
+// â”€â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function searchMessages(query) {
   const { data, error } = await supabase
@@ -776,7 +776,14 @@ export async function searchMessages(query) {
   }
 }
 
-// ─── File Upload (Supabase Storage) ──────────────────────────
+// â”€â”€â”€ File Upload (Supabase Storage) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+const EXT_MIME = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
+  svg: 'image/svg+xml', heic: 'image/heic', heif: 'image/heif'
+}
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif)$/i
 
 export async function uploadFile(file, userId) {
   const ext = file.name.split('.').pop()
@@ -784,7 +791,7 @@ export async function uploadFile(file, userId) {
 
   const { data, error } = await supabase.storage
     .from('chat-files')
-    .upload(path, file)
+    .upload(path, file, { contentType: file.type || EXT_MIME[(file.name.split('.').pop() || '').toLowerCase()] || 'application/octet-stream', upsert: false })
 
   if (error) throw error
 
@@ -794,13 +801,13 @@ export async function uploadFile(file, userId) {
 
   return {
     filename: file.name,
-    file_type: file.type.startsWith('image/') ? 'image' : 'file',
+    file_type: (file.type.startsWith('image/') || IMAGE_EXT_RE.test(file.name)) ? 'image' : 'file',
     url: urlData.publicUrl,
     size: file.size
   }
 }
 
-// ─── Realtime Subscriptions ──────────────────────────────────
+// â”€â”€â”€ Realtime Subscriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function subscribeToChannel(channelId, onNewMessage, onMessageUpdate, onMessageDelete) {
   const subscription = supabase
