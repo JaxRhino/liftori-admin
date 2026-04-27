@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/AuthContext'
+import SocialCardCanvas, { SOCIAL_CARD_TEMPLATES } from './SocialCardCanvas'
+import AiPostGenerator from './AiPostGenerator'
 
 const PLATFORMS = [
   { id: 'instagram', label: 'Instagram', limit: 2200, color: 'from-purple-500 to-pink-500', textColor: 'text-pink-400', bgColor: 'bg-pink-500/10', borderColor: 'border-pink-500/30', icon: ( <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg> ) },
@@ -32,6 +34,16 @@ export default function SocialComposer() {
   const [saveSuccess, setSaveSuccess] = useState('')
   const [actioningId, setActioningId] = useState(null)
   const [actionError, setActionError] = useState('')
+
+  // Wave B: AI generator + branded card image
+  const [aiGenOpen, setAiGenOpen] = useState(false)
+  const [cardTemplate, setCardTemplate] = useState('announcement')
+  const [cardHeadline, setCardHeadline] = useState('')
+  const [cardBody, setCardBody] = useState('')
+  const [mediaUrl, setMediaUrl] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [cardEditedManually, setCardEditedManually] = useState(false)
+  const cardCanvasRef = useRef(null)
 
   // Traffic metrics state
   const [trafficLoading, setTrafficLoading] = useState(true)
@@ -194,11 +206,16 @@ export default function SocialComposer() {
         created_by: user?.id ?? null,
         ai_generated: false,
         source_type: 'manual',
+        media_urls: mediaUrl ? [mediaUrl] : [],
       }
       const { error } = await supabase.from('marketing_posts').insert([payload])
       if (error) throw error
       setPostContent('')
       setScheduledFor('')
+      setMediaUrl('')
+      setCardHeadline('')
+      setCardBody('')
+      setCardEditedManually(false)
       setSaveSuccess('Added to queue — pending your approval before it publishes.')
       await fetchPosts()
       setTimeout(() => setSaveSuccess(''), 4000)
@@ -284,6 +301,47 @@ export default function SocialComposer() {
     }
   }
 
+  function handleAiVariantPicked(variant) {
+    setPostContent(variant.content || '')
+    if (variant.content_type) setContentType(variant.content_type)
+    if (variant.suggested_card_template) setCardTemplate(variant.suggested_card_template)
+    const lines = (variant.content || '').split('\n').filter(Boolean)
+    setCardHeadline(lines[0] || '')
+    setCardBody(lines.slice(1).join('\n').slice(0, 220) || '')
+    setCardEditedManually(false)
+  }
+
+  // Auto-derive card text from postContent until the user manually edits it
+  useEffect(() => {
+    if (cardEditedManually) return
+    const lines = (postContent || '').split('\n').filter(Boolean)
+    setCardHeadline(lines[0] || '')
+    setCardBody(lines.slice(1).join('\n').slice(0, 220) || '')
+  }, [postContent, cardEditedManually])
+
+  async function handleGenerateImage() {
+    if (!cardCanvasRef.current) return
+    setUploadingImage(true)
+    try {
+      const blob = await cardCanvasRef.current.toBlob()
+      const filename = `${Date.now()}_${cardTemplate}.png`
+      const path = `pending/${filename}`
+      const { error } = await supabase.storage
+        .from('marketing-media')
+        .upload(path, blob, { contentType: 'image/png', upsert: false })
+      if (error) throw error
+      const { data: pub } = supabase.storage.from('marketing-media').getPublicUrl(path)
+      setMediaUrl(pub.publicUrl)
+    } catch (err) {
+      console.error('image upload:', err)
+      alert(`Image upload failed: ${err.message}`)
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  function clearMedia() { setMediaUrl('') }
+
   function formatScheduled(dateStr) {
     if (!dateStr) return ''
     const d = new Date(dateStr)
@@ -350,6 +408,18 @@ export default function SocialComposer() {
           </button>
         ))}
       </div>
+
+      {activeTab === 'composer' && (
+        <div className="mb-3 flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => setAiGenOpen(true)}
+            className="bg-violet-500 hover:bg-violet-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+          >
+            <span>✨</span> Generate with AI
+          </button>
+          <span className="text-xs text-slate-500">Claude drafts 3 on-brand variants. You still approve before publish.</span>
+        </div>
+      )}
 
       {/* COMPOSER TAB */}
       {activeTab === 'composer' && (
@@ -449,6 +519,57 @@ export default function SocialComposer() {
                 Wave A wires <span className="text-blue-400">Facebook</span> live. Other platforms queue but won't publish yet.
               </p>
             </div>
+
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <label className="block text-sm font-medium text-slate-300 mb-3">Branded image (optional)</label>
+              <select
+                value={cardTemplate}
+                onChange={(e) => setCardTemplate(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white mb-3 focus:outline-none focus:border-sky-500"
+              >
+                {SOCIAL_CARD_TEMPLATES.map(t => (
+                  <option key={t.id} value={t.id}>{t.label}</option>
+                ))}
+              </select>
+              <div className="flex justify-center mb-3">
+                <SocialCardCanvas
+                  ref={cardCanvasRef}
+                  template={cardTemplate}
+                  headline={cardHeadline}
+                  body={cardBody}
+                  previewSize={240}
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Card headline"
+                value={cardHeadline}
+                onChange={(e) => { setCardHeadline(e.target.value); setCardEditedManually(true) }}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white mb-2 focus:outline-none focus:border-sky-500"
+              />
+              <textarea
+                placeholder="Card body (optional)"
+                value={cardBody}
+                onChange={(e) => { setCardBody(e.target.value); setCardEditedManually(true) }}
+                rows={2}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white mb-3 focus:outline-none focus:border-sky-500 resize-none"
+              />
+              {mediaUrl ? (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2.5 text-xs text-emerald-400 flex items-center justify-between">
+                  <span>✓ Image attached — will publish with the post</span>
+                  <button onClick={clearMedia} className="text-slate-400 hover:text-red-400 ml-2">remove</button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleGenerateImage}
+                  disabled={uploadingImage || !cardHeadline}
+                  className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-xs font-medium py-2 rounded-lg transition-colors"
+                >
+                  {uploadingImage ? 'Uploading…' : 'Generate & attach image'}
+                </button>
+              )}
+            </div>
+
             {postContent && (
               <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                 <div className="text-sm font-medium text-slate-300 mb-2">Preview</div>
@@ -815,6 +936,12 @@ export default function SocialComposer() {
           )}
         </div>
       )}
+
+      <AiPostGenerator
+        isOpen={aiGenOpen}
+        onClose={() => setAiGenOpen(false)}
+        onPickVariant={handleAiVariantPicked}
+      />
     </div>
   )
 }
