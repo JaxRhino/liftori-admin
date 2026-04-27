@@ -2,9 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
-// Marketing Hub overview - rebuilt around what Liftori actually runs.
-// Top: real engine KPIs from our own tables (posts, signups, drips).
-// Tiles grouped by section: Engine (your built tools), Content, Paid, Insights.
+// Marketing Hub overview - Liftori-real KPIs at top, tiles grouped by funnel stage.
 
 export default function MarketingDashboard() {
   const [posts, setPosts] = useState([])
@@ -77,7 +75,7 @@ export default function MarketingDashboard() {
         <ProductCard product="CRM"     url="/admin/marketing/waitlist" signups={stats.crm} tone="blue" />
       </div>
 
-      {/* SECTION 1: Engine (Liftori-built, working) */}
+      {/* SECTION 1: Engine - Liftori-built tools */}
       <Section title="Engine" subtitle="The Liftori-built marketing system. Use these daily.">
         <ToolTile to="/admin/marketing/social-composer"  title="Social Composer"     hint="Compose, AI-draft, branded image, approve" accent="emerald" />
         <ToolTile to="/admin/marketing/performance"      title="Performance"         hint="Posts, signups, drips - 7-day trend" accent="sky" />
@@ -85,29 +83,33 @@ export default function MarketingDashboard() {
         <ToolTile to="/admin/marketing/sequences"        title="Email Sequences"     hint="Drip emails + send stats" accent="violet" />
       </Section>
 
-      {/* SECTION 2: Content & SEO */}
-      <Section title="Content & SEO" subtitle="Long-form content and discoverability.">
-        <ToolTile to="/marketing/content"          title="Content Creator"     hint="Drafts for blog, email, landing" />
-        <ToolTile to="/marketing/scheduler"        title="Content Scheduler"   hint="Calendar view of publishing" />
-        <ToolTile to="/marketing/seo"              title="SEO Manager"         hint="Keyword tracking + on-page" />
-        <ToolTile to="/marketing/email"            title="Email Campaigns"     hint="One-shot broadcast emails" />
+      {/* SECTION 2: TOP OF FUNNEL - get noticed */}
+      <Section title="Awareness & Reach" subtitle="Top of funnel. How prospects discover Liftori.">
+        <ToolTile to="/marketing/content"          title="Content Creator"     hint="Long-form drafts: blog, email, landing" />
+        <ToolTile to="/marketing/scheduler"        title="Content Scheduler"   hint="Calendar view of publishing across channels" />
+        <ToolTile to="/marketing/seo"              title="SEO Manager"         hint="Keyword tracking, ranks, on-page checks" />
+        <ToolTile to="/marketing/social-listening" title="Social Listening"    hint="Mentions, brand monitors, replies needed" />
       </Section>
 
-      {/* SECTION 3: Paid (when LLC + Stripe lands) */}
-      <Section title="Paid Acquisition" subtitle="Tracking + budget. Light usage until LLC + Stripe lands.">
-        <ToolTile to="/marketing/tracker"          title="Campaign Tracker"    hint="Spend, revenue, ROAS by campaign" />
+      {/* SECTION 3: MIDDLE OF FUNNEL - capture and nurture */}
+      <Section title="Audience & Nurture" subtitle="Middle of funnel. Capture intent and warm them up.">
+        <ToolTile to="/marketing/email"            title="Email Campaigns"     hint="One-shot broadcasts (separate from drips)" />
+        <ToolTile to="/marketing/audience-segments" title="Audience Segments"  hint="Cohorts, filters, lookalikes" />
+        <ToolTile to="/marketing/customer-map"     title="Customer Map"        hint="Geographic distribution of signups" />
+        <ToolTile to="/marketing/ab-testing"       title="A/B Testing"         hint="Test subject lines, CTAs, page variants" />
+      </Section>
+
+      {/* SECTION 4: BOTTOM OF FUNNEL - measure */}
+      <Section title="Measurement & Goals" subtitle="Bottom of funnel. Did it work? Are we on pace?">
+        <ToolTile to="/marketing/analytics"        title="Analytics"           hint="Deep drilldown across campaigns" />
+        <ToolTile to="/marketing/on-pace"          title="On-Pace Tracking"    hint="Goal pacing per period" />
+      </Section>
+
+      {/* SECTION 5: PAID - separate track until LLC + Stripe land */}
+      <Section title="Paid Acquisition" subtitle="Separate track. Light usage until LLC + Stripe finalize.">
+        <ToolTile to="/marketing/tracker"          title="Campaign Tracker"    hint="Spend, revenue, ROAS per campaign" />
         <ToolTile to="/marketing/ads"              title="Ad Manager"          hint="Creative + targeting registry" />
         <ToolTile to="/marketing/utm-builder"      title="UTM Builder"         hint="Tagged links for attribution" />
-        <ToolTile to="/marketing/ab-testing"       title="A/B Testing"         hint="Experiments + variants" />
-      </Section>
-
-      {/* SECTION 4: Insights & audience */}
-      <Section title="Insights & Audience" subtitle="Who they are, where they came from, what to send next.">
-        <ToolTile to="/marketing/analytics"        title="Analytics"           hint="Deep performance drilldown" />
-        <ToolTile to="/marketing/customer-map"     title="Customer Map"        hint="Geographic distribution" />
-        <ToolTile to="/marketing/audience-segments" title="Audience Segments"  hint="Cohorts and lookalikes" />
-        <ToolTile to="/marketing/social-listening" title="Social Listening"    hint="Mentions and replies" />
-        <ToolTile to="/marketing/on-pace"          title="On-Pace Tracking"    hint="Goal pacing per period" />
       </Section>
 
       {loading && <p className="text-xs text-slate-500">Refreshing metrics...</p>}
@@ -157,7 +159,7 @@ function ProductCard({ product, url, signups, tone }) {
           <p className="text-[11px] uppercase tracking-wide text-gray-500">{product} waitlist</p>
           <p className={`text-2xl font-bold mt-1 ${valueTone[tone] || valueTone.slate}`}>{signups.toLocaleString()}</p>
         </div>
-        <span className="text-xs text-gray-400">View list →</span>
+        <span className="text-xs text-gray-400">View list -&gt;</span>
       </div>
     </Link>
   )
