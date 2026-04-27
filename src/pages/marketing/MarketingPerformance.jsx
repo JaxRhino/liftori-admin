@@ -1,4 +1,4 @@
-// MarketingPerformance — at-a-glance "is this working?" dashboard.
+﻿// MarketingPerformance â€” at-a-glance "is this working?" dashboard.
 // Aggregates marketing_posts (publishing volume), waitlist_signups (intent capture),
 // email_sends (nurture activity), and shows per-product funnel.
 
@@ -41,7 +41,7 @@ export default function MarketingPerformance() {
           .order('created_at', { ascending: false })
           .limit(500),
         supabase.from('waitlist_signups')
-          .select('id, full_name, email, product_interest, created_at')
+          .select('id, full_name, email, product_interest, utm_source, utm_campaign, created_at')
           .order('created_at', { ascending: false })
           .limit(2000),
         supabase.from('email_sends')
@@ -103,6 +103,31 @@ export default function MarketingPerformance() {
       signupsThisWeek: signups.filter(s => (s.product_interest || 'general') === prod.key && new Date(s.created_at) >= daysAgo(7)).length,
     }))
   }, [signups])
+  // Signups grouped by utm_source for attribution
+  const signupsBySource = useMemo(() => {
+    const map = {}
+    for (const s of signups) {
+      const src = s.utm_source || 'direct'
+      map[src] = (map[src] || 0) + 1
+    }
+    const total = signups.length || 1
+    return Object.entries(map)
+      .map(([source, count]) => ({ source, count, pct: Math.round((count / total) * 100) }))
+      .sort((a, b) => b.count - a.count)
+  }, [signups])
+
+  // Top campaigns (utm_campaign) - shows which posts drove signups
+  const topCampaigns = useMemo(() => {
+    const map = {}
+    for (const s of signups) {
+      if (!s.utm_campaign) continue
+      map[s.utm_campaign] = (map[s.utm_campaign] || 0) + 1
+    }
+    return Object.entries(map)
+      .map(([campaign, count]) => ({ campaign, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8)
+  }, [signups])
 
   // Recent published posts
   const recentPublished = useMemo(() => {
@@ -123,11 +148,11 @@ export default function MarketingPerformance() {
     <div className="p-6 max-w-7xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Marketing Performance</h1>
-        <p className="text-slate-400 text-sm mt-1">At-a-glance health of the marketing engine. Posts published, signups captured, drip emails sent — across the last 7 days.</p>
+        <p className="text-slate-400 text-sm mt-1">At-a-glance health of the marketing engine. Posts published, signups captured, drip emails sent â€” across the last 7 days.</p>
       </div>
 
       {loading ? (
-        <div className="text-slate-400 text-sm">Loading…</div>
+        <div className="text-slate-400 text-sm">Loadingâ€¦</div>
       ) : (
         <>
           {/* Top stats */}
@@ -183,7 +208,7 @@ export default function MarketingPerformance() {
               <div key={p.key} className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5">
                 <div className="flex items-center justify-between mb-3">
                   <span className={`text-[11px] uppercase tracking-wide px-2 py-0.5 rounded-full border ${TONE_BG[p.tone]}`}>{p.label}</span>
-                  <Link to="/admin/marketing/waitlist" className="text-xs text-slate-500 hover:text-sky-400">View →</Link>
+                  <Link to="/admin/marketing/waitlist" className="text-xs text-slate-500 hover:text-sky-400">View â†’</Link>
                 </div>
                 <div className="text-3xl font-bold text-white">{p.signups.toLocaleString()}</div>
                 <div className="text-xs text-slate-400 mt-1">total signups</div>
@@ -194,11 +219,44 @@ export default function MarketingPerformance() {
             ))}
           </div>
 
+          {/* Signups by source */}
+          {signupsBySource.length > 0 && (
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 mb-6">
+              <h2 className="text-sm font-semibold text-white mb-3">Signups by source</h2>
+              <div className="space-y-2">
+                {signupsBySource.map(s => (
+                  <div key={s.source} className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-slate-300 w-24 truncate capitalize">{s.source}</span>
+                    <div className="flex-1 h-2 bg-slate-900/60 rounded-full overflow-hidden">
+                      <div className="h-full bg-sky-500 rounded-full" style={{ width: `${s.pct}%` }} />
+                    </div>
+                    <span className="text-sm text-white font-medium w-10 text-right">{s.count}</span>
+                    <span className="text-xs text-slate-500 w-10 text-right">{s.pct}%</span>
+                  </div>
+                ))}
+              </div>
+              {topCampaigns.length > 0 && (
+                <div className="mt-5 pt-4 border-t border-slate-700/40">
+                  <h3 className="text-xs uppercase tracking-wide text-slate-400 mb-3">Top campaigns</h3>
+                  <div className="space-y-1.5">
+                    {topCampaigns.map(c => (
+                      <div key={c.campaign} className="flex items-center justify-between text-xs">
+                        <span className="font-mono text-slate-300 truncate">{c.campaign}</span>
+                        <span className="text-emerald-400 font-medium">{c.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-3">Campaigns are post IDs. Cross-reference with the Composer queue to see which post drove signups.</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Recent published posts */}
           <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden mb-6">
             <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-white">Recent published posts</h2>
-              <Link to="/admin/marketing/social-composer" className="text-xs text-sky-400 hover:underline">Open Composer →</Link>
+              <Link to="/admin/marketing/social-composer" className="text-xs text-sky-400 hover:underline">Open Composer â†’</Link>
             </div>
             {recentPublished.length === 0 ? (
               <div className="p-6 text-center text-slate-400 text-sm">No published posts yet.</div>
@@ -217,7 +275,7 @@ export default function MarketingPerformance() {
                       </div>
                       {url && (
                         <a href={url} target="_blank" rel="noreferrer" className="text-xs px-3 py-1.5 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0">
-                          View on FB ↗
+                          View on FB â†—
                         </a>
                       )}
                     </div>
