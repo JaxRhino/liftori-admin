@@ -80,7 +80,7 @@ export default function MarketingDashboard() {
           <ToolTile to="/marketing/ads"              title="Ad Manager"          hint="Spend & ROAS by platform" emoji="â€¢" />
           <ToolTile to="/marketing/utm-builder"      title="UTM Builder"         hint={`${formatInt(summary?.utm_links || 0)} links`} emoji="â€¢" />
           <ToolTile to="/marketing/content"          title="Content Creator"     hint="Draft & publish" emoji="â€¢" />
-          <ToolTile to="/marketing/social-composer"  title="Social Composer"     hint="Compose, approve, publish to FB" emoji="•" accent="emerald" />
+          <ToolTile to="/admin/marketing/social-composer"  title="Social Composer"     hint="Compose, approve, publish to FB" emoji="•" accent="emerald" />
           <ToolTile to="/marketing/scheduler"        title="Content Scheduler"   hint="Calendar view" emoji="â€¢" />
           <ToolTile to="/marketing/seo"              title="SEO Manager"         hint={`${formatInt(summary?.seo_keywords || 0)} keywords`} emoji="â€¢" />
           <ToolTile to="/marketing/email"            title="Email Campaigns"     hint={`${formatInt(emailCount)} campaigns`} emoji="â€¢" />
