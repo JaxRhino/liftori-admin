@@ -1,21 +1,15 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  getHubSummary, summarizeCampaignPerformance,
-  formatMoney, formatInt, formatPct,
-  listEmailCampaigns, listGoals, listAbTests, listMentions, listSegments,
-} from '../../lib/marketingService'
+import { supabase } from '../../lib/supabase'
 
-// Single hub overview â€” aggregates every corner of the Marketing Hub
-// and routes operators straight to the right sub-tool.
+// Marketing Hub overview - rebuilt around what Liftori actually runs.
+// Top: real engine KPIs from our own tables (posts, signups, drips).
+// Tiles grouped by section: Engine (your built tools), Content, Paid, Insights.
+
 export default function MarketingDashboard() {
-  const [summary, setSummary] = useState(null)
-  const [perf, setPerf] = useState(null)
-  const [emailCount, setEmailCount] = useState(0)
-  const [goalCount, setGoalCount] = useState(0)
-  const [activeAbTests, setActiveAbTests] = useState(0)
-  const [pendingMentions, setPendingMentions] = useState(0)
-  const [segmentCount, setSegmentCount] = useState(0)
+  const [posts, setPosts] = useState([])
+  const [signups, setSignups] = useState([])
+  const [sends, setSends] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { load() }, [])
@@ -23,174 +17,177 @@ export default function MarketingDashboard() {
   async function load() {
     setLoading(true)
     try {
-      const [s, p, emails, goals, tests, mentions, segs] = await Promise.all([
-        getHubSummary().catch(() => null),
-        summarizeCampaignPerformance().catch(() => null),
-        listEmailCampaigns().catch(() => []),
-        listGoals({ status: 'active' }).catch(() => []),
-        listAbTests({ status: 'running' }).catch(() => []),
-        listMentions({ needs_response: true, limit: 500 }).catch(() => []),
-        listSegments().catch(() => []),
+      const [{ data: p }, { data: s }, { data: e }] = await Promise.all([
+        supabase.from('marketing_posts')
+          .select('id, status, published_at, created_at, scheduled_for')
+          .order('created_at', { ascending: false })
+          .limit(500),
+        supabase.from('waitlist_signups')
+          .select('id, product_interest, created_at')
+          .order('created_at', { ascending: false })
+          .limit(2000),
+        supabase.from('email_sends')
+          .select('id, status, sent_at')
+          .order('sent_at', { ascending: false })
+          .limit(2000),
       ])
-      setSummary(s)
-      setPerf(p)
-      setEmailCount(emails.length)
-      setGoalCount(goals.length)
-      setActiveAbTests(tests.length)
-      setPendingMentions(mentions.length)
-      setSegmentCount(segs.length)
+      setPosts(p || [])
+      setSignups(s || [])
+      setSends(e || [])
     } catch (err) {
       console.error('Marketing dashboard load failed:', err)
     } finally { setLoading(false) }
   }
 
-  const total = perf?.total || {}
-  const byChannel = (perf?.byChannel || []).sort((a, b) => Number(b.revenue_cents || 0) - Number(a.revenue_cents || 0)).slice(0, 6)
+  const stats = useMemo(() => {
+    const today = new Date(); today.setHours(0,0,0,0)
+    const week = new Date(today); week.setDate(week.getDate() - 7)
+    return {
+      published:    posts.filter(p => p.status === 'published').length,
+      scheduled:    posts.filter(p => p.status === 'scheduled').length,
+      pending:      posts.filter(p => p.status === 'pending_approval').length,
+      failed:       posts.filter(p => p.status === 'failed').length,
+      signups:      signups.length,
+      signupsWeek:  signups.filter(s => new Date(s.created_at) >= week).length,
+      sends:        sends.filter(e => e.status === 'sent').length,
+      sendsFailed:  sends.filter(e => e.status === 'failed').length,
+      boloGo:       signups.filter(s => s.product_interest === 'bolo_go').length,
+      crm:          signups.filter(s => s.product_interest === 'crm').length,
+    }
+  }, [posts, signups, sends])
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 max-w-7xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Marketing Hub</h1>
-        <p className="text-sm text-gray-400 mt-1">Unified command center for campaigns, content, SEO, email, segmentation, and analytics.</p>
+        <p className="text-sm text-gray-400 mt-1">Liftori marketing engine. Compose, queue, publish, capture, nurture, measure.</p>
       </div>
 
-      {/* Top metrics â€” spend & revenue */}
+      {/* Engine KPIs - real metrics from Liftori tables */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <BigKpi label="Total Spend" value={formatMoney(total.spend_cents || 0)} tone="rose" />
-        <BigKpi label="Total Revenue" value={formatMoney(total.revenue_cents || 0)} tone="emerald" />
-        <BigKpi label="ROAS" value={total.roas != null ? `${(total.roas).toFixed(2)}x` : 'â€”'} tone={Number(total.roas || 0) >= 3 ? 'emerald' : 'amber'} />
-        <BigKpi label="Conversions" value={formatInt(total.conversions || 0)} tone="sky" />
+        <BigKpi label="Posts published" value={stats.published} sub={`${stats.scheduled} scheduled`} tone="emerald" link="/admin/marketing/social-composer" />
+        <BigKpi label="Total signups" value={stats.signups} sub={`+${stats.signupsWeek} this week`} tone="sky" link="/admin/marketing/waitlist" />
+        <BigKpi label="Drip emails sent" value={stats.sends} sub={stats.sendsFailed > 0 ? `${stats.sendsFailed} failed` : 'no failures'} tone="blue" link="/admin/marketing/sequences" />
+        <BigKpi label="Pending approval" value={stats.pending} sub={stats.failed > 0 ? `${stats.failed} failed publishes` : 'queue healthy'} tone={stats.pending > 0 ? 'amber' : 'slate'} link="/admin/marketing/social-composer" />
       </div>
 
-      {/* Sub-metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <Kpi label="Impressions" value={formatInt(total.impressions || 0)} />
-        <Kpi label="Clicks" value={formatInt(total.clicks || 0)} />
-        <Kpi label="CTR" value={total.ctr != null ? formatPct(total.ctr) : 'â€”'} />
-        <Kpi label="CPC" value={total.cpc != null ? formatMoney(Math.round(total.cpc || 0)) : 'â€”'} />
-        <Kpi label="Conversion Rate" value={total.conversion_rate != null ? formatPct(total.conversion_rate) : 'â€”'} />
-        <Kpi label="CPA" value={total.cpa != null ? formatMoney(Math.round(total.cpa || 0)) : 'â€”'} />
+      {/* Per-product funnel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <ProductCard product="BOLO Go" url="/admin/marketing/waitlist" signups={stats.boloGo} tone="emerald" />
+        <ProductCard product="CRM"     url="/admin/marketing/waitlist" signups={stats.crm} tone="blue" />
       </div>
 
-      {/* Tool grid */}
-      <div>
-        <h2 className="text-sm font-semibold text-white mb-3">Tools</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ToolTile to="/marketing/tracker"          title="Campaign Tracker"    hint={`${formatInt(summary?.active_campaigns || 0)} active campaigns`} emoji="â€¢" />
-          <ToolTile to="/marketing/ads"              title="Ad Manager"          hint="Spend & ROAS by platform" emoji="â€¢" />
-          <ToolTile to="/marketing/utm-builder"      title="UTM Builder"         hint={`${formatInt(summary?.utm_links || 0)} links`} emoji="â€¢" />
-          <ToolTile to="/marketing/content"          title="Content Creator"     hint="Draft & publish" emoji="â€¢" />
-          <ToolTile to="/admin/marketing/social-composer"  title="Social Composer"     hint="Compose, approve, publish to FB" emoji="•" accent="emerald" />
-          <ToolTile to="/admin/marketing/waitlist"         title="Waitlist Signups"    hint="Pre-launch signups by product" emoji="•" />
-          <ToolTile to="/admin/marketing/sequences"        title="Email Sequences"     hint="Drip emails to waitlist" emoji="•" />
-          <ToolTile to="/admin/marketing/performance"      title="Performance"         hint="Posts, signups, drips at a glance" emoji="•" accent="sky" />
-          <ToolTile to="/marketing/scheduler"        title="Content Scheduler"   hint="Calendar view" emoji="â€¢" />
-          <ToolTile to="/marketing/seo"              title="SEO Manager"         hint={`${formatInt(summary?.seo_keywords || 0)} keywords`} emoji="â€¢" />
-          <ToolTile to="/marketing/email"            title="Email Campaigns"     hint={`${formatInt(emailCount)} campaigns`} emoji="â€¢" />
-          <ToolTile to="/marketing/social-listening" title="Social Listening"    hint={pendingMentions ? `${formatInt(pendingMentions)} need reply` : 'All caught up'} emoji="â€¢" accent={pendingMentions > 0 ? 'amber' : 'slate'} />
-          <ToolTile to="/marketing/on-pace"          title="On-Pace Tracking"    hint={`${formatInt(goalCount)} active goals`} emoji="â€¢" />
-          <ToolTile to="/marketing/ab-testing"       title="A/B Testing"         hint={`${formatInt(activeAbTests)} running`} emoji="â€¢" />
-          <ToolTile to="/marketing/audience-segments" title="Audience Segments"  hint={`${formatInt(segmentCount)} segments`} emoji="â€¢" />
-          <ToolTile to="/marketing/customer-map"     title="Customer Map"        hint="Geographic distribution" emoji="â€¢" />
-          <ToolTile to="/marketing/analytics"        title="Analytics"           hint="Deep performance view" emoji="â€¢" />
-        </div>
-      </div>
+      {/* SECTION 1: Engine (Liftori-built, working) */}
+      <Section title="Engine" subtitle="The Liftori-built marketing system. Use these daily.">
+        <ToolTile to="/admin/marketing/social-composer"  title="Social Composer"     hint="Compose, AI-draft, branded image, approve" accent="emerald" />
+        <ToolTile to="/admin/marketing/performance"      title="Performance"         hint="Posts, signups, drips - 7-day trend" accent="sky" />
+        <ToolTile to="/admin/marketing/waitlist"         title="Waitlist Signups"    hint="Per-product signups + CSV export" accent="sky" />
+        <ToolTile to="/admin/marketing/sequences"        title="Email Sequences"     hint="Drip emails + send stats" accent="violet" />
+      </Section>
 
-      {/* Channel performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-xl bg-navy-800/50 border border-navy-700/50 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white">Channel Performance</h3>
-            <Link to="/marketing/tracker" className="text-xs text-sky-400 hover:underline">View all â†’</Link>
-          </div>
-          {loading ? (
-            <p className="text-gray-400 text-sm">Loadingâ€¦</p>
-          ) : byChannel.length === 0 ? (
-            <p className="text-gray-500 text-sm">No campaign data yet. Start by logging a campaign in the tracker.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="text-[11px] uppercase tracking-wide text-gray-400">
-                <tr>
-                  <th className="text-left py-2">Channel</th>
-                  <th className="text-right py-2">Spend</th>
-                  <th className="text-right py-2">Revenue</th>
-                  <th className="text-right py-2">Conv.</th>
-                  <th className="text-right py-2">ROAS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byChannel.map(c => (
-                  <tr key={c.channel} className="border-t border-navy-700/40">
-                    <td className="py-2 text-white capitalize">{c.channel?.replaceAll('_', ' ') || 'â€”'}</td>
-                    <td className="py-2 text-right text-rose-300">{formatMoney(c.spend_cents || 0)}</td>
-                    <td className="py-2 text-right text-emerald-300">{formatMoney(c.revenue_cents || 0)}</td>
-                    <td className="py-2 text-right text-gray-300">{formatInt(c.conversions || 0)}</td>
-                    <td className="py-2 text-right font-semibold">
-                      {c.roas != null ? (
-                        <span className={Number(c.roas) >= 3 ? 'text-emerald-300' : Number(c.roas) >= 1 ? 'text-amber-300' : 'text-rose-300'}>
-                          {Number(c.roas).toFixed(2)}x
-                        </span>
-                      ) : 'â€”'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+      {/* SECTION 2: Content & SEO */}
+      <Section title="Content & SEO" subtitle="Long-form content and discoverability.">
+        <ToolTile to="/marketing/content"          title="Content Creator"     hint="Drafts for blog, email, landing" />
+        <ToolTile to="/marketing/scheduler"        title="Content Scheduler"   hint="Calendar view of publishing" />
+        <ToolTile to="/marketing/seo"              title="SEO Manager"         hint="Keyword tracking + on-page" />
+        <ToolTile to="/marketing/email"            title="Email Campaigns"     hint="One-shot broadcast emails" />
+      </Section>
 
-        <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-white">Marketing Health</h3>
-          <HealthRow label="Active Campaigns" value={formatInt(summary?.active_campaigns || 0)} tone="emerald" />
-          <HealthRow label="Open A/B Tests" value={formatInt(activeAbTests)} tone="sky" />
-          <HealthRow label="Active Goals" value={formatInt(goalCount)} tone="violet" />
-          <HealthRow label="Segments" value={formatInt(segmentCount)} tone="amber" />
-          <HealthRow label="Email Campaigns" value={formatInt(emailCount)} tone="sky" />
-          <HealthRow label="Mentions to Reply" value={formatInt(pendingMentions)} tone={pendingMentions ? 'rose' : 'emerald'} />
-        </div>
-      </div>
+      {/* SECTION 3: Paid (when LLC + Stripe lands) */}
+      <Section title="Paid Acquisition" subtitle="Tracking + budget. Light usage until LLC + Stripe lands.">
+        <ToolTile to="/marketing/tracker"          title="Campaign Tracker"    hint="Spend, revenue, ROAS by campaign" />
+        <ToolTile to="/marketing/ads"              title="Ad Manager"          hint="Creative + targeting registry" />
+        <ToolTile to="/marketing/utm-builder"      title="UTM Builder"         hint="Tagged links for attribution" />
+        <ToolTile to="/marketing/ab-testing"       title="A/B Testing"         hint="Experiments + variants" />
+      </Section>
+
+      {/* SECTION 4: Insights & audience */}
+      <Section title="Insights & Audience" subtitle="Who they are, where they came from, what to send next.">
+        <ToolTile to="/marketing/analytics"        title="Analytics"           hint="Deep performance drilldown" />
+        <ToolTile to="/marketing/customer-map"     title="Customer Map"        hint="Geographic distribution" />
+        <ToolTile to="/marketing/audience-segments" title="Audience Segments"  hint="Cohorts and lookalikes" />
+        <ToolTile to="/marketing/social-listening" title="Social Listening"    hint="Mentions and replies" />
+        <ToolTile to="/marketing/on-pace"          title="On-Pace Tracking"    hint="Goal pacing per period" />
+      </Section>
+
+      {loading && <p className="text-xs text-slate-500">Refreshing metrics...</p>}
     </div>
   )
 }
 
-function BigKpi({ label, value, tone = 'slate' }) {
-  const toneMap = { slate: 'text-white', sky: 'text-sky-300', emerald: 'text-emerald-300', rose: 'text-rose-300', amber: 'text-amber-300' }
-  return (
-    <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-4">
+function BigKpi({ label, value, sub, tone = 'slate', link }) {
+  const toneMap = {
+    slate: 'text-white',
+    sky: 'text-sky-400',
+    emerald: 'text-emerald-400',
+    amber: 'text-amber-400',
+    blue: 'text-blue-400',
+    rose: 'text-rose-400',
+  }
+  const inner = (
+    <>
       <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${toneMap[tone] || toneMap.slate}`}>{value}</p>
-    </div>
+      <p className={`text-3xl font-bold mt-1 ${toneMap[tone] || toneMap.slate}`}>{value.toLocaleString()}</p>
+      {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
+    </>
+  )
+  const cls = "rounded-xl bg-navy-800/50 border border-navy-700/50 p-4 transition-colors hover:border-sky-500/40"
+  return link ? (
+    <Link to={link} className={cls + " block"}>{inner}</Link>
+  ) : (
+    <div className={cls}>{inner}</div>
   )
 }
 
-function Kpi({ label, value }) {
+function ProductCard({ product, url, signups, tone }) {
+  const toneMap = {
+    emerald: 'border-emerald-500/30 hover:border-emerald-500/60',
+    blue:    'border-blue-500/30 hover:border-blue-500/60',
+    slate:   'border-navy-700/50',
+  }
+  const valueTone = {
+    emerald: 'text-emerald-400',
+    blue:    'text-blue-400',
+    slate:   'text-white',
+  }
   return (
-    <div className="rounded-lg bg-navy-900/40 border border-navy-700/40 p-3">
-      <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="text-base font-semibold text-white mt-1">{value}</p>
+    <Link to={url} className={`block rounded-xl bg-navy-800/40 border ${toneMap[tone] || toneMap.slate} p-4 transition-colors`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-gray-500">{product} waitlist</p>
+          <p className={`text-2xl font-bold mt-1 ${valueTone[tone] || valueTone.slate}`}>{signups.toLocaleString()}</p>
+        </div>
+        <span className="text-xs text-gray-400">View list →</span>
+      </div>
+    </Link>
+  )
+}
+
+function Section({ title, subtitle, children }) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="text-sm font-semibold text-white">{title}</h2>
+        {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{children}</div>
     </div>
   )
 }
 
 function ToolTile({ to, title, hint, accent = 'slate' }) {
-  const accentMap = { slate: 'border-navy-700/60', amber: 'border-amber-500/40', emerald: 'border-emerald-500/40', rose: 'border-rose-500/40' }
+  const accentMap = {
+    slate:   'border-navy-700/60',
+    emerald: 'border-emerald-500/40 bg-emerald-500/5',
+    sky:     'border-sky-500/40 bg-sky-500/5',
+    violet:  'border-violet-500/40 bg-violet-500/5',
+    amber:   'border-amber-500/40 bg-amber-500/5',
+    rose:    'border-rose-500/40 bg-rose-500/5',
+  }
   return (
     <Link to={to} className={`block rounded-xl bg-navy-800/50 border ${accentMap[accent] || accentMap.slate} p-3 hover:border-sky-500/40 hover:bg-navy-800/70 transition-colors`}>
       <p className="text-sm font-semibold text-white">{title}</p>
       <p className="text-xs text-gray-400 mt-1 truncate">{hint}</p>
     </Link>
-  )
-}
-
-function HealthRow({ label, value, tone = 'slate' }) {
-  const toneMap = {
-    slate: 'text-white', sky: 'text-sky-300', emerald: 'text-emerald-300',
-    rose: 'text-rose-300', amber: 'text-amber-300', violet: 'text-violet-300',
-  }
-  return (
-    <div className="flex items-center justify-between text-sm border-b border-navy-700/40 pb-2 last:border-0 last:pb-0">
-      <span className="text-gray-400">{label}</span>
-      <span className={`font-semibold ${toneMap[tone] || toneMap.slate}`}>{value}</span>
-    </div>
   )
 }
