@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   getHubSummary, summarizeCampaignPerformance,
@@ -6,7 +6,7 @@ import {
   listEmailCampaigns, listGoals, listAbTests, listMentions, listSegments,
 } from '../../lib/marketingService'
 
-// Single hub overview — aggregates every corner of the Marketing Hub
+// Single hub overview â€” aggregates every corner of the Marketing Hub
 // and routes operators straight to the right sub-tool.
 export default function MarketingDashboard() {
   const [summary, setSummary] = useState(null)
@@ -54,11 +54,11 @@ export default function MarketingDashboard() {
         <p className="text-sm text-gray-400 mt-1">Unified command center for campaigns, content, SEO, email, segmentation, and analytics.</p>
       </div>
 
-      {/* Top metrics — spend & revenue */}
+      {/* Top metrics â€” spend & revenue */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <BigKpi label="Total Spend" value={formatMoney(total.spend_cents || 0)} tone="rose" />
         <BigKpi label="Total Revenue" value={formatMoney(total.revenue_cents || 0)} tone="emerald" />
-        <BigKpi label="ROAS" value={total.roas != null ? `${(total.roas).toFixed(2)}x` : '—'} tone={Number(total.roas || 0) >= 3 ? 'emerald' : 'amber'} />
+        <BigKpi label="ROAS" value={total.roas != null ? `${(total.roas).toFixed(2)}x` : 'â€”'} tone={Number(total.roas || 0) >= 3 ? 'emerald' : 'amber'} />
         <BigKpi label="Conversions" value={formatInt(total.conversions || 0)} tone="sky" />
       </div>
 
@@ -66,29 +66,30 @@ export default function MarketingDashboard() {
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <Kpi label="Impressions" value={formatInt(total.impressions || 0)} />
         <Kpi label="Clicks" value={formatInt(total.clicks || 0)} />
-        <Kpi label="CTR" value={total.ctr != null ? formatPct(total.ctr) : '—'} />
-        <Kpi label="CPC" value={total.cpc != null ? formatMoney(Math.round(total.cpc || 0)) : '—'} />
-        <Kpi label="Conversion Rate" value={total.conversion_rate != null ? formatPct(total.conversion_rate) : '—'} />
-        <Kpi label="CPA" value={total.cpa != null ? formatMoney(Math.round(total.cpa || 0)) : '—'} />
+        <Kpi label="CTR" value={total.ctr != null ? formatPct(total.ctr) : 'â€”'} />
+        <Kpi label="CPC" value={total.cpc != null ? formatMoney(Math.round(total.cpc || 0)) : 'â€”'} />
+        <Kpi label="Conversion Rate" value={total.conversion_rate != null ? formatPct(total.conversion_rate) : 'â€”'} />
+        <Kpi label="CPA" value={total.cpa != null ? formatMoney(Math.round(total.cpa || 0)) : 'â€”'} />
       </div>
 
       {/* Tool grid */}
       <div>
         <h2 className="text-sm font-semibold text-white mb-3">Tools</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ToolTile to="/marketing/tracker"          title="Campaign Tracker"    hint={`${formatInt(summary?.active_campaigns || 0)} active campaigns`} emoji="•" />
-          <ToolTile to="/marketing/ads"              title="Ad Manager"          hint="Spend & ROAS by platform" emoji="•" />
-          <ToolTile to="/marketing/utm-builder"      title="UTM Builder"         hint={`${formatInt(summary?.utm_links || 0)} links`} emoji="•" />
-          <ToolTile to="/marketing/content"          title="Content Creator"     hint="Draft & publish" emoji="•" />
-          <ToolTile to="/marketing/scheduler"        title="Content Scheduler"   hint="Calendar view" emoji="•" />
-          <ToolTile to="/marketing/seo"              title="SEO Manager"         hint={`${formatInt(summary?.seo_keywords || 0)} keywords`} emoji="•" />
-          <ToolTile to="/marketing/email"            title="Email Campaigns"     hint={`${formatInt(emailCount)} campaigns`} emoji="•" />
-          <ToolTile to="/marketing/social-listening" title="Social Listening"    hint={pendingMentions ? `${formatInt(pendingMentions)} need reply` : 'All caught up'} emoji="•" accent={pendingMentions > 0 ? 'amber' : 'slate'} />
-          <ToolTile to="/marketing/on-pace"          title="On-Pace Tracking"    hint={`${formatInt(goalCount)} active goals`} emoji="•" />
-          <ToolTile to="/marketing/ab-testing"       title="A/B Testing"         hint={`${formatInt(activeAbTests)} running`} emoji="•" />
-          <ToolTile to="/marketing/audience-segments" title="Audience Segments"  hint={`${formatInt(segmentCount)} segments`} emoji="•" />
-          <ToolTile to="/marketing/customer-map"     title="Customer Map"        hint="Geographic distribution" emoji="•" />
-          <ToolTile to="/marketing/analytics"        title="Analytics"           hint="Deep performance view" emoji="•" />
+          <ToolTile to="/marketing/tracker"          title="Campaign Tracker"    hint={`${formatInt(summary?.active_campaigns || 0)} active campaigns`} emoji="â€¢" />
+          <ToolTile to="/marketing/ads"              title="Ad Manager"          hint="Spend & ROAS by platform" emoji="â€¢" />
+          <ToolTile to="/marketing/utm-builder"      title="UTM Builder"         hint={`${formatInt(summary?.utm_links || 0)} links`} emoji="â€¢" />
+          <ToolTile to="/marketing/content"          title="Content Creator"     hint="Draft & publish" emoji="â€¢" />
+          <ToolTile to="/marketing/social-composer"  title="Social Composer"     hint="Compose, approve, publish to FB" emoji="•" accent="emerald" />
+          <ToolTile to="/marketing/scheduler"        title="Content Scheduler"   hint="Calendar view" emoji="â€¢" />
+          <ToolTile to="/marketing/seo"              title="SEO Manager"         hint={`${formatInt(summary?.seo_keywords || 0)} keywords`} emoji="â€¢" />
+          <ToolTile to="/marketing/email"            title="Email Campaigns"     hint={`${formatInt(emailCount)} campaigns`} emoji="â€¢" />
+          <ToolTile to="/marketing/social-listening" title="Social Listening"    hint={pendingMentions ? `${formatInt(pendingMentions)} need reply` : 'All caught up'} emoji="â€¢" accent={pendingMentions > 0 ? 'amber' : 'slate'} />
+          <ToolTile to="/marketing/on-pace"          title="On-Pace Tracking"    hint={`${formatInt(goalCount)} active goals`} emoji="â€¢" />
+          <ToolTile to="/marketing/ab-testing"       title="A/B Testing"         hint={`${formatInt(activeAbTests)} running`} emoji="â€¢" />
+          <ToolTile to="/marketing/audience-segments" title="Audience Segments"  hint={`${formatInt(segmentCount)} segments`} emoji="â€¢" />
+          <ToolTile to="/marketing/customer-map"     title="Customer Map"        hint="Geographic distribution" emoji="â€¢" />
+          <ToolTile to="/marketing/analytics"        title="Analytics"           hint="Deep performance view" emoji="â€¢" />
         </div>
       </div>
 
@@ -97,10 +98,10 @@ export default function MarketingDashboard() {
         <div className="lg:col-span-2 rounded-xl bg-navy-800/50 border border-navy-700/50 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white">Channel Performance</h3>
-            <Link to="/marketing/tracker" className="text-xs text-sky-400 hover:underline">View all →</Link>
+            <Link to="/marketing/tracker" className="text-xs text-sky-400 hover:underline">View all â†’</Link>
           </div>
           {loading ? (
-            <p className="text-gray-400 text-sm">Loading…</p>
+            <p className="text-gray-400 text-sm">Loadingâ€¦</p>
           ) : byChannel.length === 0 ? (
             <p className="text-gray-500 text-sm">No campaign data yet. Start by logging a campaign in the tracker.</p>
           ) : (
@@ -117,7 +118,7 @@ export default function MarketingDashboard() {
               <tbody>
                 {byChannel.map(c => (
                   <tr key={c.channel} className="border-t border-navy-700/40">
-                    <td className="py-2 text-white capitalize">{c.channel?.replaceAll('_', ' ') || '—'}</td>
+                    <td className="py-2 text-white capitalize">{c.channel?.replaceAll('_', ' ') || 'â€”'}</td>
                     <td className="py-2 text-right text-rose-300">{formatMoney(c.spend_cents || 0)}</td>
                     <td className="py-2 text-right text-emerald-300">{formatMoney(c.revenue_cents || 0)}</td>
                     <td className="py-2 text-right text-gray-300">{formatInt(c.conversions || 0)}</td>
@@ -126,7 +127,7 @@ export default function MarketingDashboard() {
                         <span className={Number(c.roas) >= 3 ? 'text-emerald-300' : Number(c.roas) >= 1 ? 'text-amber-300' : 'text-rose-300'}>
                           {Number(c.roas).toFixed(2)}x
                         </span>
-                      ) : '—'}
+                      ) : 'â€”'}
                     </td>
                   </tr>
                 ))}

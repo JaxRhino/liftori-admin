@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+﻿import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { OrgProvider } from './lib/OrgContext'
@@ -67,13 +67,13 @@ import PortalDocuments from './pages/portal/PortalDocuments'
 import PortalInvoices from './pages/portal/PortalInvoices'
 import PortalCommissions from './pages/portal/PortalCommissions'
 import PortalWizard from './pages/portal/PortalWizard'
-// Freight AI — BIH Logistics
+// Freight AI â€” BIH Logistics
 import FreightDashboard from './pages/freight/FreightDashboard'
 import FreightSalesProfiles from './pages/freight/FreightSalesProfiles'
 import FreightShippers from './pages/freight/FreightShippers'
 import FreightLoads from './pages/freight/FreightLoads'
 import FreightCommissions from './pages/freight/FreightCommissions'
-// EOS — Entrepreneurial Operating System
+// EOS â€” Entrepreneurial Operating System
 import EOSDashboard from './pages/eos/EOSDashboard'
 import EOSLeadershipDashboard from './pages/eos/EOSLeadershipDashboard'
 import EOSScorecard from './pages/eos/EOSScorecard'
@@ -109,11 +109,12 @@ import SocialListening from './pages/marketing/SocialListening'
 import UTMBuilder from './pages/marketing/UTMBuilder'
 import ABTesting from './pages/marketing/ABTesting'
 import AudienceSegments from './pages/marketing/AudienceSegments'
+import SocialComposer from './pages/marketing/SocialComposer'
 // Communications Hub
 import CommunicationsHub from './pages/communications/CommunicationsHub'
 import ChannelsSettings from './pages/communications/ChannelsSettings'
 import AutomationsPage from './pages/communications/AutomationsPage'
-// Onboarding Wizard — public customer-facing
+// Onboarding Wizard â€” public customer-facing
 import OnboardingWizard from './pages/OnboardingWizard'
 import SupportTickets from './pages/SupportTickets'
 import PortalSupport from './pages/portal/PortalSupport'
@@ -169,7 +170,7 @@ import OpsMeasurements from './pages/customer/ops/OpsMeasurements'
 import OpsHRHub from './pages/customer/ops/OpsHRHub'
 import OpsDocs from './pages/customer/ops/OpsDocs'
 import OpsProjects from './pages/customer/ops/OpsProjects'
-// LABOS — Liftori AI Business Operating System (per-client backend)
+// LABOS â€” Liftori AI Business Operating System (per-client backend)
 import LabosLayout from './components/labos/LabosLayout'
 import LabosDashboard from './pages/labos/LabosDashboard'
 import LabosSales from './pages/labos/LabosSales'
@@ -232,7 +233,7 @@ function RootRedirect() {
 }
 
 /** Renders TesterDashboard for enrolled testers, regular Dashboard otherwise.
- *  Founders always get the regular Dashboard — their tester_enrollments rows
+ *  Founders always get the regular Dashboard â€” their tester_enrollments rows
  *  exist only for preview access at /admin/tester-dashboard. */
 function DashboardRouter() {
   const { user, profile } = useAuth()
@@ -267,17 +268,17 @@ export default function App() {
             <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          {/* Public onboarding wizard — no auth required */}
+          {/* Public onboarding wizard â€” no auth required */}
           <Route path="/onboard" element={<OnboardingWizard />} />
-          {/* Public Rally guest join — no auth required */}
+          {/* Public Rally guest join â€” no auth required */}
           <Route path="/rally/join/:code" element={<RallyGuestJoin />} />
-          {/* Public job application — no auth required */}
+          {/* Public job application â€” no auth required */}
           <Route path="/apply" element={<Apply />} />
-          {/* Public interview scheduler — no auth required */}
+          {/* Public interview scheduler â€” no auth required */}
           <Route path="/schedule-interview/:token" element={<ScheduleInterview />} />
-          {/* Public tester onboarding wizard — no auth required */}
+          {/* Public tester onboarding wizard â€” no auth required */}
           <Route path="/onboard-tester/:token" element={<TesterOnboarding />} />
-          {/* Public affiliate/creator onboarding wizard — no auth required */}
+          {/* Public affiliate/creator onboarding wizard â€” no auth required */}
           <Route path="/onboard-affiliate/:token" element={<AffiliateOnboarding />} />
 
           {/* Root redirect based on role */}
@@ -325,13 +326,13 @@ export default function App() {
             <Route path="plans" element={<Plans />} />
             <Route path="chat" element={<RallyChat />} />
             <Route path="rally" element={<Rally />} />
-            {/* Freight AI — BIH Logistics */}
+            {/* Freight AI â€” BIH Logistics */}
             <Route path="freight" element={<FreightDashboard />} />
             <Route path="freight/sales-profiles" element={<FreightSalesProfiles />} />
             <Route path="freight/shippers" element={<FreightShippers />} />
             <Route path="freight/loads" element={<FreightLoads />} />
             <Route path="freight/commissions" element={<FreightCommissions />} />
-            {/* EOS — Entrepreneurial Operating System */}
+            {/* EOS â€” Entrepreneurial Operating System */}
             <Route path="eos" element={<EOSDashboard />} />
             <Route path="eos/leadership" element={<EOSLeadershipDashboard />} />
             <Route path="eos/scorecard" element={<EOSScorecard />} />
@@ -392,6 +393,7 @@ export default function App() {
             <Route path="marketing/utm-builder" element={<UTMBuilder />} />
             <Route path="marketing/ab-testing" element={<ABTesting />} />
             <Route path="marketing/audience-segments" element={<AudienceSegments />} />
+            <Route path="marketing/social-composer" element={<SocialComposer />} />
             <Route path="wizard" element={<WizardBuilder />} />
             <Route path="tasks" element={<ComingSoon />} />
             <Route path="notes" element={<ComingSoon />} />
@@ -426,7 +428,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
 
-          {/* LABOS — per-client backend (admin impersonation enters here) */}
+          {/* LABOS â€” per-client backend (admin impersonation enters here) */}
           <Route path="/labos/:platformId" element={
             <ProtectedRoute>
               <AdminRoute>
@@ -476,7 +478,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/affiliate" replace />} />
           </Route>
 
-          {/* Choose Plan — full-screen, outside ClientLayout */}
+          {/* Choose Plan â€” full-screen, outside ClientLayout */}
           <Route path="/portal/choose-plan" element={
             <ProtectedRoute>
               <ClientRoute>
