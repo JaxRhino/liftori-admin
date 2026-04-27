@@ -83,6 +83,7 @@ export default function MarketingDashboard() {
           <ToolTile to="/admin/marketing/social-composer"  title="Social Composer"     hint="Compose, approve, publish to FB" emoji="•" accent="emerald" />
           <ToolTile to="/admin/marketing/waitlist"         title="Waitlist Signups"    hint="Pre-launch signups by product" emoji="•" />
           <ToolTile to="/admin/marketing/sequences"        title="Email Sequences"     hint="Drip emails to waitlist" emoji="•" />
+          <ToolTile to="/admin/marketing/performance"      title="Performance"         hint="Posts, signups, drips at a glance" emoji="•" accent="sky" />
           <ToolTile to="/marketing/scheduler"        title="Content Scheduler"   hint="Calendar view" emoji="â€¢" />
           <ToolTile to="/marketing/seo"              title="SEO Manager"         hint={`${formatInt(summary?.seo_keywords || 0)} keywords`} emoji="â€¢" />
           <ToolTile to="/marketing/email"            title="Email Campaigns"     hint={`${formatInt(emailCount)} campaigns`} emoji="â€¢" />

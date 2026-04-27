@@ -112,6 +112,7 @@ import AudienceSegments from './pages/marketing/AudienceSegments'
 import SocialComposer from './pages/marketing/SocialComposer'
 import MarketingWaitlist from './pages/marketing/MarketingWaitlist'
 import EmailSequences from './pages/marketing/EmailSequences'
+import MarketingPerformance from './pages/marketing/MarketingPerformance'
 // Communications Hub
 import CommunicationsHub from './pages/communications/CommunicationsHub'
 import ChannelsSettings from './pages/communications/ChannelsSettings'
@@ -398,6 +399,7 @@ export default function App() {
             <Route path="marketing/social-composer" element={<SocialComposer />} />
             <Route path="marketing/waitlist" element={<MarketingWaitlist />} />
             <Route path="marketing/sequences" element={<EmailSequences />} />
+            <Route path="marketing/performance" element={<MarketingPerformance />} />
             <Route path="wizard" element={<WizardBuilder />} />
             <Route path="tasks" element={<ComingSoon />} />
             <Route path="notes" element={<ComingSoon />} />
