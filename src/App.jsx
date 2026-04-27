@@ -110,6 +110,7 @@ import UTMBuilder from './pages/marketing/UTMBuilder'
 import ABTesting from './pages/marketing/ABTesting'
 import AudienceSegments from './pages/marketing/AudienceSegments'
 import SocialComposer from './pages/marketing/SocialComposer'
+import MarketingWaitlist from './pages/marketing/MarketingWaitlist'
 // Communications Hub
 import CommunicationsHub from './pages/communications/CommunicationsHub'
 import ChannelsSettings from './pages/communications/ChannelsSettings'
@@ -394,6 +395,7 @@ export default function App() {
             <Route path="marketing/ab-testing" element={<ABTesting />} />
             <Route path="marketing/audience-segments" element={<AudienceSegments />} />
             <Route path="marketing/social-composer" element={<SocialComposer />} />
+            <Route path="marketing/waitlist" element={<MarketingWaitlist />} />
             <Route path="wizard" element={<WizardBuilder />} />
             <Route path="tasks" element={<ComingSoon />} />
             <Route path="notes" element={<ComingSoon />} />
