@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 const TABS = [
   { to: '/admin/dev-team',          label: 'Overview', end: true },
   { to: '/admin/dev-team/tasks',    label: 'Tasks' },
+  { to: '/admin/dev-team/ideas',    label: 'Feature Ideas' },
   { to: '/admin/dev-team/activity', label: 'Activity' },
   { to: '/admin/dev-team/canvas',   label: 'Canvas' },
   { to: '/admin/dev-team/skills',   label: 'Skills & Memory' },

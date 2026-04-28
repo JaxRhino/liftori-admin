@@ -194,6 +194,7 @@ import DevTeamActivity from './pages/dev-team/DevTeamActivity'
 import DevTeamCanvas from './pages/dev-team/DevTeamCanvas'
 import DevTeamCanvasDetail from './pages/dev-team/DevTeamCanvasDetail'
 import DevTeamSkillsMemory from './pages/dev-team/DevTeamSkillsMemory'
+import DevTeamFeatureIdeas from './pages/dev-team/DevTeamFeatureIdeas'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -448,6 +449,7 @@ export default function App() {
             <Route path="dev-team" element={<DevTeamRoute><DevTeamLayout /></DevTeamRoute>}>
               <Route index element={<DevTeamOverview />} />
               <Route path="tasks" element={<DevTeamTasks />} />
+              <Route path="ideas" element={<DevTeamFeatureIdeas />} />
               <Route path="activity" element={<DevTeamActivity />} />
               <Route path="canvas" element={<DevTeamCanvas />} />
               <Route path="canvas/:slug" element={<DevTeamCanvasDetail />} />
