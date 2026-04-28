@@ -446,7 +446,11 @@ export default function DevTeamFeatureIdeas() {
                        : form.priority === 'should' ? 'high'
                        : form.priority === 'nice' ? 'medium'
                        : 'low'
-    const description = [form.pitch, form.problem, form.user_journey].filter(Boolean).join('\n\n')
+    const description = [form.pitch, form.problem].filter(Boolean).join('\n\n')
+    const noteParts = [
+      `Promoted from feature idea ${form.id}.`,
+      form.dependencies ? `Dependencies: ${form.dependencies}` : null,
+    ].filter(Boolean)
     const { data: newTask, error: taskErr } = await supabase
       .from('dev_team_tasks')
       .insert({
@@ -456,7 +460,11 @@ export default function DevTeamFeatureIdeas() {
         priority: taskPriority,
         status: 'queued',
         wave: 'from-idea',
-        notes: `Promoted from feature idea ${form.id}.${form.success_criteria ? '\n\nDoD: ' + form.success_criteria : ''}`,
+        approach: form.user_journey || null,
+        acceptance_criteria: form.success_criteria || null,
+        reference_links: form.reference_links || [],
+        business_impact: form.business_impact || null,
+        notes: noteParts.join('\n\n'),
         created_by: user.id,
       })
       .select()

@@ -76,6 +76,16 @@ function TaskCard({ task, onClick }) {
             {task.files_scope.length} file{task.files_scope.length === 1 ? '' : 's'}
           </span>
         )}
+        {task.estimated_minutes != null && (
+          <span className="text-[10px] text-white/40 font-mono">
+            ~{task.estimated_minutes}m
+          </span>
+        )}
+        {task.acceptance_criteria && (
+          <span className="text-[10px] text-emerald-400/70 font-mono" title="Has acceptance criteria">
+            ✓ DoD
+          </span>
+        )}
       </div>
     </button>
   )
@@ -159,11 +169,39 @@ function TaskFormModal({ editing, members, onClose, onSave, onDelete }) {
             </div>
           </div>
           <div>
+            <label className="block text-xs uppercase tracking-wider text-white/50 font-semibold mb-1.5">Approach (where to find / where to change / verify steps)</label>
+            <textarea className={TEXTAREA + ' font-mono text-xs'} rows={6} value={form.approach || ''} onChange={e => update({ approach: e.target.value })} placeholder={"WHERE TO FIND:\n- src/App.jsx line 448 (the ComingSoon route)\n- src/pages/Tasks.jsx (the real component, already 14KB)\n\nWHERE TO CHANGE:\n1. Add import line ...\n2. Replace route element ...\n\nVERIFY:\n- npx vite build green\n- Visit /admin/tasks ..."} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-white/50 font-semibold mb-1.5">Acceptance Criteria (Done = ?)</label>
+              <textarea className={TEXTAREA} rows={4} value={form.acceptance_criteria || ''} onChange={e => update({ acceptance_criteria: e.target.value })} placeholder={"1. /admin/tasks renders Tasks.jsx (not ComingSoon)\n2. Creating a task persists\n3. Vite build green"} />
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-white/50 font-semibold mb-1.5">Test Plan (verify steps)</label>
+              <textarea className={TEXTAREA} rows={4} value={form.test_plan || ''} onChange={e => update({ test_plan: e.target.value })} placeholder={"1. Build verify\n2. Smoke test on deployed\n3. Mobile viewport check"} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-white/50 font-semibold mb-1.5">Estimated minutes</label>
+              <input type="number" min="0" className={INPUT} value={form.estimated_minutes ?? ''} onChange={e => update({ estimated_minutes: e.target.value === '' ? null : Number(e.target.value) })} placeholder="30" />
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-white/50 font-semibold mb-1.5">Business impact</label>
+              <input className={INPUT} value={form.business_impact || ''} onChange={e => update({ business_impact: e.target.value })} placeholder="Unblocks customer signup; saves N hrs/week; etc." />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-white/50 font-semibold mb-1.5">Reference links (one URL per line)</label>
+            <textarea className={TEXTAREA + ' font-mono text-xs'} rows={2} defaultValue={(form.reference_links || []).join('\n')} onChange={e => update({ reference_links: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })} placeholder={"https://github.com/JaxRhino/liftori-admin/blob/main/src/App.jsx\nmemory://feedback_scoped_git_add"} />
+          </div>
+          <div>
             <label className="block text-xs uppercase tracking-wider text-white/50 font-semibold mb-1.5">Files Scope (one path per line)</label>
             <textarea className={TEXTAREA + ' font-mono text-xs'} rows={3} defaultValue={filesScopeStr} onChange={e => update({ files_scope: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })} placeholder="liftori-admin/src/pages/dev-team/**&#10;liftori-admin/src/components/AdminLayout.jsx" />
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-wider text-white/50 font-semibold mb-1.5">Notes</label>
+            <label className="block text-xs uppercase tracking-wider text-white/50 font-semibold mb-1.5">Notes (gotchas, decisions, side context)</label>
             <textarea className={TEXTAREA} rows={2} value={form.notes || ''} onChange={e => update({ notes: e.target.value })} placeholder="Decisions made, gotchas, links to context" />
           </div>
         </div>
@@ -255,6 +293,12 @@ export default function DevTeamTasks() {
       files_scope: t.files_scope || [],
       wave: t.wave?.trim() || null,
       notes: t.notes?.trim() || null,
+      approach: t.approach?.trim() || null,
+      acceptance_criteria: t.acceptance_criteria?.trim() || null,
+      test_plan: t.test_plan?.trim() || null,
+      reference_links: t.reference_links || [],
+      estimated_minutes: t.estimated_minutes ?? null,
+      business_impact: t.business_impact?.trim() || null,
       claimed_at: t.status === 'in_progress' && !t.claimed_at ? new Date().toISOString() : t.claimed_at,
       completed_at: t.status === 'done' && !t.completed_at ? new Date().toISOString() : (t.status !== 'done' ? null : t.completed_at),
     }
