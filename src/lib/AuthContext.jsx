@@ -12,6 +12,7 @@ export function AuthProvider({ children }) {
   const [realProfile, setRealProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [token, setToken] = useState(null)
+  const [isDevTeamMember, setIsDevTeamMember] = useState(false)
 
   // View-as-user (impersonation) state. When set, the UI renders as if the
   // impersonated user were logged in, but the underlying Supabase session
@@ -67,6 +68,26 @@ export function AuthProvider({ children }) {
       subscription.unsubscribe()
     }
   }, [])
+
+  // ─── Dev Team membership (Wave A: gates the /admin/dev-team tab) ──
+  useEffect(() => {
+    let cancelled = false
+    async function checkDevTeam() {
+      if (!realUser?.id) { setIsDevTeamMember(false); return }
+      try {
+        const { data, error } = await supabase.rpc('is_dev_team_member', { check_user_id: realUser.id })
+        if (error) throw error
+        if (!cancelled) setIsDevTeamMember(!!data)
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('[Auth] dev team check failed:', err?.message || err)
+          setIsDevTeamMember(false)
+        }
+      }
+    }
+    checkDevTeam()
+    return () => { cancelled = true }
+  }, [realUser?.id])
 
   // Founder gating — derived from the REAL profile/user, not the impersonated
   // one. Losing impersonation access just because you're viewing-as a tester
@@ -191,6 +212,7 @@ export function AuthProvider({ children }) {
       loading,
       isAdmin,
       isAffiliate,
+      isDevTeamMember,
       token,
       isImpersonating,
       canImpersonate,

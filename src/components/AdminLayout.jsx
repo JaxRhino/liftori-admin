@@ -410,6 +410,13 @@ const opsItems = [
       </svg>
     )
   },
+  {
+    label: 'Dev Team', path: '/admin/dev-team', devTeamOnly: true, icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+      </svg>
+    )
+  },
 ]
 
 const marketingHubItems = [
@@ -604,7 +611,7 @@ const CALL_AGENT_HIDDEN = ['Super Admin', 'Dashboard', 'Marketing', 'Communicati
 const SALES_DIRECTOR_HIDDEN = []
 
 export default function AdminLayout() {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, signOut, isDevTeamMember } = useAuth()
   const { hasFeature, isImpersonating, currentOrg, resetOrg } = useOrg()
   const navigate = useNavigate()
   const location = useLocation()
@@ -689,8 +696,8 @@ export default function AdminLayout() {
   const [openSubDropdown, setOpenSubDropdown] = useState(
     isLeadHunterRoute ? 'Lead Hunter' : isConsultingRoute ? 'Consulting' : isEOSRoute ? 'EOS' : null
   )
-  const isOpsRoute = ['/admin/ops-dashboard', '/admin/ops/', '/admin/wizard', '/admin/affiliates', '/admin/discount-codes', '/admin/plans', '/admin/team', '/admin/work-queue', '/admin/testing', '/admin/support-tickets', '/admin/leadership-qc', '/admin/cost-tracker'].some(p => location.pathname.startsWith(p))
-  const activeOpsItems = isImpersonating ? customerOpsItems : opsItems
+  const isOpsRoute = ['/admin/ops-dashboard', '/admin/ops/', '/admin/wizard', '/admin/affiliates', '/admin/discount-codes', '/admin/plans', '/admin/team', '/admin/work-queue', '/admin/testing', '/admin/support-tickets', '/admin/leadership-qc', '/admin/cost-tracker', '/admin/dev-team'].some(p => location.pathname.startsWith(p))
+  const activeOpsItems = (isImpersonating ? customerOpsItems : opsItems).filter(i => !i.devTeamOnly || isDevTeamMember)
   const [opsOpen, setOpsOpen] = useState(isOpsRoute)
   const isMarketingRoute = location.pathname.startsWith('/admin/marketing')
   const [marketingOpen, setMarketingOpen] = useState(isMarketingRoute)

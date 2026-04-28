@@ -186,6 +186,14 @@ import LabosMarketing from './pages/labos/LabosMarketing'
 import LabosFinance from './pages/labos/LabosFinance'
 import LabosCommunications from './pages/labos/LabosCommunications'
 import LabosChat from './pages/labos/LabosChat'
+// Dev Team — Wave A foundation
+import DevTeamLayout from './pages/dev-team/DevTeamLayout'
+import DevTeamOverview from './pages/dev-team/DevTeamOverview'
+import DevTeamTasks from './pages/dev-team/DevTeamTasks'
+import DevTeamActivity from './pages/dev-team/DevTeamActivity'
+import DevTeamCanvas from './pages/dev-team/DevTeamCanvas'
+import DevTeamCanvasDetail from './pages/dev-team/DevTeamCanvasDetail'
+import DevTeamSkillsMemory from './pages/dev-team/DevTeamSkillsMemory'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -207,6 +215,13 @@ function AdminRoute({ children }) {
   if (loading) return null
   if (isAffiliate) return <Navigate to="/affiliate" replace />
   if (!isAdmin) return <Navigate to="/portal" replace />
+  return children
+}
+
+function DevTeamRoute({ children }) {
+  const { isDevTeamMember, loading } = useAuth()
+  if (loading) return null
+  if (!isDevTeamMember) return <Navigate to="/admin" replace />
   return children
 }
 
@@ -430,6 +445,14 @@ export default function App() {
             <Route path="sales-call/:roomId" element={<SalesCall />} />
             <Route path="support-tickets" element={<SupportTickets />} />
             <Route path="testing" element={<Testing />} />
+            <Route path="dev-team" element={<DevTeamRoute><DevTeamLayout /></DevTeamRoute>}>
+              <Route index element={<DevTeamOverview />} />
+              <Route path="tasks" element={<DevTeamTasks />} />
+              <Route path="activity" element={<DevTeamActivity />} />
+              <Route path="canvas" element={<DevTeamCanvas />} />
+              <Route path="canvas/:slug" element={<DevTeamCanvasDetail />} />
+              <Route path="skills" element={<DevTeamSkillsMemory />} />
+            </Route>
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
