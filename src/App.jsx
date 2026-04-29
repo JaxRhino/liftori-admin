@@ -200,6 +200,7 @@ import CscLayout from './pages/csc/CscLayout'
 import CscOverview from './pages/csc/CscOverview'
 import CscCustomers from './pages/csc/CscCustomers'
 import CscJobs from './pages/csc/CscJobs'
+import CscJobDetail from './pages/csc/CscJobDetail'
 import CscDeficiencies from './pages/csc/CscDeficiencies'
 import CscInvoices from './pages/csc/CscInvoices'
 import CscCertificates from './pages/csc/CscCertificates'
@@ -470,6 +471,7 @@ export default function App() {
               <Route index element={<CscOverview />} />
               <Route path="customers" element={<CscCustomers />} />
               <Route path="jobs" element={<CscJobs />} />
+              <Route path="jobs/:id" element={<CscJobDetail />} />
               <Route path="deficiencies" element={<CscDeficiencies />} />
               <Route path="invoices" element={<CscInvoices />} />
               <Route path="certificates" element={<CscCertificates />} />

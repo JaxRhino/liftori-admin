@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { cscSupabase, fmtDateTime, relTime, fmtMoney, CLEANING_STATUS_TONES } from '../../lib/cscClient'
 
 function Pill({ tone, children }) {
@@ -6,6 +7,7 @@ function Pill({ tone, children }) {
 }
 
 export default function CscJobs() {
+  const navigate = useNavigate()
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -90,7 +92,7 @@ export default function CscJobs() {
             {filtered.map(j => {
               const exceeded = j.exceeded_threshold || (j.grease_depth_pre_inches && Number(j.grease_depth_pre_inches) >= 0.125)
               return (
-                <tr key={j.id} className="hover:bg-white/5">
+                <tr key={j.id} onClick={() => navigate(`/admin/csc/jobs/${j.id}`)} className="hover:bg-white/10 cursor-pointer">
                   <td className="px-5 py-3">
                     <div className="text-white">{fmtDateTime(j.scheduled_at)}</div>
                     <div className="text-xs text-white/40">{relTime(j.scheduled_at)}</div>
