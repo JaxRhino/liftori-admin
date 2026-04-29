@@ -206,6 +206,7 @@ import CscJobDetail from './pages/csc/CscJobDetail'
 import CscPublicLayout from './pages/csc-public/CscPublicLayout'
 import CscPortal from './pages/csc-public/CscPortal'
 import CscVerify from './pages/csc-public/CscVerify'
+import CscAhjLanding from './pages/csc-public/CscAhjLanding'
 // CSC tech mobile-web — Wave E
 import CscTechLayout from './pages/csc-tech/CscTechLayout'
 import CscTechHome from './pages/csc-tech/CscTechHome'
@@ -496,6 +497,7 @@ export default function App() {
           <Route path="/csc" element={<CscPublicLayout />}>
             <Route path="portal/:token" element={<CscPortal />} />
             <Route path="verify/:qr" element={<CscVerify />} />
+            <Route path="ahj" element={<CscAhjLanding />} />
           </Route>
 
           {/* CSC mobile-web tech experience (no auth) */}
