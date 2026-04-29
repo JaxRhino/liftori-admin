@@ -139,41 +139,92 @@ export default function CscJobDetail() {
 
       {/* Cert + sticker row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+        {/* Mini-certificate card — visually styled to read as the actual document */}
+        <div className="rounded-xl border border-orange-500/20 bg-gradient-to-br from-navy-900/60 to-navy-800/40 overflow-hidden">
+          <div className="h-1 bg-orange-500" />
+          {!cert ? (
+            <div className="p-5">
               <div className="text-[10px] uppercase tracking-wider text-orange-300 font-semibold">NFPA 96 Certificate</div>
-              {cert ? (
-                <>
-                  <div className="font-mono text-lg text-white mt-1">{cert.cert_number}</div>
-                  <div className="text-xs text-white/60 mt-1">Issued {fmtDate(cert.issued_at)} · Expires {fmtDate(cert.expires_at)}</div>
-                  <div className="text-xs text-white/40 mt-0.5">QR <span className="font-mono text-orange-300">{cert.qr_code}</span></div>
-                </>
-              ) : (
-                <div className="text-white/40 text-sm mt-1">No cert issued yet.</div>
-              )}
+              <div className="text-white/40 text-sm mt-2">No cert issued yet — close out the job to generate.</div>
             </div>
-            {cert && <QrPreview data={cert.public_verify_url || cert.qr_code} size={108} />}
-          </div>
-          {cert && (
-            <div className="flex flex-wrap gap-2 mt-4">
-              {cert.pdf_url && (
-                <a href={cert.pdf_url} target="_blank" rel="noopener noreferrer"
-                   className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-orange-200 text-sm rounded transition-colors">
-                  Open PDF →
-                </a>
+          ) : (
+            <>
+              <div className="px-5 pt-4 pb-3 border-b border-white/5 flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-orange-300 font-bold">NFPA 96 Certificate</div>
+                  <div className="font-mono text-2xl text-white mt-0.5 tracking-tight">{cert.cert_number}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-white/30 mt-0.5">ANSI/IKECA C10-2021</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[9px] uppercase tracking-wider text-white/40 font-semibold">Compliance</div>
+                  <div className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                    <span className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Verified</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-5 py-4 grid grid-cols-3 gap-4">
+                <div>
+                  <div className="text-[9px] uppercase tracking-wider text-white/40 font-semibold">Issued</div>
+                  <div className="text-sm text-white mt-0.5">{fmtDate(cert.issued_at)}</div>
+                </div>
+                <div>
+                  <div className="text-[9px] uppercase tracking-wider text-white/40 font-semibold">Next Due</div>
+                  <div className="text-sm text-white mt-0.5">{fmtDate(cert.expires_at)}</div>
+                </div>
+                <div className="row-span-2 flex justify-end">
+                  <div className="text-center">
+                    <QrPreview data={cert.public_verify_url || cert.qr_code} size={144} />
+                    <div className="text-[9px] text-white/40 uppercase tracking-wider mt-1.5">Scan to verify</div>
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-[9px] uppercase tracking-wider text-white/40 font-semibold">QR</div>
+                  <div className="font-mono text-xs text-orange-300 mt-0.5">{cert.qr_code}</div>
+                </div>
+              </div>
+
+              {/* Inline photo evidence strip */}
+              {photos.length > 0 && (
+                <div className="px-5 pb-3">
+                  <div className="text-[9px] uppercase tracking-wider text-white/40 font-semibold mb-1.5">Photo Evidence</div>
+                  <div className="flex gap-1.5">
+                    {['before_canopy', 'after_canopy', 'before_duct', 'after_duct'].map(slot => {
+                      const p = photosByslot[slot]
+                      return (
+                        <div key={slot} className="flex-1 aspect-square rounded border border-white/10 bg-white/5 overflow-hidden flex items-center justify-center">
+                          {p ? (
+                            <img src={p.thumbnail_url || p.storage_url} alt={slot} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[8px] text-white/20">—</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               )}
-              {cert.public_verify_url && (
-                <a href={cert.public_verify_url} target="_blank" rel="noopener noreferrer"
-                   className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm rounded transition-colors">
-                  Public verify
-                </a>
-              )}
-              <button onClick={regenerateCert} disabled={regen}
-                      className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm rounded transition-colors disabled:opacity-50">
-                {regen ? 'Regenerating…' : 'Regenerate cert'}
-              </button>
-            </div>
+
+              <div className="px-5 py-3 border-t border-white/5 bg-black/20 flex flex-wrap gap-2">
+                {cert.pdf_url && (
+                  <a href={cert.pdf_url} target="_blank" rel="noopener noreferrer"
+                     className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-orange-200 text-sm rounded transition-colors font-medium">
+                    Open PDF →
+                  </a>
+                )}
+                {cert.public_verify_url && (
+                  <a href={cert.public_verify_url} target="_blank" rel="noopener noreferrer"
+                     className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm rounded transition-colors">
+                    Public verify
+                  </a>
+                )}
+                <button onClick={regenerateCert} disabled={regen}
+                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm rounded transition-colors disabled:opacity-50 ml-auto">
+                  {regen ? 'Regenerating…' : 'Regenerate'}
+                </button>
+              </div>
+            </>
           )}
         </div>
 
