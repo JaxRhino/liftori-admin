@@ -194,6 +194,7 @@ import DevTeamActivity from './pages/dev-team/DevTeamActivity'
 import DevTeamCanvas from './pages/dev-team/DevTeamCanvas'
 import DevTeamCanvasDetail from './pages/dev-team/DevTeamCanvasDetail'
 import DevTeamSkillsMemory from './pages/dev-team/DevTeamSkillsMemory'
+import DevTeamAgentChat from './pages/dev-team/DevTeamAgentChat'
 import DevTeamFeatureIdeas from './pages/dev-team/DevTeamFeatureIdeas'
 // CSC Services LABOS-KEC — Wave B operator admin shell
 import CscLayout from './pages/csc/CscLayout'
@@ -473,6 +474,7 @@ export default function App() {
               <Route path="canvas" element={<DevTeamCanvas />} />
               <Route path="canvas/:slug" element={<DevTeamCanvasDetail />} />
               <Route path="skills" element={<DevTeamSkillsMemory />} />
+              <Route path="agent-chat" element={<DevTeamAgentChat />} />
             </Route>
             {/* CSC Services LABOS-KEC — Wave B */}
             <Route path="csc" element={<CscLayout />}>
