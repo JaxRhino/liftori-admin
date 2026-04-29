@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cscSupabase, fmtMoney, fmtDate, relTime, CLEANING_STATUS_TONES, SEVERITY_TONES, INVOICE_STATUS_TONES } from '../../lib/cscClient'
+import DemoTools from '../../components/csc/DemoTools'
 
 function StatCard({ label, value, hint, accent, to }) {
   const inner = (
@@ -65,6 +66,7 @@ export default function CscOverview() {
 
   return (
     <div className="space-y-6">
+      <DemoTools />
       <div className="flex items-center justify-end">
         <a href="/csc/tech" target="_blank" rel="noopener noreferrer"
            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-200 transition-colors">
