@@ -201,6 +201,10 @@ import CscOverview from './pages/csc/CscOverview'
 import CscCustomers from './pages/csc/CscCustomers'
 import CscJobs from './pages/csc/CscJobs'
 import CscJobDetail from './pages/csc/CscJobDetail'
+// CSC public — Wave D customer portal + AHJ verify
+import CscPublicLayout from './pages/csc-public/CscPublicLayout'
+import CscPortal from './pages/csc-public/CscPortal'
+import CscVerify from './pages/csc-public/CscVerify'
 import CscDeficiencies from './pages/csc/CscDeficiencies'
 import CscInvoices from './pages/csc/CscInvoices'
 import CscCertificates from './pages/csc/CscCertificates'
@@ -480,6 +484,12 @@ export default function App() {
             </Route>
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Route>
+
+          {/* CSC public — restaurant owner portal + AHJ verify (no auth) */}
+          <Route path="/csc" element={<CscPublicLayout />}>
+            <Route path="portal/:token" element={<CscPortal />} />
+            <Route path="verify/:qr" element={<CscVerify />} />
           </Route>
 
           {/* LABOS â€” per-client backend (admin impersonation enters here) */}
