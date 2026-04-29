@@ -195,6 +195,16 @@ import DevTeamCanvas from './pages/dev-team/DevTeamCanvas'
 import DevTeamCanvasDetail from './pages/dev-team/DevTeamCanvasDetail'
 import DevTeamSkillsMemory from './pages/dev-team/DevTeamSkillsMemory'
 import DevTeamFeatureIdeas from './pages/dev-team/DevTeamFeatureIdeas'
+// CSC Services LABOS-KEC — Wave B operator admin shell
+import CscLayout from './pages/csc/CscLayout'
+import CscOverview from './pages/csc/CscOverview'
+import CscCustomers from './pages/csc/CscCustomers'
+import CscJobs from './pages/csc/CscJobs'
+import CscDeficiencies from './pages/csc/CscDeficiencies'
+import CscInvoices from './pages/csc/CscInvoices'
+import CscCertificates from './pages/csc/CscCertificates'
+import CscStickers from './pages/csc/CscStickers'
+import CscAhjMap from './pages/csc/CscAhjMap'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -454,6 +464,17 @@ export default function App() {
               <Route path="canvas" element={<DevTeamCanvas />} />
               <Route path="canvas/:slug" element={<DevTeamCanvasDetail />} />
               <Route path="skills" element={<DevTeamSkillsMemory />} />
+            </Route>
+            {/* CSC Services LABOS-KEC — Wave B */}
+            <Route path="csc" element={<CscLayout />}>
+              <Route index element={<CscOverview />} />
+              <Route path="customers" element={<CscCustomers />} />
+              <Route path="jobs" element={<CscJobs />} />
+              <Route path="deficiencies" element={<CscDeficiencies />} />
+              <Route path="invoices" element={<CscInvoices />} />
+              <Route path="certificates" element={<CscCertificates />} />
+              <Route path="stickers" element={<CscStickers />} />
+              <Route path="ahj" element={<CscAhjMap />} />
             </Route>
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
