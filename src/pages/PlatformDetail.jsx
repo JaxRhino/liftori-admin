@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import LabosTenantCard from '../components/LabosTenantCard'
 
 const STATUS_OPTIONS = ['In Build', 'QA', 'Live', 'On Hold', 'Completed', 'Cancelled']
 const TYPE_OPTIONS = ['Web App', 'Mobile App', 'Business Platform', 'E-Commerce']
@@ -588,6 +589,9 @@ export default function PlatformDetail() {
               )}
             </div>
           </div>
+
+          {/* LABOS tenant card (only when labos_enabled) */}
+          {!editing && <LabosTenantCard platform={platform} />}
 
           {/* Quick Actions */}
           {!editing && (platform.site_url || platform.admin_url) && (
