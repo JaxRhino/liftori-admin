@@ -65,6 +65,12 @@ export default function CscOverview() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-end">
+        <a href="/csc/tech" target="_blank" rel="noopener noreferrer"
+           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-200 transition-colors">
+          <span>📱</span> Open tech app (new tab)
+        </a>
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard label="Active Accounts" value={loading ? '—' : stats.totalRestaurants} hint="restaurants under contract" to="/admin/csc/customers" />
         <StatCard label="Jobs Today" value={loading ? '—' : stats.jobsToday} hint="scheduled or in progress" to="/admin/csc/jobs" accent="text-blue-300" />

@@ -205,6 +205,10 @@ import CscJobDetail from './pages/csc/CscJobDetail'
 import CscPublicLayout from './pages/csc-public/CscPublicLayout'
 import CscPortal from './pages/csc-public/CscPortal'
 import CscVerify from './pages/csc-public/CscVerify'
+// CSC tech mobile-web — Wave E
+import CscTechLayout from './pages/csc-tech/CscTechLayout'
+import CscTechHome from './pages/csc-tech/CscTechHome'
+import CscTechJob from './pages/csc-tech/CscTechJob'
 import CscDeficiencies from './pages/csc/CscDeficiencies'
 import CscInvoices from './pages/csc/CscInvoices'
 import CscCertificates from './pages/csc/CscCertificates'
@@ -490,6 +494,12 @@ export default function App() {
           <Route path="/csc" element={<CscPublicLayout />}>
             <Route path="portal/:token" element={<CscPortal />} />
             <Route path="verify/:qr" element={<CscVerify />} />
+          </Route>
+
+          {/* CSC mobile-web tech experience (no auth) */}
+          <Route path="/csc/tech" element={<CscTechLayout />}>
+            <Route index element={<CscTechHome />} />
+            <Route path="job/:id" element={<CscTechJob />} />
           </Route>
 
           {/* LABOS â€” per-client backend (admin impersonation enters here) */}

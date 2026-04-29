@@ -6,6 +6,7 @@ function Pill({ tone, children }) {
 }
 
 export default function CscInvoices() {
+  const [busyId, setBusyId] = useState(null)
   const [invoices, setInvoices] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
@@ -37,6 +38,20 @@ export default function CscInvoices() {
     })
     return { ...buckets, total: buckets.current + buckets.d30 + buckets.d60 + buckets.d90 }
   }, [invoices])
+
+  async function sendInvoice(inv) {
+    if (!confirm(`Send invoice ${inv.invoice_number} to ${inv.restaurant?.name}?`)) return
+    setBusyId(inv.id)
+    try {
+      const { error } = await cscSupabase.from('csc_invoices').update({
+        status: 'sent', sent_at: new Date().toISOString(),
+      }).eq('id', inv.id)
+      if (error) throw error
+      // Optimistically update local
+      setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: 'sent', sent_at: new Date().toISOString() } : i))
+    } catch (e) { alert('Send failed: ' + e.message) }
+    finally { setBusyId(null) }
+  }
 
   const filtered = useMemo(() => invoices.filter(i => {
     if (statusFilter !== 'all' && i.status !== statusFilter) return false
@@ -83,11 +98,11 @@ export default function CscInvoices() {
       <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-white/5 text-xs uppercase tracking-wider text-white/40">
-            <tr><th className="text-left px-5 py-3 font-semibold">Invoice</th><th className="text-left px-3 py-3 font-semibold">Account</th><th className="text-left px-3 py-3 font-semibold">Issued</th><th className="text-left px-3 py-3 font-semibold">Due</th><th className="text-left px-3 py-3 font-semibold">Status</th><th className="text-right px-3 py-3 font-semibold">Total</th><th className="text-right px-5 py-3 font-semibold">Outstanding</th></tr>
+            <tr><th className="text-left px-5 py-3 font-semibold">Invoice</th><th className="text-left px-3 py-3 font-semibold">Account</th><th className="text-left px-3 py-3 font-semibold">Issued</th><th className="text-left px-3 py-3 font-semibold">Due</th><th className="text-left px-3 py-3 font-semibold">Status</th><th className="text-right px-3 py-3 font-semibold">Total</th><th className="text-right px-5 py-3 font-semibold">Outstanding</th><th className="text-right px-3 py-3 font-semibold">Action</th></tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {loading && <tr><td colSpan="7" className="px-5 py-6 text-white/40">Loading…</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan="7" className="px-5 py-6 text-white/40">No invoices match.</td></tr>}
+            {loading && <tr><td colSpan="8" className="px-5 py-6 text-white/40">Loading…</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan="8" className="px-5 py-6 text-white/40">No invoices match.</td></tr>}
             {filtered.map(i => {
               const owed = Number(i.total_amount - (i.amount_paid || 0))
               return (
@@ -103,6 +118,11 @@ export default function CscInvoices() {
                   <td className="px-3 py-3 text-right text-white">{fmtMoney(i.total_amount)}</td>
                   <td className="px-5 py-3 text-right">
                     {owed > 0 ? <span className="text-orange-300">{fmtMoney(owed)}</span> : <span className="text-emerald-300/80">{fmtMoney(0)}</span>}
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    {i.status === 'draft' && (
+                      <button onClick={() => sendInvoice(i)} disabled={busyId === i.id} className="px-2 py-1 rounded text-[11px] bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-200 disabled:opacity-50">{busyId === i.id ? 'Sending…' : 'Send'}</button>
+                    )}
                   </td>
                 </tr>
               )
