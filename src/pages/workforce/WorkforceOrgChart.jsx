@@ -40,21 +40,24 @@ export default function WorkforceOrgChart() {
   if (loading) return <Loading />
   if (error) return <ErrorBox msg={error} />
 
-  // Group humans by layer
+  // Group humans
   const leadership = humans.filter((h) => h.layer === 'leadership')
   const cofounders = humans.filter((h) => h.layer === 'cofounders')
   const testers    = humans.filter((h) => h.layer === 'testers')
 
-  // Group agents
-  const aiExecutives = agents.filter((a) => a.category === 'executive' && ['sage','atlas'].includes(a.slug))
-  const aiDeptLeads  = agents.filter((a) => a.category === 'executive' && !['sage','atlas'].includes(a.slug))
-  const aiFieldAgents = agents.filter((a) => a.category === 'call_center')
+  // Build agent slug -> agent map for cross-lookup
+  const agentBySlug = Object.fromEntries(agents.map((a) => [a.slug, a]))
+
+  // Group agents by sort_order: <10 = leadership pairings (strategic + EA), >=10 = dept leads
+  const execAgents = agents.filter((a) => a.category === 'executive' && (a.sort_order || 99) < 10)
+  const deptLeads  = agents.filter((a) => a.category === 'executive' && (a.sort_order || 99) >= 10)
+  const fieldAgents = agents.filter((a) => a.category === 'call_center')
 
   return (
     <div className="space-y-8">
       {leadership.length > 0 && (
         <Layer label="Leadership">
-          {leadership.map((h) => <HumanTile key={h.id} person={h} />)}
+          {leadership.map((h) => <HumanTile key={h.id} person={h} agentBySlug={agentBySlug} />)}
         </Layer>
       )}
 
@@ -62,34 +65,34 @@ export default function WorkforceOrgChart() {
         <>
           <Connector />
           <Layer label="Co-Founders">
-            {cofounders.map((h) => <HumanTile key={h.id} person={h} />)}
+            {cofounders.map((h) => <HumanTile key={h.id} person={h} agentBySlug={agentBySlug} />)}
           </Layer>
         </>
       )}
 
-      {aiExecutives.length > 0 && (
+      {execAgents.length > 0 && (
         <>
           <Connector />
-          <Layer label="AI Executive Team">
-            {aiExecutives.map((a) => <AgentTile key={a.id} agent={a} />)}
+          <Layer label="AI Executive Team & Personal EAs">
+            {execAgents.map((a) => <AgentTile key={a.id} agent={a} />)}
           </Layer>
         </>
       )}
 
-      {aiDeptLeads.length > 0 && (
+      {deptLeads.length > 0 && (
         <>
           <Connector />
           <Layer label="AI Department Leads">
-            {aiDeptLeads.map((a) => <AgentTile key={a.id} agent={a} />)}
+            {deptLeads.map((a) => <AgentTile key={a.id} agent={a} />)}
           </Layer>
         </>
       )}
 
-      {aiFieldAgents.length > 0 && (
+      {fieldAgents.length > 0 && (
         <>
           <Connector />
           <Layer label="AI Field Agents (Call Center)">
-            {aiFieldAgents.map((a) => <AgentTile key={a.id} agent={a} muted />)}
+            {fieldAgents.map((a) => <AgentTile key={a.id} agent={a} muted />)}
           </Layer>
         </>
       )}
@@ -98,14 +101,14 @@ export default function WorkforceOrgChart() {
         <>
           <Connector />
           <Layer label="Quality &amp; Testing">
-            {testers.map((h) => <HumanTile key={h.id} person={h} />)}
+            {testers.map((h) => <HumanTile key={h.id} person={h} agentBySlug={agentBySlug} />)}
           </Layer>
         </>
       )}
 
       <div className="text-center text-[10px] text-slate-600 mt-12 pt-6 border-t border-slate-800">
         Org sourced from <code className="text-slate-500">workforce_humans</code> + <code className="text-slate-500">ai_agents</code>.
-        Add or update people through SQL or the workforce admin (when shipped).
+        Each leader can pair with a strategic agent and a personal EA.
       </div>
     </div>
   )
@@ -130,12 +133,11 @@ function Connector() {
   )
 }
 
-function HumanTile({ person }) {
+function HumanTile({ person, agentBySlug }) {
   const initials = (person.full_name || '?').split(' ').map((p) => p[0]).join('').slice(0, 2)
   const isOpen = person.is_open_seat
   const isLeadership = person.layer === 'leadership'
 
-  // Color theme by layer
   const ring = isLeadership ? 'ring-amber-400/60'
     : person.layer === 'cofounders' ? 'ring-brand-blue/60'
     : 'ring-slate-700'
@@ -143,18 +145,41 @@ function HumanTile({ person }) {
     : person.layer === 'cofounders' ? 'bg-gradient-to-br from-brand-blue/30 to-navy-800'
     : 'bg-gradient-to-br from-slate-700 to-navy-800'
 
+  const strategic = person.pairs_with_agent_slug && agentBySlug[person.pairs_with_agent_slug]
+  const ea = person.personal_ea_agent_slug && agentBySlug[person.personal_ea_agent_slug]
+  const sameAgent = strategic && ea && strategic.slug === ea.slug
+
   return (
-    <div className={`bg-navy-900 border-2 ${isOpen ? 'border-dashed border-slate-700 opacity-60' : 'border-slate-800'} rounded-lg p-3 text-center min-w-[150px] max-w-[200px]`}>
+    <div className={`bg-navy-900 border-2 ${isOpen ? 'border-dashed border-slate-700 opacity-60' : 'border-slate-800'} rounded-lg p-3 text-center min-w-[170px] max-w-[220px]`}>
       <div className={`w-12 h-12 mx-auto rounded-full ${initialsBg} flex items-center justify-center text-white font-bold text-sm ring-2 ${ring}`}>
         {isOpen ? '+' : initials}
       </div>
       <div className="mt-2 text-sm font-semibold text-white truncate">{person.full_name}</div>
       <div className="text-[10px] text-brand-blue uppercase tracking-wider truncate mt-0.5">{person.role_title}</div>
-      {person.pairs_with_agent_slug && (
-        <div className="text-[10px] text-slate-500 mt-1">
-          paired w/ <span className="text-slate-300 capitalize">{person.pairs_with_agent_slug}</span>
+
+      {(strategic || ea) && !isOpen && (
+        <div className="mt-2 pt-2 border-t border-slate-800 space-y-0.5">
+          {sameAgent ? (
+            <Link to={`/admin/workforce/agent/${strategic.slug}`} className="block text-[10px] text-slate-400 hover:text-white">
+              <span className="text-slate-500">paired w/</span> <span className="text-slate-200 capitalize font-medium">{strategic.name}</span>
+            </Link>
+          ) : (
+            <>
+              {strategic && (
+                <Link to={`/admin/workforce/agent/${strategic.slug}`} className="block text-[10px] text-slate-400 hover:text-white">
+                  <span className="text-slate-500">strategic:</span> <span className="text-slate-200 font-medium">{strategic.name}</span>
+                </Link>
+              )}
+              {ea && (
+                <Link to={`/admin/workforce/agent/${ea.slug}`} className="block text-[10px] text-slate-400 hover:text-white">
+                  <span className="text-slate-500">EA:</span> <span className="text-slate-200 font-medium">{ea.name}</span>
+                </Link>
+              )}
+            </>
+          )}
         </div>
       )}
+
       {isOpen && <div className="text-[10px] text-amber-400 mt-1 italic">open seat</div>}
     </div>
   )
@@ -167,6 +192,9 @@ function AgentTile({ agent, muted }) {
     senior:    'ring-sky-500/40',
     junior:    'ring-slate-600',
   }[agent.tier] || 'ring-slate-600'
+
+  // Detect EA-style role to show a subtle badge
+  const isEA = (agent.role || '').toLowerCase().includes('ea ') || (agent.role || '').toLowerCase().includes('assistant')
 
   return (
     <Link
@@ -192,9 +220,14 @@ function AgentTile({ agent, muted }) {
           paired w/ <span className="text-slate-300">{agent.pairs_with}</span>
         </div>
       )}
-      {agent.tier && (
-        <div className="text-[9px] uppercase tracking-wider text-slate-600 mt-0.5">{agent.tier}</div>
-      )}
+      <div className="flex items-center justify-center gap-1 mt-1">
+        {agent.tier && (
+          <span className="text-[9px] uppercase tracking-wider text-slate-600">{agent.tier}</span>
+        )}
+        {isEA && (
+          <span className="text-[9px] uppercase tracking-wider text-pink-400/70 px-1 rounded bg-pink-900/20 border border-pink-800/40">EA</span>
+        )}
+      </div>
     </Link>
   )
 }
