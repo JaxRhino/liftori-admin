@@ -101,66 +101,79 @@ Write as if you are speaking directly to them. No preamble. No "I'll help you" f
     return () => { alive = false }
   }, [user, dismissed])
 
-  // Speak the brief out loud using the user's saved voice for this agent
-  useEffect(() => {
+  const [speaking, setSpeaking] = useState(false)
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false)
+
+  // Helper: get voices async
+  function getVoicesReady() {
+    return new Promise((resolve) => {
+      if (!window.speechSynthesis) { resolve([]); return }
+      const v = window.speechSynthesis.getVoices()
+      if (v.length > 0) { resolve(v); return }
+      const onChange = () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', onChange)
+        resolve(window.speechSynthesis.getVoices())
+      }
+      window.speechSynthesis.addEventListener('voiceschanged', onChange)
+      setTimeout(() => {
+        window.speechSynthesis.removeEventListener('voiceschanged', onChange)
+        resolve(window.speechSynthesis.getVoices())
+      }, 1500)
+    })
+  }
+
+  // The actual speak function - reusable
+  async function doSpeak() {
     if (!brief || !ea || !window.speechSynthesis) return
+    try {
+      const voices = await getVoicesReady()
+      window.speechSynthesis.cancel()
+      const u = new SpeechSynthesisUtterance(cleanForTTS(brief))
+      const stored = window.localStorage?.getItem(`liftori.voice.${ea.slug}`)
+      console.log('[WelcomeBrief TTS] stored voice:', stored, '| total voices:', voices.length)
+      if (stored) {
+        let v = voices.find(x => x.name === stored)
+        if (!v) v = voices.find(x => x.name.toLowerCase().includes(stored.toLowerCase()))
+        if (!v) v = voices.find(x => stored.toLowerCase().includes(x.name.toLowerCase()))
+        if (v) { u.voice = v; console.log('[WelcomeBrief TTS] matched stored voice:', v.name) }
+      }
+      if (!u.voice && ea.voice_name) {
+        let v = voices.find(x => x.name === ea.voice_name)
+        if (!v) v = voices.find(x => x.name.toLowerCase().includes(ea.voice_name.toLowerCase()))
+        if (!v) v = voices.find(x => ea.voice_name.toLowerCase().includes(x.name.toLowerCase()))
+        if (v) { u.voice = v; console.log('[WelcomeBrief TTS] matched DB voice_name:', ea.voice_name, '->', v.name) }
+      }
+      if (!u.voice) {
+        const FEMALE = ['samantha','aria','allison','karen','sonia','tessa','jenny','zira','google us english']
+        const en = voices.filter(x => (x.lang||'').toLowerCase().startsWith('en'))
+        const pick = en.find(x => FEMALE.some(f => x.name.toLowerCase().includes(f))) || en[0]
+        if (pick) { u.voice = pick; console.log('[WelcomeBrief TTS] fallback voice:', pick.name) }
+      }
+      u.rate = 1.05
+      u.onstart = () => { setSpeaking(true); setAutoplayBlocked(false) }
+      u.onend = () => setSpeaking(false)
+      u.onerror = (e) => { setSpeaking(false); console.warn('[WelcomeBrief TTS] utterance error:', e) }
+      window.speechSynthesis.speak(u)
+
+      // Detect autoplay block: if not speaking after 600ms, show play button
+      setTimeout(() => {
+        if (!window.speechSynthesis.speaking) {
+          console.warn('[WelcomeBrief TTS] speech did not start - likely autoplay blocked')
+          setAutoplayBlocked(true)
+        }
+      }, 600)
+    } catch (e) { console.warn('[WelcomeBrief] tts failed:', e) }
+  }
+
+  // Auto-attempt speak when brief arrives
+  useEffect(() => {
+    if (!brief || !ea) return
     let cancelled = false
-
-    // Voice list is async - wait for it to load before speaking
-    function getVoicesReady() {
-      return new Promise((resolve) => {
-        const v = window.speechSynthesis.getVoices()
-        if (v.length > 0) { resolve(v); return }
-        const onChange = () => {
-          window.speechSynthesis.removeEventListener('voiceschanged', onChange)
-          resolve(window.speechSynthesis.getVoices())
-        }
-        window.speechSynthesis.addEventListener('voiceschanged', onChange)
-        // Safety: don't wait forever
-        setTimeout(() => {
-          window.speechSynthesis.removeEventListener('voiceschanged', onChange)
-          resolve(window.speechSynthesis.getVoices())
-        }, 1500)
-      })
-    }
-
     ;(async () => {
-      try {
-        const voices = await getVoicesReady()
-        if (cancelled) return
-        window.speechSynthesis.cancel()
-        const u = new SpeechSynthesisUtterance(cleanForTTS(brief))
-        const stored = window.localStorage?.getItem(`liftori.voice.${ea.slug}`)
-        console.log('[WelcomeBrief TTS] stored voice:', stored, '| total voices:', voices.length)
-        if (stored) {
-          // Try exact match first, then substring (handles "Microsoft Jenny" vs "Microsoft Jenny Online (Natural)")
-          let v = voices.find(x => x.name === stored)
-          if (!v) v = voices.find(x => x.name.toLowerCase().includes(stored.toLowerCase()))
-          if (!v) v = voices.find(x => stored.toLowerCase().includes(x.name.toLowerCase()))
-          if (v) { u.voice = v; console.log('[WelcomeBrief TTS] matched stored voice:', v.name) }
-          else console.warn('[WelcomeBrief TTS] no match for stored voice:', stored)
-        }
-        // DB voice_name fallback (default for this agent)
-        if (!u.voice && ea.voice_name) {
-          let v = voices.find(x => x.name === ea.voice_name)
-          if (!v) v = voices.find(x => x.name.toLowerCase().includes(ea.voice_name.toLowerCase()))
-          if (!v) v = voices.find(x => ea.voice_name.toLowerCase().includes(x.name.toLowerCase()))
-          if (v) { u.voice = v; console.log('[WelcomeBrief TTS] matched DB voice_name:', ea.voice_name, '->', v.name) }
-          else console.warn('[WelcomeBrief TTS] no match for DB voice_name:', ea.voice_name, '- available English:', voices.filter(x => (x.lang||'').toLowerCase().startsWith('en')).map(x => x.name))
-        }
-        if (!u.voice) {
-          const FEMALE = ['samantha','aria','allison','karen','sonia','tessa','jenny','zira','google us english']
-          const en = voices.filter(x => (x.lang||'').toLowerCase().startsWith('en'))
-          const pick = en.find(x => FEMALE.some(f => x.name.toLowerCase().includes(f))) || en[0]
-          if (pick) { u.voice = pick; console.log('[WelcomeBrief TTS] fallback voice:', pick.name) }
-        }
-        u.rate = 1.05
-        window.speechSynthesis.speak(u)
-      } catch (e) { console.warn('[WelcomeBrief] tts failed:', e) }
+      if (!cancelled) await doSpeak()
     })()
-
     return () => { cancelled = true }
-  }, [brief, ea])
+  }, [brief, ea]) // eslint-disable-line
 
   function muteSpeak() {
     try { window.speechSynthesis?.cancel() } catch {}
@@ -210,7 +223,14 @@ Write as if you are speaking directly to them. No preamble. No "I'll help you" f
             Talk to {ea.name} &rarr;
           </Link>
           <div className="flex items-center gap-2">
-            <button onClick={muteSpeak} className="text-xs text-slate-500 hover:text-slate-300">mute</button>
+            {(autoplayBlocked || !speaking) && (
+              <button onClick={doSpeak} className="text-xs text-brand-blue hover:text-white">
+                {autoplayBlocked ? 'play voice' : speaking ? 'speaking...' : 'replay'}
+              </button>
+            )}
+            {speaking && (
+              <button onClick={() => { window.speechSynthesis?.cancel(); setSpeaking(false) }} className="text-xs text-slate-500 hover:text-slate-300">stop</button>
+            )}
             <button onClick={dismiss} className="text-xs text-slate-500 hover:text-slate-300">dismiss</button>
           </div>
         </div>
