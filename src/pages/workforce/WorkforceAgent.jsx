@@ -255,7 +255,8 @@ function ConfigurationTab({ agent, user, onSaved }) {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           rows={12}
-          className="w-full bg-navy-950 border border-slate-700 focus:border-brand-blue rounded-md px-3 py-2 text-sm text-slate-100 font-mono leading-relaxed"
+          style={{ backgroundColor: '#0a0e1a', color: '#e8eaf0', borderColor: '#334155' }}
+          className="w-full border focus:border-brand-blue rounded-md px-3 py-2 text-sm font-mono leading-relaxed"
           placeholder="Define the agent's behavior, voice, and decision authority..."
         />
         <div className="mt-3 flex items-center gap-2">
@@ -264,7 +265,8 @@ function ConfigurationTab({ agent, user, onSaved }) {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Why this change? (logged to version history)"
-            className="flex-1 bg-navy-950 border border-slate-700 focus:border-brand-blue rounded-md px-3 py-2 text-sm text-slate-100"
+            style={{ backgroundColor: '#0a0e1a', color: '#e8eaf0', borderColor: '#334155' }}
+            className="flex-1 border focus:border-brand-blue rounded-md px-3 py-2 text-sm"
           />
           <button
             onClick={save}
@@ -391,7 +393,8 @@ function MemoriesTab({ agent, user }) {
         <SectionLabel>Add a memory</SectionLabel>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
           <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}
-            className="md:col-span-2 bg-navy-950 border border-slate-700 rounded-md px-2 py-2 text-sm text-slate-100">
+            style={{ backgroundColor: '#0a0e1a', color: '#e8eaf0', borderColor: '#334155' }}
+            className="md:col-span-2 border rounded-md px-2 py-2 text-sm">
             <option value="fact">fact</option>
             <option value="principle">principle</option>
             <option value="identity">identity</option>
@@ -400,9 +403,12 @@ function MemoriesTab({ agent, user }) {
             <option value="learning">learning</option>
           </select>
           <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder="title (short)" className="md:col-span-7 bg-navy-950 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100" />
+            placeholder="title (short)"
+            style={{ backgroundColor: '#0a0e1a', color: '#e8eaf0', borderColor: '#334155' }}
+            className="md:col-span-7 border rounded-md px-3 py-2 text-sm" />
           <input type="number" min="1" max="10" value={form.importance} onChange={(e) => setForm({ ...form, importance: e.target.value })}
-            className="md:col-span-1 bg-navy-950 border border-slate-700 rounded-md px-2 py-2 text-sm text-slate-100 text-center" />
+            style={{ backgroundColor: '#0a0e1a', color: '#e8eaf0', borderColor: '#334155' }}
+            className="md:col-span-1 border rounded-md px-2 py-2 text-sm text-center" />
           <button onClick={add} disabled={adding}
             className="md:col-span-2 px-3 py-2 bg-brand-blue/20 border border-brand-blue text-white text-sm rounded-md hover:bg-brand-blue/30 disabled:opacity-50">
             {adding ? '...' : 'Add'}
@@ -410,7 +416,9 @@ function MemoriesTab({ agent, user }) {
         </div>
         <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })}
           placeholder="content (the fact, principle, or learning the agent should remember)"
-          rows={3} className="w-full mt-2 bg-navy-950 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100 leading-relaxed" />
+          rows={3}
+          style={{ backgroundColor: '#0a0e1a', color: '#e8eaf0', borderColor: '#334155' }}
+          className="w-full mt-2 border rounded-md px-3 py-2 text-sm leading-relaxed" />
       </Card>
 
       <Card>
