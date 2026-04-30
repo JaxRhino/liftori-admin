@@ -49,6 +49,7 @@ import WorkforceTeam from './pages/workforce/WorkforceTeam'
 import WorkforceAgent from './pages/workforce/WorkforceAgent'
 import WorkforceActivity from './pages/workforce/WorkforceActivity'
 import WorkforceOrgChart from './pages/workforce/WorkforceOrgChart'
+import CEODashboard from './pages/ceo/CEODashboard'
 import InHouseBuilds from './pages/InHouseBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import MobilePreview from './pages/MobilePreview'
@@ -347,6 +348,7 @@ export default function App() {
             <Route path="cc-team" element={<CallCenterTeam />} />
             <Route path="call-lists" element={<CallLists />} />
             <Route path="voicemails" element={<CallCenterVoicemails />} />
+            <Route path="ceo" element={<CEODashboard />} />
             <Route path="workforce" element={<WorkforceLayout />}>
               <Route index element={<WorkforceTeam />} />
               <Route path="activity" element={<WorkforceActivity />} />
