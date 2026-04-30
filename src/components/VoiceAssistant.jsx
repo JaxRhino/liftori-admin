@@ -126,8 +126,11 @@ export default function VoiceAssistant() {
       try { return window.localStorage?.getItem(`liftori.voice.${ea.slug}`) } catch { return null }
     })()
     if (stored) {
-      const found = englishVoices.find(v => v.name === stored)
-      if (found) { setChosenVoice(found); return }
+      let found = englishVoices.find(v => v.name === stored)
+      if (!found) found = englishVoices.find(v => v.name.toLowerCase().includes(stored.toLowerCase()))
+      if (!found) found = englishVoices.find(v => stored.toLowerCase().includes(v.name.toLowerCase()))
+      if (found) { console.log('[VoiceAssistant] matched stored voice:', stored, '->', found.name); setChosenVoice(found); return }
+      console.warn('[VoiceAssistant] no match for stored voice:', stored, '- available:', englishVoices.map(v => v.name))
     }
 
     // 2) Agent-configured voice_name (DB)
