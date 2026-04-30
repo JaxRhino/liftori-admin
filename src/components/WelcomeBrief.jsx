@@ -3,6 +3,27 @@ import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabase'
 import { Link } from 'react-router-dom'
 
+function cleanForTTS(text) {
+  if (!text) return ''
+  return String(text)
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*\s][^*]*[^*\s]|[^*\s])\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/(?<=\s|^)_([^_]+)_(?=\s|$|[.,!?])/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*[-*•]\s+/gm, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/[—–]/g, ', ')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, '. ')
+    .replace(/\s\/\s/g, ' or ')
+    .replace(/\s+/g, ' ')
+    .replace(/\.\s*\./g, '.')
+    .trim()
+}
+
 const SESSION_KEY = 'liftori.welcomed_today'
 
 export default function WelcomeBrief() {
@@ -108,7 +129,7 @@ Write as if you are speaking directly to them. No preamble. No "I'll help you" f
         const voices = await getVoicesReady()
         if (cancelled) return
         window.speechSynthesis.cancel()
-        const u = new SpeechSynthesisUtterance(brief)
+        const u = new SpeechSynthesisUtterance(cleanForTTS(brief))
         const stored = window.localStorage?.getItem(`liftori.voice.${ea.slug}`)
         if (stored) {
           const v = voices.find(x => x.name === stored)
