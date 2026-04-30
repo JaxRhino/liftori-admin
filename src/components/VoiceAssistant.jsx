@@ -2,6 +2,27 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabase'
 
+function cleanForTTS(text) {
+  if (!text) return ''
+  return String(text)
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*\s][^*]*[^*\s]|[^*\s])\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/(?<=\s|^)_([^_]+)_(?=\s|$|[.,!?])/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*[-*•]\s+/gm, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/[—–]/g, ', ')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, '. ')
+    .replace(/\s\/\s/g, ' or ')
+    .replace(/\s+/g, ' ')
+    .replace(/\.\s*\./g, '.')
+    .trim()
+}
+
 /**
  * VoiceAssistant
  * Floating EA avatar in the global header (top-left near sidebar).
@@ -153,7 +174,7 @@ export default function VoiceAssistant() {
     if (!supportedRef.current.tts || !text) return
     try {
       window.speechSynthesis.cancel()
-      const u = new SpeechSynthesisUtterance(text)
+      const u = new SpeechSynthesisUtterance(cleanForTTS(text))
       if (chosenVoice) u.voice = chosenVoice
       u.rate = 1.05
       u.pitch = 1
@@ -312,7 +333,7 @@ export default function VoiceAssistant() {
       <button
         onClick={handleClick}
         title={state === 'idle' ? `Talk to ${ea.name}` : state}
-        className={`fixed top-3 left-[72px] z-[60] w-11 h-11 rounded-full bg-gradient-to-br from-purple-700/40 to-navy-800 flex items-center justify-center text-purple-200 font-bold text-base overflow-hidden ring-2 transition-all ${ringClass}`}
+        className={`fixed top-3 right-[170px] z-[60] w-11 h-11 rounded-full bg-gradient-to-br from-purple-700/40 to-navy-800 flex items-center justify-center text-purple-200 font-bold text-base overflow-hidden ring-2 transition-all ${ringClass}`}
       >
         <img
           src={`/team/${ea.slug}.jpg`}
@@ -334,7 +355,7 @@ export default function VoiceAssistant() {
 
       {/* Caption / transcript bubble */}
       {open && (
-        <div className="fixed top-[72px] left-[100px] z-[60] w-[360px] bg-navy-900 border border-slate-800 rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
+        <div className="fixed top-[64px] right-[20px] z-[60] w-[360px] bg-navy-900 border border-slate-800 rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
           <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-brand-blue/10 to-transparent">
             <div className="text-xs">
               <span className="font-semibold text-white">{ea.name}</span>
