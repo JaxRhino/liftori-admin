@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/AuthContext'
+import WorkforceTalkPanel from './WorkforceTalkPanel'
 
 const TABS = ['Overview', 'Talk', 'Configuration', 'Memories', 'Capabilities', 'Authority', 'Activity']
 
@@ -125,7 +126,7 @@ export default function WorkforceAgent() {
       </div>
 
       {tab === 'Overview'      && <OverviewTab agent={agent} />}
-      {tab === 'Talk'          && <TalkTab agent={agent} />}
+      {tab === 'Talk'          && <WorkforceTalkPanel agent={agent} />}
       {tab === 'Configuration' && <ConfigurationTab agent={agent} user={user} onSaved={reload} />}
       {tab === 'Memories'      && <MemoriesTab agent={agent} user={user} />}
       {tab === 'Capabilities'  && <CapabilitiesTab agent={agent} onSaved={reload} />}
