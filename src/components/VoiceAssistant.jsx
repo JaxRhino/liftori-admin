@@ -162,51 +162,56 @@ export default function VoiceAssistant() {
     } catch (e) { console.warn('[VoiceAssistant] tts error:', e) }
   }
 
-  function startRecording() {
-    if (!supportedRef.current.stt) {
-      setError('Speech recognition not supported in this browser. Use Chrome or Edge.')
+  async function startRecording() {
+    if (!ea) { setError('No EA configured for your user.'); return }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('Mic API not available in this browser.')
       return
     }
-    if (!ea) { setError('No EA configured for your user.'); return }
     setError(null); setTranscript(''); setReply(''); setOpen(true); setState('recording')
 
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-    const rec = new SR()
-    rec.lang = 'en-US'
-    rec.interimResults = true
-    rec.continuous = false
-    rec.maxAlternatives = 1
-
-    let finalText = ''
-    rec.onresult = (e) => {
-      let interim = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const txt = e.results[i][0].transcript
-        if (e.results[i].isFinal) finalText += txt
-        else interim += txt
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const chunks = []
+      const mr = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm' })
+      mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data) }
+      mr.onstop = async () => {
+        // Stop all tracks to release the mic
+        stream.getTracks().forEach(t => t.stop())
+        const blob = new Blob(chunks, { type: mr.mimeType })
+        if (blob.size < 200) { setError('No audio captured. Try again.'); setState('idle'); return }
+        await transcribeAndInvoke(blob)
       }
-      setTranscript(finalText + interim)
-    }
-    rec.onerror = (e) => {
-      console.warn('[VoiceAssistant] stt error:', e.error)
-      const friendly = e.error === 'network' ? 'Network blip - speech service unreachable. Click voice settings -> retry.'
-        : e.error === 'not-allowed' ? 'Mic permission denied. Allow mic access in browser settings.'
-        : e.error === 'no-speech' ? 'No speech detected. Click avatar and try again.'
-        : `Mic error: ${e.error}`
-      setError(friendly)
+      mr.start()
+      recognitionRef.current = mr
+    } catch (e) {
+      console.warn('[VoiceAssistant] getUserMedia error:', e)
+      setError(e?.name === 'NotAllowedError' ? 'Mic permission denied. Allow mic access in browser settings.' : `Mic error: ${e?.message || e}`)
       setState('idle')
     }
-    rec.onend = async () => {
-      const text = finalText.trim()
-      if (!text) { setState('idle'); return }
-      await invoke(text)
-    }
-    rec.start()
-    recognitionRef.current = rec
   }
 
   function stopRecording() {
     try { recognitionRef.current?.stop() } catch {}
+  }
+
+  async function transcribeAndInvoke(audioBlob) {
+    setState('thinking'); setTranscript('(transcribing...)'); setReply('')
+    try {
+      const fd = new FormData()
+      fd.append('file', audioBlob, 'audio.webm')
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', { body: fd })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error + (data.detail ? ': ' + JSON.stringify(data.detail).slice(0, 200) : ''))
+      const text = (data?.text || '').trim()
+      if (!text) { setError('No speech detected in recording. Try again.'); setState('idle'); setTranscript(''); return }
+      setTranscript(text)
+      await invoke(text)
+    } catch (e) {
+      setError(`Transcription failed: ${e.message || String(e)}`)
+      setState('idle')
+      setTranscript('')
+    }
   }
 
   async function invoke(text) {
