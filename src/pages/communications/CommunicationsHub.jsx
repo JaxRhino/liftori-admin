@@ -46,6 +46,8 @@ export default function CommunicationsHub() {
   const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [users, setUsers] = useState([]);
+  const [internalAddresses, setInternalAddresses] = useState([]);
+  const [internalChannelId, setInternalChannelId] = useState(null);
 
   // Filters
   const [filterTab, setFilterTab] = useState('all'); // all, unread, starred, assigned
@@ -85,6 +87,16 @@ export default function CommunicationsHub() {
       ]);
       setConversations(convResult.data || []);
       setUsers(usersData);
+      // Load internal addresses + channel id for agent picker
+      try {
+        const { supabase } = await import('../../lib/supabase');
+        const [addrRes, chanRes] = await Promise.all([
+          supabase.from('internal_email_addresses').select('id, address, display_name, participant_type, agent_id').eq('active', true).order('participant_type').order('address'),
+          supabase.from('comms_channels').select('id').eq('channel_type', 'internal').maybeSingle()
+        ]);
+        setInternalAddresses(addrRes.data || []);
+        setInternalChannelId(chanRes.data?.id || null);
+      } catch (ie) { console.warn('[Comms Hub] internal addresses load failed:', ie); }
       if ((convResult.data || []).length > 0) {
         selectConversation(convResult.data[0]);
       }
@@ -133,14 +145,18 @@ export default function CommunicationsHub() {
       return;
     }
     try {
-      const conv = await createConversation({
+      const convPayload = {
         contact_name: composing.contact_name,
         contact_email: composing.contact_email,
         channel_type: composing.channel_type,
         status: 'open',
         unread_count: 0,
         last_message_at: new Date().toISOString(),
-      });
+      };
+      if (composing.channel_type === 'internal' && internalChannelId) {
+        convPayload.channel_id = internalChannelId;
+      }
+      const conv = await createConversation(convPayload);
 
       if (composing.body.trim()) {
         await sendMessage(conv.id, { body: composing.body });
@@ -545,14 +561,37 @@ export default function CommunicationsHub() {
               />
             </div>
             <div>
-              <label className="text-sm font-semibold text-gray-400">Email</label>
-              <Input
-                value={composing.contact_email}
-                onChange={(e) => setComposing({ ...composing, contact_email: e.target.value })}
-                placeholder="john@example.com"
-                type="email"
-                className="mt-1 bg-slate-700/50 border-slate-600 text-white"
-              />
+              <label className="text-sm font-semibold text-gray-400">{composing.channel_type === 'internal' ? 'Recipient (Agent or Person)' : 'Email'}</label>
+              {composing.channel_type === 'internal' ? (
+                <select
+                  value={composing.contact_email}
+                  onChange={(e) => {
+                    const addr = internalAddresses.find(a => a.address === e.target.value);
+                    setComposing({ ...composing, contact_email: e.target.value, contact_name: addr?.display_name || '' });
+                  }}
+                  className="mt-1 w-full rounded bg-slate-700/50 border border-slate-600 px-3 py-2 text-white"
+                >
+                  <option value="">-- pick a recipient --</option>
+                  <optgroup label="AI Agents">
+                    {internalAddresses.filter(a => a.participant_type === 'agent').map(a => (
+                      <option key={a.id} value={a.address}>{a.display_name} (@{a.address})</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Humans">
+                    {internalAddresses.filter(a => a.participant_type === 'human').map(a => (
+                      <option key={a.id} value={a.address}>{a.display_name} (@{a.address})</option>
+                    ))}
+                  </optgroup>
+                </select>
+              ) : (
+                <Input
+                  value={composing.contact_email}
+                  onChange={(e) => setComposing({ ...composing, contact_email: e.target.value })}
+                  placeholder="john@example.com"
+                  type="email"
+                  className="mt-1 bg-slate-700/50 border-slate-600 text-white"
+                />
+              )}
             </div>
             <div>
               <label className="text-sm font-semibold text-gray-400">Channel</label>
