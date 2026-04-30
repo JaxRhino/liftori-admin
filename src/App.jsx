@@ -121,6 +121,7 @@ import EmailSequences from './pages/marketing/EmailSequences'
 import MarketingPerformance from './pages/marketing/MarketingPerformance'
 // Communications Hub
 import CommunicationsHub from './pages/communications/CommunicationsHub'
+import InternalMail from './pages/communications/InternalMail'
 import ChannelsSettings from './pages/communications/ChannelsSettings'
 import AutomationsPage from './pages/communications/AutomationsPage'
 // Onboarding Wizard â€” public customer-facing
@@ -465,6 +466,7 @@ export default function App() {
             <Route path="finance/accounts" element={<ChartOfAccounts />} />
             {/* Communications Hub */}
             <Route path="comms" element={<CommunicationsHub />} />
+            <Route path="comms/internal" element={<InternalMail />} />
             <Route path="comms/campaigns" element={<Campaigns />} />
             <Route path="comms/templates" element={<CommsTemplates />} />
             <Route path="comms/outbound" element={<OutboundLog />} />
