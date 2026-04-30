@@ -68,37 +68,81 @@ export default function VoiceAssistant() {
     return () => { window.speechSynthesis.onvoiceschanged = null }
   }, [])
 
+  // English-only voice filter
+  const englishVoices = voiceList.filter(v => (v.lang || '').toLowerCase().startsWith('en'))
+
+  // Female-name hints (Mac, Windows, Chrome) - used for ranking
+  const FEMALE_HINTS = ['samantha','aria','allison','ava','karen','sonia','tessa','susan','jenny','zira','helena','victoria','fiona','catherine','joanna','kate','serena','moira','google us english','google uk english female']
+  const MALE_HINTS = ['daniel','alex','tom','david','guy','mark','aaron','james','mike','google uk english male','microsoft david','microsoft guy']
+
+  // Agent gender mapping
+  const AGENT_GENDER = {
+    sage: 'F', mira: 'F', hazel: 'F', emma: 'F', iris: 'F', nova: 'F', vega: 'F',
+    atlas: 'M', echo: 'M', onyx: 'M',
+    ava: 'F', sol: 'M', lyra: 'F'
+  }
+
+  function isFemaleVoice(v) {
+    const n = (v.name || '').toLowerCase()
+    return FEMALE_HINTS.some(h => n.includes(h))
+  }
+  function isMaleVoice(v) {
+    const n = (v.name || '').toLowerCase()
+    return MALE_HINTS.some(h => n.includes(h))
+  }
+
   // Pick a voice for this agent
   useEffect(() => {
-    if (!ea || voiceList.length === 0) return
-    // If agent has a configured voice_name, try to match it
-    let picked = null
+    if (!ea || englishVoices.length === 0) return
+
+    // 1) localStorage override (if user has manually picked one for this agent)
+    const stored = (() => {
+      try { return window.localStorage?.getItem(`liftori.voice.${ea.slug}`) } catch { return null }
+    })()
+    if (stored) {
+      const found = englishVoices.find(v => v.name === stored)
+      if (found) { setChosenVoice(found); return }
+    }
+
+    // 2) Agent-configured voice_name (DB)
     if (ea.voice_name) {
-      picked = voiceList.find(v => v.name.toLowerCase().includes(ea.voice_name.toLowerCase()))
+      const found = englishVoices.find(v => v.name === ea.voice_name)
+                || englishVoices.find(v => v.name.toLowerCase().includes(ea.voice_name.toLowerCase()))
+      if (found) { setChosenVoice(found); return }
     }
-    if (!picked) {
-      // Per-agent default mapping (best-effort across OSes)
-      const preferences = {
-        sage:  ['Samantha','Aria','Jenny','Microsoft Zira','Google US English','en-US'],
-        mira:  ['Aria','Sonia','Karen','Samantha','Microsoft Aria','en-US'],
-        hazel: ['Karen','Allison','Tessa','Microsoft Jenny','Google UK English Female','en-GB'],
-        emma:  ['Sonia','Allison','Microsoft Sonia','Microsoft Aria','en-US'],
-        atlas: ['Daniel','Microsoft Guy','Microsoft David','Google UK English Male','en-GB'],
-        nova:  ['Tessa','Microsoft Aria','en-US'],
-        vega:  ['Karen','Microsoft Zira','en-US'],
-        echo:  ['Daniel','Microsoft Guy','en-US'],
-        onyx:  ['Daniel','Microsoft David','en-US'],
-        iris:  ['Allison','Microsoft Sonia','en-US'],
-      }
-      const wants = preferences[ea.slug] || ['en-US']
-      for (const w of wants) {
-        picked = voiceList.find(v => v.name === w) || voiceList.find(v => v.name.toLowerCase().includes(w.toLowerCase()))
-        if (picked) break
-      }
+
+    // 3) Per-agent gender-bias preference
+    const wantGender = AGENT_GENDER[ea.slug] || 'F'
+    const genderMatches = englishVoices.filter(v =>
+      wantGender === 'F' ? isFemaleVoice(v) : isMaleVoice(v)
+    )
+    if (genderMatches.length > 0) {
+      // Prefer en-US over en-GB for default
+      const usMatch = genderMatches.find(v => (v.lang || '').toLowerCase() === 'en-us')
+      setChosenVoice(usMatch || genderMatches[0])
+      return
     }
-    if (!picked) picked = voiceList.find(v => v.lang?.startsWith('en')) || voiceList[0]
-    setChosenVoice(picked)
+
+    // 4) Fallback to ANY English voice (never non-English)
+    const usFallback = englishVoices.find(v => (v.lang || '').toLowerCase() === 'en-us')
+    setChosenVoice(usFallback || englishVoices[0])
   }, [ea, voiceList])
+
+  function setVoiceManually(v) {
+    if (!ea) return
+    setChosenVoice(v)
+    try { window.localStorage?.setItem(`liftori.voice.${ea.slug}`, v.name) } catch {}
+  }
+
+  function previewVoice(v) {
+    try {
+      window.speechSynthesis.cancel()
+      const u = new SpeechSynthesisUtterance(`Hi, I'm ${ea?.name || 'your agent'}. This is what I sound like.`)
+      u.voice = v
+      u.rate = 1.05
+      window.speechSynthesis.speak(u)
+    } catch {}
+  }
 
   function speak(text) {
     if (!supportedRef.current.tts || !text) return
@@ -259,8 +303,30 @@ export default function VoiceAssistant() {
             )}
           </div>
 
-          <div className="px-3 py-2 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-500">
-            <span>{chosenVoice ? `Voice: ${chosenVoice.name}` : 'Voice loading...'}</span>
+          <div className="px-3 py-2 border-t border-slate-800 flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
+            <span className="text-slate-500">Voice:</span>
+            <select
+              value={chosenVoice?.name || ''}
+              onChange={(e) => {
+                const v = englishVoices.find(x => x.name === e.target.value)
+                if (v) setVoiceManually(v)
+              }}
+              style={{ backgroundColor: '#0a0e1a', color: '#e8eaf0', borderColor: '#334155' }}
+              className="border rounded px-2 py-1 text-[11px] flex-1 min-w-0"
+            >
+              {englishVoices.length === 0 && <option>No English voices found</option>}
+              {englishVoices.map(v => (
+                <option key={v.name} value={v.name}>
+                  {v.name} {v.lang ? `(${v.lang})` : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => chosenVoice && previewVoice(chosenVoice)}
+              disabled={!chosenVoice}
+              className="text-brand-blue hover:text-white disabled:opacity-50"
+              title="Preview voice"
+            >preview</button>
             {state === 'speaking' && (
               <button onClick={() => { window.speechSynthesis.cancel(); setState('idle') }} className="text-rose-400 hover:text-rose-300">stop</button>
             )}
