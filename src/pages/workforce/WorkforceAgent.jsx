@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/AuthContext'
 
-const TABS = ['Overview', 'Configuration', 'Memories', 'Capabilities', 'Authority', 'Activity']
+const TABS = ['Overview', 'Talk', 'Configuration', 'Memories', 'Capabilities', 'Authority', 'Activity']
 
 export default function WorkforceAgent() {
   const { slug } = useParams()
@@ -125,6 +125,7 @@ export default function WorkforceAgent() {
       </div>
 
       {tab === 'Overview'      && <OverviewTab agent={agent} />}
+      {tab === 'Talk'          && <TalkTab agent={agent} />}
       {tab === 'Configuration' && <ConfigurationTab agent={agent} user={user} onSaved={reload} />}
       {tab === 'Memories'      && <MemoriesTab agent={agent} user={user} />}
       {tab === 'Capabilities'  && <CapabilitiesTab agent={agent} onSaved={reload} />}
@@ -581,5 +582,146 @@ function ActivityTab({ agent }) {
        </ul>
       }
     </Card>
+  )
+}
+
+function TalkTab({ agent }) {
+  const [task, setTask] = useState('')
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+  const [recent, setRecent] = useState([])
+  const [loadingRecent, setLoadingRecent] = useState(true)
+
+  async function loadRecent() {
+    setLoadingRecent(true)
+    const { data } = await supabase
+      .from('ai_agent_invocations')
+      .select('id, task, response, status, error, tokens_in, tokens_out, cost_usd, latency_ms, created_at')
+      .eq('agent_id', agent.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    setRecent(data || [])
+    setLoadingRecent(false)
+  }
+  useEffect(() => { loadRecent() }, [agent.id]) // eslint-disable-line
+
+  async function run() {
+    if (!task.trim()) { alert('Task required.'); return }
+    setRunning(true); setError(null); setResult(null)
+    try {
+      const { data, error: invErr } = await supabase.functions.invoke('invoke-agent', {
+        body: { agent_id: agent.id, task: task },
+      })
+      if (invErr) throw invErr
+      if (data?.error) throw new Error(data.error + (data.detail ? ': ' + JSON.stringify(data.detail) : ''))
+      setResult(data)
+      await loadRecent()
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <SectionLabel>Talk to {agent.name}</SectionLabel>
+        <p className="text-xs text-slate-500 mb-3">
+          Sends task to the invoke-agent edge function. Loads {agent.name}'s system prompt + top 15 memories. Single-turn for now (multi-turn threading lands in Wave B.1).
+        </p>
+        <textarea
+          value={task}
+          onChange={(e) => setTask(e.target.value)}
+          rows={5}
+          style={{ backgroundColor: '#0a0e1a', color: '#e8eaf0', borderColor: '#334155' }}
+          className="w-full border focus:border-brand-blue rounded-md px-3 py-2 text-sm leading-relaxed"
+          placeholder={`Ask ${agent.name} something. Or give a task to do.`}
+        />
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={run}
+            disabled={running || !task.trim() || !agent.is_active}
+            className="px-4 py-2 bg-brand-blue/20 border border-brand-blue text-white text-sm rounded-md hover:bg-brand-blue/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {running ? `${agent.name} is thinking...` : `Run ${agent.name}`}
+          </button>
+          {!agent.is_active && (
+            <span className="text-xs text-amber-400">{agent.name} is paused. Activate to run.</span>
+          )}
+          <button
+            onClick={() => { setTask(''); setResult(null); setError(null) }}
+            className="ml-auto text-xs text-slate-500 hover:text-slate-300"
+          >clear</button>
+        </div>
+      </Card>
+
+      {error && (
+        <Card className="border-red-800/50">
+          <div className="text-sm text-red-300">
+            <div className="font-semibold mb-1">Error</div>
+            <div className="font-mono text-xs whitespace-pre-wrap">{error}</div>
+          </div>
+        </Card>
+      )}
+
+      {result && (
+        <Card>
+          <SectionLabel>{agent.name}'s response</SectionLabel>
+          <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed bg-navy-950 border border-slate-800 rounded-md p-4">{result.response}</div>
+          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <Stat label="Tokens in"  value={result.tokens_in} />
+            <Stat label="Tokens out" value={result.tokens_out} />
+            <Stat label="Cost"       value={`$${(result.cost_usd || 0).toFixed(6)}`} />
+            <Stat label="Latency"    value={`${result.latency_ms} ms`} />
+          </div>
+        </Card>
+      )}
+
+      <Card>
+        <SectionLabel>Recent invocations ({recent.length})</SectionLabel>
+        {loadingRecent ? (
+          <div className="text-sm text-slate-500">Loading...</div>
+        ) : recent.length === 0 ? (
+          <div className="text-sm text-slate-500 italic">No invocations yet. Run {agent.name} above.</div>
+        ) : (
+          <ul className="space-y-2">
+            {recent.map((r) => (
+              <li key={r.id} className="bg-navy-950 border border-slate-800 rounded-md p-3 text-sm">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className={`text-xs px-2 py-0.5 rounded border ${
+                    r.status === 'success' ? 'bg-emerald-900/30 text-emerald-300 border-emerald-800/40'
+                    : r.status === 'error' ? 'bg-rose-900/30 text-rose-300 border-rose-800/40'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}>{r.status}</span>
+                  <span className="text-xs text-slate-600">{new Date(r.created_at).toLocaleString()}</span>
+                  {r.cost_usd > 0 && <span className="text-xs text-slate-600 ml-auto">${(r.cost_usd || 0).toFixed(6)} - {r.tokens_in}/{r.tokens_out} tok - {r.latency_ms}ms</span>}
+                </div>
+                <div className="text-slate-400 text-xs italic mb-1">Task: {r.task.slice(0, 200)}{r.task.length > 200 ? '...' : ''}</div>
+                {r.response && (
+                  <details>
+                    <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-300">view response</summary>
+                    <div className="mt-2 text-slate-300 whitespace-pre-wrap leading-relaxed">{r.response}</div>
+                  </details>
+                )}
+                {r.error && (
+                  <div className="mt-1 text-xs text-rose-400 font-mono whitespace-pre-wrap">{r.error}</div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </div>
+  )
+}
+
+function Stat({ label, value }) {
+  return (
+    <div className="bg-navy-950 border border-slate-800 rounded-md p-2 text-center">
+      <div className="text-xs text-slate-500 uppercase tracking-wider">{label}</div>
+      <div className="text-xs text-slate-200 font-mono mt-0.5">{value}</div>
+    </div>
   )
 }
