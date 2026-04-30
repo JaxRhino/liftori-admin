@@ -80,7 +80,37 @@ Write as if you are speaking directly to them. No preamble. No "I'll help you" f
     return () => { alive = false }
   }, [user, dismissed])
 
+  // Speak the brief out loud using the user's saved voice for this agent
+  useEffect(() => {
+    if (!brief || !ea || !window.speechSynthesis) return
+    try {
+      window.speechSynthesis.cancel()
+      const u = new SpeechSynthesisUtterance(brief)
+      // Use saved voice if any
+      const stored = window.localStorage?.getItem(`liftori.voice.${ea.slug}`)
+      if (stored) {
+        const voices = window.speechSynthesis.getVoices()
+        const v = voices.find(x => x.name === stored)
+        if (v) u.voice = v
+      } else {
+        // Fallback: pick any English female voice (default for EAs)
+        const voices = window.speechSynthesis.getVoices()
+        const FEMALE = ['samantha','aria','allison','karen','sonia','tessa','jenny','zira','google us english']
+        const en = voices.filter(x => (x.lang||'').toLowerCase().startsWith('en'))
+        const pick = en.find(x => FEMALE.some(f => x.name.toLowerCase().includes(f))) || en[0]
+        if (pick) u.voice = pick
+      }
+      u.rate = 1.05
+      window.speechSynthesis.speak(u)
+    } catch (e) { console.warn('[WelcomeBrief] tts failed:', e) }
+  }, [brief, ea])
+
+  function muteSpeak() {
+    try { window.speechSynthesis?.cancel() } catch {}
+  }
+
   function dismiss() {
+    muteSpeak()
     try { window.localStorage?.setItem(SESSION_KEY, new Date().toISOString()) } catch {}
     setDismissed(true)
   }
@@ -122,7 +152,10 @@ Write as if you are speaking directly to them. No preamble. No "I'll help you" f
           <Link to={`/admin/workforce/agent/${ea.slug}`} className="text-xs text-brand-blue hover:underline">
             Talk to {ea.name} &rarr;
           </Link>
-          <button onClick={dismiss} className="text-xs text-slate-500 hover:text-slate-300">dismiss</button>
+          <div className="flex items-center gap-2">
+            <button onClick={muteSpeak} className="text-xs text-slate-500 hover:text-slate-300">mute</button>
+            <button onClick={dismiss} className="text-xs text-slate-500 hover:text-slate-300">dismiss</button>
+          </div>
         </div>
       )}
     </div>
