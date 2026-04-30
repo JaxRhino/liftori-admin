@@ -83,26 +83,49 @@ Write as if you are speaking directly to them. No preamble. No "I'll help you" f
   // Speak the brief out loud using the user's saved voice for this agent
   useEffect(() => {
     if (!brief || !ea || !window.speechSynthesis) return
-    try {
-      window.speechSynthesis.cancel()
-      const u = new SpeechSynthesisUtterance(brief)
-      // Use saved voice if any
-      const stored = window.localStorage?.getItem(`liftori.voice.${ea.slug}`)
-      if (stored) {
-        const voices = window.speechSynthesis.getVoices()
-        const v = voices.find(x => x.name === stored)
-        if (v) u.voice = v
-      } else {
-        // Fallback: pick any English female voice (default for EAs)
-        const voices = window.speechSynthesis.getVoices()
-        const FEMALE = ['samantha','aria','allison','karen','sonia','tessa','jenny','zira','google us english']
-        const en = voices.filter(x => (x.lang||'').toLowerCase().startsWith('en'))
-        const pick = en.find(x => FEMALE.some(f => x.name.toLowerCase().includes(f))) || en[0]
-        if (pick) u.voice = pick
-      }
-      u.rate = 1.05
-      window.speechSynthesis.speak(u)
-    } catch (e) { console.warn('[WelcomeBrief] tts failed:', e) }
+    let cancelled = false
+
+    // Voice list is async - wait for it to load before speaking
+    function getVoicesReady() {
+      return new Promise((resolve) => {
+        const v = window.speechSynthesis.getVoices()
+        if (v.length > 0) { resolve(v); return }
+        const onChange = () => {
+          window.speechSynthesis.removeEventListener('voiceschanged', onChange)
+          resolve(window.speechSynthesis.getVoices())
+        }
+        window.speechSynthesis.addEventListener('voiceschanged', onChange)
+        // Safety: don't wait forever
+        setTimeout(() => {
+          window.speechSynthesis.removeEventListener('voiceschanged', onChange)
+          resolve(window.speechSynthesis.getVoices())
+        }, 1500)
+      })
+    }
+
+    ;(async () => {
+      try {
+        const voices = await getVoicesReady()
+        if (cancelled) return
+        window.speechSynthesis.cancel()
+        const u = new SpeechSynthesisUtterance(brief)
+        const stored = window.localStorage?.getItem(`liftori.voice.${ea.slug}`)
+        if (stored) {
+          const v = voices.find(x => x.name === stored)
+          if (v) u.voice = v
+        }
+        if (!u.voice) {
+          const FEMALE = ['samantha','aria','allison','karen','sonia','tessa','jenny','zira','google us english']
+          const en = voices.filter(x => (x.lang||'').toLowerCase().startsWith('en'))
+          const pick = en.find(x => FEMALE.some(f => x.name.toLowerCase().includes(f))) || en[0]
+          if (pick) u.voice = pick
+        }
+        u.rate = 1.05
+        window.speechSynthesis.speak(u)
+      } catch (e) { console.warn('[WelcomeBrief] tts failed:', e) }
+    })()
+
+    return () => { cancelled = true }
   }, [brief, ea])
 
   function muteSpeak() {
