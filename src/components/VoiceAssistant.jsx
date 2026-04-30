@@ -174,9 +174,51 @@ export default function VoiceAssistant() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const chunks = []
       const mr = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm' })
+
+      // Silence detection via Web Audio API analyser
+      let audioContext = null
+      let silenceStart = null
+      let stopped = false
+      const safetyTimer = setTimeout(() => { if (mr.state === 'recording') { mr.stop() } }, 30000)
+
+      try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)()
+        const sourceNode = audioContext.createMediaStreamSource(stream)
+        const analyser = audioContext.createAnalyser()
+        analyser.fftSize = 512
+        sourceNode.connect(analyser)
+        const data = new Uint8Array(analyser.frequencyBinCount)
+        const SILENCE_THRESHOLD = 6   // average deviation from 128 (lower = quieter)
+        const SILENCE_MS = 1500       // ms of silence to trigger stop
+        const MIN_SPEAK_MS = 600      // require some speech before silence-stop kicks in
+        const startedAt = Date.now()
+
+        const checkSilence = () => {
+          if (stopped || mr.state !== 'recording') return
+          analyser.getByteTimeDomainData(data)
+          let sum = 0
+          for (let i = 0; i < data.length; i++) sum += Math.abs(data[i] - 128)
+          const avg = sum / data.length
+
+          const elapsed = Date.now() - startedAt
+          if (avg < SILENCE_THRESHOLD && elapsed > MIN_SPEAK_MS) {
+            if (!silenceStart) silenceStart = Date.now()
+            else if (Date.now() - silenceStart > SILENCE_MS) { mr.stop(); return }
+          } else {
+            silenceStart = null
+          }
+          requestAnimationFrame(checkSilence)
+        }
+        requestAnimationFrame(checkSilence)
+      } catch (e) {
+        console.warn('[VoiceAssistant] silence detection unavailable:', e)
+      }
+
       mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data) }
       mr.onstop = async () => {
-        // Stop all tracks to release the mic
+        stopped = true
+        clearTimeout(safetyTimer)
+        try { audioContext?.close() } catch {}
         stream.getTracks().forEach(t => t.stop())
         const blob = new Blob(chunks, { type: mr.mimeType })
         if (blob.size < 200) { setError('No audio captured. Try again.'); setState('idle'); return }
