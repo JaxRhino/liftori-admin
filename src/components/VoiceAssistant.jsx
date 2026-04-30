@@ -22,6 +22,10 @@ export default function VoiceAssistant() {
   const recognitionRef = useRef(null)
   const utteranceRef = useRef(null)
   const supportedRef = useRef({ stt: false, tts: false })
+  const bubbleOpenRef = useRef(false)
+
+  // Mirror open state into a ref so callbacks can read fresh value
+  useEffect(() => { bubbleOpenRef.current = open }, [open])
 
   // Detect support
   useEffect(() => {
@@ -155,7 +159,15 @@ export default function VoiceAssistant() {
       u.pitch = 1
       u.volume = 1
       u.onstart = () => setState('speaking')
-      u.onend = () => setState('idle')
+      u.onend = () => {
+        setState('idle')
+        // Auto-listen for next turn if bubble still open (continuous conversation)
+        setTimeout(() => {
+          if (bubbleOpenRef.current && !document.hidden) {
+            startRecording()
+          }
+        }, 400)
+      }
       u.onerror = () => setState('idle')
       utteranceRef.current = u
       window.speechSynthesis.speak(u)
