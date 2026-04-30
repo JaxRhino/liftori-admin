@@ -131,15 +131,20 @@ Write as if you are speaking directly to them. No preamble. No "I'll help you" f
         window.speechSynthesis.cancel()
         const u = new SpeechSynthesisUtterance(cleanForTTS(brief))
         const stored = window.localStorage?.getItem(`liftori.voice.${ea.slug}`)
+        console.log('[WelcomeBrief TTS] stored voice:', stored, '| total voices:', voices.length)
         if (stored) {
-          const v = voices.find(x => x.name === stored)
-          if (v) u.voice = v
+          // Try exact match first, then substring (handles "Microsoft Jenny" vs "Microsoft Jenny Online (Natural)")
+          let v = voices.find(x => x.name === stored)
+          if (!v) v = voices.find(x => x.name.toLowerCase().includes(stored.toLowerCase()))
+          if (!v) v = voices.find(x => stored.toLowerCase().includes(x.name.toLowerCase()))
+          if (v) { u.voice = v; console.log('[WelcomeBrief TTS] matched voice:', v.name) }
+          else console.warn('[WelcomeBrief TTS] no match for stored voice:', stored, '- available English:', voices.filter(x => (x.lang||'').toLowerCase().startsWith('en')).map(x => x.name))
         }
         if (!u.voice) {
           const FEMALE = ['samantha','aria','allison','karen','sonia','tessa','jenny','zira','google us english']
           const en = voices.filter(x => (x.lang||'').toLowerCase().startsWith('en'))
           const pick = en.find(x => FEMALE.some(f => x.name.toLowerCase().includes(f))) || en[0]
-          if (pick) u.voice = pick
+          if (pick) { u.voice = pick; console.log('[WelcomeBrief TTS] fallback voice:', pick.name) }
         }
         u.rate = 1.05
         window.speechSynthesis.speak(u)
