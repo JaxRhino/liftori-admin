@@ -6,6 +6,7 @@ import IncomingCallModal from './IncomingCallModal'
 import GlobalPhoneCallPopup from './GlobalPhoneCallPopup'
 import GlobalHeader from './GlobalHeader'
 import WelcomeBrief from './WelcomeBrief'
+import VoiceAssistant from './VoiceAssistant'
 import ImpersonationBanner from './ImpersonationBanner'
 import { isFounder } from '../lib/testerProgramService'
 import FloatingCallWindow from './chat/FloatingCallWindow';import OnboardingWizard from './OnboardingWizard'
@@ -746,6 +747,7 @@ export default function AdminLayout() {
   return (
     <PopoutChatProvider>
       <WelcomeBrief />
+      <VoiceAssistant />
     <div className="h-screen flex flex-col overflow-hidden">
       {/* User-level view-as banner â€” shows when a founder is impersonating a team member.
           Sits above everything (including the org-impersonation banner) so "Return to admin"
