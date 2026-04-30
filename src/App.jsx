@@ -465,7 +465,8 @@ export default function App() {
             <Route path="finance/commissions" element={<CommissionBatches />} />
             <Route path="finance/accounts" element={<ChartOfAccounts />} />
             {/* Communications Hub */}
-            <Route path="comms" element={<CommunicationsHub />} />
+            <Route path="comms" element={<InternalMail />} />
+            <Route path="comms/hub" element={<CommunicationsHub />} />
             <Route path="comms/internal" element={<InternalMail />} />
             <Route path="comms/campaigns" element={<Campaigns />} />
             <Route path="comms/templates" element={<CommsTemplates />} />
