@@ -334,7 +334,7 @@ export default function VoiceAssistant() {
 
       {/* Caption / transcript bubble */}
       {open && (
-        <div className="fixed top-16 left-3 z-[60] w-[380px] bg-navy-900 border border-slate-800 rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
+        <div className="fixed top-[64px] left-[64px] z-[60] w-[360px] bg-navy-900 border border-slate-800 rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
           <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-brand-blue/10 to-transparent">
             <div className="text-xs">
               <span className="font-semibold text-white">{ea.name}</span>
