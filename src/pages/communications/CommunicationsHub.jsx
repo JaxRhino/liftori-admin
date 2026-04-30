@@ -14,12 +14,13 @@ import { Textarea } from '../../components/ui/textarea';
 import { toast } from 'sonner';
 import {
   Search, Send, Plus, Star, MessageCircle, Mail, Phone,
-  Share2, Globe, MessageSquare, Trash2, Clock,
+  Share2, Globe, MessageSquare, Trash2, Clock, Bot,
   ChevronDown, Check, AlertCircle,
 } from 'lucide-react';
 
 const CHANNELS = [
   { id: 'all', label: 'All', icon: MessageCircle },
+  { id: 'internal', label: 'Internal', icon: Bot },
   { id: 'email', label: 'Email', icon: Mail },
   { id: 'sms', label: 'SMS', icon: MessageSquare },
   { id: 'facebook', label: 'Facebook', icon: Share2 },
@@ -308,6 +309,7 @@ export default function CommunicationsHub() {
               className="mt-1 w-full rounded bg-slate-700/50 border border-slate-600 px-3 py-2 text-sm text-white"
             >
               <option value="all">All channels</option>
+              <option value="internal">Internal (Agents)</option>
               <option value="email">Email</option>
               <option value="sms">SMS</option>
               <option value="facebook">Facebook</option>
@@ -382,6 +384,7 @@ export default function CommunicationsHub() {
                       {conv.channel_type === 'sms' && <Phone className="h-3 w-3" />}
                       {conv.channel_type === 'facebook' && <Share2 className="h-3 w-3" />}
                       {conv.channel_type === 'instagram' && <Globe className="h-3 w-3" />}
+                      {conv.channel_type === 'internal' && <Bot className="h-3 w-3" />}
                       <span className="capitalize">{conv.channel_type}</span>
                     </span>
                     <span className="text-xs text-gray-500">
@@ -476,8 +479,9 @@ export default function CommunicationsHub() {
                           : 'bg-slate-700 text-gray-100 border border-slate-600'
                       }`}
                     >
-                      <p className="text-xs font-semibold text-gray-400 mb-1">
-                        {msg.sender_name || 'Unknown'}
+                      <p className="text-xs font-semibold text-gray-400 mb-1 flex items-center gap-1.5">
+                        <span>{msg.sender_name || 'Unknown'}</span>
+                        {msg.sender_type === 'agent' && <span className="text-[9px] px-1 rounded bg-purple-900/40 text-purple-300 border border-purple-800/40 uppercase tracking-wider">AI</span>}
                       </p>
                       <p className="text-sm">{msg.body}</p>
                       <p className="mt-1 text-xs text-gray-500">
@@ -558,6 +562,7 @@ export default function CommunicationsHub() {
                 className="mt-1 w-full rounded bg-slate-700/50 border border-slate-600 px-3 py-2 text-white"
               >
                 <option value="email">Email</option>
+                <option value="internal">Internal (to Agent)</option>
                 <option value="sms">SMS</option>
                 <option value="facebook">Facebook</option>
                 <option value="instagram">Instagram</option>
