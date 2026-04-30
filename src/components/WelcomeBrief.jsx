@@ -60,7 +60,7 @@ export default function WelcomeBrief() {
 
         const { data: agent } = await supabase
           .from('ai_agents')
-          .select('id, name, slug, role, is_active')
+          .select('id, name, slug, role, is_active, voice_name')
           .eq('slug', eaSlug)
           .maybeSingle()
         if (!agent || !agent.is_active) return
@@ -137,8 +137,16 @@ Write as if you are speaking directly to them. No preamble. No "I'll help you" f
           let v = voices.find(x => x.name === stored)
           if (!v) v = voices.find(x => x.name.toLowerCase().includes(stored.toLowerCase()))
           if (!v) v = voices.find(x => stored.toLowerCase().includes(x.name.toLowerCase()))
-          if (v) { u.voice = v; console.log('[WelcomeBrief TTS] matched voice:', v.name) }
-          else console.warn('[WelcomeBrief TTS] no match for stored voice:', stored, '- available English:', voices.filter(x => (x.lang||'').toLowerCase().startsWith('en')).map(x => x.name))
+          if (v) { u.voice = v; console.log('[WelcomeBrief TTS] matched stored voice:', v.name) }
+          else console.warn('[WelcomeBrief TTS] no match for stored voice:', stored)
+        }
+        // DB voice_name fallback (default for this agent)
+        if (!u.voice && ea.voice_name) {
+          let v = voices.find(x => x.name === ea.voice_name)
+          if (!v) v = voices.find(x => x.name.toLowerCase().includes(ea.voice_name.toLowerCase()))
+          if (!v) v = voices.find(x => ea.voice_name.toLowerCase().includes(x.name.toLowerCase()))
+          if (v) { u.voice = v; console.log('[WelcomeBrief TTS] matched DB voice_name:', ea.voice_name, '->', v.name) }
+          else console.warn('[WelcomeBrief TTS] no match for DB voice_name:', ea.voice_name, '- available English:', voices.filter(x => (x.lang||'').toLowerCase().startsWith('en')).map(x => x.name))
         }
         if (!u.voice) {
           const FEMALE = ['samantha','aria','allison','karen','sonia','tessa','jenny','zira','google us english']
