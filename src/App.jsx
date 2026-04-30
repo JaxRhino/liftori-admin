@@ -1,4 +1,4 @@
-﻿import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { OrgProvider } from './lib/OrgContext'
@@ -44,6 +44,11 @@ import CallCenterTeam from './pages/CallCenterTeam'
 import CallCenterVoicemails from './pages/CallCenterVoicemails'
 import CallLists from './pages/CallLists'
 import AIAgents from './pages/AIAgents'
+import WorkforceLayout from './pages/workforce/WorkforceLayout'
+import WorkforceTeam from './pages/workforce/WorkforceTeam'
+import WorkforceAgent from './pages/workforce/WorkforceAgent'
+import WorkforceActivity from './pages/workforce/WorkforceActivity'
+import WorkforceOrgChart from './pages/workforce/WorkforceOrgChart'
 import InHouseBuilds from './pages/InHouseBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import MobilePreview from './pages/MobilePreview'
@@ -342,6 +347,12 @@ export default function App() {
             <Route path="cc-team" element={<CallCenterTeam />} />
             <Route path="call-lists" element={<CallLists />} />
             <Route path="voicemails" element={<CallCenterVoicemails />} />
+            <Route path="workforce" element={<WorkforceLayout />}>
+              <Route index element={<WorkforceTeam />} />
+              <Route path="activity" element={<WorkforceActivity />} />
+              <Route path="org-chart" element={<WorkforceOrgChart />} />
+              <Route path="agent/:slug" element={<WorkforceAgent />} />
+            </Route>
             <Route path="ai-agents" element={<AIAgents />} />
             <Route path="projects" element={<Projects />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
