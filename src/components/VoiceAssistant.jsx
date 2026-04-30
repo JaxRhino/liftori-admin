@@ -17,6 +17,7 @@ export default function VoiceAssistant() {
   const [open, setOpen] = useState(false)
   const [voiceList, setVoiceList] = useState([])
   const [chosenVoice, setChosenVoice] = useState(null)
+  const [showSettings, setShowSettings] = useState(false)
 
   const recognitionRef = useRef(null)
   const utteranceRef = useRef(null)
@@ -188,7 +189,11 @@ export default function VoiceAssistant() {
     }
     rec.onerror = (e) => {
       console.warn('[VoiceAssistant] stt error:', e.error)
-      setError(`Mic error: ${e.error}`)
+      const friendly = e.error === 'network' ? 'Network blip - speech service unreachable. Click voice settings -> retry.'
+        : e.error === 'not-allowed' ? 'Mic permission denied. Allow mic access in browser settings.'
+        : e.error === 'no-speech' ? 'No speech detected. Click avatar and try again.'
+        : `Mic error: ${e.error}`
+      setError(friendly)
       setState('idle')
     }
     rec.onend = async () => {
@@ -304,6 +309,18 @@ export default function VoiceAssistant() {
           </div>
 
           <div className="px-3 py-2 border-t border-slate-800 flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
+            <button onClick={() => setShowSettings(!showSettings)} className="text-slate-500 hover:text-slate-200" title="Voice settings">
+              {showSettings ? 'hide voice settings' : 'voice settings'}
+            </button>
+            {state === 'speaking' && (
+              <button onClick={() => { window.speechSynthesis.cancel(); setState('idle') }} className="text-rose-400 hover:text-rose-300 ml-auto">stop</button>
+            )}
+            {error && state === 'idle' && (
+              <button onClick={startRecording} className="text-brand-blue hover:text-white ml-auto">retry</button>
+            )}
+          </div>
+          {showSettings && (
+          <div className="px-3 py-2 border-t border-slate-800 flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
             <span className="text-slate-500">Voice:</span>
             <select
               value={chosenVoice?.name || ''}
@@ -327,10 +344,8 @@ export default function VoiceAssistant() {
               className="text-brand-blue hover:text-white disabled:opacity-50"
               title="Preview voice"
             >preview</button>
-            {state === 'speaking' && (
-              <button onClick={() => { window.speechSynthesis.cancel(); setState('idle') }} className="text-rose-400 hover:text-rose-300">stop</button>
-            )}
           </div>
+          )}
         </div>
       )}
     </>
