@@ -123,10 +123,11 @@ export async function sendMessage(conversationId, { body, channel = 'internal', 
   const { data, error } = await supabase.from('comms_messages').insert({
     conversation_id: conversationId,
     direction,
-    channel,
+    channel_type: channel,
     body,
     sender_id: userId,
     sender_name: profile?.full_name || 'Staff',
+    sender_type: 'human',
     metadata,
   }).select().single();
   if (error) handleError(error, 'sendMessage');
