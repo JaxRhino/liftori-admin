@@ -1292,6 +1292,420 @@ function EditTab({ customer, onSaved }) {
   )
 }
 
+// ─── Wave F: Estimates / Agreements / Tasks / Notes tabs ──────────────────────
+
+function _esStatusColor(s) {
+  const map = {
+    draft: 'bg-gray-500/20 text-gray-400',
+    sent: 'bg-blue-500/20 text-blue-400',
+    viewed: 'bg-sky-500/20 text-sky-400',
+    accepted: 'bg-emerald-500/20 text-emerald-400',
+    declined: 'bg-red-500/20 text-red-400',
+    expired: 'bg-amber-500/20 text-amber-400',
+    signed: 'bg-emerald-500/20 text-emerald-400',
+    active: 'bg-emerald-500/20 text-emerald-400',
+    completed: 'bg-emerald-500/20 text-emerald-400',
+    terminated: 'bg-red-500/20 text-red-400',
+  }
+  return map[(s || '').toLowerCase()] || 'bg-gray-500/20 text-gray-400'
+}
+
+function _priorityColor(p) {
+  const map = {
+    low: 'bg-gray-500/20 text-gray-400',
+    medium: 'bg-blue-500/20 text-blue-400',
+    high: 'bg-amber-500/20 text-amber-400',
+    urgent: 'bg-red-500/20 text-red-400',
+  }
+  return map[(p || 'medium').toLowerCase()] || map.medium
+}
+
+function EmptyState({ icon, title, hint }) {
+  return (
+    <div className="bg-navy-800 border border-navy-700/50 rounded-xl text-center py-12">
+      <div className="text-4xl mb-2">{icon}</div>
+      <p className="text-sm text-white font-medium">{title}</p>
+      {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+    </div>
+  )
+}
+
+function EstimatesTab({ customerId, estimates, projects, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ title: '', total: '', project_id: '', valid_until: '', status: 'draft', notes: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    if (!form.title.trim()) return
+    setSaving(true)
+    try {
+      const n = (estimates || []).length + 1
+      const { error } = await supabase.from('customer_estimates').insert({
+        contact_id: customerId,
+        project_id: form.project_id || null,
+        estimate_number: 'EST-' + new Date().getFullYear() + '-' + String(n).padStart(4, '0'),
+        title: form.title.trim(),
+        total: form.total ? Number(form.total) : 0,
+        subtotal: form.total ? Number(form.total) : 0,
+        valid_until: form.valid_until || null,
+        status: form.status,
+        notes: form.notes || null,
+      })
+      if (error) throw error
+      setForm({ title: '', total: '', project_id: '', valid_until: '', status: 'draft', notes: '' })
+      setOpen(false)
+      onChange()
+    } catch (e) { console.error(e); alert('Failed to save estimate') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-400">{estimates.length} estimate{estimates.length !== 1 ? 's' : ''}</p>
+        <button onClick={() => setOpen(o => !o)} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg font-medium">
+          {open ? 'Cancel' : '+ New Estimate'}
+        </button>
+      </div>
+      {open && (
+        <div className="bg-navy-800 border border-brand-blue/30 rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Title (e.g., Initial scope)" className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            <input type="number" value={form.total} onChange={e => setForm(f => ({ ...f, total: e.target.value }))} placeholder="Total $" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+              <option value="draft">Draft</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="declined">Declined</option>
+            </select>
+            <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+              <option value="">Link to project (optional)</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <input type="date" value={form.valid_until} onChange={e => setForm(f => ({ ...f, valid_until: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" style={{ colorScheme: 'dark' }} />
+            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes (optional)" rows={2} className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white resize-none" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
+            <button onClick={save} disabled={saving || !form.title.trim()} className="px-4 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white rounded-lg font-medium">{saving ? 'Saving...' : 'Save Estimate'}</button>
+          </div>
+        </div>
+      )}
+      {estimates.length === 0 && !open ? (
+        <EmptyState icon="📋" title="No estimates yet" hint="Use 'New Estimate' to draft one." />
+      ) : (
+        <div className="bg-navy-800 border border-navy-700/50 rounded-xl divide-y divide-navy-700/30">
+          {estimates.map(e => (
+            <div key={e.id} className="p-4 flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-white">{e.title || 'Untitled estimate'}</p>
+                  <span className="text-xs text-gray-500 font-mono">{e.estimate_number}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${_esStatusColor(e.status)}`}>{e.status || 'draft'}</span>
+                  {e.esign_status === 'signed' && <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">e-signed</span>}
+                </div>
+                {e.description && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{e.description}</p>}
+                <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-2">
+                  {e.valid_until && <span>Valid until {formatDate(e.valid_until)}</span>}
+                  {e.sent_at && <span>Sent {formatDate(e.sent_at)}</span>}
+                  {e.esign_signed_at && <span className="text-emerald-400">Signed {formatDate(e.esign_signed_at)}</span>}
+                  <span className="ml-auto text-xs text-emerald-400 font-semibold">{formatCurrency(e.total)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AgreementsTab({ customerId, agreements, estimates, projects, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ title: '', total_value: '', project_id: '', estimate_id: '', agreement_type: 'msa', start_date: '', end_date: '', status: 'draft', payment_terms: '', notes: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    if (!form.title.trim()) return
+    setSaving(true)
+    try {
+      const n = (agreements || []).length + 1
+      const { error } = await supabase.from('customer_agreements').insert({
+        contact_id: customerId,
+        project_id: form.project_id || null,
+        estimate_id: form.estimate_id || null,
+        agreement_number: 'AGR-' + new Date().getFullYear() + '-' + String(n).padStart(4, '0'),
+        title: form.title.trim(),
+        agreement_type: form.agreement_type,
+        total_value: form.total_value ? Number(form.total_value) : 0,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+        status: form.status,
+        payment_terms: form.payment_terms || null,
+        notes: form.notes || null,
+      })
+      if (error) throw error
+      setForm({ title: '', total_value: '', project_id: '', estimate_id: '', agreement_type: 'msa', start_date: '', end_date: '', status: 'draft', payment_terms: '', notes: '' })
+      setOpen(false)
+      onChange()
+    } catch (e) { console.error(e); alert('Failed to save agreement') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-400">{agreements.length} agreement{agreements.length !== 1 ? 's' : ''}</p>
+        <button onClick={() => setOpen(o => !o)} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg font-medium">
+          {open ? 'Cancel' : '+ New Agreement'}
+        </button>
+      </div>
+      {open && (
+        <div className="bg-navy-800 border border-brand-blue/30 rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Title (e.g., MSA - City of Jacksonville)" className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            <select value={form.agreement_type} onChange={e => setForm(f => ({ ...f, agreement_type: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+              <option value="msa">MSA</option><option value="sow">SOW</option><option value="proposal">Proposal</option><option value="nda">NDA</option><option value="contract">Contract</option><option value="other">Other</option>
+            </select>
+            <input type="number" value={form.total_value} onChange={e => setForm(f => ({ ...f, total_value: e.target.value }))} placeholder="Total Value $" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} placeholder="Start" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" style={{ colorScheme: 'dark' }} />
+            <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} placeholder="End" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" style={{ colorScheme: 'dark' }} />
+            <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+              <option value="">Link to project (optional)</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <select value={form.estimate_id} onChange={e => setForm(f => ({ ...f, estimate_id: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+              <option value="">From estimate (optional)</option>
+              {estimates.map(e => <option key={e.id} value={e.id}>{e.estimate_number} - {e.title}</option>)}
+            </select>
+            <input value={form.payment_terms} onChange={e => setForm(f => ({ ...f, payment_terms: e.target.value }))} placeholder="Payment terms (e.g., Net 30)" className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes (optional)" rows={2} className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white resize-none" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
+            <button onClick={save} disabled={saving || !form.title.trim()} className="px-4 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white rounded-lg font-medium">{saving ? 'Saving...' : 'Save Agreement'}</button>
+          </div>
+        </div>
+      )}
+      {agreements.length === 0 && !open ? (
+        <EmptyState icon="📄" title="No agreements yet" hint="MSA, SOW, NDA, proposals all live here." />
+      ) : (
+        <div className="bg-navy-800 border border-navy-700/50 rounded-xl divide-y divide-navy-700/30">
+          {agreements.map(a => (
+            <div key={a.id} className="p-4 flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-white">{a.title || 'Untitled agreement'}</p>
+                  <span className="text-xs text-gray-500 font-mono">{a.agreement_number}</span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase">{a.agreement_type || 'doc'}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${_esStatusColor(a.status)}`}>{a.status || 'draft'}</span>
+                  {a.esign_status === 'signed' && <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">e-signed</span>}
+                </div>
+                {a.description && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{a.description}</p>}
+                <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-2">
+                  {a.start_date && <span>{formatDate(a.start_date)}{a.end_date ? ` - ${formatDate(a.end_date)}` : ''}</span>}
+                  {a.payment_terms && <span>{a.payment_terms}</span>}
+                  {a.esign_signed_at && <span className="text-emerald-400">Signed {formatDate(a.esign_signed_at)}</span>}
+                  <span className="ml-auto text-xs text-emerald-400 font-semibold">{formatCurrency(a.total_value)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TasksTab({ customerId, tasks, projects, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ title: '', description: '', due_date: '', priority: 'medium', project_id: '' })
+  const [saving, setSaving] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
+
+  async function save() {
+    if (!form.title.trim()) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('admin_tasks').insert({
+        customer_id: customerId,
+        project_id: form.project_id || null,
+        title: form.title.trim(),
+        description: form.description || null,
+        due_date: form.due_date || null,
+        priority: form.priority,
+        status: 'pending',
+      })
+      if (error) throw error
+      setForm({ title: '', description: '', due_date: '', priority: 'medium', project_id: '' })
+      setOpen(false)
+      onChange()
+    } catch (e) { console.error(e); alert('Failed to save task') }
+    finally { setSaving(false) }
+  }
+
+  async function toggleTask(task) {
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed'
+    try {
+      const { error } = await supabase.from('admin_tasks').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', task.id)
+      if (error) throw error
+      onChange()
+    } catch (e) { console.error(e) }
+  }
+
+  const visibleTasks = showCompleted ? tasks : tasks.filter(t => t.status !== 'completed')
+  const completedCount = tasks.filter(t => t.status === 'completed').length
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-gray-400">{visibleTasks.length} {showCompleted ? 'total' : 'open'} task{visibleTasks.length !== 1 ? 's' : ''}</p>
+          {completedCount > 0 && (
+            <button onClick={() => setShowCompleted(s => !s)} className="text-xs text-gray-500 hover:text-white">
+              {showCompleted ? 'Hide' : 'Show'} {completedCount} completed
+            </button>
+          )}
+        </div>
+        <button onClick={() => setOpen(o => !o)} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg font-medium">
+          {open ? 'Cancel' : '+ New Task'}
+        </button>
+      </div>
+      {open && (
+        <div className="bg-navy-800 border border-brand-blue/30 rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Task title" className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            <input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" style={{ colorScheme: 'dark' }} />
+            <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+              <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
+            </select>
+            <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))} className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+              <option value="">Customer-level (no specific project)</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description (optional)" rows={2} className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white resize-none" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
+            <button onClick={save} disabled={saving || !form.title.trim()} className="px-4 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white rounded-lg font-medium">{saving ? 'Saving...' : 'Save Task'}</button>
+          </div>
+        </div>
+      )}
+      {visibleTasks.length === 0 && !open ? (
+        <EmptyState icon="✓" title="No open tasks" hint="Add a follow-up, prep work, or next action." />
+      ) : (
+        <div className="bg-navy-800 border border-navy-700/50 rounded-xl divide-y divide-navy-700/30">
+          {visibleTasks.map(t => {
+            const done = t.status === 'completed'
+            const overdue = t.due_date && !done && new Date(t.due_date) < new Date()
+            return (
+              <div key={t.id} className="p-3 flex items-start gap-3">
+                <button onClick={() => toggleTask(t)} className={`mt-0.5 w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center ${done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-500 hover:border-emerald-500'}`}>
+                  {done && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${done ? 'text-gray-500 line-through' : 'text-white'}`}>{t.title}</p>
+                  {t.description && <p className={`text-xs mt-0.5 ${done ? 'text-gray-600' : 'text-gray-400'}`}>{t.description}</p>}
+                  <div className="flex items-center gap-2 text-[10px] mt-1.5 flex-wrap">
+                    <span className={`px-1.5 py-0.5 rounded ${_priorityColor(t.priority)}`}>{t.priority || 'medium'}</span>
+                    {t.due_date && <span className={overdue ? 'text-red-400' : 'text-gray-500'}>Due {formatDate(t.due_date)}</span>}
+                    {t.projects?.name && <span className="text-gray-500">· {t.projects.name}</span>}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NotesTab({ customerId, notes, projects, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ title: '', body: '', project_id: '', pinned: false })
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    if (!form.body.trim() && !form.title.trim()) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('admin_notes').insert({
+        customer_id: customerId,
+        project_id: form.project_id || null,
+        title: form.title.trim() || null,
+        body: form.body.trim() || null,
+        pinned: form.pinned,
+      })
+      if (error) throw error
+      setForm({ title: '', body: '', project_id: '', pinned: false })
+      setOpen(false)
+      onChange()
+    } catch (e) { console.error(e); alert('Failed to save note') }
+    finally { setSaving(false) }
+  }
+
+  async function togglePin(note) {
+    try {
+      await supabase.from('admin_notes').update({ pinned: !note.pinned }).eq('id', note.id)
+      onChange()
+    } catch (e) { console.error(e) }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-400">{notes.length} note{notes.length !== 1 ? 's' : ''}</p>
+        <button onClick={() => setOpen(o => !o)} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg font-medium">
+          {open ? 'Cancel' : '+ New Note'}
+        </button>
+      </div>
+      {open && (
+        <div className="bg-navy-800 border border-brand-blue/30 rounded-xl p-4 space-y-3">
+          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Title (optional)" className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+          <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} placeholder="What did you learn? Meeting recap, decisions, next moves..." rows={4} className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white resize-none" />
+          <div className="grid grid-cols-2 gap-3">
+            <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+              <option value="">Customer-level (no specific project)</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input type="checkbox" checked={form.pinned} onChange={e => setForm(f => ({ ...f, pinned: e.target.checked }))} className="accent-amber-400" />
+              Pin to top
+            </label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
+            <button onClick={save} disabled={saving} className="px-4 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white rounded-lg font-medium">{saving ? 'Saving...' : 'Save Note'}</button>
+          </div>
+        </div>
+      )}
+      {notes.length === 0 && !open ? (
+        <EmptyState icon="📝" title="No notes yet" hint="Capture call notes, meeting recaps, internal thinking." />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {notes.map(n => (
+            <div key={n.id} className={`rounded-xl p-4 border ${n.pinned ? 'border-amber-500/40 bg-amber-500/5' : 'border-navy-700/50 bg-navy-800'}`}>
+              <div className="flex items-start gap-2 mb-2">
+                <div className="flex-1 min-w-0">
+                  {n.title && <p className="text-sm font-semibold text-white">{n.title}</p>}
+                  <p className="text-[10px] text-gray-500">{formatDate(n.created_at)}{n.profiles?.full_name ? ' · ' + n.profiles.full_name : ''}</p>
+                </div>
+                <button onClick={() => togglePin(n)} className={`text-xs ${n.pinned ? 'text-amber-400' : 'text-gray-600 hover:text-amber-400'}`} title={n.pinned ? 'Unpin' : 'Pin'}>
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.366 2.445a1 1 0 00-.364 1.118l1.287 3.957c.3.922-.755 1.688-1.54 1.118l-3.366-2.445a1 1 0 00-1.175 0l-3.366 2.445c-.784.57-1.838-.196-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.07 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z"/></svg>
+                </button>
+              </div>
+              {n.body && <p className="text-sm text-gray-300 whitespace-pre-wrap">{n.body}</p>}
+              {n.projects?.name && <p className="text-[10px] text-gray-500 mt-2">· {n.projects.name}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function CustomerDetail() {
   const { id } = useParams()
@@ -1301,6 +1715,11 @@ export default function CustomerDetail() {
   const [messages, setMessages] = useState([])
   const [invoices, setInvoices] = useState([])
   const [updates, setUpdates] = useState([])
+  // Wave F additions
+  const [estimates, setEstimates] = useState([])
+  const [agreements, setAgreements] = useState([])
+  const [tasks, setTasks] = useState([])
+  const [notes, setNotes] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
 
@@ -1332,34 +1751,32 @@ export default function CustomerDetail() {
 
       const projectIds = projList.map(p => p.id)
 
-      // Parallel fetch messages, invoices, updates (only if projects exist)
-      if (projectIds.length > 0) {
-        const [
-          { data: msgs },
-          { data: invs },
-          { data: upds },
-        ] = await Promise.all([
-          supabase
-            .from('messages')
-            .select('*, projects(name)')
-            .in('project_id', projectIds)
-            .eq('sender_id', id)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('invoices')
-            .select('*, projects(name)')
-            .in('project_id', projectIds)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('project_updates')
-            .select('*, projects(name)')
-            .in('project_id', projectIds)
-            .order('created_at', { ascending: false }),
-        ])
-        setMessages(msgs || [])
-        setInvoices(invs || [])
-        setUpdates(upds || [])
-      }
+      // Parallel fetch project-scoped + customer-scoped data
+      const projectIdList = projectIds.length > 0 ? projectIds : ['00000000-0000-0000-0000-000000000000']
+      const [
+        { data: msgs },
+        { data: invs },
+        { data: upds },
+        { data: ests },
+        { data: agrs },
+        { data: tks },
+        { data: nts },
+      ] = await Promise.all([
+        projectIds.length > 0 ? supabase.from('messages').select('*, projects(name)').in('project_id', projectIdList).eq('sender_id', id).order('created_at', { ascending: false }) : { data: [] },
+        projectIds.length > 0 ? supabase.from('invoices').select('*, projects(name)').in('project_id', projectIdList).order('created_at', { ascending: false }) : { data: [] },
+        projectIds.length > 0 ? supabase.from('project_updates').select('*, projects(name)').in('project_id', projectIdList).order('created_at', { ascending: false }) : { data: [] },
+        supabase.from('customer_estimates').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
+        supabase.from('customer_agreements').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
+        supabase.from('admin_tasks').select('*, projects(name)').or(`customer_id.eq.${id}${projectIds.length > 0 ? ',project_id.in.(' + projectIds.join(',') + ')' : ''}`).order('due_date', { ascending: true, nullsFirst: false }),
+        supabase.from('admin_notes').select('*, profiles!admin_notes_user_id_fkey(full_name)').or(`customer_id.eq.${id}${projectIds.length > 0 ? ',project_id.in.(' + projectIds.join(',') + ')' : ''}`).order('pinned', { ascending: false }).order('created_at', { ascending: false }),
+      ])
+      setMessages(msgs || [])
+      setInvoices(invs || [])
+      setUpdates(upds || [])
+      setEstimates(ests || [])
+      setAgreements(agrs || [])
+      setTasks(tks || [])
+      setNotes(nts || [])
     } catch (err) {
       console.error('Error fetching customer detail:', err)
     } finally {
@@ -1392,11 +1809,15 @@ export default function CustomerDetail() {
 
   const TABS = [
     { key: 'overview', label: 'Overview' },
-    { key: 'details', label: 'Details' },
     { key: 'projects', label: `Projects (${projects.length})` },
+    { key: 'estimates', label: `Estimates (${estimates.length})` },
+    { key: 'agreements', label: `Agreements (${agreements.length})` },
+    { key: 'tasks', label: `Tasks (${tasks.filter(t => t.status !== 'completed').length})` },
+    { key: 'notes', label: `Notes (${notes.length})` },
     { key: 'messages', label: `Messages (${messages.length})` },
     { key: 'invoices', label: `Invoices (${invoices.length})` },
     { key: 'activity', label: `Activity (${updates.length})` },
+    { key: 'details', label: 'Details' },
     { key: 'edit', label: 'Edit' },
   ]
 
@@ -1489,9 +1910,13 @@ export default function CustomerDetail() {
 
       {/* Tab content */}
       <div>
-        {activeTab === 'overview' && <OverviewTab customer={customer} projects={projects} messages={messages} invoices={invoices} updates={updates} />}
+        {activeTab === 'overview' && <OverviewTab customer={customer} projects={projects} messages={messages} invoices={invoices} updates={updates} estimates={estimates} agreements={agreements} tasks={tasks} notes={notes} />}
         {activeTab === 'details' && <DetailsTab customer={customer} />}
         {activeTab === 'projects' && <ProjectsTab projects={projects} />}
+        {activeTab === 'estimates' && <EstimatesTab customerId={id} estimates={estimates} projects={projects} onChange={fetchAll} />}
+        {activeTab === 'agreements' && <AgreementsTab customerId={id} agreements={agreements} estimates={estimates} projects={projects} onChange={fetchAll} />}
+        {activeTab === 'tasks' && <TasksTab customerId={id} tasks={tasks} projects={projects} onChange={fetchAll} />}
+        {activeTab === 'notes' && <NotesTab customerId={id} notes={notes} projects={projects} onChange={fetchAll} />}
         {activeTab === 'messages' && <MessagesTab messages={messages} />}
         {activeTab === 'invoices' && <InvoicesTab invoices={invoices} />}
         {activeTab === 'activity' && <ActivityTab updates={updates} />}
