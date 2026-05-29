@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
@@ -359,6 +359,8 @@ export default function Projects() {
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('pipeline')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [groupBy, setGroupBy] = useState('status') // 'status' | 'owner' | 'tier' | 'client'
+  const [dragOverLane, setDragOverLane] = useState(null) // lane.key being hovered
   const [saving, setSaving] = useState({}) // { [projectId]: true }
   const [toast, setToast] = useState(null)
   const [newProjectOpen, setNewProjectOpen] = useState(false)
@@ -557,6 +559,85 @@ export default function Projects() {
     return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
+  // Derive Kanban lanes from the active groupBy selection
+  const lanes = useMemo(() => {
+    if (groupBy === 'status') {
+      const list = STATUS_PIPELINE.map(s => ({
+        key: s,
+        label: s,
+        colors: STATUS_COLORS[s],
+        projects: searchFiltered.filter(p => p.status === s),
+        droppable: true,
+      }))
+      // Append On Hold/Cancelled if populated (faded)
+      ;['On Hold', 'Cancelled'].forEach(s => {
+        if (statusCounts[s]) list.push({
+          key: s, label: s, colors: STATUS_COLORS[s],
+          projects: searchFiltered.filter(p => p.status === s),
+          droppable: true, faded: true,
+        })
+      })
+      return list
+    }
+    if (groupBy === 'owner') {
+      const owners = new Map()
+      searchFiltered.forEach(p => {
+        const name = p.next_action_owner?.full_name || p.profiles?.full_name || 'Unassigned'
+        if (!owners.has(name)) owners.set(name, [])
+        owners.get(name).push(p)
+      })
+      return [...owners.entries()].map(([name, list]) => ({
+        key: name, label: name, colors: STATUS_COLORS['In Build'], projects: list, droppable: false,
+      }))
+    }
+    if (groupBy === 'tier') {
+      return ['Starter', 'Growth', 'Scale'].map(tier => ({
+        key: tier, label: tier,
+        colors: tier === 'Scale' ? { dot: 'bg-purple-400', text: 'text-purple-400' } :
+                tier === 'Growth' ? { dot: 'bg-blue-400', text: 'text-blue-400' } :
+                                    { dot: 'bg-gray-400', text: 'text-gray-400' },
+        projects: searchFiltered.filter(p => p.tier === tier),
+        droppable: false,
+      }))
+    }
+    if (groupBy === 'client') {
+      const clients = new Map()
+      searchFiltered.forEach(p => {
+        const name = clientLabel(p)
+        if (!clients.has(name)) clients.set(name, [])
+        clients.get(name).push(p)
+      })
+      return [...clients.entries()].map(([name, list]) => ({
+        key: name, label: name, colors: STATUS_COLORS['In Build'], projects: list, droppable: false,
+      }))
+    }
+    return []
+  }, [searchFiltered, groupBy, statusCounts])
+
+  // HTML5 drag-and-drop handlers (Pipeline view, status grouping only)
+  function onCardDragStart(e, projectId) {
+    e.dataTransfer.setData('text/plain', projectId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  function onLaneDragOver(e, laneKey, droppable) {
+    if (!droppable || groupBy !== 'status') return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverLane !== laneKey) setDragOverLane(laneKey)
+  }
+  function onLaneDragLeave() {
+    setDragOverLane(null)
+  }
+  function onLaneDrop(e, laneKey, droppable) {
+    if (!droppable || groupBy !== 'status') return
+    e.preventDefault()
+    setDragOverLane(null)
+    const projectId = e.dataTransfer.getData('text/plain')
+    if (!projectId) return
+    const proj = projects.find(p => p.id === projectId)
+    if (proj && proj.status !== laneKey) updateStatus(projectId, laneKey)
+  }
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center h-full">
@@ -606,6 +687,28 @@ export default function Projects() {
               List
             </button>
           </div>
+
+          {view === 'pipeline' && (
+            <div className="flex bg-navy-800 rounded-lg p-0.5 border border-navy-600/50">
+              <span className="px-2 py-1.5 text-[11px] text-gray-500 font-medium uppercase tracking-wider">Group</span>
+              {[
+                { key: 'status', label: 'Status' },
+                { key: 'owner', label: 'Owner' },
+                { key: 'tier', label: 'Tier' },
+                { key: 'client', label: 'Client' },
+              ].map(g => (
+                <button
+                  key={g.key}
+                  onClick={() => setGroupBy(g.key)}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    groupBy === g.key ? 'bg-brand-blue/20 text-brand-blue' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <button
             onClick={fetchProjects}
@@ -721,15 +824,23 @@ export default function Projects() {
         </div>
       ) : view === 'pipeline' ? (
 
-        /* ── Pipeline View ── */
+        /* ── Pipeline View (Kanban, groupBy-aware) ── */
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {activePipelineStatuses.map(status => {
-            const colors = STATUS_COLORS[status]
-            const colProjects = searchFiltered.filter(p => p.status === status)
-            const hasNext = !!NEXT_STATUS[status]
+          {lanes.map(lane => {
+            const colors = lane.colors || STATUS_COLORS['In Build']
+            const colProjects = lane.projects
+            const status = lane.key
+            const hasNext = groupBy === 'status' && !!NEXT_STATUS[status]
+            const isDropActive = dragOverLane === lane.key && lane.droppable
 
             return (
-              <div key={status} className="flex-shrink-0 w-72">
+              <div
+                key={lane.key}
+                onDragOver={(e) => onLaneDragOver(e, lane.key, lane.droppable)}
+                onDragLeave={onLaneDragLeave}
+                onDrop={(e) => onLaneDrop(e, lane.key, lane.droppable)}
+                className={`flex-shrink-0 w-72 rounded-lg transition-colors ${isDropActive ? 'bg-brand-blue/5 ring-2 ring-brand-blue/40 ring-inset' : ''} ${lane.faded ? 'opacity-60' : ''}`}
+              >
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
                   <h3 className={`text-sm font-semibold ${colors.text}`}>{status}</h3>
@@ -737,7 +848,14 @@ export default function Projects() {
                 </div>
                 <div className="space-y-2">
                   {colProjects.map(project => (
-                    <div key={project.id} onClick={() => openProject(project)} style={{cursor:"pointer"}} className={`bg-navy-800 border rounded-xl p-4 hover:border-navy-500 transition-colors group ${project.portfolio_pinned ? 'border-amber-500/40' : 'border-navy-700/50'}`}>
+                    <div
+                      key={project.id}
+                      draggable={groupBy === 'status'}
+                      onDragStart={(e) => onCardDragStart(e, project.id)}
+                      onClick={() => openProject(project)}
+                      style={{cursor:"pointer"}}
+                      className={`bg-navy-800 border rounded-xl p-4 hover:border-navy-500 transition-colors group ${project.portfolio_pinned ? 'border-amber-500/40' : 'border-navy-700/50'} ${groupBy === 'status' ? 'active:cursor-grabbing' : ''}`}
+                    >
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
                           <button
@@ -824,34 +942,6 @@ export default function Projects() {
             )
           })}
 
-          {/* On Hold + Cancelled columns if they have items */}
-          {['On Hold', 'Cancelled'].filter(s => statusCounts[s]).map(status => {
-            const colors = STATUS_COLORS[status]
-            return (
-              <div key={status} className="flex-shrink-0 w-72 opacity-60">
-                <div className="flex items-center gap-2 mb-3 px-1">
-                  <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                  <h3 className={`text-sm font-semibold ${colors.text}`}>{status}</h3>
-                  <span className="text-xs text-gray-500 ml-auto">{statusCounts[status]}</span>
-                </div>
-                <div className="space-y-2">
-                  {searchFiltered.filter(p => p.status === status).map(project => (
-                    <div key={project.id} onClick={() => openProject(project)} style={{cursor:"pointer"}} className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
-                      <Link
-                        to={`/admin/projects/${project.id}`}
-                        className="text-sm font-medium text-gray-400 hover:text-white truncate block"
-                      >
-                        {project.name}
-                      </Link>
-                      <p className="text-xs text-gray-600 mt-1">
-                        {clientLabel(project)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
         </div>
 
       ) : (
