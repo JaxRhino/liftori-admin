@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
@@ -357,9 +357,22 @@ export default function Projects() {
   const { user } = useAuth()
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState('pipeline')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [groupBy, setGroupBy] = useState('status') // 'status' | 'owner' | 'tier' | 'client'
+  // Wave E: URL-backed filter/view state for shareable links.
+  // Defaults are stripped from the URL to keep clean canonical URLs.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const view = searchParams.get('view') || 'pipeline'
+  const statusFilter = searchParams.get('status') || 'all'
+  const groupBy = searchParams.get('groupBy') || 'status'
+  function _updateParam(key, value, defaultVal) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (!value || value === defaultVal) next.delete(key); else next.set(key, value)
+      return next
+    }, { replace: true })
+  }
+  const setView = (v) => _updateParam('view', v, 'pipeline')
+  const setStatusFilter = (v) => _updateParam('status', v, 'all')
+  const setGroupBy = (v) => _updateParam('groupBy', v, 'status')
   const [dragOverLane, setDragOverLane] = useState(null) // lane.key being hovered
   const [saving, setSaving] = useState({}) // { [projectId]: true }
   const [toast, setToast] = useState(null)
@@ -374,7 +387,9 @@ export default function Projects() {
   const [editForm, setEditForm] = useState(null)
   const [savingEdit, setSavingEdit] = useState(false)
   const [profileList, setProfileList] = useState([])
-  const [searchQuery, setSearchQuery] = useState('')
+  // Wave E: searchQuery URL-backed too
+  const searchQuery = searchParams.get('q') || ''
+  const setSearchQuery = (v) => _updateParam('q', v, '')
   const [sortBy, setSortBy] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
 
@@ -1203,7 +1218,7 @@ export default function Projects() {
           <div className="fixed inset-0 bg-black/50 z-40" onClick={closeProject} />
 
           {/* Panel */}
-          <div className="fixed top-0 right-0 h-full w-[480px] bg-navy-900 border-l border-navy-700/50 z-50 flex flex-col shadow-2xl">
+          <div className="fixed top-0 right-0 h-full w-full md:w-[480px] bg-navy-900 border-l border-navy-700/50 z-50 flex flex-col shadow-2xl">
 
             {/* Panel Header */}
             <div className="flex items-start justify-between p-5 border-b border-navy-700/50 shrink-0">
