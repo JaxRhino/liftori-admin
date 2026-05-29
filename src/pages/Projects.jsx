@@ -380,7 +380,9 @@ export default function Projects() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, profiles!projects_customer_id_fkey(full_name, email)')
+        .select('*, profiles!projects_customer_id_fkey(full_name, email), next_action_owner:profiles!projects_next_action_owner_id_fkey(full_name, email)')
+        .order('portfolio_pinned', { ascending: false })
+        .order('next_action_due', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false })
       if (error) throw error
       setProjects(data || [])
@@ -388,6 +390,21 @@ export default function Projects() {
       console.error('Error fetching projects:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function togglePinned(projectId, currentlyPinned) {
+    setProjects(ps => ps.map(p => p.id === projectId ? { ...p, portfolio_pinned: !currentlyPinned } : p))
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ portfolio_pinned: !currentlyPinned })
+        .eq('id', projectId)
+      if (error) throw error
+    } catch (err) {
+      setProjects(ps => ps.map(p => p.id === projectId ? { ...p, portfolio_pinned: currentlyPinned } : p))
+      showToast('Failed to update pin', 'error')
+      console.error('Pin toggle failed:', err)
     }
   }
 
@@ -479,19 +496,34 @@ export default function Projects() {
   const totalMRR = projects.reduce((s, p) => s + (p.mrr || 0), 0)
   const inBuildCount = projects.filter(p => p.status === 'In Build').length
   const launchedCount = projects.filter(p => p.status === 'Launched').length
+  const pinnedCount = projects.filter(p => p.portfolio_pinned).length
+
+  // Display name fallback: client_display_name > customer profile > 'Internal'
+  function clientLabel(p) {
+    return p.client_display_name || p.profiles?.full_name || p.profiles?.email || 'Internal'
+  }
 
   const searchFiltered = searchQuery.trim()
     ? projects.filter(p => {
         const q = searchQuery.toLowerCase()
         return p.name?.toLowerCase().includes(q) ||
+          p.client_display_name?.toLowerCase().includes(q) ||
           p.profiles?.full_name?.toLowerCase().includes(q) ||
-          p.profiles?.email?.toLowerCase().includes(q)
+          p.profiles?.email?.toLowerCase().includes(q) ||
+          p.next_action?.toLowerCase().includes(q)
       })
     : projects
 
-  const filtered = statusFilter === 'all' ? searchFiltered : searchFiltered.filter(p => p.status === statusFilter)
+  const filtered =
+    statusFilter === 'all' ? searchFiltered :
+    statusFilter === 'pinned' ? searchFiltered.filter(p => p.portfolio_pinned) :
+    searchFiltered.filter(p => p.status === statusFilter)
 
   const sorted = [...filtered].sort((a, b) => {
+    // Pinned always wins, regardless of sort column
+    if (!!b.portfolio_pinned !== !!a.portfolio_pinned) {
+      return b.portfolio_pinned ? 1 : -1
+    }
     if (sortBy === 'name') {
       const cmp = (a.name || '').localeCompare(b.name || '')
       return sortDir === 'asc' ? cmp : -cmp
@@ -502,6 +534,12 @@ export default function Projects() {
     }
     if (sortBy === 'progress') {
       const cmp = (a.progress || 0) - (b.progress || 0)
+      return sortDir === 'asc' ? cmp : -cmp
+    }
+    if (sortBy === 'next_action_due') {
+      const av = a.next_action_due ? new Date(a.next_action_due).getTime() : Infinity
+      const bv = b.next_action_due ? new Date(b.next_action_due).getTime() : Infinity
+      const cmp = av - bv
       return sortDir === 'asc' ? cmp : -cmp
     }
     // date (default)
@@ -546,8 +584,8 @@ export default function Projects() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Custom Builds</h1>
-          <p className="text-sm text-gray-400 mt-1">{projects.length} total build{projects.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Projects</h1>
+          <p className="text-sm text-gray-400 mt-1">{projects.length} active project{projects.length !== 1 ? 's' : ''}{pinnedCount > 0 ? ` · ${pinnedCount} pinned` : ''}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex bg-navy-800 rounded-lg p-0.5 border border-navy-600/50">
@@ -599,11 +637,21 @@ export default function Projects() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
           <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Total Projects</p>
           <p className="text-3xl font-bold text-white mt-2">{projects.length}</p>
         </div>
+        <button
+          onClick={() => setStatusFilter('pinned')}
+          className={`text-left bg-navy-800 border rounded-xl p-4 transition-colors ${statusFilter === 'pinned' ? 'border-amber-500/50' : 'border-navy-700/50 hover:border-amber-500/30'}`}
+        >
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium flex items-center gap-1">
+            <svg className="w-3 h-3 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.366 2.445a1 1 0 00-.364 1.118l1.287 3.957c.3.922-.755 1.688-1.54 1.118l-3.366-2.445a1 1 0 00-1.175 0l-3.366 2.445c-.784.57-1.838-.196-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.07 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z"/></svg>
+            Pinned
+          </p>
+          <p className="text-3xl font-bold text-amber-400 mt-2">{pinnedCount}</p>
+        </button>
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
           <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">In Build</p>
           <p className="text-3xl font-bold text-brand-blue mt-2">{inBuildCount}</p>
@@ -689,17 +737,29 @@ export default function Projects() {
                 </div>
                 <div className="space-y-2">
                   {colProjects.map(project => (
-                    <div key={project.id} onClick={() => openProject(project)} style={{cursor:"pointer"}} className="bg-navy-800 border border-navy-700/50 rounded-xl p-4 hover:border-navy-500 transition-colors group">
+                    <div key={project.id} onClick={() => openProject(project)} style={{cursor:"pointer"}} className={`bg-navy-800 border rounded-xl p-4 hover:border-navy-500 transition-colors group ${project.portfolio_pinned ? 'border-amber-500/40' : 'border-navy-700/50'}`}>
                       <div className="flex items-start justify-between gap-2 mb-1">
-                        <Link
-                          to={`/admin/projects/${project.id}`}
-                          className="text-sm font-semibold text-white hover:text-brand-blue transition-colors truncate"
-                        >
-                          {project.name}
-                        </Link>
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); togglePinned(project.id, project.portfolio_pinned) }}
+                            title={project.portfolio_pinned ? 'Unpin' : 'Pin to top'}
+                            className={`flex-shrink-0 transition-colors ${project.portfolio_pinned ? 'text-amber-400' : 'text-gray-600 hover:text-amber-400 opacity-0 group-hover:opacity-100'}`}
+                          >
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.366 2.445a1 1 0 00-.364 1.118l1.287 3.957c.3.922-.755 1.688-1.54 1.118l-3.366-2.445a1 1 0 00-1.175 0l-3.366 2.445c-.784.57-1.838-.196-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.07 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z"/>
+                            </svg>
+                          </button>
+                          <Link
+                            to={`/admin/projects/${project.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-sm font-semibold text-white hover:text-brand-blue transition-colors truncate"
+                          >
+                            {project.name}
+                          </Link>
+                        </div>
                         {hasNext && (
                           <button
-                            onClick={() => advanceStatus(project)}
+                            onClick={(e) => { e.stopPropagation(); advanceStatus(project) }}
                             disabled={!!saving[project.id]}
                             title={`Advance to ${NEXT_STATUS[status]}`}
                             className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2 py-0.5 rounded text-xs text-brand-blue bg-brand-blue/10 hover:bg-brand-blue/20 border border-brand-blue/30 disabled:opacity-40"
@@ -718,9 +778,20 @@ export default function Projects() {
                           </button>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mb-3">
-                        {project.profiles?.full_name || project.profiles?.email || 'Internal'}
+                      <p className="text-xs text-gray-400 mb-2">
+                        {clientLabel(project)}
                       </p>
+                      {project.next_action && (
+                        <div className="mb-3 px-2 py-1.5 rounded bg-navy-900/60 border border-navy-700/40">
+                          <p className="text-[11px] text-gray-300 leading-snug line-clamp-2">{project.next_action}</p>
+                          {(project.next_action_owner?.full_name || project.next_action_due) && (
+                            <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1.5">
+                              {project.next_action_owner?.full_name && <span>{project.next_action_owner.full_name.split(' ')[0]}</span>}
+                              {project.next_action_due && <span className="text-amber-400/80">{formatDate(project.next_action_due)}</span>}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center justify-between gap-2">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           project.tier === 'Growth' ? 'bg-blue-500/20 text-blue-400' :
@@ -773,7 +844,7 @@ export default function Projects() {
                         {project.name}
                       </Link>
                       <p className="text-xs text-gray-600 mt-1">
-                        {project.profiles?.full_name || '—'}
+                        {clientLabel(project)}
                       </p>
                     </div>
                   ))}
@@ -799,6 +870,19 @@ export default function Projects() {
             >
               All ({projects.length})
             </button>
+            {pinnedCount > 0 && (
+              <button
+                onClick={() => setStatusFilter('pinned')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+                  statusFilter === 'pinned'
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'text-gray-400 hover:text-white hover:bg-navy-700'
+                }`}
+              >
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.366 2.445a1 1 0 00-.364 1.118l1.287 3.957c.3.922-.755 1.688-1.54 1.118l-3.366-2.445a1 1 0 00-1.175 0l-3.366 2.445c-.784.57-1.838-.196-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.07 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z"/></svg>
+                Pinned ({pinnedCount})
+              </button>
+            )}
             {[...STATUS_PIPELINE, 'On Hold', 'Cancelled'].filter(s => statusCounts[s]).map(s => {
               const c = STATUS_COLORS[s]
               return (
@@ -824,6 +908,7 @@ export default function Projects() {
                   {[
                     { label: 'Project', key: 'name' },
                     { label: 'Customer', key: null },
+                    { label: 'Next Action', key: 'next_action_due' },
                     { label: 'Tier', key: null },
                     { label: 'Status', key: 'status' },
                     { label: 'Progress', key: 'progress' },
@@ -859,18 +944,48 @@ export default function Projects() {
                   return (
                     <tr key={project.id} className="hover:bg-navy-700/20 transition-colors">
                       <td className="px-4 py-3">
-                        <Link
-                          to={`/admin/projects/${project.id}`}
-                          className="text-sm font-medium text-white hover:text-brand-blue transition-colors"
-                        >
-                          {project.name}
-                        </Link>
-                        {project.project_type && (
-                          <p className="text-xs text-gray-500 mt-0.5">{project.project_type}</p>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => togglePinned(project.id, project.portfolio_pinned)}
+                            title={project.portfolio_pinned ? 'Unpin' : 'Pin to top'}
+                            className={`flex-shrink-0 transition-colors ${project.portfolio_pinned ? 'text-amber-400' : 'text-gray-700 hover:text-amber-400'}`}
+                          >
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.366 2.445a1 1 0 00-.364 1.118l1.287 3.957c.3.922-.755 1.688-1.54 1.118l-3.366-2.445a1 1 0 00-1.175 0l-3.366 2.445c-.784.57-1.838-.196-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.07 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z"/>
+                            </svg>
+                          </button>
+                          <div>
+                            <Link
+                              to={`/admin/projects/${project.id}`}
+                              className="text-sm font-medium text-white hover:text-brand-blue transition-colors"
+                            >
+                              {project.name}
+                            </Link>
+                            {project.project_type && (
+                              <p className="text-xs text-gray-500 mt-0.5">{project.project_type}</p>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-400">
-                        {project.profiles?.full_name || project.profiles?.email || '—'}
+                        {clientLabel(project)}
+                      </td>
+                      <td className="px-4 py-3 max-w-xs">
+                        {project.next_action ? (
+                          <div>
+                            <p className="text-xs text-gray-300 leading-snug line-clamp-2">{project.next_action}</p>
+                            {(project.next_action_owner?.full_name || project.next_action_due) && (
+                              <p className="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5">
+                                {project.next_action_owner?.full_name && <span>{project.next_action_owner.full_name.split(' ')[0]}</span>}
+                                {project.next_action_due && (
+                                  <span className={`${new Date(project.next_action_due) < new Date() ? 'text-red-400' : 'text-amber-400/80'}`}>
+                                    {formatDate(project.next_action_due)}
+                                  </span>
+                                )}
+                              </p>
+                            )}
+                          </div>
+                        ) : <span className="text-gray-600">—</span>}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${tColor}`}>
