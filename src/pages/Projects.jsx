@@ -370,12 +370,23 @@ export default function Projects() {
   const [emailOpen, setEmailOpen] = useState(false)
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
+  // Wave D: drawer inline editor state
+  const [editForm, setEditForm] = useState(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [profileList, setProfileList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
 
   useEffect(() => {
     fetchProjects()
+  }, [])
+
+  // Wave D: load profile list once for owner dropdown
+  useEffect(() => {
+    supabase.from('profiles').select('id, full_name, email').order('full_name').then(({ data }) => {
+      setProfileList(data || [])
+    })
   }, [])
 
   async function fetchProjects() {
@@ -423,13 +434,60 @@ export default function Projects() {
   const navigate = useNavigate()
 
   function openProject(proj) {
-    navigate(`/admin/projects/${proj.id}`)
+    setSelectedProject(proj)
+    setAdminNotes(proj.admin_notes || '')
+    setEditForm({
+      next_action: proj.next_action || '',
+      next_action_owner_id: proj.next_action_owner_id || '',
+      next_action_due: proj.next_action_due || '',
+      mrr: proj.mrr || 0,
+      revenue: proj.revenue || 0,
+      progress: proj.progress || 0,
+      tier: proj.tier || 'Starter',
+      portfolio_pinned: !!proj.portfolio_pinned,
+      client_display_name: proj.client_display_name || '',
+    })
   }
 
   function closeProject() {
     setSelectedProject(null)
     setAdminNotes('')
+    setEditForm(null)
     setEmailOpen(false)
+  }
+
+  async function saveEdit() {
+    if (!selectedProject || !editForm) return
+    setSavingEdit(true)
+    try {
+      const updates = {
+        next_action: editForm.next_action || null,
+        next_action_owner_id: editForm.next_action_owner_id || null,
+        next_action_due: editForm.next_action_due || null,
+        mrr: Number(editForm.mrr) || 0,
+        revenue: Number(editForm.revenue) || 0,
+        progress: Math.min(100, Math.max(0, Number(editForm.progress) || 0)),
+        tier: editForm.tier,
+        portfolio_pinned: !!editForm.portfolio_pinned,
+        client_display_name: editForm.client_display_name || null,
+        updated_at: new Date().toISOString(),
+      }
+      const { data, error } = await supabase
+        .from('projects')
+        .update(updates)
+        .eq('id', selectedProject.id)
+        .select('*, profiles!projects_customer_id_fkey(full_name, email), next_action_owner:profiles!projects_next_action_owner_id_fkey(full_name, email)')
+        .single()
+      if (error) throw error
+      setProjects(prev => prev.map(p => p.id === selectedProject.id ? data : p))
+      setSelectedProject(data)
+      showToast('Saved')
+    } catch (err) {
+      console.error('saveEdit:', err)
+      showToast('Failed to save', 'error')
+    } finally {
+      setSavingEdit(false)
+    }
   }
 
   async function saveNotes() {
@@ -1138,35 +1196,42 @@ export default function Projects() {
         </p>
       )}
     </div>
-      {/* ── Project Detail Slide-out Panel ── */}
-      {selectedProject && (
+      {/* ── Project Detail Slide-out Panel (Wave D editable) ── */}
+      {selectedProject && editForm && (
         <>
           {/* Backdrop */}
           <div className="fixed inset-0 bg-black/50 z-40" onClick={closeProject} />
 
           {/* Panel */}
-          <div className="fixed top-0 right-0 h-full w-[420px] bg-[#0D1424] border-l border-white/10 z-50 flex flex-col shadow-2xl">
+          <div className="fixed top-0 right-0 h-full w-[480px] bg-navy-900 border-l border-navy-700/50 z-50 flex flex-col shadow-2xl">
 
             {/* Panel Header */}
-            <div className="flex items-start justify-between p-5 border-b border-white/10 shrink-0">
+            <div className="flex items-start justify-between p-5 border-b border-navy-700/50 shrink-0">
               <div className="flex-1 min-w-0 pr-3">
-                <p className="text-xs text-slate-500 font-mono mb-1">{selectedProject.id?.slice(0,8)}…</p>
+                <p className="text-xs text-gray-500 font-mono mb-1">{selectedProject.id?.slice(0,8)}</p>
                 <h2 className="text-base font-bold text-white leading-tight">{selectedProject.name || 'Untitled Project'}</h2>
-                {selectedProject.customer_email && (
-                  <p className="text-xs text-slate-400 mt-1">{selectedProject.customer_email}</p>
-                )}
+                <p className="text-xs text-gray-400 mt-1">{clientLabel(selectedProject)}</p>
               </div>
-              <button onClick={closeProject} className="text-slate-400 hover:text-white shrink-0 mt-0.5">
-                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                </svg>
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Link
+                  to={`/admin/projects/${selectedProject.id}`}
+                  className="text-xs px-2 py-1 rounded border border-navy-600 text-gray-400 hover:text-white hover:border-navy-500 transition-colors"
+                  title="Open full detail page"
+                >
+                  Open
+                </Link>
+                <button onClick={closeProject} className="text-gray-400 hover:text-white p-1">
+                  <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            {/* Status + Tier row */}
-            <div className="px-5 py-3 border-b border-white/10 flex items-center gap-2 flex-wrap shrink-0">
+            {/* Status + Tier strip */}
+            <div className="px-5 py-3 border-b border-navy-700/50 flex items-center gap-2 flex-wrap shrink-0">
               {(() => {
-                const sc = STATUS_COLORS[selectedProject.status] || { bg:'bg-slate-500/20', text:'text-slate-400', dot:'bg-slate-400' }
+                const sc = STATUS_COLORS[selectedProject.status] || STATUS_COLORS['In Build']
                 return (
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
@@ -1174,20 +1239,26 @@ export default function Projects() {
                   </span>
                 )
               })()}
-              {selectedProject.tier && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{selectedProject.tier}</span>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{editForm.tier}</span>
+              {selectedProject.project_type && (
+                <span className="text-xs text-gray-400 bg-navy-800 px-2 py-0.5 rounded">{selectedProject.project_type}</span>
               )}
-              {selectedProject.app_type && (
-                <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded">{selectedProject.app_type}</span>
-              )}
+              <button
+                onClick={() => setEditForm(f => ({ ...f, portfolio_pinned: !f.portfolio_pinned }))}
+                className={`ml-auto text-xs flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${editForm.portfolio_pinned ? 'border-amber-500/50 text-amber-400 bg-amber-500/10' : 'border-navy-600 text-gray-400 hover:text-amber-400'}`}
+                title="Pin to top of board"
+              >
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.366 2.445a1 1 0 00-.364 1.118l1.287 3.957c.3.922-.755 1.688-1.54 1.118l-3.366-2.445a1 1 0 00-1.175 0l-3.366 2.445c-.784.57-1.838-.196-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.07 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z"/></svg>
+                {editForm.portfolio_pinned ? 'Pinned' : 'Pin'}
+              </button>
             </div>
 
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
 
-              {/* ── Status Actions ── */}
+              {/* Status Actions */}
               <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Status Actions</p>
+                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-2">Status</p>
                 <div className="flex flex-wrap gap-2">
                   {(() => {
                     const idx = STATUS_PIPELINE.indexOf(selectedProject.status)
@@ -1197,34 +1268,31 @@ export default function Projects() {
                       <>
                         {next && (
                           <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
+                            onClick={async () => {
                               await updateStatus(selectedProject.id, next)
                               setSelectedProject(p => p ? { ...p, status: next } : null)
                             }}
                             disabled={saving[selectedProject.id]}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
                           >
-                            → {next}
+                            Advance to {next}
                           </button>
                         )}
                         {prev && (
                           <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
+                            onClick={async () => {
                               await updateStatus(selectedProject.id, prev)
                               setSelectedProject(p => p ? { ...p, status: prev } : null)
                             }}
                             disabled={saving[selectedProject.id]}
-                            className="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+                            className="px-3 py-1.5 text-xs bg-navy-800 hover:bg-navy-700 text-gray-300 rounded-lg transition-colors"
                           >
-                            ← {prev}
+                            Back to {prev}
                           </button>
                         )}
                         {selectedProject.status !== 'On Hold' && selectedProject.status !== 'Cancelled' && (
                           <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
+                            onClick={async () => {
                               await updateStatus(selectedProject.id, 'On Hold')
                               setSelectedProject(p => p ? { ...p, status: 'On Hold' } : null)
                             }}
@@ -1235,8 +1303,7 @@ export default function Projects() {
                         )}
                         {selectedProject.status !== 'Cancelled' && (
                           <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
+                            onClick={async () => {
                               if (!window.confirm('Cancel this project?')) return
                               await updateStatus(selectedProject.id, 'Cancelled')
                               setSelectedProject(p => p ? { ...p, status: 'Cancelled' } : null)
@@ -1252,117 +1319,167 @@ export default function Projects() {
                 </div>
               </div>
 
-              {/* ── Project Details ── */}
+              {/* Next Action editor */}
               <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Details</p>
-                <div className="bg-slate-800/50 rounded-lg divide-y divide-white/5 text-sm">
-                  {[
-                    ['Client', selectedProject.customer_email],
-                    ['Tier', selectedProject.tier],
-                    ['App Type', selectedProject.app_type],
-                    ['Budget', selectedProject.budget ? ('$' + Number(selectedProject.budget).toLocaleString()) : null],
-                    ['Deadline', selectedProject.deadline ? new Date(selectedProject.deadline).toLocaleDateString() : null],
-                    ['Created', selectedProject.created_at ? new Date(selectedProject.created_at).toLocaleDateString() : null],
-                  ].filter(([, v]) => v).map(([label, value]) => (
-                    <div key={label} className="flex justify-between px-3 py-2">
-                      <span className="text-slate-400">{label}</span>
-                      <span className="text-white font-mono text-xs">{value}</span>
-                    </div>
-                  ))}
+                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-2">Next Action</p>
+                <textarea
+                  value={editForm.next_action}
+                  onChange={e => setEditForm(f => ({ ...f, next_action: e.target.value }))}
+                  rows={3}
+                  placeholder="What's the next move?"
+                  className="w-full bg-navy-800/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue resize-none"
+                />
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <select
+                    value={editForm.next_action_owner_id}
+                    onChange={e => setEditForm(f => ({ ...f, next_action_owner_id: e.target.value }))}
+                    className="bg-navy-800/60 border border-navy-700/50 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-brand-blue"
+                  >
+                    <option value="">No owner</option>
+                    {profileList.map(p => (
+                      <option key={p.id} value={p.id} style={{ background:'#0f172a' }}>{p.full_name || p.email}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    value={editForm.next_action_due}
+                    onChange={e => setEditForm(f => ({ ...f, next_action_due: e.target.value }))}
+                    className="bg-navy-800/60 border border-navy-700/50 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-brand-blue"
+                    style={{ colorScheme: 'dark' }}
+                  />
                 </div>
               </div>
 
-              {/* ── Admin Notes ── */}
+              {/* Financial + Progress */}
               <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Admin Notes</p>
+                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-2">Financials & Progress</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Revenue booked</label>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">$</span>
+                      <input
+                        type="number" min="0" step="100"
+                        value={editForm.revenue}
+                        onChange={e => setEditForm(f => ({ ...f, revenue: e.target.value }))}
+                        className="w-full bg-navy-800/60 border border-navy-700/50 rounded-lg pl-5 pr-2 py-1.5 text-sm text-white focus:outline-none focus:border-brand-blue"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">MRR</label>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">$</span>
+                      <input
+                        type="number" min="0" step="10"
+                        value={editForm.mrr}
+                        onChange={e => setEditForm(f => ({ ...f, mrr: e.target.value }))}
+                        className="w-full bg-navy-800/60 border border-navy-700/50 rounded-lg pl-5 pr-8 py-1.5 text-sm text-white focus:outline-none focus:border-brand-blue"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">/mo</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="text-[10px] text-gray-500 block mb-1 flex justify-between"><span>Progress</span><span className="font-mono">{editForm.progress}%</span></label>
+                  <input
+                    type="range" min="0" max="100" step="5"
+                    value={editForm.progress}
+                    onChange={e => setEditForm(f => ({ ...f, progress: Number(e.target.value) }))}
+                    className="w-full accent-brand-blue"
+                  />
+                </div>
+                <div className="mt-3">
+                  <label className="text-[10px] text-gray-500 block mb-1">Tier</label>
+                  <div className="grid grid-cols-3 gap-1">
+                    {['Starter', 'Growth', 'Scale'].map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setEditForm(f => ({ ...f, tier: t }))}
+                        className={`py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                          editForm.tier === t
+                            ? (t === 'Scale' ? 'border-purple-500 bg-purple-500/10 text-purple-400'
+                              : t === 'Growth' ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                              : 'border-brand-blue bg-brand-blue/10 text-brand-blue')
+                            : 'border-navy-700 text-gray-400 hover:border-navy-600'
+                        }`}
+                      >{t}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Client display name */}
+              <div>
+                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-2">Client Label</p>
+                <input
+                  value={editForm.client_display_name}
+                  onChange={e => setEditForm(f => ({ ...f, client_display_name: e.target.value }))}
+                  placeholder="Override label (e.g., City of Jacksonville)"
+                  className="w-full bg-navy-800/60 border border-navy-700/50 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">Used when no customer profile exists (Jax CRM, BOLO-Go, gov bids, etc.)</p>
+              </div>
+
+              {/* Save button */}
+              <button
+                onClick={saveEdit}
+                disabled={savingEdit}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                {savingEdit ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : 'Save Changes'}
+              </button>
+
+              {/* Admin Notes */}
+              <div>
+                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-2">Admin Notes</p>
                 <textarea
                   value={adminNotes}
                   onChange={e => setAdminNotes(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                  rows={5}
-                  placeholder="Internal notes — visible only to Liftori team…"
-                  className="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
+                  rows={4}
+                  placeholder="Internal notes - visible only to Liftori team"
+                  className="w-full bg-navy-800/60 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue resize-none"
                 />
                 <div className="flex justify-end mt-2">
                   <button
-                    onClick={e => { e.stopPropagation(); saveNotes(); }}
+                    onClick={saveNotes}
                     disabled={savingNotes}
-                    className="px-4 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+                    className="px-4 py-1.5 text-xs bg-navy-700 hover:bg-navy-600 disabled:opacity-50 text-white rounded-lg transition-colors"
                   >
-                    {savingNotes ? 'Saving…' : 'Save Notes'}
+                    {savingNotes ? 'Saving...' : 'Save Notes'}
                   </button>
                 </div>
               </div>
 
-              {/* ── Email Client ── */}
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Communication</p>
-                <button
-                  onClick={e => { e.stopPropagation(); setEmailOpen(true); setEmailSubject('Re: Your Liftori Project'); setEmailBody(''); }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-300 hover:text-white rounded-lg text-sm transition-colors"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                  </svg>
-                  Email Client
-                </button>
-              </div>
+              {/* Quick links */}
+              {(selectedProject.profiles?.email || selectedProject.customer_id) && (
+                <div>
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-2">Quick Actions</p>
+                  <div className="space-y-1.5">
+                    {selectedProject.customer_id && (
+                      <Link to={`/admin/customers/${selectedProject.customer_id}`} className="block px-3 py-2 text-xs bg-navy-800/60 hover:bg-navy-700 border border-navy-700/50 rounded-lg text-gray-300 hover:text-white transition-colors">
+                        View customer profile
+                      </Link>
+                    )}
+                    {selectedProject.profiles?.email && (
+                      <a href={`mailto:${selectedProject.profiles.email}`} className="block px-3 py-2 text-xs bg-navy-800/60 hover:bg-navy-700 border border-navy-700/50 rounded-lg text-gray-300 hover:text-white transition-colors">
+                        Email {selectedProject.profiles.email}
+                      </a>
+                    )}
+                    <Link to={`/admin/projects/${selectedProject.id}`} className="block px-3 py-2 text-xs bg-navy-800/60 hover:bg-navy-700 border border-navy-700/50 rounded-lg text-gray-300 hover:text-white transition-colors">
+                      Open full project page
+                    </Link>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
-
-          {/* ── Email Modal ── */}
-          {emailOpen && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60" onClick={e => { if (e.target === e.currentTarget) setEmailOpen(false) }}>
-              <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-semibold text-white">Email Client</h3>
-                  <button onClick={() => setEmailOpen(false)} className="text-slate-400 hover:text-white text-lg leading-none">✕</button>
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">To</label>
-                    <input readOnly value={selectedProject.customer_email || ''} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-400 select-all" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Subject</label>
-                    <input
-                      value={emailSubject}
-                      onChange={e => setEmailSubject(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Message</label>
-                    <textarea
-                      value={emailBody}
-                      onChange={e => setEmailBody(e.target.value)}
-                      rows={6}
-                      placeholder={"Hi [Client],\n\n"}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
-                    />
-                  </div>
-                  <div className="flex justify-between items-center pt-1">
-                    <p className="text-xs text-slate-500">Opens mailto: in default mail client</p>
-                    <div className="flex gap-2">
-                      <button onClick={() => setEmailOpen(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancel</button>
-                      <button
-                        onClick={() => {
-                          const url = 'mailto:' + (selectedProject.customer_email||'') + '?subject=' + encodeURIComponent(emailSubject) + '&body=' + encodeURIComponent(emailBody)
-                          window.open(url)
-                          setEmailOpen(false)
-                        }}
-                        disabled={!emailSubject.trim() || !emailBody.trim()}
-                        className="px-4 py-2 text-sm bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg transition-colors"
-                      >
-                        Open Draft
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
 
