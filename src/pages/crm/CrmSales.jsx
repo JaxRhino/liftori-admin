@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { HubPage, StatCard, Section, EmptyState, useLabosClient } from './_shared'
+import { HubPage, StatCard, Section, EmptyState, useCrmClient } from './_shared'
 
-export default function LabosSales() {
-  const { client } = useLabosClient()
+export default function CrmSales() {
+  const { client } = useCrmClient()
   const [leads, setLeads] = useState([])
   const [deals, setDeals] = useState([])
   const [loading, setLoading] = useState(true)

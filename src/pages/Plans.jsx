@@ -14,7 +14,7 @@ const PRODUCT_LINES = [
   },
   {
     key: 'labos',
-    label: 'LABOS',
+    label: 'Liftori',
     description: 'Liftori AI Business OS — departments, agents, automation.',
     accent: 'indigo',
     defaultBilling: 'monthly',

@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Package, Search, Plus, Grid3x3, List, X, Camera, Sparkles, Image as ImageIcon, Upload, Check, Trash2, GripVertical, Star, Loader2 } from 'lucide-react'
-import { HubPage, useLabosClient } from '../_shared'
+import { HubPage, useCrmClient } from '../_shared'
 
 const PRODUCT_BUCKET = 'vj-products'
 
@@ -20,7 +20,7 @@ const STATUS_FILTERS = [
 ]
 
 export default function OperationsInventory() {
-  const { client } = useLabosClient()
+  const { client } = useCrmClient()
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)

@@ -1,5 +1,5 @@
 // Shared primitives used by every LABOS hub page
-import { useLabos } from '../../contexts/LabosContext'
+import { useCrm } from '../../contexts/CrmContext'
 
 export function HubPage({ title, subtitle, children, actions }) {
   return (
@@ -48,7 +48,7 @@ export function Section({ title, right, children }) {
   )
 }
 
-export function useLabosClient() {
-  const { client, platform, orgSettings, enabledHubs } = useLabos()
+export function useCrmClient() {
+  const { client, platform, orgSettings, enabledHubs } = useCrm()
   return { client, platform, orgSettings, enabledHubs }
 }

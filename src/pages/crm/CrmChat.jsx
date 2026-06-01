@@ -1,5 +1,5 @@
 // =====================================================================
-// LabosChat — Slack-style chat for the client's own team.
+// CrmChat — Slack-style chat for the client's own team.
 //
 // Structure:
 //   Left rail  : Channels (team) section + Direct Messages section
@@ -14,10 +14,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Hash, MessageCircle, X, Users, Search, Send } from 'lucide-react'
-import { HubPage, useLabosClient } from './_shared'
+import { HubPage, useCrmClient } from './_shared'
 
-export default function LabosChat() {
-  const { client } = useLabosClient()
+export default function CrmChat() {
+  const { client } = useCrmClient()
   const [me, setMe] = useState(null)                  // { id, email, full_name, avatar_url, role }
   const [profiles, setProfiles] = useState([])        // everyone in this tenant's profiles table
   const [channels, setChannels] = useState([])        // all chat_channels rows
@@ -232,7 +232,7 @@ export default function LabosChat() {
       )}
       {!me && !loadError && (
         <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-300">
-          Sign in to your LABOS to send and read messages.
+          Sign in to your Liftori CRM to send and read messages.
         </div>
       )}
 

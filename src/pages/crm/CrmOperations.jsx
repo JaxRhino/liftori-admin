@@ -1,5 +1,5 @@
 // =====================================================================
-// LabosOperations — layout shell with 4-tab subnav.
+// CrmOperations — layout shell with 4-tab subnav.
 // Tabs: Dashboard | Inventory | Fulfillment | Team
 // Renders <Outlet /> for each sub-route.
 // =====================================================================
@@ -14,7 +14,7 @@ const TABS = [
   { path: 'team', label: 'Team', icon: Users },
 ]
 
-export default function LabosOperations() {
+export default function CrmOperations() {
   return (
     <div>
       {/* Subnav tab strip */}

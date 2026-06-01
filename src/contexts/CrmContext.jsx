@@ -1,5 +1,5 @@
 // =====================================================================
-// LabosContext — scopes a React subtree to a single LABOS client DB.
+// CrmContext — scopes a React subtree to a single LABOS client DB.
 // Provides: client-scoped supabase, platform row, org_settings,
 // enabled hubs, loading/error state.
 // =====================================================================
@@ -8,9 +8,9 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getClientSupabase } from '../lib/clientSupabase'
 
-const LabosContext = createContext(null)
+const CrmContext = createContext(null)
 
-export function LabosProvider({ children }) {
+export function CrmProvider({ children }) {
   const { platformId } = useParams()
   const [client, setClient] = useState(null)
   const [platform, setPlatform] = useState(null)
@@ -51,11 +51,11 @@ export function LabosProvider({ children }) {
     platformId, client, platform, orgSettings, enabledHubs, loading, error,
   }), [platformId, client, platform, orgSettings, enabledHubs, loading, error])
 
-  return <LabosContext.Provider value={value}>{children}</LabosContext.Provider>
+  return <CrmContext.Provider value={value}>{children}</CrmContext.Provider>
 }
 
-export function useLabos() {
-  const ctx = useContext(LabosContext)
-  if (!ctx) throw new Error('useLabos must be used inside <LabosProvider>')
+export function useCrm() {
+  const ctx = useContext(CrmContext)
+  if (!ctx) throw new Error('useCrm must be used inside <CrmProvider>')
   return ctx
 }

@@ -6,10 +6,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Package, Truck, DollarSign, ClipboardList, TrendingUp, AlertCircle, Plus } from 'lucide-react'
-import { HubPage, useLabosClient } from '../_shared'
+import { HubPage, useCrmClient } from '../_shared'
 
 export default function OperationsDashboard() {
-  const { client, platform } = useLabosClient()
+  const { client, platform } = useCrmClient()
   const [tasks, setTasks] = useState([])
   const [products, setProducts] = useState([])
   const [orders, setOrders] = useState([])

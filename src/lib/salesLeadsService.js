@@ -12,7 +12,7 @@ import { supabase } from './supabase'
 export const PRODUCTS = {
   labos: {
     key: 'labos',
-    label: 'LABOS',
+    label: 'Liftori',
     longLabel: 'Liftori AI Business OS',
     description: 'SaaS subscription — tiered plans with AI departments.',
     color: 'sky',

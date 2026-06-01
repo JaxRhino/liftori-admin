@@ -5,10 +5,10 @@
 // =====================================================================
 
 import { useState } from 'react'
-import { useLabos } from '../../contexts/LabosContext'
+import { useCrm } from '../../contexts/CrmContext'
 
 export default function BugReportModal({ onClose }) {
-  const { client } = useLabos()
+  const { client } = useCrm()
   const [form, setForm] = useState({ title: '', description: '', steps_to_reproduce: '', severity: 'normal' })
   const [saving, setSaving] = useState(false)
   const [sent, setSent] = useState(false)

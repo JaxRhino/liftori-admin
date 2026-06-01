@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { HubPage, StatCard, Section, useLabosClient } from './_shared'
+import { HubPage, StatCard, Section, useCrmClient } from './_shared'
 
-export default function LabosDashboard() {
-  const { client, orgSettings } = useLabosClient()
+export default function CrmDashboard() {
+  const { client, orgSettings } = useCrmClient()
   const [stats, setStats] = useState({ products: 0, published: 0, orders: 0, revenue: 0, subscribers: 0, openTickets: 0 })
   const [recent, setRecent] = useState([])
   const [loading, setLoading] = useState(true)
@@ -50,7 +50,7 @@ export default function LabosDashboard() {
           </div>
           <Section title="Recent activity">
             {recent.length === 0 ? (
-              <div className="p-6 text-sm text-gray-500">No activity yet — this will populate as your team uses LABOS.</div>
+              <div className="p-6 text-sm text-gray-500">No activity yet — this will populate as your team uses your Liftori CRM.</div>
             ) : (
               <ul className="divide-y divide-navy-700/50">
                 {recent.map(r => (

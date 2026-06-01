@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { HubPage, StatCard, Section, EmptyState, useLabosClient } from './_shared'
+import { HubPage, StatCard, Section, EmptyState, useCrmClient } from './_shared'
 
-export default function LabosFinance() {
-  const { client } = useLabosClient()
+export default function CrmFinance() {
+  const { client } = useCrmClient()
   const [invoices, setInvoices] = useState([])
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)

@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Users, Plus, Mail, X, Check, Copy, MoreHorizontal, Shield, Briefcase, Package, Truck, Eye, Clock, Trash2 } from 'lucide-react'
-import { HubPage, useLabosClient } from '../_shared'
+import { HubPage, useCrmClient } from '../_shared'
 
 const ROLES = [
   { key: 'owner', label: 'Owner', description: 'Full access to everything', icon: Shield, tone: 'amber' },
@@ -28,7 +28,7 @@ const ROLE_TONE = {
 }
 
 export default function OperationsTeam() {
-  const { client, platform } = useLabosClient()
+  const { client, platform } = useCrmClient()
   const [members, setMembers] = useState([])
   const [invites, setInvites] = useState([])
   const [loading, setLoading] = useState(true)

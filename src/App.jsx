@@ -181,18 +181,23 @@ import OpsHRHub from './pages/customer/ops/OpsHRHub'
 import OpsDocs from './pages/customer/ops/OpsDocs'
 import OpsProjects from './pages/customer/ops/OpsProjects'
 // LABOS â€” Liftori AI Business Operating System (per-client backend)
-import LabosLayout from './components/labos/LabosLayout'
-import LabosDashboard from './pages/labos/LabosDashboard'
-import LabosSales from './pages/labos/LabosSales'
-import LabosOperations from './pages/labos/LabosOperations'
-import OperationsDashboard from './pages/labos/operations/OperationsDashboard'
-import OperationsInventory from './pages/labos/operations/OperationsInventory'
-import OperationsFulfillment from './pages/labos/operations/OperationsFulfillment'
-import OperationsTeam from './pages/labos/operations/OperationsTeam'
-import LabosMarketing from './pages/labos/LabosMarketing'
-import LabosFinance from './pages/labos/LabosFinance'
-import LabosCommunications from './pages/labos/LabosCommunications'
-import LabosChat from './pages/labos/LabosChat'
+import CrmLayout from './components/crm/CrmLayout'
+import CrmDashboard from './pages/crm/CrmDashboard'
+import CrmSales from './pages/crm/CrmSales'
+import CrmOperations from './pages/crm/CrmOperations'
+import OperationsDashboard from './pages/crm/operations/OperationsDashboard'
+import OperationsInventory from './pages/crm/operations/OperationsInventory'
+import OperationsFulfillment from './pages/crm/operations/OperationsFulfillment'
+import OperationsTeam from './pages/crm/operations/OperationsTeam'
+import CrmMarketing from './pages/crm/CrmMarketing'
+import CrmFinance from './pages/crm/CrmFinance'
+import CrmCommunications from './pages/crm/CrmCommunications'
+import CrmChat from './pages/crm/CrmChat'
+import CrmCalendar from './pages/crm/CrmCalendar';
+import CrmNotes from './pages/crm/CrmNotes';
+import CrmTasks from './pages/crm/CrmTasks';
+import CrmNotifications from './pages/crm/CrmNotifications';
+import CrmEOS from './pages/crm/CrmEOS';
 // Dev Team — Wave A foundation
 import DevTeamLayout from './pages/dev-team/DevTeamLayout'
 import DevTeamOverview from './pages/dev-team/DevTeamOverview'
@@ -523,27 +528,32 @@ export default function App() {
           </Route>
 
           {/* LABOS â€” per-client backend (admin impersonation enters here) */}
-          <Route path="/labos/:platformId" element={
+          <Route path="/crm/:platformId" element={
             <ProtectedRoute>
               <AdminRoute>
-                <LabosLayout />
+                <CrmLayout />
               </AdminRoute>
             </ProtectedRoute>
           }>
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<LabosDashboard />} />
-            <Route path="sales" element={<LabosSales />} />
-            <Route path="operations" element={<LabosOperations />}>
+            <Route path="dashboard" element={<CrmDashboard />} />
+            <Route path="sales" element={<CrmSales />} />
+            <Route path="operations" element={<CrmOperations />}>
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<OperationsDashboard />} />
               <Route path="inventory" element={<OperationsInventory />} />
               <Route path="fulfillment" element={<OperationsFulfillment />} />
               <Route path="team" element={<OperationsTeam />} />
             </Route>
-            <Route path="marketing" element={<LabosMarketing />} />
-            <Route path="finance" element={<LabosFinance />} />
-            <Route path="communications" element={<LabosCommunications />} />
-            <Route path="chat" element={<LabosChat />} />
+            <Route path="marketing" element={<CrmMarketing />} />
+            <Route path="finance" element={<CrmFinance />} />
+            <Route path="communications" element={<CrmCommunications />} />
+            <Route path="chat" element={<CrmChat />} />
+            <Route path="calendar" element={<CrmCalendar />} />
+            <Route path="notes" element={<CrmNotes />} />
+            <Route path="tasks" element={<CrmTasks />} />
+            <Route path="notifications" element={<CrmNotifications />} />
+            <Route path="eos" element={<CrmEOS />} />
           </Route>
 
           {/* Affiliate / Creator Portal routes */}

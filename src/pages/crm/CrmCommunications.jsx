@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { HubPage, StatCard, Section, EmptyState, useLabosClient } from './_shared'
+import { HubPage, StatCard, Section, EmptyState, useCrmClient } from './_shared'
 
-export default function LabosCommunications() {
-  const { client } = useLabosClient()
+export default function CrmCommunications() {
+  const { client } = useCrmClient()
   const [comms, setComms] = useState([])
   const [loading, setLoading] = useState(true)
 

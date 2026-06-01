@@ -32,7 +32,7 @@ const HUB_DISPLAY = {
 export default function LabosTenantCard({ platform }) {
   if (!platform?.labos_enabled) return null
 
-  const industry = INDUSTRY_LABELS[platform.industry] || { label: (platform.industry || 'LABOS').toUpperCase(), subtitle: 'Vertical platform', tone: 'bg-violet-500/15 text-violet-300 border-violet-500/30' }
+  const industry = INDUSTRY_LABELS[platform.industry] || { label: (platform.industry || 'Liftori').toUpperCase(), subtitle: 'Vertical platform', tone: 'bg-violet-500/15 text-violet-300 border-violet-500/30' }
   const hubs = Array.isArray(platform.labos_hubs) ? platform.labos_hubs : []
   const isKec = platform.industry === 'kec'
 

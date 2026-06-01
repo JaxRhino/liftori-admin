@@ -1,5 +1,5 @@
 // =====================================================================
-// LabosMarketing — the customer's social growth engine.
+// CrmMarketing — the customer's social growth engine.
 // Hero metrics, Post Composer, Content Library, Connected Accounts,
 // Scheduled Posts, Share-a-Listing. Built to feel like a polished
 // marketing suite, not a placeholder.
@@ -11,7 +11,7 @@ import {
   Link2, Mail, Check, X,
   Camera, Upload, Clock, Eye, Heart, MessageCircle, Zap, ChevronRight, ArrowUpRight
 } from 'lucide-react'
-import { HubPage, useLabosClient } from './_shared'
+import { HubPage, useCrmClient } from './_shared'
 
 // Brand icons (Facebook/Instagram/YouTube/Twitter) were removed from lucide-react
 // in 2024 for trademark reasons. We render branded text-initial badges instead —
@@ -34,8 +34,8 @@ function PlatformBadge({ platform, size = 'md', className = '' }) {
   )
 }
 
-export default function LabosMarketing() {
-  const { client } = useLabosClient()
+export default function CrmMarketing() {
+  const { client } = useCrmClient()
   const [campaigns, setCampaigns] = useState([])
   const [subs, setSubs] = useState({ total: 0, last30: 0 })
   const [products, setProducts] = useState([])

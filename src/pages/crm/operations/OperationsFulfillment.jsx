@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Truck, Search, X, Package, MapPin, Clock, Copy, Check, ExternalLink, AlertTriangle } from 'lucide-react'
-import { HubPage, useLabosClient } from '../_shared'
+import { HubPage, useCrmClient } from '../_shared'
 
 const STATUS_ORDER = ['pending','paid','processing','shipped','delivered','cancelled','refunded']
 const STATUS_LABELS = {
@@ -29,7 +29,7 @@ const STATUS_TONE = {
 }
 
 export default function OperationsFulfillment() {
-  const { client } = useLabosClient()
+  const { client } = useCrmClient()
   const [orders, setOrders] = useState([])
   const [items, setItems] = useState({})
   const [loading, setLoading] = useState(true)

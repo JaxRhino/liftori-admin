@@ -168,7 +168,7 @@ export default function Platforms() {
             // LABOS-enabled platforms link straight into the LABOS backend;
             // legacy platforms keep the detail view.
             const target = platform.labos_enabled
-              ? `/labos/${platform.id}/dashboard`
+              ? `/crm/${platform.id}/dashboard`
               : `/admin/platforms/${platform.id}`
             return (
               <Link key={platform.id} to={target}

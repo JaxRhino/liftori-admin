@@ -1,5 +1,5 @@
 // =====================================================================
-// LabosLayout — The LABOS chrome: left sidebar + top header.
+// CrmLayout — The LABOS chrome: left sidebar + top header.
 // Wraps all 8 hub pages. Shows when Ryan (admin) clicks a platform
 // card and jumps INTO that client's LABOS backend.
 // =====================================================================
@@ -7,29 +7,34 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { Bug, ExternalLink, Globe } from 'lucide-react'
-import { LabosProvider, useLabos } from '../../contexts/LabosContext'
+import { CrmProvider, useCrm } from '../../contexts/CrmContext'
 import BugReportModal from './BugReportModal'
 
 const HUB_DEFS = [
-  { key: 'dashboard', label: 'Dashboard', path: 'dashboard', icon: DashboardIcon },
-  { key: 'sales', label: 'Sales', path: 'sales', icon: SalesIcon },
-  { key: 'operations', label: 'Operations', path: 'operations', icon: OpsIcon },
-  { key: 'marketing', label: 'Marketing', path: 'marketing', icon: MarketingIcon },
-  { key: 'finance', label: 'Finance', path: 'finance', icon: FinanceIcon },
-  { key: 'communications', label: 'Communications', path: 'communications', icon: CommsIcon },
-  { key: 'chat', label: 'Chat', path: 'chat', icon: ChatIcon },
+  { key:'dashboard',      label:'Dashboard',      path:'dashboard' },
+  { key:'sales',          label:'Sales',          path:'sales' },
+  { key:'operations',     label:'Operations',     path:'operations' },
+  { key:'calendar',       label:'Calendar',       path:'calendar' },
+  { key:'tasks',          label:'Tasks',          path:'tasks' },
+  { key:'notes',          label:'Notes',          path:'notes' },
+  { key:'finance',        label:'Finance',        path:'finance' },
+  { key:'marketing',      label:'Marketing',      path:'marketing' },
+  { key:'communications', label:'Communications', path:'communications' },
+  { key:'chat',           label:'Chat',           path:'chat' },
+  { key:'eos',            label:'EOS',            path:'eos' },
+  { key:'notifications',  label:'Notifications',  path:'notifications' },
 ]
 
-export default function LabosLayout() {
+export default function CrmLayout() {
   return (
-    <LabosProvider>
+    <CrmProvider>
       <LabosShell />
-    </LabosProvider>
+    </CrmProvider>
   )
 }
 
 function LabosShell() {
-  const { platform, orgSettings, enabledHubs, loading, error, platformId } = useLabos()
+  const { platform, orgSettings, enabledHubs, loading, error, platformId } = useCrm()
   const navigate = useNavigate()
 
   if (loading) {
@@ -53,7 +58,7 @@ function LabosShell() {
     )
   }
 
-  const clientName = orgSettings?.business_name || platform?.client_name || 'LABOS'
+  const clientName = orgSettings?.business_name || platform?.client_name || 'Liftori'
   const hubs = HUB_DEFS.filter(h => enabledHubs.includes(h.key))
 
   return (
@@ -76,7 +81,7 @@ function LabosShell() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-white font-semibold truncate">{clientName}</div>
-              <div className="text-xs text-brand-blue">LABOS</div>
+              <div className="text-xs text-brand-blue">Liftori</div>
             </div>
           </div>
         </div>
@@ -87,7 +92,7 @@ function LabosShell() {
             return (
               <NavLink
                 key={hub.key}
-                to={`/labos/${platformId}/${hub.path}`}
+                to={`/crm/${platformId}/${hub.path}`}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                     isActive
@@ -131,7 +136,7 @@ function LabosShell() {
 
       {/* MAIN */}
       <div className="flex-1 ml-64 flex flex-col min-h-screen">
-        <LabosHeader />
+        <CrmHeader />
         <main className="flex-1 bg-navy-900">
           <Outlet />
         </main>
@@ -140,8 +145,8 @@ function LabosShell() {
   )
 }
 
-function LabosHeader() {
-  const { client, platform, orgSettings } = useLabos()
+function CrmHeader() {
+  const { client, platform, orgSettings } = useCrm()
   const siteUrl = platform?.site_url
   const [showNotifications, setShowNotifications] = useState(false)
   const [showBugModal, setShowBugModal] = useState(false)
@@ -170,7 +175,7 @@ function LabosHeader() {
   return (
     <header className="h-14 bg-navy-900 border-b border-navy-700/50 flex items-center justify-between px-6 sticky top-0 z-30">
       <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-500">LABOS</span>
+        <span className="text-sm text-gray-500">Liftori</span>
         <span className="text-gray-600">/</span>
         <span className="text-sm text-white font-medium">{orgSettings?.business_name || platform?.client_name}</span>
       </div>
@@ -193,7 +198,7 @@ function LabosHeader() {
 
         {/* CHAT ICON — jumps to Chat hub */}
         <button
-          onClick={() => navigate(`/labos/${platform.id}/chat`)}
+          onClick={() => navigate(`/crm/${platform.id}/chat`)}
           className="w-9 h-9 rounded-lg hover:bg-navy-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
           title="Chat"
         >
@@ -243,7 +248,7 @@ function LabosHeader() {
 
         {/* PROFILE */}
         <button
-          onClick={() => navigate(`/labos/${platform.id}/dashboard`)}
+          onClick={() => navigate(`/crm/${platform.id}/dashboard`)}
           className="ml-2 w-9 h-9 rounded-full bg-gradient-to-br from-brand-blue to-brand-cyan flex items-center justify-center text-white text-xs font-bold hover:ring-2 hover:ring-brand-blue/40 transition-all"
           title="Profile"
         >
