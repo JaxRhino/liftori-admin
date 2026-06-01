@@ -557,7 +557,12 @@ export default function App() {
             <Route path="notes" element={<CrmNotes />} />
             <Route path="tasks" element={<CrmTasks />} />
             <Route path="notifications" element={<CrmNotifications />} />
-            <Route path="eos" element={<CrmEOS />} />
+            <Route path="eos" element={<CrmEOS />}>
+              <Route index element={<Navigate to="rocks" replace />} />
+              <Route path="rocks"  element={<EOSRocks />} />
+              <Route path="issues" element={<EOSIssues />} />
+              <Route path="todos"  element={<EOSTodos />} />
+            </Route>
           </Route>
 
           {/* Affiliate / Creator Portal routes */}
