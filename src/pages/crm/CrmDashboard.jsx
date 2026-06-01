@@ -1,72 +1,634 @@
-import { useEffect, useState } from 'react'
-import { HubPage, StatCard, Section, useCrmClient } from './_shared'
+// =====================================================================
+// CrmDashboard - service business daily command center
+// Wave B.3: replaces VJ retail tables (products/orders/email_subscribers)
+// with generic service-business tables (customer_pipeline / sales_leads /
+// customer_estimates / ops_schedule / ops_work_orders / ops_crews /
+// finance_invoices / finance_payments / customer_contacts).
+// =====================================================================
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { HubPage, StatCard, Section, EmptyState, useCrmClient } from './_shared'
+import { useCrm } from '../../contexts/CrmContext'
 
+// ---------- formatters ----------
+const fmtMoney = (v) =>
+  Number(v || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+const fmtCents = (c) =>
+  ((Number(c) || 0) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+
+function fmtDate(d) {
+  if (!d) return '-'
+  const date = new Date(d)
+  const opts = { month: 'short', day: 'numeric' }
+  if (date.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric'
+  return date.toLocaleDateString('en-US', opts)
+}
+
+function fmtTime(d) {
+  if (!d) return ''
+  return new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
+function fmtRange(start, end) {
+  if (!start) return ''
+  const s = fmtTime(start)
+  if (!end) return s
+  return `${s} - ${fmtTime(end)}`
+}
+
+function relTime(d) {
+  if (!d) return ''
+  const ms = Date.now() - new Date(d).getTime()
+  const s = Math.floor(ms / 1000)
+  if (s < 60) return 'just now'
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const days = Math.floor(h / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  return `${months}mo ago`
+}
+
+// ---------- pipeline stages ----------
+const PIPELINE_STAGES = [
+  { key: 'new', label: 'New', color: 'text-gray-300' },
+  { key: 'qualified', label: 'Qualified', color: 'text-sky-300' },
+  { key: 'proposal', label: 'Proposal', color: 'text-brand-cyan' },
+  { key: 'negotiation', label: 'Negotiation', color: 'text-amber-300' },
+  { key: 'won', label: 'Won', color: 'text-emerald-300' },
+  { key: 'lost', label: 'Lost', color: 'text-rose-300' },
+]
+
+// ---------- skeleton stat card ----------
+function StatSkeleton() {
+  return (
+    <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4 animate-pulse">
+      <div className="h-3 w-24 bg-navy-700/70 rounded mb-3" />
+      <div className="h-6 w-20 bg-navy-700/70 rounded" />
+    </div>
+  )
+}
+
+// ---------- priority badge ----------
+function PriorityBadge({ priority }) {
+  const map = {
+    urgent: 'bg-rose-500/20 text-rose-300',
+    high: 'bg-amber-500/20 text-amber-300',
+    medium: 'bg-sky-500/20 text-sky-300',
+    low: 'bg-navy-700/60 text-gray-400',
+  }
+  if (!priority) return null
+  return (
+    <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded ${map[priority] || 'bg-navy-700/60 text-gray-300'}`}>
+      {priority}
+    </span>
+  )
+}
+
+// ---------- event type badge ----------
+function EventTypeBadge({ type }) {
+  if (!type) return null
+  const map = {
+    job: 'bg-brand-cyan/20 text-brand-cyan',
+    estimate: 'bg-amber-500/20 text-amber-300',
+    inspection: 'bg-sky-500/20 text-sky-300',
+    delivery: 'bg-emerald-500/20 text-emerald-300',
+    meeting: 'bg-purple-500/20 text-purple-300',
+  }
+  return (
+    <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded ${map[type] || 'bg-navy-700/60 text-gray-300'}`}>
+      {type}
+    </span>
+  )
+}
+
+// =====================================================================
+// MAIN COMPONENT
+// =====================================================================
 export default function CrmDashboard() {
-  const { client, orgSettings } = useCrmClient()
-  const [stats, setStats] = useState({ products: 0, published: 0, orders: 0, revenue: 0, subscribers: 0, openTickets: 0 })
-  const [recent, setRecent] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { client, platform } = useCrm()
+  const { orgSettings } = useCrmClient()
+  const platformId = platform?.id
 
+  // ---- state ----
+  const [pipeline, setPipeline] = useState([])
+  const [leads, setLeads] = useState([])
+  const [estimates, setEstimates] = useState([])
+  const [schedule, setSchedule] = useState([])
+  const [workOrders, setWorkOrders] = useState([])
+  const [crews, setCrews] = useState([])
+  const [contacts, setContacts] = useState([])
+  const [invoices, setInvoices] = useState([])
+  const [payments, setPayments] = useState([])
+
+  const [loading, setLoading] = useState({
+    pipeline: true,
+    leads: true,
+    estimates: true,
+    schedule: true,
+    workOrders: true,
+    crews: true,
+    contacts: true,
+    invoices: true,
+    payments: true,
+  })
+
+  // ---- loader ----
   useEffect(() => {
     if (!client) return
-    async function load() {
-      setLoading(true)
-      const [{ count: products }, { count: published }, { data: orders }, { count: subscribers }, { count: openTickets }, { data: activity }] = await Promise.all([
-        client.from('products').select('*', { count: 'exact', head: true }),
-        client.from('products').select('*', { count: 'exact', head: true }).eq('status', 'published'),
-        client.from('orders').select('total,status,ordered_at'),
-        client.from('email_subscribers').select('*', { count: 'exact', head: true }).is('unsubscribed_at', null),
-        client.from('support_tickets').select('*', { count: 'exact', head: true }).in('status', ['open','in_progress','waiting']),
-        client.from('activity_log').select('*').order('created_at', { ascending: false }).limit(8),
-      ])
-      const revenue = (orders || []).filter(o => o.status !== 'cancelled' && o.status !== 'refunded').reduce((s, o) => s + Number(o.total || 0), 0)
-      setStats({
-        products: products || 0,
-        published: published || 0,
-        orders: (orders || []).length,
-        revenue,
-        subscribers: subscribers || 0,
-        openTickets: openTickets || 0,
-      })
-      setRecent(activity || [])
-      setLoading(false)
+    let cancelled = false
+
+    async function runQuery(table, q, setter, key) {
+      try {
+        const { data, error } = await q
+        if (error) throw error
+        if (!cancelled) setter(data || [])
+      } catch (e) {
+        console.error(`[CrmDashboard] ${table}`, e)
+        if (!cancelled) setter([])
+      } finally {
+        if (!cancelled) setLoading((s) => ({ ...s, [key]: false }))
+      }
     }
-    load()
+
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const todayEnd = new Date(todayStart)
+    todayEnd.setDate(todayEnd.getDate() + 1)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+    const monthStart = new Date()
+    monthStart.setDate(1)
+    monthStart.setHours(0, 0, 0, 0)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000)
+
+    Promise.all([
+      runQuery(
+        'customer_pipeline',
+        client.from('customer_pipeline').select('id,title,stage,deal_value,probability,expected_close_date,won_date,service_type,contact_id,created_at').limit(500),
+        setPipeline,
+        'pipeline'
+      ),
+      runQuery(
+        'sales_leads',
+        client.from('sales_leads').select('id,title,contact_name,source,deal_value_cents,stage,created_at').gte('created_at', sevenDaysAgo).order('created_at', { ascending: false }).limit(50),
+        setLeads,
+        'leads'
+      ),
+      runQuery(
+        'customer_estimates',
+        client.from('customer_estimates').select('id,status,esign_status,total,created_at').limit(200),
+        setEstimates,
+        'estimates'
+      ),
+      runQuery(
+        'ops_schedule',
+        client.from('ops_schedule').select('id,title,event_type,start_time,end_time,address,crew_id,status').gte('start_time', todayStart.toISOString()).lt('start_time', todayEnd.toISOString()).order('start_time', { ascending: true }).limit(20),
+        setSchedule,
+        'schedule'
+      ),
+      runQuery(
+        'ops_work_orders',
+        client.from('ops_work_orders').select('id,title,work_order_number,status,priority,scheduled_start,contact_id').not('status', 'in', '("completed","cancelled")').order('scheduled_start', { ascending: true, nullsFirst: false }).limit(50),
+        setWorkOrders,
+        'workOrders'
+      ),
+      runQuery(
+        'ops_crews',
+        client.from('ops_crews').select('id,name').limit(100),
+        setCrews,
+        'crews'
+      ),
+      runQuery(
+        'customer_contacts',
+        client.from('customer_contacts').select('id,first_name,last_name,email').limit(500),
+        setContacts,
+        'contacts'
+      ),
+      runQuery(
+        'finance_invoices',
+        client.from('finance_invoices').select('id,invoice_number,customer_name,total_amount,balance_due,due_date,status').not('status', 'in', '("paid","void")').limit(500),
+        setInvoices,
+        'invoices'
+      ),
+      runQuery(
+        'finance_payments',
+        client.from('finance_payments').select('id,amount,payment_date,status').gte('payment_date', thirtyDaysAgo.toISOString().slice(0, 10)).limit(500),
+        setPayments,
+        'payments'
+      ),
+    ])
+
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client])
 
+  // ---- lookups ----
+  const contactById = useMemo(() => {
+    const m = new Map()
+    for (const c of contacts) m.set(c.id, c)
+    return m
+  }, [contacts])
+  const crewById = useMemo(() => {
+    const m = new Map()
+    for (const c of crews) m.set(c.id, c)
+    return m
+  }, [crews])
+
+  function contactName(id) {
+    const c = contactById.get(id)
+    if (!c) return '-'
+    return `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || '-'
+  }
+  function crewName(id) {
+    const c = crewById.get(id)
+    return c ? c.name : '-'
+  }
+
+  // ---- stats ----
+  const stats = useMemo(() => {
+    const pipelineValue = pipeline
+      .filter((d) => !['won', 'lost'].includes(d.stage))
+      .reduce((s, d) => s + Number(d.deal_value || 0), 0)
+
+    const newLeads7d = leads.length
+
+    const estimatesPending = estimates.filter(
+      (e) => ['sent', 'draft'].includes(e.status) && e.esign_status !== 'signed'
+    ).length
+
+    const monthStart = new Date()
+    monthStart.setDate(1)
+    monthStart.setHours(0, 0, 0, 0)
+    const mtdWon = pipeline
+      .filter((d) => d.stage === 'won' && d.won_date && new Date(d.won_date) >= monthStart)
+      .reduce((s, d) => s + Number(d.deal_value || 0), 0)
+
+    const jobsToday = schedule.length
+
+    const openWO = workOrders.length
+
+    const arOutstanding = invoices.reduce((s, i) => s + Number(i.balance_due || 0), 0)
+
+    const revenue30d = payments
+      .filter((p) => p.status === 'completed')
+      .reduce((s, p) => s + Number(p.amount || 0), 0)
+
+    return { pipelineValue, newLeads7d, estimatesPending, mtdWon, jobsToday, openWO, arOutstanding, revenue30d }
+  }, [pipeline, leads, estimates, schedule, workOrders, invoices, payments])
+
+  // ---- pipeline by stage ----
+  const pipelineByStage = useMemo(() => {
+    const map = {}
+    for (const s of PIPELINE_STAGES) map[s.key] = { count: 0, total: 0 }
+    for (const d of pipeline) {
+      const k = map[d.stage] ? d.stage : 'new'
+      map[k].count += 1
+      map[k].total += Number(d.deal_value || 0)
+    }
+    return map
+  }, [pipeline])
+
+  // ---- AR aging buckets ----
+  const arAging = useMemo(() => {
+    const buckets = {
+      current: { count: 0, total: 0, label: 'Current' },
+      '1-30': { count: 0, total: 0, label: '1-30 days' },
+      '31-60': { count: 0, total: 0, label: '31-60 days' },
+      '60+': { count: 0, total: 0, label: '60+ days' },
+    }
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    for (const inv of invoices) {
+      const bal = Number(inv.balance_due || 0)
+      if (bal <= 0) continue
+      if (!inv.due_date) {
+        buckets.current.count += 1
+        buckets.current.total += bal
+        continue
+      }
+      const due = new Date(inv.due_date)
+      const days = Math.floor((today - due) / 86400000)
+      let bucket
+      if (days <= 0) bucket = 'current'
+      else if (days <= 30) bucket = '1-30'
+      else if (days <= 60) bucket = '31-60'
+      else bucket = '60+'
+      buckets[bucket].count += 1
+      buckets[bucket].total += bal
+    }
+    return buckets
+  }, [invoices])
+
+  const arTotalForBar = useMemo(() => {
+    return Object.values(arAging).reduce((s, b) => s + b.total, 0)
+  }, [arAging])
+
+  // ---- recent leads (top 5) ----
+  const recentLeads = useMemo(() => leads.slice(0, 5), [leads])
+
+  // ---- top 5 work orders ----
+  const topWO = useMemo(() => workOrders.slice(0, 5), [workOrders])
+
+  // ---- top 8 schedule ----
+  const todayList = useMemo(() => schedule.slice(0, 8), [schedule])
+  const todayExtra = Math.max(0, schedule.length - 8)
+
+  // ---- header subtitle ----
+  const clientName = platform?.clientName || orgSettings?.business_name || 'your business'
+  const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+
+  const linkBase = `/crm/${platformId}`
+
   return (
-    <HubPage title="Dashboard" subtitle={`${orgSettings?.business_name || 'Your business'} at a glance`}>
-      {loading ? (
-        <div className="text-gray-500 text-sm">Loading...</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-            <StatCard label="Products" value={stats.products} />
-            <StatCard label="Published" value={stats.published} accent="text-emerald-400" />
-            <StatCard label="Orders" value={stats.orders} accent="text-brand-blue" />
-            <StatCard label="Revenue" value={`$${stats.revenue.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`} accent="text-brand-cyan" />
-            <StatCard label="Subscribers" value={stats.subscribers} />
-            <StatCard label="Open Tickets" value={stats.openTickets} accent={stats.openTickets ? 'text-amber-400' : 'text-white'} />
-          </div>
-          <Section title="Recent activity">
-            {recent.length === 0 ? (
-              <div className="p-6 text-sm text-gray-500">No activity yet — this will populate as your team uses your Liftori CRM.</div>
+    <HubPage title="Dashboard" subtitle={`${clientName} at a glance`}>
+      {/* ===== row 1 + row 2 stat cards ===== */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        {loading.pipeline ? <StatSkeleton /> : (
+          <StatCard label="Pipeline Value" value={fmtMoney(stats.pipelineValue)} accent="text-brand-cyan" hint="open deals" />
+        )}
+        {loading.leads ? <StatSkeleton /> : (
+          <StatCard label="New Leads (7d)" value={stats.newLeads7d} accent="text-brand-blue" />
+        )}
+        {loading.estimates ? <StatSkeleton /> : (
+          <StatCard label="Estimates Pending" value={stats.estimatesPending} accent="text-amber-400" hint="sent or draft, unsigned" />
+        )}
+        {loading.pipeline ? <StatSkeleton /> : (
+          <StatCard label="MTD Won" value={fmtMoney(stats.mtdWon)} accent="text-emerald-400" />
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {loading.schedule ? <StatSkeleton /> : (
+          <StatCard label="Jobs Today" value={stats.jobsToday} accent="text-brand-cyan" />
+        )}
+        {loading.workOrders ? <StatSkeleton /> : (
+          <StatCard label="Open Work Orders" value={stats.openWO} accent="text-brand-blue" />
+        )}
+        {loading.invoices ? <StatSkeleton /> : (
+          <StatCard
+            label="AR Outstanding"
+            value={fmtMoney(stats.arOutstanding)}
+            accent={stats.arOutstanding > 0 ? 'text-amber-400' : 'text-white'}
+            hint={`${invoices.length} invoice${invoices.length === 1 ? '' : 's'}`}
+          />
+        )}
+        {loading.payments ? <StatSkeleton /> : (
+          <StatCard label="Revenue (30d)" value={fmtMoney(stats.revenue30d)} accent="text-emerald-400" />
+        )}
+      </div>
+
+      {/* ===== middle: today's schedule + pipeline by stage ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+        <div className="lg:col-span-3">
+          <Section
+            title={`Today - ${todayLabel}`}
+            right={
+              <Link to={`${linkBase}/operations/schedule`} className="text-xs text-brand-cyan hover:underline">
+                View Schedule -&gt;
+              </Link>
+            }
+          >
+            {loading.schedule ? (
+              <div className="p-6 text-sm text-gray-500">Loading schedule...</div>
+            ) : todayList.length === 0 ? (
+              <EmptyState
+                title="No events scheduled today"
+                description="Lock in your first job, estimate visit, or inspection on the schedule."
+                cta={
+                  <Link
+                    to={`${linkBase}/operations/schedule`}
+                    className="bg-brand-cyan text-navy-900 text-sm px-4 py-2 rounded-lg font-medium inline-block"
+                  >
+                    Open Schedule
+                  </Link>
+                }
+              />
             ) : (
               <ul className="divide-y divide-navy-700/50">
-                {recent.map(r => (
-                  <li key={r.id} className="px-5 py-3 flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-white">{r.action}</div>
-                      {r.actor_name && <div className="text-xs text-gray-500">by {r.actor_name}</div>}
+                {todayList.map((ev) => (
+                  <li key={ev.id} className="px-5 py-3 flex items-start gap-3 hover:bg-navy-700/20">
+                    <div className="w-24 flex-shrink-0">
+                      <div className="text-sm text-white font-medium">{fmtTime(ev.start_time)}</div>
+                      <div className="text-[11px] text-gray-500">{fmtRange(ev.start_time, ev.end_time).split(' - ')[1] || ''}</div>
                     </div>
-                    <div className="text-xs text-gray-500">{new Date(r.created_at).toLocaleString()}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm text-white font-medium truncate">{ev.title || '(untitled)'}</span>
+                        <EventTypeBadge type={ev.event_type} />
+                      </div>
+                      <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-3 flex-wrap">
+                        {ev.crew_id && <span>{crewName(ev.crew_id)}</span>}
+                        {ev.address && <span className="truncate max-w-[280px]">{ev.address}</span>}
+                      </div>
+                    </div>
                   </li>
                 ))}
+                {todayExtra > 0 && (
+                  <li className="px-5 py-2 text-center">
+                    <Link to={`${linkBase}/operations/schedule`} className="text-xs text-brand-cyan hover:underline">
+                      + {todayExtra} more event{todayExtra === 1 ? '' : 's'}
+                    </Link>
+                  </li>
+                )}
               </ul>
             )}
           </Section>
-        </>
-      )}
+        </div>
+
+        <div className="lg:col-span-2">
+          <Section title="Pipeline by Stage">
+            {loading.pipeline ? (
+              <div className="p-6 text-sm text-gray-500">Loading pipeline...</div>
+            ) : pipeline.length === 0 ? (
+              <EmptyState
+                title="No deals yet"
+                description="Drop in your first deal to start tracking conversion."
+                cta={
+                  <Link to={`${linkBase}/sales`} className="bg-brand-cyan text-navy-900 text-sm px-4 py-2 rounded-lg font-medium inline-block">
+                    Open Sales
+                  </Link>
+                }
+              />
+            ) : (
+              <ul className="divide-y divide-navy-700/50">
+                {PIPELINE_STAGES.map((s) => {
+                  const row = pipelineByStage[s.key] || { count: 0, total: 0 }
+                  return (
+                    <li key={s.key}>
+                      <Link
+                        to={`${linkBase}/sales?stage=${s.key}`}
+                        className="px-5 py-3 flex items-center justify-between hover:bg-navy-700/20"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`text-sm font-medium ${s.color}`}>{s.label}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-navy-700/60 text-gray-300">{row.count}</span>
+                        </div>
+                        <span className="text-sm text-white">{fmtMoney(row.total)}</span>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Section>
+        </div>
+      </div>
+
+      {/* ===== bottom: recent leads + work orders + AR aging ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Recent Leads */}
+        <Section
+          title="Recent Leads"
+          right={
+            <Link to={`${linkBase}/sales`} className="text-xs text-brand-cyan hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {loading.leads ? (
+            <div className="p-6 text-sm text-gray-500">Loading leads...</div>
+          ) : recentLeads.length === 0 ? (
+            <EmptyState
+              title="No new leads this week"
+              description="When inbound leads come in, they show up here first."
+            />
+          ) : (
+            <ul className="divide-y divide-navy-700/50">
+              {recentLeads.map((l) => (
+                <li key={l.id}>
+                  <Link
+                    to={`${linkBase}/sales?lead=${l.id}`}
+                    className="px-5 py-3 flex items-start justify-between hover:bg-navy-700/20"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-white truncate">{l.contact_name || l.title || '(unnamed lead)'}</div>
+                      <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                        {l.source && (
+                          <span className="px-1.5 py-0.5 rounded bg-navy-700/60">{l.source}</span>
+                        )}
+                        <span>{relTime(l.created_at)}</span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-brand-cyan whitespace-nowrap ml-2">{fmtCents(l.deal_value_cents)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        {/* Open Work Orders */}
+        <Section
+          title="Open Work Orders"
+          right={
+            <Link to={`${linkBase}/operations/work-orders`} className="text-xs text-brand-cyan hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {loading.workOrders ? (
+            <div className="p-6 text-sm text-gray-500">Loading work orders...</div>
+          ) : topWO.length === 0 ? (
+            <EmptyState
+              title="No open work orders"
+              description="Open work orders show up here for quick triage."
+            />
+          ) : (
+            <ul className="divide-y divide-navy-700/50">
+              {topWO.map((wo) => (
+                <li key={wo.id}>
+                  <Link
+                    to={`${linkBase}/operations/work-orders?id=${wo.id}`}
+                    className="px-5 py-3 flex items-start justify-between hover:bg-navy-700/20"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-white truncate">
+                        <span className="text-gray-500 text-[11px] mr-1">{wo.work_order_number || ''}</span>
+                        {wo.title || '(untitled)'}
+                      </div>
+                      <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                        <span className="truncate">{contactName(wo.contact_id)}</span>
+                        <PriorityBadge priority={wo.priority} />
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-gray-500 whitespace-nowrap ml-2">
+                      {wo.scheduled_start ? fmtDate(wo.scheduled_start) : '-'}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        {/* AR Aging */}
+        <Section
+          title="AR Aging"
+          right={
+            <Link to={`${linkBase}/finance`} className="text-xs text-brand-cyan hover:underline">
+              View invoices
+            </Link>
+          }
+        >
+          {loading.invoices ? (
+            <div className="p-6 text-sm text-gray-500">Loading invoices...</div>
+          ) : invoices.length === 0 ? (
+            <EmptyState
+              title="No outstanding invoices"
+              description="Once you have unpaid invoices, you can age them here."
+            />
+          ) : (
+            <div className="p-5 space-y-3">
+              {/* stacked bar */}
+              <div className="h-3 w-full bg-navy-900/60 rounded-full overflow-hidden flex">
+                {arTotalForBar > 0 && Object.entries(arAging).map(([key, b]) => {
+                  if (b.total <= 0) return null
+                  const width = `${(b.total / arTotalForBar) * 100}%`
+                  const colorMap = {
+                    current: 'bg-emerald-500',
+                    '1-30': 'bg-sky-500',
+                    '31-60': 'bg-amber-500',
+                    '60+': 'bg-rose-500',
+                  }
+                  return <div key={key} style={{ width }} className={colorMap[key]} />
+                })}
+              </div>
+
+              <ul className="space-y-1">
+                {Object.entries(arAging).map(([key, b]) => {
+                  const colorMap = {
+                    current: 'text-emerald-400',
+                    '1-30': 'text-sky-400',
+                    '31-60': 'text-amber-400',
+                    '60+': 'text-rose-400',
+                  }
+                  return (
+                    <li key={key}>
+                      <Link
+                        to={`${linkBase}/finance?aging=${encodeURIComponent(key)}`}
+                        className="flex items-center justify-between text-xs py-1.5 px-2 -mx-2 rounded hover:bg-navy-700/30"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`font-medium ${colorMap[key]}`}>{b.label}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-navy-700/60 text-gray-300">{b.count}</span>
+                        </div>
+                        <span className="text-white">{fmtMoney(b.total)}</span>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+
+              <div className="border-t border-navy-700/50 pt-2 flex items-center justify-between text-xs">
+                <span className="text-gray-400 uppercase tracking-wider">Total Outstanding</span>
+                <span className="text-amber-400 font-semibold">{fmtMoney(arTotalForBar)}</span>
+              </div>
+            </div>
+          )}
+        </Section>
+      </div>
     </HubPage>
   )
 }
