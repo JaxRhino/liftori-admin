@@ -189,6 +189,8 @@ import OperationsDashboard from './pages/crm/operations/OperationsDashboard'
 import OperationsInventory from './pages/crm/operations/OperationsInventory'
 import OperationsFulfillment from './pages/crm/operations/OperationsFulfillment'
 import OperationsTeam from './pages/crm/operations/OperationsTeam'
+import OperationsWorkOrders from './pages/crm/operations/OperationsWorkOrders'
+import OperationsSchedule from './pages/crm/operations/OperationsSchedule'
 import CrmMarketing from './pages/crm/CrmMarketing'
 import CrmFinance from './pages/crm/CrmFinance'
 import CrmCommunications from './pages/crm/CrmCommunications'
@@ -541,6 +543,8 @@ export default function App() {
             <Route path="operations" element={<CrmOperations />}>
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<OperationsDashboard />} />
+              <Route path="work-orders"  element={<OperationsWorkOrders />} />
+              <Route path="schedule"     element={<OperationsSchedule />} />
               <Route path="inventory" element={<OperationsInventory />} />
               <Route path="fulfillment" element={<OperationsFulfillment />} />
               <Route path="team" element={<OperationsTeam />} />
