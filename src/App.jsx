@@ -352,6 +352,10 @@ export default function App() {
             <Route index element={<DashboardRouter />} />
             <Route path="super-admin" element={<SuperAdmin />} />
             <Route path="/admin/new-tenant" element={<NewTenant />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="automations" element={<Automations />} />
+            <Route path="estimate-templates" element={<EstimateTemplates />} />
+            <Route path="email-templates" element={<EmailTemplates />} />
             <Route path="tester-dashboard" element={<TesterDashboard />} />
             <Route path="outbound-mail" element={<OutboundLog />} />
             <Route path="call-center" element={<CallCenter />} />
