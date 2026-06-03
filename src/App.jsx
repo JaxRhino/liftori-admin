@@ -137,6 +137,7 @@ import ConsultingOnboardingWizard from './pages/ConsultingOnboardingWizard'
 import EOSL10Hub from './pages/EOSL10Hub'
 import TeamAvailability from './pages/TeamAvailability'
 import SuperAdmin from './pages/SuperAdmin'
+import NewTenant from './pages/NewTenant'
 import Campaigns from './pages/communications/Campaigns'
 import CommsTemplates from './pages/communications/Templates'
 import OutboundLog from './pages/communications/OutboundLog'
@@ -350,6 +351,7 @@ export default function App() {
           }>
             <Route index element={<DashboardRouter />} />
             <Route path="super-admin" element={<SuperAdmin />} />
+            <Route path="/admin/new-tenant" element={<NewTenant />} />
             <Route path="tester-dashboard" element={<TesterDashboard />} />
             <Route path="outbound-mail" element={<OutboundLog />} />
             <Route path="call-center" element={<CallCenter />} />
