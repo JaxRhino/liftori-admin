@@ -11,18 +11,18 @@ import { CrmProvider, useCrm } from '../../contexts/CrmContext'
 import BugReportModal from './BugReportModal'
 
 const HUB_DEFS = [
-  { key:'dashboard',      label:'Dashboard',      path:'dashboard' },
-  { key:'sales',          label:'Sales',          path:'sales' },
-  { key:'operations',     label:'Operations',     path:'operations' },
-  { key:'calendar',       label:'Calendar',       path:'calendar' },
-  { key:'tasks',          label:'Tasks',          path:'tasks' },
-  { key:'notes',          label:'Notes',          path:'notes' },
-  { key:'finance',        label:'Finance',        path:'finance' },
-  { key:'marketing',      label:'Marketing',      path:'marketing' },
-  { key:'communications', label:'Communications', path:'communications' },
-  { key:'chat',           label:'Chat',           path:'chat' },
-  { key:'eos',            label:'EOS',            path:'eos' },
-  { key:'notifications',  label:'Notifications',  path:'notifications' },
+  { key:'dashboard',      label:'Dashboard',      path:'dashboard',      icon: DashboardIcon },
+  { key:'sales',          label:'Sales',          path:'sales',          icon: SalesIcon },
+  { key:'operations',     label:'Operations',     path:'operations',     icon: OpsIcon },
+  { key:'calendar',       label:'Calendar',       path:'calendar',       icon: CalendarIcon },
+  { key:'tasks',          label:'Tasks',          path:'tasks',          icon: TasksIcon },
+  { key:'notes',          label:'Notes',          path:'notes',          icon: NotesIcon },
+  { key:'finance',        label:'Finance',        path:'finance',        icon: FinanceIcon },
+  { key:'marketing',      label:'Marketing',      path:'marketing',      icon: MarketingIcon },
+  { key:'communications', label:'Communications', path:'communications', icon: CommsIcon },
+  { key:'chat',           label:'Chat',           path:'chat',           icon: ChatIcon },
+  { key:'eos',            label:'EOS',            path:'eos',            icon: EOSIcon },
+  { key:'notifications',  label:'Notifications',  path:'notifications',  icon: NotificationsIcon },
 ]
 
 export default function CrmLayout() {
@@ -101,7 +101,7 @@ function LabosShell() {
                   }`
                 }
               >
-                <Icon className="w-4 h-4" />
+                {Icon ? <Icon className="w-4 h-4" /> : null}
                 <span>{hub.label}</span>
               </NavLink>
             )
@@ -269,4 +269,9 @@ function MarketingIcon({ className }) { return <svg className={className} fill="
 function FinanceIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> }
 function CommsIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg> }
 function ChatIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg> }
+function CalendarIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> }
+function TasksIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg> }
+function NotesIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> }
+function EOSIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg> }
+function NotificationsIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg> }
 function BellIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg> }
