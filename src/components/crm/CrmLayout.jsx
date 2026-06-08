@@ -59,7 +59,13 @@ function LabosShell() {
   }
 
   const clientName = orgSettings?.business_name || platform?.client_name || 'Liftori'
-  const hubs = HUB_DEFS.filter(h => enabledHubs.includes(h.key))
+  // The base CRM is always the floor for every industry. A tenant's
+  // labos_hubs can pick which base hubs show; industry-specific add-ons
+  // are layered on as we build them. If a tenant's labos_hubs match NONE
+  // of the base hubs (misconfigured / industry-only keys), fall back to
+  // the full base CRM so we never render a bare sidebar.
+  const matchedHubs = HUB_DEFS.filter(h => enabledHubs.includes(h.key))
+  const hubs = matchedHubs.length > 0 ? matchedHubs : HUB_DEFS
 
   return (
     <div className="min-h-screen bg-navy-950 flex">
