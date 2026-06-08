@@ -28,7 +28,7 @@ export function CrmProvider({ children }) {
         if (!active) return
         setClient(client)
         setPlatform(platform)
-        const { data: settings } = await client.from('org_settings').select('*').eq('id', 1).maybeSingle()
+        const { data: settings } = await client.from('org_settings').select('*').limit(1).maybeSingle()
         if (!active) return
         setOrgSettings(settings)
       } catch (e) {
