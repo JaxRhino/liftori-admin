@@ -1263,7 +1263,7 @@ export default function AdminLayout() {
           {/* Industry CRMs / Portals -- admin only. Drives the onboarding industry list. */}
           {!isImpersonating && <div className="pt-1">
             {sidebarOpen && (
-              <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Portals</p>
+              <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">CRMs</p>
             )}
             {PORTAL_INDUSTRIES.map((g) => (
               <div key={g.industry} className="mt-1">
