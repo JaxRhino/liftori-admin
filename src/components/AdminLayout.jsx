@@ -52,6 +52,19 @@ const freightNavItems = [
   },
 ]
 
+const PORTAL_INDUSTRIES = [
+  { industry: 'Basic', label: 'Basic CRM', to: '/admin/new-tenant', live: false },
+  { industry: 'HVAC', label: 'Apex HVAC (Demo)', to: '/crm/e3286192-580d-4478-8b88-7d44fd9f4de0/dashboard', live: true },
+  { industry: 'KEC', label: 'CSC Services', to: '/admin/csc', live: true },
+  { industry: 'Freight', label: 'Freight AI', to: '/admin/freight', live: true },
+  { industry: 'Retail / Thrift', label: 'VJ Thrift Finds', to: '/crm/bfd355a4-17f4-4c7a-8450-b91063b6292b/dashboard', live: true },
+  { industry: 'Lawncare / Landscaping', label: 'Lawncare CRM', to: '/admin/new-tenant', live: false },
+  { industry: 'Tree Services', label: 'Tree Services CRM', to: '/admin/new-tenant', live: false },
+  { industry: 'Roofing', label: 'Roofing CRM', to: '/admin/new-tenant', live: false },
+  { industry: 'Junk Removal', label: 'Junk Removal CRM', to: '/admin/new-tenant', live: false },
+  { industry: 'Home Improvement', label: 'Home Improvement CRM', to: '/admin/new-tenant', live: false },
+]
+
 const toolItems = [
   {
     label: 'Tasks', path: '/admin/tasks', icon: (
@@ -1247,109 +1260,37 @@ export default function AdminLayout() {
             </NavLink>
           </div>}
 
-          {/* Freight AI â€” admin only */}
-          {showFreight && !isImpersonating && <div className="pt-1">
-            {sidebarOpen && (
-              <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Client Platforms</p>
-            )}
-            <button
-              onClick={() => { if (sidebarOpen) setFreightOpen(o => !o); else navigate('/admin/freight') }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isFreightRoute ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
-              }`}>
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
-              </svg>
-              {sidebarOpen && (
-                <>
-                  <span className="flex-1 text-left">Freight AI</span>
-                  <svg className={`w-4 h-4 transition-transform ${freightOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </>
-              )}
-            </button>
-            {sidebarOpen && freightOpen && (
-              <div className="ml-3 pl-3 border-l border-white/10 mt-1 space-y-0.5">
-                {freightNavItems.map(item => (
-                  <NavLink key={item.path} to={item.path} end={item.path === '/admin/freight'}
-                    className={({ isActive }) =>
-                      `flex items-center gap-2.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors ${isActive
-                        ? 'bg-brand-blue/10 text-brand-blue'
-                        : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
-                      }`
-                    }>
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </NavLink>
-                ))}
-              </div>
-            )}
-            {!sidebarOpen && (
-              <NavLink to="/admin/freight"
-                className={({ isActive }) =>
-                  `flex items-center justify-center px-3 py-2 rounded-lg text-xs transition-colors ${isActive
-                    ? 'bg-brand-blue/10 text-brand-blue'
-                    : 'text-gray-500 hover:text-white hover:bg-navy-700/50'
-                  }`
-                }
-                title="Freight AI">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
-                </svg>
-              </NavLink>
-            )}
-          </div>}
-
-          {/* Client Portals â€” admin only */}
+          {/* Industry CRMs / Portals -- admin only. Drives the onboarding industry list. */}
           {!isImpersonating && <div className="pt-1">
             {sidebarOpen && (
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Portals</p>
             )}
-            <NavLink
-              to="/crm/e3286192-580d-4478-8b88-7d44fd9f4de0/dashboard"
-              className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? 'text-white bg-navy-700/70' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}
-              title="Demo CRM">
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
-              </svg>
-              {sidebarOpen && <span className="flex-1">Demo CRM</span>}
-            </NavLink>
-            <NavLink
-              to="/admin/csc"
-              className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? 'text-white bg-navy-700/70' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}
-              title="CSC Services (KEC)">
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
-              </svg>
-              {sidebarOpen && <span className="flex-1">CSC Services</span>}
-            </NavLink>
-            <NavLink
-              to="/portal"
-              className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? 'text-white bg-navy-700/70' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}
-              title="VJ Portal">
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              {sidebarOpen && <span className="flex-1">Portal</span>}
-            </NavLink>
-            <a
-              href="https://www.vjthriftfinds.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-gray-400 hover:text-white hover:bg-navy-700/50"
-              title="Customer Platforms">
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-              </svg>
-              {sidebarOpen && <span className="flex-1">Customer Platforms</span>}
-              {sidebarOpen && (
-                <svg className="w-3 h-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
-                </svg>
-              )}
-            </a>
+            {PORTAL_INDUSTRIES.map((g) => (
+              <div key={g.industry} className="mt-1">
+                {sidebarOpen && (
+                  <p className="px-3 mt-2 mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{g.industry}</p>
+                )}
+                <NavLink
+                  to={g.to}
+                  className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive ? 'text-white bg-navy-700/70'
+                    : g.live ? 'text-gray-300 hover:text-white hover:bg-navy-700/50'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-navy-700/40'
+                  }`}
+                  title={g.live ? g.label : g.label + ' (not provisioned yet)'}
+                >
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+                  </svg>
+                  {sidebarOpen && <span className="flex-1 truncate">{g.label}</span>}
+                  {sidebarOpen && !g.live && (
+                    <span className="text-[9px] uppercase tracking-wider text-amber-400/80 bg-amber-400/10 border border-amber-400/20 rounded px-1 py-0.5">Soon</span>
+                  )}
+                </NavLink>
+              </div>
+            ))}
           </div>}
+
         </nav>
 
       </aside>
