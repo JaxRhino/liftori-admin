@@ -60,7 +60,7 @@ const PORTAL_INDUSTRIES = [
   { industry: 'Retail / Thrift', label: 'VJ Thrift Finds', to: '/crm/bfd355a4-17f4-4c7a-8450-b91063b6292b/dashboard', live: true },
   { industry: 'Lawncare / Landscaping', label: 'Lawncare CRM', to: '/admin/new-tenant', live: false },
   { industry: 'Tree Services', label: 'Tree Services CRM', to: '/admin/new-tenant', live: false },
-  { industry: 'Roofing', label: 'Roofing CRM', to: '/admin/new-tenant', live: false },
+  { industry: 'Roofing', label: 'RoofX', to: '/crm/6be83acc-d777-439c-becf-a41fb77614aa/dashboard', live: true },
   { industry: 'Junk Removal', label: 'Junk Removal CRM', to: '/admin/new-tenant', live: false },
   { industry: 'Home Improvement', label: 'Home Improvement CRM', to: '/admin/new-tenant', live: false },
 ]
