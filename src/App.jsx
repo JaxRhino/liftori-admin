@@ -152,6 +152,7 @@ import OutboundLog from './pages/communications/OutboundLog'
 import Testing from './pages/Testing'
 import TesterOnboarding from './pages/TesterOnboarding'
 import TesterDashboard from './pages/TesterDashboard'
+import DevLabDashboard from './pages/DevLabDashboard'
 import AffiliateOnboarding from './pages/AffiliateOnboarding'
 import AffiliateLayout from './components/AffiliateLayout'
 import AffiliateDashboard from './pages/affiliate/AffiliateDashboard'
@@ -367,6 +368,7 @@ export default function App() {
             <Route path="email-templates" element={<EmailTemplates />} />
             <Route path="liftori-settings" element={<LiftoriSettings />} />
             <Route path="tester-dashboard" element={<TesterDashboard />} />
+            <Route path="dev-lab" element={<DevLabDashboard />} />
             <Route path="outbound-mail" element={<OutboundLog />} />
             <Route path="call-center" element={<CallCenter />} />
             <Route path="cc-team" element={<CallCenterTeam />} />

@@ -395,18 +395,18 @@ const liftoriTeamItems = [
   },
 ]
 
-const opsItems = [
+const devLabItems = [
   {
-    label: 'Ops Dashboard', path: '/admin/ops-dashboard', icon: (
+    label: 'Dev Lab Dashboard', path: '/admin/dev-lab', icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5M12 16.5V21m-3.75 0h7.5" />
       </svg>
     )
   },
   {
-    label: 'Work Queue', path: '/admin/work-queue', icon: (
+    label: 'Dev Team', path: '/admin/dev-team', devTeamOnly: true, icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0112 12.75zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 01-1.152-6.135 1.125 1.125 0 00-1.14-1.068l-.738.004c-.532.003-1.072-.095-1.551-.348-.354-.186-.752-.28-1.126-.28h-1c-.374 0-.772.094-1.126.28-.479.253-1.02.351-1.551.348l-.738-.004a1.125 1.125 0 00-1.14 1.068 23.91 23.91 0 01-1.152 6.135C9.353 13.258 12.117 12.75 12 12.75z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
       </svg>
     )
   },
@@ -418,16 +418,26 @@ const opsItems = [
     )
   },
   {
+    label: 'Work Queue', path: '/admin/work-queue', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0112 12.75zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 01-1.152-6.135 1.125 1.125 0 00-1.14-1.068l-.738.004c-.532.003-1.072-.095-1.551-.348-.354-.186-.752-.28-1.126-.28h-1c-.374 0-.772.094-1.126.28-.479.253-1.02.351-1.551.348l-.738-.004a1.125 1.125 0 00-1.14 1.068 23.91 23.91 0 01-1.152 6.135C9.353 13.258 12.117 12.75 12 12.75z" />
+      </svg>
+    )
+  },
+  {
     label: 'Support Tickets', path: '/admin/support-tickets', icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
       </svg>
     )
   },
+]
+
+const opsItems = [
   {
-    label: 'Dev Team', path: '/admin/dev-team', devTeamOnly: true, icon: (
+    label: 'Ops Dashboard', path: '/admin/ops-dashboard', icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
       </svg>
     )
   },
@@ -710,6 +720,7 @@ export default function AdminLayout() {
 
   // Whether to show Operations, Freight, Builds, Tools sections
   const showOps = MANAGEMENT_ROLES.includes(userRole)
+  const showDevLab = ['super_admin','admin','dev','tester'].includes(userRole)
   const showFreight = FULL_ACCESS_ROLES.includes(userRole)
   const showBuilds = FULL_ACCESS_ROLES.includes(userRole)
   const showTools = MANAGEMENT_ROLES.includes(userRole)
@@ -736,6 +747,7 @@ export default function AdminLayout() {
   const [opsOpen, setOpsOpen] = useState(isOpsRoute)
   const [liftoriPlatformOpen, setLiftoriPlatformOpen] = useState(false)
   const [liftoriTeamOpen, setLiftoriTeamOpen] = useState(false)
+  const [devLabOpen, setDevLabOpen] = useState(false)
   const isMarketingRoute = location.pathname.startsWith('/admin/marketing')
   const [marketingOpen, setMarketingOpen] = useState(isMarketingRoute)
   const isToolsRoute = ['/admin/tasks', '/admin/notes', '/admin/calendar', '/admin/rally', '/admin/eos', '/admin/company-docs', '/admin/settings'].some(p => location.pathname.startsWith(p))
@@ -1135,6 +1147,22 @@ export default function AdminLayout() {
                           ))}
                         </div>
                       )}
+                      {showDevLab && (<>
+                      <button onClick={() => setDevLabOpen(o => !o)} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>
+                        <span className="flex-1 text-left">Dev Lab</span>
+                        <svg className={`w-3.5 h-3.5 transition-transform ${devLabOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                      </button>
+                      {devLabOpen && (
+                        <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5">
+                          {devLabItems.filter(i => !i.devTeamOnly || isDevTeamMember).map(sub => (
+                            <NavLink key={sub.path} to={sub.path} className={({ isActive }) => `flex items-center gap-2.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors ${isActive ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}>
+                              {sub.icon}<span>{sub.label}</span>
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                      </>)}
                     </div>
                   )}
                   {!sidebarOpen && (
@@ -1164,6 +1192,18 @@ export default function AdminLayout() {
                         </NavLink>
                       ))}
                       {liftoriTeamItems.map(sub => (
+                        <NavLink key={sub.path} to={sub.path}
+                          className={({ isActive }) =>
+                            `flex items-center justify-center px-3 py-2 rounded-lg text-xs transition-colors ${isActive
+                              ? 'bg-brand-blue/10 text-brand-blue'
+                              : 'text-gray-500 hover:text-white hover:bg-navy-700/50'
+                            }`
+                          }
+                          title={sub.label}>
+                          {sub.icon}
+                        </NavLink>
+                      ))}
+                      {showDevLab && devLabItems.filter(i => !i.devTeamOnly || isDevTeamMember).map(sub => (
                         <NavLink key={sub.path} to={sub.path}
                           className={({ isActive }) =>
                             `flex items-center justify-center px-3 py-2 rounded-lg text-xs transition-colors ${isActive
