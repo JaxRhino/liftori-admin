@@ -479,6 +479,7 @@ export default function App() {
             <Route path="marketing/sequences" element={<EmailSequences />} />
             <Route path="marketing/performance" element={<MarketingPerformance />} />
             <Route path="wizard" element={<WizardBuilder />} />
+              <Route path="products/*" element={<ComingSoon />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="notes" element={<Notes />} />
             <Route path="calendar" element={<Calendar />} />
