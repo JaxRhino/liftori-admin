@@ -39,6 +39,7 @@ import ChoosePlan from './pages/portal/ChoosePlan'
 import PortalProject from './pages/portal/PortalProject'
 import Settings from './pages/Settings'
 import ComingSoon from './pages/ComingSoon'
+import Notes from './pages/Notes'
 import CallCenter from './pages/CallCenter'
 import CallCenterTeam from './pages/CallCenterTeam'
 import CallCenterVoicemails from './pages/CallCenterVoicemails'
@@ -475,7 +476,7 @@ export default function App() {
             <Route path="marketing/performance" element={<MarketingPerformance />} />
             <Route path="wizard" element={<WizardBuilder />} />
             <Route path="tasks" element={<ComingSoon />} />
-            <Route path="notes" element={<ComingSoon />} />
+            <Route path="notes" element={<Notes />} />
             <Route path="calendar" element={<ComingSoon />} />
             {/* Finance Hub */}
             <Route path="finance" element={<FinanceDashboard />} />
