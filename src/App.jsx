@@ -415,6 +415,7 @@ export default function App() {
             <Route path="eos/todos" element={<EOSTodos />} />
             <Route path="eos/headlines" element={<EOSHeadlines />} />
             <Route path="eos/meetings" element={<EOSL10Meetings />} />
+            <Route path="eos/meeting-room" element={<Navigate to="/admin/eos/meetings" replace />} />
             <Route path="eos/meetings/:meetingId" element={<EOSL10MeetingRoom />} />
             <Route path="eos/accountability" element={<EOSAccountabilityChart />} />
             <Route path="eos/vto" element={<EOSVTO />} />
@@ -451,6 +452,7 @@ export default function App() {
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
             <Route path="mobile-preview" element={<MobilePreview />} />
             <Route path="pipeline" element={<SalesPipeline />} />
+            <Route path="sales/pipeline" element={<Navigate to="/admin/pipeline" replace />} />
             <Route path="investors" element={<Investors />} />
             {/* Marketing Hub */}
             <Route path="marketing" element={<MarketingDashboard />} />
@@ -484,6 +486,7 @@ export default function App() {
             <Route path="finance/reports" element={<FinancialReports />} />
             <Route path="finance/commissions" element={<CommissionBatches />} />
             <Route path="finance/accounts" element={<ChartOfAccounts />} />
+            <Route path="finance/chart-of-accounts" element={<Navigate to="/admin/finance/accounts" replace />} />
             {/* Communications Hub */}
             <Route path="comms" element={<InternalMail />} />
             <Route path="comms/hub" element={<CommunicationsHub />} />
