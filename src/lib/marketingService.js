@@ -10,6 +10,14 @@
  */
 import { supabase } from './supabase'
 
+// __remap: translate legacy field names to current DB columns (Work Queue schema-cache fix 2026-06-08)
+function __remap(obj, renames) {
+  if (!obj || typeof obj !== 'object') return obj
+  const o = { ...obj }
+  for (const k in renames) { const to = renames[k]; if (k in o) { if (o[to] == null) o[to] = o[k]; delete o[k] } }
+  return o
+}
+
 // ─── Catalogs ───────────────────────────────────────────────────────
 export const CAMPAIGN_CHANNELS = [
   { key: 'google_ads',   label: 'Google Ads',   color: 'sky' },
@@ -262,7 +270,7 @@ export async function listAdSpend({ campaign_id, platform, from, to } = {}) {
 }
 
 export async function createAdSpend(row) {
-  const { data, error } = await supabase.from('marketing_ad_spend').insert(row).select().single()
+  const { data, error } = await supabase.from('marketing_ad_spend').insert(__remap(row, { spend_date: 'date' })).select().single()
   if (error) throw error
   return data
 }
@@ -341,7 +349,7 @@ export async function listMentions({ sentiment, platform, needs_response, limit 
 }
 
 export async function createMention(row) {
-  const { data, error } = await supabase.from('marketing_mentions').insert(row).select().single()
+  const { data, error } = await supabase.from('marketing_mentions').insert(__remap(row, { followers: 'reach_estimate' })).select().single()
   if (error) throw error
   return data
 }
@@ -410,7 +418,7 @@ export async function listAbTests({ status } = {}) {
 }
 
 export async function createAbTest(test, variants = []) {
-  const { data: testRow, error: e1 } = await supabase.from('marketing_ab_tests').insert(test).select().single()
+  const { data: testRow, error: e1 } = await supabase.from('marketing_ab_tests').insert(__remap(test, { started_at: 'start_date', ended_at: 'end_date' })).select().single()
   if (e1) throw e1
   if (variants.length) {
     const rows = variants.map(v => ({ ...v, test_id: testRow.id }))
@@ -421,7 +429,7 @@ export async function createAbTest(test, variants = []) {
 }
 
 export async function updateAbTest(id, patch) {
-  const { data, error } = await supabase.from('marketing_ab_tests').update(patch).eq('id', id).select().single()
+  const { data, error } = await supabase.from('marketing_ab_tests').update(__remap(patch, { started_at: 'start_date', ended_at: 'end_date' })).eq('id', id).select().single()
   if (error) throw error
   return data
 }
@@ -473,7 +481,7 @@ export async function listSegments() {
 }
 
 export async function createSegment(row) {
-  const { data, error } = await supabase.from('marketing_segments').insert(row).select().single()
+  const { data, error } = await supabase.from('marketing_segments').insert(__remap(row, { filter_json: 'filters' })).select().single()
   if (error) throw error
   return data
 }
@@ -771,7 +779,7 @@ export async function resolveCampaignAudience(campaign) {
     if (segErr) throw segErr
     // Source table + dynamic filter
     let query = supabase.from(seg.source_table).select('email, full_name, first_name').not('email', 'is', null)
-    for (const f of (seg.filter_json?.filters || [])) {
+    for (const f of (Array.isArray(seg.filters) ? seg.filters : (seg.filter_json?.filters || []))) {
       switch (f.op) {
         case 'eq':          query = query.eq(f.field, f.value); break
         case 'neq':         query = query.neq(f.field, f.value); break
