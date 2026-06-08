@@ -6,9 +6,13 @@ import { useAuth } from '../lib/AuthContext'
 const STATUS_PIPELINE = [
   'New Lead',
   'Waitlist',
+  'Development',
+  'Demo Ready',
+  'Demo Scheduled',
+  'Estimating',
   'Estimate Sent',
   'Pending Payment',
-  'Onboarding',
+  'Onboarding Scheduled',
   'Buildout',
   'Active',
   'Payment Hold',
@@ -18,6 +22,11 @@ const STATUS_PIPELINE = [
 const STATUS_ALL = [...STATUS_PIPELINE]
 
 const STATUS_COLORS = {
+  'Development': { bg: 'bg-blue-500/20', text: 'text-blue-400', dot: 'bg-blue-400', ring: 'ring-blue-500/40' },
+  'Demo Ready': { bg: 'bg-teal-500/20', text: 'text-teal-400', dot: 'bg-teal-400', ring: 'ring-teal-500/40' },
+  'Demo Scheduled': { bg: 'bg-lime-500/20', text: 'text-lime-400', dot: 'bg-lime-400', ring: 'ring-lime-500/40' },
+  'Estimating': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', dot: 'bg-yellow-400', ring: 'ring-yellow-500/40' },
+  'Onboarding Scheduled': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', dot: 'bg-indigo-400', ring: 'ring-indigo-500/40' },
   'Pending Payment': { bg: 'bg-orange-500/20', text: 'text-orange-400', dot: 'bg-orange-400', ring: 'ring-orange-500/40' },
   'Onboarding': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', dot: 'bg-indigo-400', ring: 'ring-indigo-500/40' },
   'Buildout': { bg: 'bg-brand-blue/20', text: 'text-brand-blue', dot: 'bg-brand-blue', ring: 'ring-brand-blue/40' },
@@ -40,10 +49,14 @@ const STATUS_COLORS = {
 
 const NEXT_STATUS = {
   'New Lead': 'Waitlist',
-  'Waitlist': 'Estimate Sent',
+  'Waitlist': 'Development',
+  'Development': 'Demo Ready',
+  'Demo Ready': 'Demo Scheduled',
+  'Demo Scheduled': 'Estimating',
+  'Estimating': 'Estimate Sent',
   'Estimate Sent': 'Pending Payment',
-  'Pending Payment': 'Onboarding',
-  'Onboarding': 'Buildout',
+  'Pending Payment': 'Onboarding Scheduled',
+  'Onboarding Scheduled': 'Buildout',
   'Buildout': 'Active',
 }
 
