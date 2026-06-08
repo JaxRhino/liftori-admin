@@ -6,20 +6,23 @@ import { useAuth } from '../lib/AuthContext'
 const STATUS_PIPELINE = [
   'New Lead',
   'Waitlist',
-  'Acct Created',
-  'Wizard Started',
-  'Wizard Complete',
-  'Brief Review',
   'Estimate Sent',
-  'Under Contract',
-  'In Build',
+  'Pending Payment',
+  'Onboarding',
+  'Buildout',
+  'Active',
   'Payment Hold',
-  'Launched',
+  'Lost',
 ]
 
-const STATUS_ALL = [...STATUS_PIPELINE, 'On Hold', 'Cancelled']
+const STATUS_ALL = [...STATUS_PIPELINE]
 
 const STATUS_COLORS = {
+  'Pending Payment': { bg: 'bg-orange-500/20', text: 'text-orange-400', dot: 'bg-orange-400', ring: 'ring-orange-500/40' },
+  'Onboarding': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', dot: 'bg-indigo-400', ring: 'ring-indigo-500/40' },
+  'Buildout': { bg: 'bg-brand-blue/20', text: 'text-brand-blue', dot: 'bg-brand-blue', ring: 'ring-brand-blue/40' },
+  'Active': { bg: 'bg-emerald-500/20', text: 'text-emerald-400', dot: 'bg-emerald-400', ring: 'ring-emerald-500/40' },
+  'Lost': { bg: 'bg-red-500/20', text: 'text-red-400', dot: 'bg-red-400', ring: 'ring-red-500/40' },
   'New Lead': { bg: 'bg-sky-500/20', text: 'text-sky-400', dot: 'bg-sky-400', ring: 'ring-sky-500/40' },
   'Waitlist': { bg: 'bg-cyan-500/20', text: 'text-cyan-400', dot: 'bg-cyan-400', ring: 'ring-cyan-500/40' },
   'Acct Created': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', dot: 'bg-indigo-400', ring: 'ring-indigo-500/40' },
@@ -37,27 +40,17 @@ const STATUS_COLORS = {
 
 const NEXT_STATUS = {
   'New Lead': 'Waitlist',
-  'Waitlist': 'Acct Created',
-  'Acct Created': 'Wizard Started',
-  'Wizard Started': 'Wizard Complete',
-  'Wizard Complete': 'Brief Review',
-  'Brief Review': 'Estimate Sent',
-  'Estimate Sent': 'Under Contract',
-  'Under Contract': 'In Build',
-  'In Build': 'Payment Hold',
-  'Payment Hold': 'Launched',
+  'Waitlist': 'Estimate Sent',
+  'Estimate Sent': 'Pending Payment',
+  'Pending Payment': 'Onboarding',
+  'Onboarding': 'Buildout',
+  'Buildout': 'Active',
 }
 
 const PROJECT_TYPES = [
-  'Web App',
-  'Mobile App',
-  'Business Platform',
-  'E-Commerce',
-  'Dashboard',
-  'Marketplace',
-  'Landing Page',
-  'Book Writing App',
-  'Other',
+  'CRM',
+  'Custom Builds',
+  'Websites',
 ]
 
 // ── New Project Modal ─────────────────────────────────────────────────────────────
@@ -538,7 +531,7 @@ export default function Projects() {
         status: newStatus,
         updated_at: new Date().toISOString(),
       }
-      if (newStatus === 'Launched' && !prev.launched_at) {
+      if (newStatus === 'Active' && !prev.launched_at) {
         updates.launched_at = new Date().toISOString()
       }
       if (newStatus === 'Design Approval' && !prev.approved_at) {
@@ -569,8 +562,8 @@ export default function Projects() {
 
   // Stats
   const totalMRR = projects.reduce((s, p) => s + (p.mrr || 0), 0)
-  const inBuildCount = projects.filter(p => p.status === 'In Build').length
-  const launchedCount = projects.filter(p => p.status === 'Launched').length
+  const inBuildCount = projects.filter(p => p.status === 'Buildout').length
+  const launchedCount = projects.filter(p => p.status === 'Active').length
   const pinnedCount = projects.filter(p => p.portfolio_pinned).length
 
   // Display name fallback: client_display_name > customer profile > 'Internal'
@@ -651,6 +644,16 @@ export default function Projects() {
         })
       })
       return list
+    }
+    if (groupBy === 'type') {
+      return ['CRM', 'Custom Builds', 'Websites'].map(t => ({
+        key: t, label: t,
+        colors: t === 'CRM' ? { dot: 'bg-brand-blue', text: 'text-brand-blue' } :
+                t === 'Custom Builds' ? { dot: 'bg-violet-400', text: 'text-violet-400' } :
+                                        { dot: 'bg-emerald-400', text: 'text-emerald-400' },
+        projects: searchFiltered.filter(p => p.project_type === t),
+        droppable: false,
+      }))
     }
     if (groupBy === 'owner') {
       const owners = new Map()
@@ -766,6 +769,7 @@ export default function Projects() {
               <span className="px-2 py-1.5 text-[11px] text-gray-500 font-medium uppercase tracking-wider">Group</span>
               {[
                 { key: 'status', label: 'Status' },
+                { key: 'type', label: 'Type' },
                 { key: 'owner', label: 'Owner' },
                 { key: 'tier', label: 'Tier' },
                 { key: 'client', label: 'Client' },
@@ -829,11 +833,11 @@ export default function Projects() {
           <p className="text-3xl font-bold text-amber-400 mt-2">{pinnedCount}</p>
         </button>
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">In Build</p>
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Buildout</p>
           <p className="text-3xl font-bold text-brand-blue mt-2">{inBuildCount}</p>
         </div>
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Launched</p>
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Active</p>
           <p className="text-3xl font-bold text-emerald-400 mt-2">{launchedCount}</p>
         </div>
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
