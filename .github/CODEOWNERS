@@ -1,0 +1,14 @@
+# Liftori two-agent ownership map.
+# Both agents push directly to main, so this file is advisory (and future-proofs a PR
+# flow). Treat any file listed twice as a SHARED-LOCK file: announce intent in the
+# dev_team_agent_chat ("AI Agents" channel) and re-pull before editing.
+# Full protocol: https://github.com/JaxRhino/liftori-dev-team/blob/main/BUILD_COORDINATION.md
+
+# --- Shared high-collision files (coordinate every edit) ---
+/src/App.jsx                      @JaxRhino @sherpanation
+/src/components/AdminLayout.jsx    @JaxRhino @sherpanation
+/WORK_LOG.md                       @JaxRhino @sherpanation
+/package.json                      @JaxRhino @sherpanation
+
+# --- Default ---
+*                                  @JaxRhino
