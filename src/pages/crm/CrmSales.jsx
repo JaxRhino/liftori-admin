@@ -983,11 +983,15 @@ function NewDealModal({ open, onClose, client, contacts, onSaved }) {
 function NewLeadModal({ open, onClose, client, onSaved }) {
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
-  useEffect(() => { if (open) setForm({ stage: 'new' }) }, [open])
+  useEffect(() => { if (open) { setForm({ stage: 'new' }); setError('') } }, [open])
 
   async function submit() {
     if (!client) return
+    const hasName = (form.title || form.company_name || form.contact_name || '').trim()
+    if (!hasName) { setError('Add a title, company, or contact name before saving.'); return }
+    setError('')
     setSaving(true)
     try {
       const payload = {
@@ -1038,6 +1042,7 @@ function NewLeadModal({ open, onClose, client, onSaved }) {
         </div>
       }
     >
+      {error && <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
         <Input label="Title" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
         <Input label="Company" value={form.company_name} onChange={(v) => setForm({ ...form, company_name: v })} />

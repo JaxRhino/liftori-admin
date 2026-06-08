@@ -524,10 +524,7 @@ function OverviewTab({ invoices, bills, transactions, payments, expenses, loadin
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Section title="Cash Flow">
         <div className="p-6 text-center">
-          <div className="text-sm text-gray-400 mb-2">Charts ship in Wave F. Use the stat cards above for current snapshot.</div>
-          <div className="inline-flex items-center gap-2 text-xs text-brand-cyan bg-brand-cyan/10 border border-brand-cyan/30 rounded-lg px-3 py-2">
-            Placeholder
-          </div>
+          <div className="text-sm text-gray-400">Your current cash position is summarized in the stat cards above. Detailed cash-flow charts are coming soon.</div>
         </div>
       </Section>
 
@@ -1022,7 +1019,7 @@ function RecurringTab({ recurring, loading, onOpenNew, onRow, client, onChanged 
                   </td>
                   <td className="px-4 py-2 text-center">
                     <button
-                      onClick={() => alert('Recurring engine ships in Wave H - manual generate placeholder')}
+                      onClick={() => alert('Automatic recurring generation is coming soon. For now, you can add entries manually.')}
                       className="text-xs text-brand-cyan hover:underline"
                     >
                       Generate Now
@@ -1747,7 +1744,7 @@ function InvoiceDrawer({ invoice, onClose, client, payments, onChanged }) {
       )}
 
       {tab === 'activity' && (
-        <div className="text-xs text-gray-500">Audit log ships in Wave F. Past state changes will show here.</div>
+        <div className="text-xs text-gray-500">No activity recorded yet. Changes to this record will appear here.</div>
       )}
 
       <RecordPaymentModal
@@ -2076,7 +2073,7 @@ function AccountDrawer({ account, onClose, client, onChanged }) {
       </div>
       <Select label="Active" value={isActive ? 'true' : 'false'} onChange={(v) => setIsActive(v === 'true')} options={[{ value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' }]} />
       <Input label="Description" value={description} onChange={setDescription} rows={3} />
-      <div className="text-xs text-gray-500 mt-4">Transactions for this account ship in Wave F.</div>
+      <div className="text-xs text-gray-500 mt-4">Transactions for this account will appear here as they post.</div>
     </Drawer>
   )
 }
@@ -2140,7 +2137,7 @@ function RecurringDrawer({ rec, onClose, client, onChanged }) {
         <Input label="Next date" type="date" value={nextDate} onChange={setNextDate} />
         <Input label="End date" type="date" value={endDate} onChange={setEndDate} />
       </div>
-      <div className="text-xs text-gray-500 mt-4">Recurring engine ships in Wave H.</div>
+      <div className="text-xs text-gray-500 mt-4">Automatic recurring generation is coming soon. You can add entries manually for now.</div>
     </Drawer>
   )
 }
