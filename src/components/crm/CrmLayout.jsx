@@ -36,6 +36,7 @@ export default function CrmLayout() {
 function LabosShell() {
   const { platform, orgSettings, enabledHubs, loading, error, platformId } = useCrm()
   const navigate = useNavigate()
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   if (loading) {
     return (
@@ -69,8 +70,10 @@ function LabosShell() {
 
   return (
     <div className="min-h-screen bg-navy-950 flex">
+      {/* Mobile drawer backdrop */}
+      {drawerOpen && <div onClick={() => setDrawerOpen(false)} className="fixed inset-0 bg-black/50 z-30 lg:hidden" />}
       {/* SIDEBAR */}
-      <aside className="w-64 bg-navy-900 border-r border-navy-700/50 flex flex-col fixed h-screen">
+      <aside className={`w-64 bg-navy-900 border-r border-navy-700/50 flex flex-col fixed h-screen z-40 transform transition-transform duration-200 lg:translate-x-0 ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 border-b border-navy-700/50">
           <button
             onClick={() => navigate('/admin/platforms')}
@@ -99,6 +102,7 @@ function LabosShell() {
               <NavLink
                 key={hub.key}
                 to={`/crm/${platformId}/${hub.path}`}
+                onClick={() => setDrawerOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                     isActive
@@ -134,6 +138,7 @@ function LabosShell() {
           <div className="h-px bg-navy-700/50 my-3 mx-1" />
           <NavLink
             to={`/crm/${platformId}/settings`}
+            onClick={() => setDrawerOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                 isActive
@@ -159,8 +164,8 @@ function LabosShell() {
       </aside>
 
       {/* MAIN */}
-      <div className="flex-1 ml-64 flex flex-col min-h-screen">
-        <CrmHeader />
+      <div className="flex-1 ml-0 lg:ml-64 flex flex-col min-h-screen">
+        <CrmHeader onMenu={() => setDrawerOpen(true)} />
         <main className="flex-1 bg-navy-900">
           <Outlet />
         </main>
@@ -169,7 +174,7 @@ function LabosShell() {
   )
 }
 
-function CrmHeader() {
+function CrmHeader({ onMenu }) {
   const { client, platform, orgSettings } = useCrm()
   const siteUrl = platform?.site_url
   const [showNotifications, setShowNotifications] = useState(false)
@@ -199,6 +204,9 @@ function CrmHeader() {
   return (
     <header className="h-14 bg-navy-900 border-b border-navy-700/50 flex items-center justify-between px-6 sticky top-0 z-30">
       <div className="flex items-center gap-2">
+        <button onClick={onMenu} className="lg:hidden -ml-2 mr-1 w-9 h-9 rounded-lg hover:bg-navy-800 flex items-center justify-center text-gray-300" aria-label="Open menu">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+        </button>
         <span className="text-sm text-gray-500">Liftori</span>
         <span className="text-gray-600">/</span>
         <span className="text-sm text-white font-medium">{orgSettings?.business_name || platform?.client_name}</span>
