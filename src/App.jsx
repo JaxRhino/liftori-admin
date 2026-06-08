@@ -142,6 +142,7 @@ import Reports from './pages/Reports'
 import Automations from './pages/Automations'
 import EstimateTemplates from './pages/EstimateTemplates'
 import EmailTemplates from './pages/EmailTemplates'
+import LiftoriSettings from './pages/LiftoriSettings'
 import Campaigns from './pages/communications/Campaigns'
 import CommsTemplates from './pages/communications/Templates'
 import OutboundLog from './pages/communications/OutboundLog'
@@ -204,6 +205,7 @@ import CrmCalendar from './pages/crm/CrmCalendar';
 import CrmNotes from './pages/crm/CrmNotes';
 import CrmTasks from './pages/crm/CrmTasks';
 import CrmNotifications from './pages/crm/CrmNotifications';
+import CrmSettings from './pages/crm/CrmSettings';
 import CrmEOS from './pages/crm/CrmEOS';
 // Dev Team — Wave A foundation
 import DevTeamLayout from './pages/dev-team/DevTeamLayout'
@@ -360,6 +362,7 @@ export default function App() {
             <Route path="automations" element={<Automations />} />
             <Route path="estimate-templates" element={<EstimateTemplates />} />
             <Route path="email-templates" element={<EmailTemplates />} />
+            <Route path="liftori-settings" element={<LiftoriSettings />} />
             <Route path="tester-dashboard" element={<TesterDashboard />} />
             <Route path="outbound-mail" element={<OutboundLog />} />
             <Route path="call-center" element={<CallCenter />} />
@@ -567,6 +570,7 @@ export default function App() {
             <Route path="notes" element={<CrmNotes />} />
             <Route path="tasks" element={<CrmTasks />} />
             <Route path="notifications" element={<CrmNotifications />} />
+            <Route path="settings" element={<CrmSettings />} />
             <Route path="eos" element={<CrmEOS />}>
               <Route index element={<Navigate to="rocks" replace />} />
               <Route path="rocks"  element={<EOSRocks />} />
