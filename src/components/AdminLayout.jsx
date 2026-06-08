@@ -747,6 +747,9 @@ export default function AdminLayout() {
   const activeOpsItems = (isImpersonating ? customerOpsItems : opsItems).filter(i => !i.devTeamOnly || isDevTeamMember)
   const [opsOpen, setOpsOpen] = useState(isOpsRoute)
   const [liftoriPlatformOpen, setLiftoriPlatformOpen] = useState(false)
+  const [liftoriProductsOpen, setLiftoriProductsOpen] = useState(false)
+  const [crmsOpen, setCrmsOpen] = useState(false)
+  const [mobileAppsOpen, setMobileAppsOpen] = useState(false)
   const [liftoriTeamOpen, setLiftoriTeamOpen] = useState(false)
   const [devLabOpen, setDevLabOpen] = useState(false)
   const isMarketingRoute = location.pathname.startsWith('/admin/marketing')
@@ -1119,7 +1122,42 @@ export default function AdminLayout() {
                         </NavLink>
                       ))}
                       {/* Liftori Platform -- nested dropdown */}
-                      <button onClick={() => setLiftoriPlatformOpen(o => !o)} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors">
+                      <div className="px-2">
+            <button onClick={() => setLiftoriProductsOpen(o => !o)} className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-navy-800 hover:text-white transition-colors">
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6z" /></svg>
+                Liftori Products
+              </span>
+              <svg className={`w-3.5 h-3.5 transition-transform ${liftoriProductsOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+            </button>
+            {liftoriProductsOpen && (
+              <div className="ml-3 mt-1 space-y-1 border-l border-navy-700 pl-2">
+                <button onClick={() => setCrmsOpen(o => !o)} className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider text-gray-400 hover:text-white transition-colors">
+                  <span>CRMS</span>
+                  <svg className={`w-3 h-3 transition-transform ${crmsOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                </button>
+                {crmsOpen && (
+                  <div className="ml-1 space-y-0.5">
+                    <NavLink to="/admin/csc" className="block px-2 py-1.5 rounded-md text-xs text-gray-400 hover:bg-navy-800 hover:text-white transition-colors">CSC Services</NavLink>
+                    <NavLink to="/admin/products/jacksonville" className="block px-2 py-1.5 rounded-md text-xs text-gray-400 hover:bg-navy-800 hover:text-white transition-colors">City of Jacksonville</NavLink>
+                    <NavLink to="/admin/products/vj" className="block px-2 py-1.5 rounded-md text-xs text-gray-400 hover:bg-navy-800 hover:text-white transition-colors">VJ Thrift Finds</NavLink>
+                  </div>
+                )}
+                <button onClick={() => setMobileAppsOpen(o => !o)} className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider text-gray-400 hover:text-white transition-colors">
+                  <span>Mobile Apps</span>
+                  <svg className={`w-3 h-3 transition-transform ${mobileAppsOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                </button>
+                {mobileAppsOpen && (
+                  <div className="ml-1 space-y-0.5">
+                    <NavLink to="/admin/products/bolo-go" className="block px-2 py-1.5 rounded-md text-xs text-gray-400 hover:bg-navy-800 hover:text-white transition-colors">BOLO Go</NavLink>
+                    <NavLink to="/admin/products/liftori-app" className="block px-2 py-1.5 rounded-md text-xs text-gray-400 hover:bg-navy-800 hover:text-white transition-colors">Liftori App</NavLink>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button onClick={() => setLiftoriPlatformOpen(o => !o)} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
                         <span className="flex-1 text-left">Liftori Platform</span>
                         <svg className={`w-3.5 h-3.5 transition-transform ${liftoriPlatformOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
