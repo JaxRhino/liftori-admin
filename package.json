@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.17.0",
     "@supabase/supabase-js": "^2.49.0",
     "@twilio/voice-sdk": "^2.12.0",
     "axios": "^1.14.0",

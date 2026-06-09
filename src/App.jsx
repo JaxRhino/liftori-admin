@@ -220,6 +220,8 @@ import DevTeamTasks from './pages/dev-team/DevTeamTasks'
 import DevTeamActivity from './pages/dev-team/DevTeamActivity'
 import DevTeamCanvas from './pages/dev-team/DevTeamCanvas'
 import DevTeamCanvasDetail from './pages/dev-team/DevTeamCanvasDetail'
+import DevTeamWhiteboard from './pages/dev-team/DevTeamWhiteboard'
+import DevTeamWhiteboardDetail from './pages/dev-team/DevTeamWhiteboardDetail'
 import DevTeamSkillsMemory from './pages/dev-team/DevTeamSkillsMemory'
 import DevTeamAgentChat from './pages/dev-team/DevTeamAgentChat'
 import DevTeamFeatureIdeas from './pages/dev-team/DevTeamFeatureIdeas'
@@ -522,6 +524,8 @@ export default function App() {
               <Route path="activity" element={<DevTeamActivity />} />
               <Route path="canvas" element={<DevTeamCanvas />} />
               <Route path="canvas/:slug" element={<DevTeamCanvasDetail />} />
+              <Route path="whiteboard" element={<DevTeamWhiteboard />} />
+              <Route path="whiteboard/:slug" element={<DevTeamWhiteboardDetail />} />
               <Route path="skills" element={<DevTeamSkillsMemory />} />
               <Route path="agent-chat" element={<DevTeamAgentChat />} />
             </Route>

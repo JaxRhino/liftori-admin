@@ -6,6 +6,7 @@ const TABS = [
   { to: '/admin/dev-team/ideas',    label: 'Feature Ideas' },
   { to: '/admin/dev-team/activity', label: 'Activity' },
   { to: '/admin/dev-team/canvas',   label: 'Canvas' },
+  { to: '/admin/dev-team/whiteboard', label: 'Whiteboard' },
   { to: '/admin/dev-team/skills',   label: 'Skills & Memory' },
   { to: '/admin/dev-team/agent-chat', label: 'Agent Chat' },
 ]
