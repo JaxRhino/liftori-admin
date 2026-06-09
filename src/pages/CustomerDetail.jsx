@@ -5,6 +5,7 @@ import TeamMemberSelect, { TeamMemberLabel } from '../components/TeamMemberSelec
 import { STAGE_PIPELINE, customerValue, isWon, isLost } from '../lib/customerValue'
 
 const LIFTORI_ORG_ID = '18589b33-a730-4aed-b71b-2d55c1f15415'
+const DEFAULT_TIER = 'Growth'
 
 const STATUS_COLORS = {
   'Wizard Complete': 'bg-gray-500/20 text-gray-400',
@@ -1592,19 +1593,21 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
     const sel = {}; (productLines || []).filter(l => !isLost(l)).forEach(l => { sel[l.id] = true })
     setGenSel(sel); setOpen(false); setGen(true)
     if (!genData) {
-      const { data: tmpls } = await supabase.from('estimate_product_templates').select('id, product_type').eq('is_active', true)
+      const { data: tmpls } = await supabase.from('estimate_product_templates').select('id, product_type, tier').eq('is_active', true)
       const tIds = (tmpls || []).map(t => t.id)
       const { data: its } = await supabase.from('estimate_product_template_items').select('*').in('template_id', tIds).order('sort_order')
-      const typeByTid = {}; (tmpls || []).forEach(t => { typeByTid[t.id] = t.product_type })
-      const itemsByType = {}, typeTotals = {}
-      ;(its || []).forEach(i => { const ty = typeByTid[i.template_id]; if (!ty) return; (itemsByType[ty] = itemsByType[ty] || []).push(i) })
-      Object.entries(itemsByType).forEach(([ty, list]) => {
-        typeTotals[ty] = {
-          oneTime: list.filter(i => !i.recurring).reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.unit_cost) || 0), 0),
-          monthly: list.filter(i => i.recurring).reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.unit_cost) || 0), 0),
-        }
+      const itemsByTemplate = {}; (its || []).forEach(i => { (itemsByTemplate[i.template_id] = itemsByTemplate[i.template_id] || []).push(i) })
+      const tmplsByType = {}; (tmpls || []).forEach(t => { (tmplsByType[t.product_type] = tmplsByType[t.product_type] || []).push(t) })
+      const sumItems = (items) => ({
+        oneTime: (items || []).filter(i => !i.recurring).reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.unit_cost) || 0), 0),
+        monthly: (items || []).filter(i => i.recurring).reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.unit_cost) || 0), 0),
       })
-      setGenData({ itemsByType, typeTotals })
+      const typeTotals = {}
+      Object.entries(tmplsByType).forEach(([ty, list]) => {
+        const def = list.find(t => t.tier === DEFAULT_TIER) || list.find(t => !t.tier) || list[0]
+        typeTotals[ty] = sumItems(itemsByTemplate[def.id])
+      })
+      setGenData({ tmplsByType, itemsByTemplate, typeTotals })
     }
   }
 
@@ -1615,13 +1618,17 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
       if (!selLines.length) { alert('Select at least one product line'); setGenBusy(false); return }
       const lineItems = []
       selLines.forEach(l => {
-        ((genData && genData.itemsByType[l.product_type]) || []).forEach(i => {
-          const qty = Number(i.qty) || 1, unit = Number(i.unit_cost) || 0
-          lineItems.push({ product: l.product_type, label: i.label, category: i.category, qty, unit_cost: unit, line_total: qty * unit, recurring: !!i.recurring, included: true })
+        const tmpls = (genData && genData.tmplsByType[l.product_type]) || []
+        const tiered = tmpls.length > 1
+        tmpls.forEach(t => {
+          ((genData && genData.itemsByTemplate[t.id]) || []).forEach(i => {
+            const qty = Number(i.qty) || 1, unit = Number(i.unit_cost) || 0
+            lineItems.push({ product: l.product_type, tier: t.tier || null, label: i.label, category: i.category, qty, unit_cost: unit, line_total: qty * unit, recurring: !!i.recurring, included: tiered ? (t.tier === DEFAULT_TIER) : true })
+          })
         })
       })
-      const oneTime = lineItems.filter(l => !l.recurring).reduce((s, l) => s + l.line_total, 0)
-      const monthly = lineItems.filter(l => l.recurring).reduce((s, l) => s + l.line_total, 0)
+      const oneTime = lineItems.filter(l => l.included !== false && !l.recurring).reduce((s, l) => s + l.line_total, 0)
+      const monthly = lineItems.filter(l => l.included !== false && l.recurring).reduce((s, l) => s + l.line_total, 0)
       const discountAmount = Math.round(oneTime * (Number(discount) || 0) / 100)
       const types = [...new Set(selLines.map(l => l.product_type))]
       const n = (estimates || []).length + 1

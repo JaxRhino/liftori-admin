@@ -84,6 +84,7 @@ export default function EstimateDocument() {
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, ...patch, line_total: ((patch.qty ?? l.qty) || 0) * ((patch.unit_cost ?? l.unit_cost) || 0) } : l))
   }
   function removeLine(i) { setLines(prev => prev.filter((_, idx) => idx !== i)) }
+  function setTier(p, tier) { setLines(prev => prev.map(l => (l.product === p && l.tier) ? { ...l, included: l.tier === tier } : l)) }
 
   async function saveDoc() {
     setSaving(true)
@@ -167,12 +168,25 @@ export default function EstimateDocument() {
         {/* LINE ITEMS */}
         <section id="estimate" className={sectionCls}>
           <h2 className="text-xl font-bold text-white mb-4">Estimate</h2>
-          {products.map(p => (
+          {products.map(p => {
+            const tiers = [...new Set(lines.filter(l => l.product === p && l.tier).map(l => l.tier))]
+            const selTier = (lines.find(l => l.product === p && l.tier && l.included !== false) || {}).tier || tiers[0]
+            return (
             <div key={p} className="mb-5">
-              <p className="text-sm font-semibold text-brand-blue mb-1">{p}</p>
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+                <p className="text-sm font-semibold text-brand-blue">{p}</p>
+                {tiers.length > 0 && (
+                  <div className="flex gap-1 print:hidden">
+                    {tiers.map(t => (
+                      <button key={t} onClick={() => setTier(p, t)} className={`px-2.5 py-1 text-xs rounded-lg font-medium ${selTier === t ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400 hover:text-white'}`}>{t}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {tiers.length > 0 && custView && <p className="text-xs text-gray-500 mb-1">{selTier} plan</p>}
               <table className="w-full text-sm">
                 <tbody>
-                  {lines.map((l, i) => (l.product === p && (!custView || l.included !== false)) ? (
+                  {lines.map((l, i) => (l.product === p && (!l.tier || l.tier === selTier) && (!custView || l.included !== false)) ? (
                     <tr key={i} className={`border-b border-white/5 ${l.included === false ? 'opacity-40' : ''}`}>
                       {!custView && <td className="py-1.5 w-8"><input type="checkbox" checked={l.included !== false} onChange={e => updateLine(i, { included: e.target.checked })} /></td>}
                       <td className="py-1.5 text-gray-300">{l.label}{l.recurring && <span className="text-amber-400 text-[11px]"> /mo</span>}</td>
@@ -191,7 +205,8 @@ export default function EstimateDocument() {
                 </tbody>
               </table>
             </div>
-          ))}
+            )
+          })}
           {lines.length === 0 && <p className="text-sm text-gray-500">No line items. Generate this estimate from product lines, or add lines.</p>}
 
           <div className="border-t border-white/10 pt-4 mt-4 text-right space-y-1">
