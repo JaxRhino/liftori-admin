@@ -79,6 +79,9 @@ export default function ProjectDetail() {
   const [generatingBrief, setGeneratingBrief] = useState(false)
   const [generatingFeatures, setGeneratingFeatures] = useState(false)
   const [invoices, setInvoices] = useState([])
+  const [estimates, setEstimates] = useState([])
+  const [agreements, setAgreements] = useState([])
+  const [productLines, setProductLines] = useState([])
 
   // Scope tab state
   const [scopeFeatures, setScopeFeatures] = useState([])
@@ -116,6 +119,18 @@ export default function ProjectDetail() {
       setMessages(msgs || [])
       setUpdates(upds || [])
       setInvoices(invs || [])
+
+      // Sales context from the linked customer — estimates, agreements, sold product lines flow into Operations.
+      if (proj?.customer_id) {
+        const [{ data: ests }, { data: agrs }, { data: pls }] = await Promise.all([
+          supabase.from('customer_estimates').select('*').eq('contact_id', proj.customer_id).order('created_at', { ascending: false }),
+          supabase.from('customer_agreements').select('*').eq('contact_id', proj.customer_id).order('created_at', { ascending: false }),
+          supabase.from('customer_product_lines').select('*').eq('profile_id', proj.customer_id),
+        ])
+        setEstimates(ests || [])
+        setAgreements(agrs || [])
+        setProductLines(pls || [])
+      }
 
       // Build scope features from project.features array
       if (proj?.features && proj.features.length > 0) {
@@ -389,6 +404,7 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
+    { key: 'sales', label: 'Sales & Customer', count: estimates.length },
     { key: 'scope', label: 'Scope', count: project?.features?.length || 0 },
     { key: 'design', label: 'Design' },
     { key: 'implementation', label: 'Impl. Plan' },
@@ -539,6 +555,67 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
               </button>
             ))}
           </div>
+
+          {/* ===== SALES & CUSTOMER TAB ===== */}
+          {activeTab === 'sales' && (
+            <div className="space-y-6">
+              <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-white mb-3">Customer</h3>
+                <p className="text-white font-medium">{project.profiles?.full_name || project.client_display_name || '—'}</p>
+                {project.profiles?.email && <p className="text-sm text-gray-400">{project.profiles.email}</p>}
+                {project.customer_id && <Link to={`/admin/customers/${project.customer_id}`} className="text-xs text-brand-blue hover:underline mt-2 inline-block">Open full customer record →</Link>}
+              </div>
+
+              <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-white mb-3">Sold scope</h3>
+                {productLines.filter(l => l.project_id === id).length === 0 ? (
+                  <p className="text-sm text-gray-500">No linked product line.</p>
+                ) : productLines.filter(l => l.project_id === id).map(l => (
+                  <div key={l.id} className="flex items-center gap-3 text-sm flex-wrap">
+                    <span className="px-2 py-0.5 rounded bg-brand-blue/20 text-brand-blue text-xs">{l.product_type}</span>
+                    <span className="text-gray-300">{l.stage}</span>
+                    {l.mrr > 0 && <span className="text-amber-400">${Number(l.mrr).toLocaleString()}/mo</span>}
+                    {l.estimated_value > 0 && <span className="text-emerald-400">${Number(l.estimated_value).toLocaleString()} setup</span>}
+                    {l.term_months > 0 && <span className="text-gray-500 text-xs">{l.term_months}mo term</span>}
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-white mb-3">Estimates ({estimates.length})</h3>
+                {estimates.length === 0 ? <p className="text-sm text-gray-500">No estimates yet.</p> : (
+                  <div className="divide-y divide-navy-700/30">
+                    {estimates.map(e => (
+                      <Link key={e.id} to={`/admin/estimate/${e.id}`} className="flex items-center justify-between py-2.5 px-2 rounded hover:bg-white/5">
+                        <div className="min-w-0">
+                          <p className="text-sm text-white truncate">{e.title || 'Estimate'}</p>
+                          <p className="text-xs text-gray-500 font-mono">{e.estimate_number} · {e.status || 'draft'}{e.esign_status === 'signed' ? ' · signed' : ''}</p>
+                        </div>
+                        <span className="text-sm text-emerald-400 font-semibold flex-shrink-0">${Number(e.total || 0).toLocaleString()}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-white mb-3">Agreements ({agreements.length})</h3>
+                {agreements.length === 0 ? <p className="text-sm text-gray-500">No agreements yet.</p> : (
+                  <div className="divide-y divide-navy-700/30">
+                    {agreements.map(a => (
+                      <div key={a.id} className="flex items-center justify-between py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-sm text-white truncate">{a.title || 'Agreement'}</p>
+                          <p className="text-xs text-gray-500 font-mono">{a.agreement_number || ''} · {a.status || 'draft'}</p>
+                        </div>
+                        {a.total_value > 0 && <span className="text-sm text-emerald-400 font-semibold flex-shrink-0">${Number(a.total_value).toLocaleString()}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ===== OVERVIEW TAB ===== */}
           {activeTab === 'overview' && (
