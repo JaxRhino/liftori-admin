@@ -1575,10 +1575,70 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
   )
 }
 
-function EstimatesTab({ customerId, estimates, projects, onChange }) {
+function EstimatesTab({ customerId, estimates, projects, productLines, onChange }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ title: '', total: '', project_id: '', valid_until: '', status: 'draft', notes: '' })
   const [saving, setSaving] = useState(false)
+  const [gen, setGen] = useState(false)
+  const [genSel, setGenSel] = useState({})
+  const [discount, setDiscount] = useState(0)
+  const [genData, setGenData] = useState(null)
+  const [genBusy, setGenBusy] = useState(false)
+
+  async function openGen() {
+    const sel = {}; (productLines || []).filter(l => !isLost(l)).forEach(l => { sel[l.id] = true })
+    setGenSel(sel); setOpen(false); setGen(true)
+    if (!genData) {
+      const { data: tmpls } = await supabase.from('estimate_product_templates').select('id, product_type').eq('is_active', true)
+      const tIds = (tmpls || []).map(t => t.id)
+      const { data: its } = await supabase.from('estimate_product_template_items').select('*').in('template_id', tIds).order('sort_order')
+      const typeByTid = {}; (tmpls || []).forEach(t => { typeByTid[t.id] = t.product_type })
+      const itemsByType = {}, typeTotals = {}
+      ;(its || []).forEach(i => { const ty = typeByTid[i.template_id]; if (!ty) return; (itemsByType[ty] = itemsByType[ty] || []).push(i) })
+      Object.entries(itemsByType).forEach(([ty, list]) => {
+        typeTotals[ty] = {
+          oneTime: list.filter(i => !i.recurring).reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.unit_cost) || 0), 0),
+          monthly: list.filter(i => i.recurring).reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.unit_cost) || 0), 0),
+        }
+      })
+      setGenData({ itemsByType, typeTotals })
+    }
+  }
+
+  async function buildAndSave() {
+    setGenBusy(true)
+    try {
+      const selLines = (productLines || []).filter(l => genSel[l.id] && !isLost(l))
+      if (!selLines.length) { alert('Select at least one product line'); setGenBusy(false); return }
+      const lineItems = []
+      selLines.forEach(l => {
+        ((genData && genData.itemsByType[l.product_type]) || []).forEach(i => {
+          const qty = Number(i.qty) || 1, unit = Number(i.unit_cost) || 0
+          lineItems.push({ product: l.product_type, label: i.label, category: i.category, qty, unit_cost: unit, line_total: qty * unit, recurring: !!i.recurring })
+        })
+      })
+      const oneTime = lineItems.filter(l => !l.recurring).reduce((s, l) => s + l.line_total, 0)
+      const monthly = lineItems.filter(l => l.recurring).reduce((s, l) => s + l.line_total, 0)
+      const discountAmount = Math.round(oneTime * (Number(discount) || 0) / 100)
+      const types = [...new Set(selLines.map(l => l.product_type))]
+      const n = (estimates || []).length + 1
+      const { error } = await supabase.from('customer_estimates').insert({
+        contact_id: customerId,
+        estimate_number: 'EST-' + new Date().getFullYear() + '-' + String(n).padStart(4, '0'),
+        title: types.join(' + ') + ' estimate',
+        line_items: lineItems,
+        subtotal: oneTime,
+        discount_amount: discountAmount,
+        total: oneTime - discountAmount,
+        status: 'draft',
+        notes: monthly > 0 ? ('Plus $' + monthly.toLocaleString() + '/mo recurring') : null,
+      })
+      if (error) throw error
+      setGen(false); setDiscount(0); setGenSel({})
+      onChange()
+    } catch (e) { console.error(e); alert('Failed to generate estimate: ' + (e.message || '')) }
+    finally { setGenBusy(false) }
+  }
 
   async function save() {
     if (!form.title.trim()) return
@@ -1608,10 +1668,54 @@ function EstimatesTab({ customerId, estimates, projects, onChange }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-400">{estimates.length} estimate{estimates.length !== 1 ? 's' : ''}</p>
-        <button onClick={() => setOpen(o => !o)} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg font-medium">
-          {open ? 'Cancel' : '+ New Estimate'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => gen ? setGen(false) : openGen()} className="px-3 py-1.5 text-xs bg-amber-500/90 hover:bg-amber-500 text-white rounded-lg font-medium">{gen ? 'Cancel' : '⚡ Generate from product lines'}</button>
+          <button onClick={() => { setGen(false); setOpen(o => !o) }} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg font-medium">
+            {open ? 'Cancel' : '+ New Estimate'}
+          </button>
+        </div>
       </div>
+      {gen && (() => {
+        const selLines = (productLines || []).filter(l => genSel[l.id] && !isLost(l))
+        const oneTime = selLines.reduce((s, l) => s + ((genData && genData.typeTotals[l.product_type]?.oneTime) || 0), 0)
+        const monthly = selLines.reduce((s, l) => s + ((genData && genData.typeTotals[l.product_type]?.monthly) || 0), 0)
+        const discAmt = Math.round(oneTime * (Number(discount) || 0) / 100)
+        const fmtc = (n) => '$' + Math.round(n).toLocaleString()
+        const openLines = (productLines || []).filter(l => !isLost(l))
+        return (
+          <div className="bg-navy-800 border border-amber-500/30 rounded-xl p-4 space-y-3">
+            <p className="text-xs font-semibold text-amber-300">Combo estimate from product lines</p>
+            {openLines.length === 0 ? (
+              <p className="text-xs text-gray-500">No open product lines to estimate.</p>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  {openLines.map(l => (
+                    <label key={l.id} className="flex items-center gap-2 text-sm text-gray-300">
+                      <input type="checkbox" checked={!!genSel[l.id]} onChange={e => setGenSel(s => ({ ...s, [l.id]: e.target.checked }))} />
+                      <span>{l.product_type}</span>
+                      <span className="text-[11px] text-gray-500">{fmtc((genData && genData.typeTotals[l.product_type]?.oneTime) || 0)}{((genData && genData.typeTotals[l.product_type]?.monthly) || 0) > 0 ? ` + ${fmtc(genData.typeTotals[l.product_type].monthly)}/mo` : ''}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 text-xs">Bundle discount %</span>
+                  <input type="number" value={discount} onChange={e => setDiscount(e.target.value)} className="w-20 bg-navy-900 border border-navy-700/50 rounded px-2 py-1 text-xs text-white" />
+                </div>
+                <div className="text-sm text-gray-300 border-t border-navy-700/40 pt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  <span>One-time: <span className="text-emerald-400 font-semibold">{fmtc(oneTime)}</span></span>
+                  {discAmt > 0 && <span>Discount: <span className="text-red-400">-{fmtc(discAmt)}</span></span>}
+                  <span>Total: <span className="text-white font-bold">{fmtc(oneTime - discAmt)}</span></span>
+                  {monthly > 0 && <span>Recurring: <span className="text-amber-400 font-semibold">{fmtc(monthly)}/mo</span></span>}
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={buildAndSave} disabled={genBusy || selLines.length === 0} className="px-4 py-1.5 text-xs bg-amber-500/90 hover:bg-amber-500 disabled:opacity-50 text-white rounded-lg font-medium">{genBusy ? 'Creating...' : 'Create estimate'}</button>
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })()}
       {open && (
         <div className="bg-navy-800 border border-brand-blue/30 rounded-xl p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -1651,6 +1755,7 @@ function EstimatesTab({ customerId, estimates, projects, onChange }) {
                   {e.valid_until && <span>Valid until {formatDate(e.valid_until)}</span>}
                   {e.sent_at && <span>Sent {formatDate(e.sent_at)}</span>}
                   {e.esign_signed_at && <span className="text-emerald-400">Signed {formatDate(e.esign_signed_at)}</span>}
+                  {Array.isArray(e.line_items) && e.line_items.length > 0 && <span>{e.line_items.length} lines</span>}
                   <span className="ml-auto text-xs text-emerald-400 font-semibold">{formatCurrency(e.total)}</span>
                 </div>
               </div>
@@ -2177,7 +2282,7 @@ export default function CustomerDetail() {
         {activeTab === 'details' && <DetailsTab customer={customer} />}
         {activeTab === 'projects' && <ProjectsTab projects={projects} />}
         {activeTab === 'lines' && <ProductLinesTab customerId={id} customer={customer} lines={productLines} onChange={fetchAll} />}
-        {activeTab === 'estimates' && <EstimatesTab customerId={id} estimates={estimates} projects={projects} onChange={fetchAll} />}
+        {activeTab === 'estimates' && <EstimatesTab customerId={id} estimates={estimates} projects={projects} productLines={productLines} onChange={fetchAll} />}
         {activeTab === 'agreements' && <AgreementsTab customerId={id} agreements={agreements} estimates={estimates} projects={projects} onChange={fetchAll} />}
         {activeTab === 'tasks' && <TasksTab customerId={id} tasks={tasks} projects={projects} onChange={fetchAll} />}
         {activeTab === 'notes' && <NotesTab customerId={id} notes={notes} projects={projects} onChange={fetchAll} />}
