@@ -71,6 +71,15 @@ function customerFullValue(c) {
   return v > 0 ? v : (parseFloat(c.estimated_value) || 0);
 }
 
+// Consulting engagement pipeline (consulting_engagements.engagement_stage)
+const CONSULTING_STAGES = ['New Lead', 'Discovery Call', 'On Hold', 'Company Onboarding', 'Company Audit', 'Building Plan', 'Estimating', 'Estimate Sent', 'Payment received', 'Active Client', 'Payment Hold', 'Archive/Lost'];
+const CONSULTING_ACTIVE = ['Payment received', 'Active Client', 'Payment Hold'];
+const CONSULTING_STAGE_COLOR = {
+  'New Lead': 'bg-sky-500', 'Discovery Call': 'bg-cyan-500', 'On Hold': 'bg-gray-500', 'Company Onboarding': 'bg-blue-500',
+  'Company Audit': 'bg-teal-500', 'Building Plan': 'bg-lime-500', 'Estimating': 'bg-yellow-500', 'Estimate Sent': 'bg-amber-500',
+  'Payment received': 'bg-orange-500', 'Active Client': 'bg-emerald-500', 'Payment Hold': 'bg-rose-500', 'Archive/Lost': 'bg-red-500',
+};
+
 const ACTIVITY_TYPES = [
   { key: 'call', label: 'Call', icon: PhoneCall, color: 'text-green-400' },
   { key: 'email', label: 'Email', icon: Mail, color: 'text-sky-400' },
@@ -163,6 +172,9 @@ export default function Customers() {
   const [consultingLeads, setConsultingLeads] = useState([]);
   const [consultingLoading, setConsultingLoading] = useState(false);
   const [consultingSearch, setConsultingSearch] = useState('');
+  const [consultingEngagements, setConsultingEngagements] = useState([]);
+  const [consultingEngLoading, setConsultingEngLoading] = useState(false);
+  const [consultingStageFilter, setConsultingStageFilter] = useState('');
 
   // Digital Product Leads
   const [digitalLeads, setDigitalLeads] = useState([]);
@@ -173,6 +185,7 @@ export default function Customers() {
     fetchAllFollowUps();
     fetchLabosLeads();
     fetchConsultingLeads();
+    fetchConsultingEngagements();
     fetchDigitalLeads();
   }, []);
   useEffect(() => { fetchCustomers(); }, [showArchived]);
@@ -328,6 +341,34 @@ export default function Customers() {
     }
   }
 
+  async function fetchConsultingEngagements() {
+    setConsultingEngLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('consulting_engagements')
+        .select('id, client_name, client_email, company_name, industry, engagement_stage, status, contract_value, consulting_appointment_id, pain_points, crm_profile_id, created_at')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setConsultingEngagements(data || []);
+    } catch (err) {
+      console.error('Error fetching consulting engagements:', err);
+    } finally {
+      setConsultingEngLoading(false);
+    }
+  }
+
+  async function changeEngagementStage(id, stage) {
+    setConsultingEngagements(prev => prev.map(e => e.id === id ? { ...e, engagement_stage: stage } : e));
+    try {
+      const { error } = await supabase.from('consulting_engagements').update({ engagement_stage: stage, updated_at: new Date().toISOString() }).eq('id', id);
+      if (error) throw error;
+      toast.success(`Moved to ${stage}`);
+    } catch (err) {
+      toast.error('Failed to update stage');
+      fetchConsultingEngagements();
+    }
+  }
+
   async function importConsultingToCRM(lead) {
     try {
       const { data: existing } = await supabase
@@ -382,6 +423,16 @@ export default function Customers() {
       l.company_name?.toLowerCase().includes(q)
     );
   }, [consultingLeads, consultingSearch]);
+
+  const filteredConsultingEngagements = useMemo(() => {
+    let list = consultingEngagements;
+    if (consultingStageFilter) list = list.filter(e => e.engagement_stage === consultingStageFilter);
+    if (consultingSearch) {
+      const q = consultingSearch.toLowerCase();
+      list = list.filter(e => (e.client_name || '').toLowerCase().includes(q) || (e.client_email || '').toLowerCase().includes(q) || (e.company_name || '').toLowerCase().includes(q));
+    }
+    return list;
+  }, [consultingEngagements, consultingStageFilter, consultingSearch]);
 
   // ─── Digital Product Leads ────────────────────────────────────
   async function fetchDigitalLeads() {
@@ -786,10 +837,10 @@ export default function Customers() {
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Total Leads', value: consultingLeads.length, color: 'text-purple-400', icon: Phone },
-              { label: 'Scheduled', value: consultingLeads.filter(l => l.status === 'scheduled').length, color: 'text-blue-400', icon: Calendar },
-              { label: 'Completed', value: consultingLeads.filter(l => l.status === 'completed').length, color: 'text-green-400', icon: CheckCircle },
-              { label: 'Imported to CRM', value: consultingLeads.filter(l => l.imported_to_crm).length, color: 'text-sky-400', icon: Download },
+              { label: 'Engagements', value: consultingEngagements.length, color: 'text-purple-400', icon: Phone },
+              { label: 'In Pipeline', value: consultingEngagements.filter(e => !CONSULTING_ACTIVE.includes(e.engagement_stage) && e.engagement_stage !== 'Archive/Lost').length, color: 'text-blue-400', icon: Target },
+              { label: 'Active Clients', value: consultingEngagements.filter(e => CONSULTING_ACTIVE.includes(e.engagement_stage)).length, color: 'text-green-400', icon: CheckCircle },
+              { label: 'Pipeline Value', value: `$${Math.round(consultingEngagements.filter(e => e.engagement_stage !== 'Archive/Lost').reduce((s, e) => s + (parseFloat(e.contract_value) || 0), 0)).toLocaleString()}`, color: 'text-emerald-400', icon: DollarSign },
             ].map(stat => (
               <Card key={stat.label} className="bg-navy-800/50 border-white/10 p-4">
                 <div className="flex items-center justify-between">
@@ -801,30 +852,54 @@ export default function Customers() {
             ))}
           </div>
 
+          {/* 12-stage pipeline bar */}
+          <Card className="bg-navy-800/50 border-white/10 p-4">
+            <div className="flex items-center gap-1">
+              {CONSULTING_STAGES.map(stage => {
+                const count = consultingEngagements.filter(e => e.engagement_stage === stage).length;
+                const isF = consultingStageFilter === stage;
+                return (
+                  <button key={stage} onClick={() => setConsultingStageFilter(isF ? '' : stage)} className={`flex-1 group relative transition-all ${isF ? 'scale-105' : ''}`}>
+                    <div className={`h-3 rounded-full transition-colors ${count > 0 ? (CONSULTING_STAGE_COLOR[stage] || 'bg-gray-500') : 'bg-gray-700/50'} ${isF ? 'ring-2 ring-white/30' : ''} group-hover:opacity-80`} />
+                    <div className="text-center mt-1.5">
+                      <span className={`text-[10px] block leading-tight ${isF ? 'text-white font-bold' : 'text-gray-500'} group-hover:text-white transition-colors`}>{stage}</span>
+                      <span className={`text-xs font-bold ${count > 0 ? 'text-white' : 'text-gray-600'}`}>{count}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+
           {/* Search */}
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-3 items-center flex-wrap">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <Input
-                placeholder="Search consulting leads..."
+                placeholder="Search engagements..."
                 value={consultingSearch}
                 onChange={e => setConsultingSearch(e.target.value)}
                 className="pl-10 bg-white/5 border-white/10 text-white"
               />
             </div>
-            <Button variant="outline" size="sm" className="border-white/10 text-gray-300" onClick={fetchConsultingLeads}>
+            {consultingStageFilter && (
+              <Button variant="ghost" size="sm" className="text-xs text-gray-400" onClick={() => setConsultingStageFilter('')}>
+                Clear: {consultingStageFilter} <XCircle className="h-3 w-3 ml-1" />
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="border-white/10 text-gray-300" onClick={fetchConsultingEngagements}>
               <RefreshCw className="h-4 w-4 mr-1" /> Refresh
             </Button>
           </div>
 
           {/* Table */}
-          {consultingLoading ? (
-            <div className="text-gray-400 text-sm p-8 text-center">Loading consulting leads...</div>
-          ) : filteredConsultingLeads.length === 0 ? (
+          {consultingEngLoading ? (
+            <div className="text-gray-400 text-sm p-8 text-center">Loading engagements...</div>
+          ) : filteredConsultingEngagements.length === 0 ? (
             <Card className="bg-navy-800/50 border-white/10 p-12 text-center">
               <Phone className="h-12 w-12 text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-400">No consulting leads yet.</p>
-              <p className="text-gray-500 text-sm mt-1">Leads from AI call bookings and liftori.ai/book will appear here.</p>
+              <p className="text-gray-400">No consulting engagements{consultingStageFilter ? ` in ${consultingStageFilter}` : ''} yet.</p>
+              <p className="text-gray-500 text-sm mt-1">Booked discovery calls become engagements here and move through the 12-stage pipeline.</p>
             </Card>
           ) : (
             <Card className="bg-navy-800/50 border-white/10 overflow-hidden">
@@ -832,60 +907,32 @@ export default function Customers() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/10 text-left">
-                      <th className="px-4 py-3 text-gray-400 font-medium">Lead</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Client</th>
                       <th className="px-4 py-3 text-gray-400 font-medium">Company</th>
-                      <th className="px-4 py-3 text-gray-400 font-medium">Interest</th>
-                      <th className="px-4 py-3 text-gray-400 font-medium">Appointment</th>
-                      <th className="px-4 py-3 text-gray-400 font-medium">Source</th>
-                      <th className="px-4 py-3 text-gray-400 font-medium">Status</th>
-                      <th className="px-4 py-3 text-gray-400 font-medium">Actions</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Stage</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Value</th>
+                      <th className="px-4 py-3 text-gray-400 font-medium">Move Stage</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredConsultingLeads.map(lead => {
-                      const interestLabels = { ai_strategy: 'AI Strategy', growth_planning: 'Growth Planning', eos_implementation: 'EOS Implementation', coaching: '1-on-1 Coaching', general: 'General' };
-                      const statusColors = { scheduled: 'bg-blue-100 text-blue-800', confirmed: 'bg-green-100 text-green-800', completed: 'bg-emerald-100 text-emerald-800', no_show: 'bg-red-100 text-red-800', cancelled: 'bg-gray-100 text-gray-800', rescheduled: 'bg-yellow-100 text-yellow-800' };
-                      const apptDate = lead.appointment_date ? new Date(lead.appointment_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
-                      const apptTime = lead.appointment_start ? (() => { const [h,m] = lead.appointment_start.split(':'); const hr = parseInt(h); return `${hr > 12 ? hr-12 : hr === 0 ? 12 : hr}:${m} ${hr >= 12 ? 'PM' : 'AM'}`; })() : '';
-                      return (
-                        <tr key={lead.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="text-white font-medium">{lead.lead_name}</div>
-                            <div className="text-gray-500 text-xs">{lead.lead_email}</div>
-                            {lead.lead_phone && <div className="text-gray-500 text-xs">{lead.lead_phone}</div>}
-                          </td>
-                          <td className="px-4 py-3 text-gray-300">{lead.company_name || <span className="text-gray-600">—</span>}</td>
-                          <td className="px-4 py-3">
-                            <Badge className={`text-xs bg-purple-100 text-purple-800`}>
-                              {interestLabels[lead.primary_interest] || 'General'}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="text-gray-300 text-sm">{apptDate}</div>
-                            {apptTime && <div className="text-gray-500 text-xs">{apptTime} ET</div>}
-                          </td>
-                          <td className="px-4 py-3 text-gray-400 text-xs">{lead.how_heard || '—'}</td>
-                          <td className="px-4 py-3">
-                            <Badge className={`text-xs ${statusColors[lead.status] || statusColors.scheduled}`}>
-                              {(lead.status || 'scheduled').replace(/_/g, ' ')}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            {!lead.imported_to_crm ? (
-                              <Button
-                                size="sm"
-                                onClick={() => importConsultingToCRM(lead)}
-                                className="bg-purple-500 hover:bg-purple-600 text-white text-xs gap-1"
-                              >
-                                <Download className="h-3 w-3" /> Import to CRM
-                              </Button>
-                            ) : (
-                              <span className="text-green-400 text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3" /> In CRM</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {filteredConsultingEngagements.map(e => (
+                      <tr key={e.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="text-white font-medium">{e.client_name || '—'}</div>
+                          <div className="text-gray-500 text-xs">{e.client_email}</div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-300">{e.company_name || <span className="text-gray-600">—</span>}</td>
+                        <td className="px-4 py-3">
+                          <Badge className="text-xs bg-navy-700/60 text-gray-200 border border-white/10">{e.engagement_stage}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-white font-medium">{e.contract_value > 0 ? `$${parseFloat(e.contract_value).toLocaleString()}` : '—'}</td>
+                        <td className="px-4 py-3">
+                          <select value={e.engagement_stage} onChange={ev => changeEngagementStage(e.id, ev.target.value)} className="bg-navy-900 border border-navy-700/50 rounded-lg px-2 py-1 text-xs text-white">
+                            {CONSULTING_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -893,16 +940,16 @@ export default function Customers() {
           )}
 
           {/* Challenge Summary */}
-          {consultingLeads.filter(l => l.biggest_challenge).length > 0 && (
+          {consultingEngagements.filter(e => e.pain_points).length > 0 && (
             <Card className="bg-navy-800/50 border-white/10 p-5">
               <h3 className="text-white font-semibold text-sm flex items-center gap-2 mb-3">
                 <AlertCircle className="h-4 w-4 text-purple-400" /> Common Challenges
               </h3>
               <div className="space-y-2">
-                {consultingLeads.filter(l => l.biggest_challenge).slice(0, 5).map(l => (
-                  <div key={l.id} className="text-sm text-gray-400 flex gap-2">
-                    <span className="text-gray-600 flex-shrink-0">{l.company_name || l.lead_name}:</span>
-                    <span className="text-gray-300">{l.biggest_challenge}</span>
+                {consultingEngagements.filter(e => e.pain_points).slice(0, 5).map(e => (
+                  <div key={e.id} className="text-sm text-gray-400 flex gap-2">
+                    <span className="text-gray-600 flex-shrink-0">{e.company_name || e.client_name}:</span>
+                    <span className="text-gray-300">{e.pain_points}</span>
                   </div>
                 ))}
               </div>
