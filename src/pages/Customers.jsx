@@ -138,6 +138,7 @@ export default function Customers() {
   // Detail panel
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [activities, setActivities] = useState([]);
   const [customerFollowUps, setCustomerFollowUps] = useState([]);
 
@@ -169,27 +170,27 @@ export default function Customers() {
   const [digitalSearch, setDigitalSearch] = useState('');
 
   useEffect(() => {
-    fetchCustomers();
     fetchAllFollowUps();
     fetchLabosLeads();
     fetchConsultingLeads();
     fetchDigitalLeads();
   }, []);
+  useEffect(() => { fetchCustomers(); }, [showArchived]);
 
   async function fetchCustomers() {
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('profiles')
         .select(`
-          id, full_name, email, role, phone, company_name, crm_stage, lead_score, lead_temperature,
+          id, full_name, email, role, phone, company_name, crm_stage, lead_score, lead_temperature, archived_at,
           last_activity_at, next_follow_up_at, follow_up_notes, source, estimated_value, tags,
           waitlist_signup_id, created_at, updated_at,
           projects:projects!projects_customer_id_fkey (id, name, status, tier, mrr, created_at),
           product_lines:customer_product_lines!customer_product_lines_profile_id_fkey (id, product_type, stage, estimated_value, mrr, term_months, probability, won_at, lost_at, project_id)
         `)
-        .eq('role', 'customer')
-        .is('archived_at', null)
-        .order('created_at', { ascending: false });
+        .eq('role', 'customer');
+      q = showArchived ? q.not('archived_at', 'is', null) : q.is('archived_at', null);
+      const { data, error } = await q.order('created_at', { ascending: false });
       if (error) throw error;
       setCustomers(data || []);
     } catch (err) {
@@ -648,6 +649,12 @@ export default function Customers() {
   }
 
   // ─── Open Detail ──────────────────────────────────────────────
+  async function unarchiveCustomer(id, name) {
+    await supabase.from('profiles').update({ archived_at: null, updated_at: new Date().toISOString() }).eq('id', id);
+    toast.success(`${name || 'Customer'} restored to active`);
+    fetchCustomers();
+  }
+
   function openDetail(customer) {
     setSelectedCustomer(customer);
     setDetailOpen(true);
@@ -1277,6 +1284,9 @@ export default function Customers() {
           <option value="warm">Warm</option>
           <option value="cold">Cold</option>
         </select>
+        <Button variant="outline" size="sm" className={`border-white/10 text-xs ${showArchived ? 'text-amber-400 border-amber-400/40' : 'text-gray-300 hover:text-white'}`} onClick={() => setShowArchived(v => !v)}>
+          {showArchived ? 'Viewing Archived' : 'Show Archived'}
+        </Button>
         {filterStage && (
           <Button variant="ghost" size="sm" className="text-xs text-gray-400" onClick={() => setFilterStage('')}>
             Clear: {filterStage} <XCircle className="h-3 w-3 ml-1" />
@@ -1357,6 +1367,11 @@ export default function Customers() {
                         {customerStage(customer) === 'New Lead' && (
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => changeLineStage(customer, 'Development')} title="Advance to Development">
                             <CheckCircle className="h-3.5 w-3.5 text-green-400" />
+                          </Button>
+                        )}
+                        {customer.archived_at && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => unarchiveCustomer(customer.id, customer.full_name)} title="Unarchive">
+                            <RefreshCw className="h-3.5 w-3.5 text-amber-400" />
                           </Button>
                         )}
                       </div>

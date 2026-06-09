@@ -1381,11 +1381,26 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
         notes: form.notes || null,
       }
       const table = supabase.from('customer_product_lines')
-      const resp = editId
-        ? await table.update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editId)
-        : await table.insert({ profile_id: customerId, ...payload })
-      if (resp.error) throw resp.error
-      if (editId) { const el = (lines || []).find(l => l.id === editId); if (el) await syncProjectStage(el, form.stage) }
+      if (editId) {
+        const { error } = await table.update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editId)
+        if (error) throw error
+        const el = (lines || []).find(l => l.id === editId); if (el) await syncProjectStage(el, form.stage)
+      } else {
+        const { data: newLine, error } = await table.insert({ profile_id: customerId, ...payload }).select().single()
+        if (error) throw error
+        // Auto-create a linked Operations project so every build is visible to Operations (skip Consulting).
+        if (form.product_type !== 'Consulting' && PL_PROJECT_TYPE[form.product_type]) {
+          const { data: proj } = await supabase.from('projects').insert({
+            name: (customer.company_name || customer.full_name || 'Customer') + ' - ' + form.product_type,
+            project_type: PL_PROJECT_TYPE[form.product_type],
+            status: form.stage,
+            customer_id: customerId,
+            client_display_name: customer.company_name || customer.full_name || null,
+            mrr: form.mrr ? Number(form.mrr) : 0,
+          }).select().single()
+          if (proj && proj.id) await supabase.from('customer_product_lines').update({ project_id: proj.id, updated_at: new Date().toISOString() }).eq('id', newLine.id)
+        }
+      }
       setForm(EMPTY_FORM)
       setOpen(false)
       setEditId(null)
