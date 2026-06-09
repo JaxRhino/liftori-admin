@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
+import { customerValue, currentStage } from '../lib/customerValue';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -60,6 +61,12 @@ function TempBadge({ temp }) {
 function StageBadge({ stage }) {
   const s = STAGE_MAP[stage] || STAGE_MAP.prospect;
   return <Badge className={`text-xs ${s.badge}`}>{s.label}</Badge>;
+}
+
+// Unified pipeline stage (derived from a customer's product lines), shared with Operations.
+function PipelineStageBadge({ stage }) {
+  if (!stage) return null;
+  return <Badge className="text-xs bg-navy-700/60 text-gray-200 border border-white/10">{stage}</Badge>;
 }
 
 function daysAgo(dateStr) {
@@ -139,7 +146,8 @@ export default function Customers() {
           id, full_name, email, role, phone, company_name, crm_stage, lead_score, lead_temperature,
           last_activity_at, next_follow_up_at, follow_up_notes, source, estimated_value, tags,
           waitlist_signup_id, created_at, updated_at,
-          projects:projects!projects_customer_id_fkey (id, name, status, tier, mrr, created_at)
+          projects:projects!projects_customer_id_fkey (id, name, status, tier, mrr, created_at),
+          product_lines:customer_product_lines!customer_product_lines_profile_id_fkey (stage, estimated_value, mrr, term_months, probability, won_at, lost_at)
         `)
         .eq('role', 'customer')
         .order('created_at', { ascending: false });
@@ -1207,7 +1215,7 @@ export default function Customers() {
                 <th className="px-4 py-3 text-xs font-medium text-gray-400">Customer</th>
                 <th className="px-4 py-3 text-xs font-medium text-gray-400">Stage</th>
                 <th className="px-4 py-3 text-xs font-medium text-gray-400">Temp</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-400">Value</th>
+                <th className="px-4 py-3 text-xs font-medium text-gray-400">Full Value</th>
                 <th className="px-4 py-3 text-xs font-medium text-gray-400">Last Activity</th>
                 <th className="px-4 py-3 text-xs font-medium text-gray-400">Next Follow-Up</th>
                 <th className="px-4 py-3 text-xs font-medium text-gray-400">Projects</th>
@@ -1218,6 +1226,10 @@ export default function Customers() {
               {filtered.map(customer => {
                 const isStale = !['won', 'active', 'churned'].includes(customer.crm_stage) && daysAgo(customer.last_activity_at || customer.created_at) > 7;
                 const followUpOverdue = customer.next_follow_up_at && new Date(customer.next_follow_up_at) < new Date();
+                const plLines = customer.product_lines || [];
+                const cv = customerValue(plLines);
+                const plStage = currentStage(plLines);
+                const displayValue = cv.fullValue > 0 ? cv.fullValue : (parseFloat(customer.estimated_value) || 0);
                 return (
                   <tr
                     key={customer.id}
@@ -1242,9 +1254,9 @@ export default function Customers() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3"><StageBadge stage={customer.crm_stage} /></td>
+                    <td className="px-4 py-3">{plStage ? <PipelineStageBadge stage={plStage} /> : <StageBadge stage={customer.crm_stage} />}</td>
                     <td className="px-4 py-3"><TempBadge temp={customer.lead_temperature} /></td>
-                    <td className="px-4 py-3 text-sm text-white font-medium">{customer.estimated_value ? `$${parseFloat(customer.estimated_value).toLocaleString()}` : '—'}</td>
+                    <td className="px-4 py-3 text-sm text-white font-medium">{displayValue > 0 ? `$${Math.round(displayValue).toLocaleString()}` : '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs ${isStale ? 'text-blue-400 font-medium' : 'text-gray-400'}`}>
                         {formatRelative(customer.last_activity_at || customer.created_at)}
