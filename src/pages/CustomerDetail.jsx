@@ -1742,7 +1742,7 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
       ) : (
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl divide-y divide-navy-700/30">
           {estimates.map(e => (
-            <div key={e.id} className="p-4 flex items-start gap-3">
+            <Link key={e.id} to={`/admin/estimate/${e.id}`} className="p-4 flex items-start gap-3 hover:bg-navy-700/30 transition-colors">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold text-white">{e.title || 'Untitled estimate'}</p>
@@ -1759,7 +1759,7 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
                   <span className="ml-auto text-xs text-emerald-400 font-semibold">{formatCurrency(e.total)}</span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

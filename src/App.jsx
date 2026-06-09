@@ -145,6 +145,7 @@ import NewTenant from './pages/NewTenant'
 import Reports from './pages/Reports'
 import Automations from './pages/Automations'
 import EstimateTemplates from './pages/EstimateTemplates'
+import EstimateDocument from './pages/EstimateDocument'
 import EmailTemplates from './pages/EmailTemplates'
 import LiftoriSettings from './pages/LiftoriSettings'
 import Campaigns from './pages/communications/Campaigns'
@@ -389,6 +390,7 @@ export default function App() {
             <Route path="affiliates" element={<Affiliates />} />
             <Route path="customers" element={<Customers />} />
             <Route path="customers/:id" element={<CustomerDetail />} />
+            <Route path="estimate/:id" element={<EstimateDocument />} />
             <Route path="customers/convert/:signupId" element={<ConvertSignup />} />
             <Route path="platforms" element={<Platforms />} />
             <Route path="platforms/:id" element={<PlatformDetail />} />
