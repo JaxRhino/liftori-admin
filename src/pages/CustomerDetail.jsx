@@ -1330,6 +1330,149 @@ function EmptyState({ icon, title, hint }) {
   )
 }
 
+const PL_TYPES = ['CRM', 'Website', 'Custom Build', 'Consulting']
+const PL_STAGES = ['New Lead', 'Contacted', 'Qualified', 'Proposal', 'Negotiation']
+const PL_TYPE_COLOR = {
+  'CRM': 'bg-brand-blue/20 text-brand-blue',
+  'Website': 'bg-emerald-500/20 text-emerald-400',
+  'Custom Build': 'bg-violet-500/20 text-violet-400',
+  'Consulting': 'bg-amber-500/20 text-amber-400',
+}
+const PL_PROJECT_TYPE = { 'CRM': 'CRM', 'Website': 'Websites', 'Custom Build': 'Custom Builds' }
+
+function ProductLinesTab({ customerId, customer, lines, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ product_type: 'CRM', stage: 'New Lead', estimated_value: '', expected_close_date: '', notes: '' })
+  const [saving, setSaving] = useState(false)
+  const [busyId, setBusyId] = useState(null)
+
+  async function save() {
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('customer_product_lines').insert({
+        profile_id: customerId,
+        product_type: form.product_type,
+        stage: form.stage,
+        estimated_value: form.estimated_value ? Number(form.estimated_value) : 0,
+        expected_close_date: form.expected_close_date || null,
+        notes: form.notes || null,
+      })
+      if (error) throw error
+      setForm({ product_type: 'CRM', stage: 'New Lead', estimated_value: '', expected_close_date: '', notes: '' })
+      setOpen(false)
+      onChange()
+    } catch (e) { console.error(e); alert('Failed to add product line: ' + (e.message || '')) }
+    finally { setSaving(false) }
+  }
+
+  async function setStage(line, stage) {
+    setBusyId(line.id)
+    try {
+      const { error } = await supabase.from('customer_product_lines').update({ stage, updated_at: new Date().toISOString() }).eq('id', line.id)
+      if (error) throw error
+      onChange()
+    } catch (e) { console.error(e); alert('Failed to update stage') } finally { setBusyId(null) }
+  }
+
+  async function markWon(line) {
+    if (!window.confirm('Mark this ' + line.product_type + ' line as Won' + (line.product_type !== 'Consulting' ? ' and create an Operations project?' : '?'))) return
+    setBusyId(line.id)
+    try {
+      let projectId = null
+      if (line.product_type !== 'Consulting') {
+        const { data: proj, error: pErr } = await supabase.from('projects').insert({
+          name: (customer.company_name || customer.full_name || 'Customer') + ' - ' + line.product_type,
+          project_type: PL_PROJECT_TYPE[line.product_type],
+          status: 'Onboarding Scheduled',
+          customer_id: customerId,
+          client_display_name: customer.company_name || customer.full_name || null,
+          mrr: 0,
+        }).select().single()
+        if (pErr) throw pErr
+        projectId = proj.id
+      }
+      const { error } = await supabase.from('customer_product_lines').update({
+        stage: 'Won', won_at: new Date().toISOString(), project_id: projectId, updated_at: new Date().toISOString(),
+      }).eq('id', line.id)
+      if (error) throw error
+      onChange()
+    } catch (e) { console.error(e); alert('Failed to mark won: ' + (e.message || '')) } finally { setBusyId(null) }
+  }
+
+  async function markLost(line) {
+    setBusyId(line.id)
+    try {
+      const { error } = await supabase.from('customer_product_lines').update({ stage: 'Lost', lost_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', line.id)
+      if (error) throw error
+      onChange()
+    } catch (e) { console.error(e); alert('Failed to mark lost') } finally { setBusyId(null) }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-400">{lines.length} product line{lines.length !== 1 ? 's' : ''}. A customer can run several at once.</p>
+        <button onClick={() => setOpen(o => !o)} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg font-medium">{open ? 'Cancel' : '+ New Product Line'}</button>
+      </div>
+      {open && (
+        <div className="bg-navy-800 border border-brand-blue/30 rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <select value={form.product_type} onChange={e => setForm(f => ({ ...f, product_type: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+              {PL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+              {PL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <input type="number" value={form.estimated_value} onChange={e => setForm(f => ({ ...f, estimated_value: e.target.value }))} placeholder="Estimated value $" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            <input type="date" value={form.expected_close_date} onChange={e => setForm(f => ({ ...f, expected_close_date: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" style={{ colorScheme: 'dark' }} />
+            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes (optional)" rows={2} className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white resize-none" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
+            <button onClick={save} disabled={saving} className="px-4 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white rounded-lg font-medium">{saving ? 'Saving...' : 'Add Line'}</button>
+          </div>
+        </div>
+      )}
+      {lines.length === 0 && !open ? (
+        <EmptyState icon="*" title="No product lines yet" hint="Add CRM, Website, Custom Build, or Consulting lines. Each moves through its own pipeline and a won line opens an Operations project." />
+      ) : (
+        <div className="bg-navy-800 border border-navy-700/50 rounded-xl divide-y divide-navy-700/30">
+          {lines.map(l => {
+            const terminal = l.stage === 'Won' || l.stage === 'Lost'
+            return (
+              <div key={l.id} className="p-4 flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${PL_TYPE_COLOR[l.product_type] || 'bg-gray-500/20 text-gray-400'}`}>{l.product_type}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${l.stage === 'Won' ? 'bg-emerald-500/20 text-emerald-400' : l.stage === 'Lost' ? 'bg-red-500/20 text-red-400' : 'bg-navy-700/60 text-gray-300'}`}>{l.stage}</span>
+                    {l.estimated_value > 0 && <span className="text-xs text-emerald-400 font-semibold">{formatCurrency(l.estimated_value)}</span>}
+                    {l.project?.name && <span className="text-xs text-brand-blue">-&gt; {l.project.name}</span>}
+                  </div>
+                  {l.notes && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{l.notes}</p>}
+                  <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-2">
+                    {l.expected_close_date && <span>Expected close {formatDate(l.expected_close_date)}</span>}
+                    {l.won_at && <span className="text-emerald-400">Won {formatDate(l.won_at)}</span>}
+                    {l.lost_at && <span className="text-red-400">Lost {formatDate(l.lost_at)}</span>}
+                  </div>
+                </div>
+                {!terminal && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <select value={l.stage} onChange={e => setStage(l, e.target.value)} disabled={busyId === l.id} className="bg-navy-900 border border-navy-700/50 rounded-lg px-2 py-1 text-xs text-white">
+                      {PL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <button onClick={() => markWon(l)} disabled={busyId === l.id} className="px-2.5 py-1 text-xs bg-emerald-500/90 hover:bg-emerald-500 text-white rounded-lg font-medium disabled:opacity-50">Won</button>
+                    <button onClick={() => markLost(l)} disabled={busyId === l.id} className="px-2.5 py-1 text-xs text-gray-400 hover:text-red-400">Lost</button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function EstimatesTab({ customerId, estimates, projects, onChange }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ title: '', total: '', project_id: '', valid_until: '', status: 'draft', notes: '' })
@@ -1721,6 +1864,7 @@ export default function CustomerDetail() {
   const [tasks, setTasks] = useState([])
   const [notes, setNotes] = useState([])
   const [loading, setLoading] = useState(true)
+  const [productLines, setProductLines] = useState([])
   const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
@@ -1777,6 +1921,8 @@ export default function CustomerDetail() {
       setAgreements(agrs || [])
       setTasks(tks || [])
       setNotes(nts || [])
+      const { data: plines } = await supabase.from('customer_product_lines').select('*, project:projects(name, status)').eq('profile_id', id).order('created_at', { ascending: false })
+      setProductLines(plines || [])
     } catch (err) {
       console.error('Error fetching customer detail:', err)
     } finally {
@@ -1810,6 +1956,7 @@ export default function CustomerDetail() {
   const TABS = [
     { key: 'overview', label: 'Overview' },
     { key: 'projects', label: `Projects (${projects.length})` },
+    { key: 'lines', label: `Product Lines (${productLines.length})` },
     { key: 'estimates', label: `Estimates (${estimates.length})` },
     { key: 'agreements', label: `Agreements (${agreements.length})` },
     { key: 'tasks', label: `Tasks (${tasks.filter(t => t.status !== 'completed').length})` },
@@ -1913,6 +2060,7 @@ export default function CustomerDetail() {
         {activeTab === 'overview' && <OverviewTab customer={customer} projects={projects} messages={messages} invoices={invoices} updates={updates} estimates={estimates} agreements={agreements} tasks={tasks} notes={notes} />}
         {activeTab === 'details' && <DetailsTab customer={customer} />}
         {activeTab === 'projects' && <ProjectsTab projects={projects} />}
+        {activeTab === 'lines' && <ProductLinesTab customerId={id} customer={customer} lines={productLines} onChange={fetchAll} />}
         {activeTab === 'estimates' && <EstimatesTab customerId={id} estimates={estimates} projects={projects} onChange={fetchAll} />}
         {activeTab === 'agreements' && <AgreementsTab customerId={id} agreements={agreements} estimates={estimates} projects={projects} onChange={fetchAll} />}
         {activeTab === 'tasks' && <TasksTab customerId={id} tasks={tasks} projects={projects} onChange={fetchAll} />}
