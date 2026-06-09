@@ -1388,6 +1388,7 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
         const { error } = await table.update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editId)
         if (error) throw error
         const el = (lines || []).find(l => l.id === editId); if (el) await syncProjectStage(el, form.stage)
+        if (el && el.project_id) await supabase.from('projects').update({ mrr: form.mrr ? Number(form.mrr) : 0, updated_at: new Date().toISOString() }).eq('id', el.project_id)
       } else {
         const { data: newLine, error } = await table.insert({ profile_id: customerId, ...payload }).select().single()
         if (error) throw error

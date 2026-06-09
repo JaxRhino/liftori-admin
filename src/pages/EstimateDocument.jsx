@@ -98,11 +98,15 @@ export default function EstimateDocument() {
         const b = byProduct[l.product] || (byProduct[l.product] = { oneTime: 0, monthly: 0 })
         if (l.recurring) b.monthly += amt; else b.oneTime += amt
       })
-      const { data: pls } = await supabase.from('customer_product_lines').select('id, product_type, lost_at').eq('profile_id', est.contact_id)
+      const { data: pls } = await supabase.from('customer_product_lines').select('id, product_type, lost_at, project_id').eq('profile_id', est.contact_id)
       for (const pl of (pls || [])) {
         const v = byProduct[pl.product_type]
         if (v && !pl.lost_at) {
           await supabase.from('customer_product_lines').update({ estimated_value: v.oneTime, mrr: v.monthly, updated_at: new Date().toISOString() }).eq('id', pl.id)
+          // Also push MRR onto the linked Operations project so the Projects "Total MRR" reflects it.
+          if (pl.project_id) {
+            await supabase.from('projects').update({ mrr: Math.round(v.monthly), updated_at: new Date().toISOString() }).eq('id', pl.project_id)
+          }
         }
       }
     }
