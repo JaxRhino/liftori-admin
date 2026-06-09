@@ -68,9 +68,12 @@ function getInitials(name, email) {
 }
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
+// Projects counted as "active" = won and in delivery or live (matches Operations STATUS_PIPELINE)
+const ACTIVE_PROJECT_STATUSES = ['Onboarding Scheduled', 'Buildout', 'Active', 'Payment Hold']
+
 function OverviewTab({ customer, projects, messages, invoices, updates }) {
   const c = customer
-  const activeProjects = projects.filter(p => p.status && p.status !== 'Launched' && p.status !== 'Cancelled')
+  const activeProjects = projects.filter(p => ACTIVE_PROJECT_STATUSES.includes(p.status))
   const launchedProjects = projects.filter(p => p.status === 'Launched')
   const totalInvoiced = invoices.reduce((s, i) => s + (i.amount || 0), 0)
   const totalPaid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0)
@@ -1342,7 +1345,7 @@ const PL_PROJECT_TYPE = { 'CRM': 'CRM', 'Website': 'Websites', 'Custom Build': '
 
 function ProductLinesTab({ customerId, customer, lines, onChange }) {
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ product_type: 'CRM', stage: 'New Lead', estimated_value: '', expected_close_date: '', notes: '' })
+  const [form, setForm] = useState({ product_type: 'CRM', stage: 'New Lead', estimated_value: '', mrr: '', term_months: '', expected_close_date: '', notes: '' })
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState(null)
 
@@ -1354,11 +1357,13 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
         product_type: form.product_type,
         stage: form.stage,
         estimated_value: form.estimated_value ? Number(form.estimated_value) : 0,
+        mrr: form.mrr ? Number(form.mrr) : 0,
+        term_months: form.term_months ? Number(form.term_months) : null,
         expected_close_date: form.expected_close_date || null,
         notes: form.notes || null,
       })
       if (error) throw error
-      setForm({ product_type: 'CRM', stage: 'New Lead', estimated_value: '', expected_close_date: '', notes: '' })
+      setForm({ product_type: 'CRM', stage: 'New Lead', estimated_value: '', mrr: '', term_months: '', expected_close_date: '', notes: '' })
       setOpen(false)
       onChange()
     } catch (e) { console.error(e); alert('Failed to add product line: ' + (e.message || '')) }
@@ -1386,7 +1391,7 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
           status: 'Onboarding Scheduled',
           customer_id: customerId,
           client_display_name: customer.company_name || customer.full_name || null,
-          mrr: 0,
+          mrr: Number(line.mrr) || 0,
         }).select().single()
         if (pErr) throw pErr
         projectId = proj.id
@@ -1423,7 +1428,9 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
             <select value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
               {PL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <input type="number" value={form.estimated_value} onChange={e => setForm(f => ({ ...f, estimated_value: e.target.value }))} placeholder="Estimated value $" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            <input type="number" value={form.estimated_value} onChange={e => setForm(f => ({ ...f, estimated_value: e.target.value }))} placeholder="One-time setup $" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            <input type="number" value={form.mrr} onChange={e => setForm(f => ({ ...f, mrr: e.target.value }))} placeholder="MRR $ / month" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            <input type="number" value={form.term_months} onChange={e => setForm(f => ({ ...f, term_months: e.target.value }))} placeholder="Term (months)" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
             <input type="date" value={form.expected_close_date} onChange={e => setForm(f => ({ ...f, expected_close_date: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" style={{ colorScheme: 'dark' }} />
             <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes (optional)" rows={2} className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white resize-none" />
           </div>
@@ -1445,7 +1452,10 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded font-medium ${PL_TYPE_COLOR[l.product_type] || 'bg-gray-500/20 text-gray-400'}`}>{l.product_type}</span>
                     <span className={`text-xs px-2 py-0.5 rounded ${l.stage === 'Won' ? 'bg-emerald-500/20 text-emerald-400' : l.stage === 'Lost' ? 'bg-red-500/20 text-red-400' : 'bg-navy-700/60 text-gray-300'}`}>{l.stage}</span>
-                    {l.estimated_value > 0 && <span className="text-xs text-emerald-400 font-semibold">{formatCurrency(l.estimated_value)}</span>}
+                    {l.estimated_value > 0 && <span className="text-xs text-emerald-400 font-semibold">{formatCurrency(l.estimated_value)} setup</span>}
+                    {l.mrr > 0 && <span className="text-xs text-amber-400 font-semibold">{formatCurrency(l.mrr)}/mo</span>}
+                    {l.mrr > 0 && <span className="text-[11px] text-amber-400/70">{formatCurrency(l.mrr * 12)} ARR</span>}
+                    {l.term_months > 0 && <span className="text-[11px] text-gray-400">{l.term_months}mo term</span>}
                     {l.project?.name && <span className="text-xs text-brand-blue">-&gt; {l.project.name}</span>}
                   </div>
                   {l.notes && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{l.notes}</p>}
@@ -1950,7 +1960,12 @@ export default function CustomerDetail() {
   }
 
   const initials = getInitials(customer.full_name, customer.email)
-  const activeProjects = projects.filter(p => p.status && p.status !== 'Launched' && p.status !== 'Cancelled')
+  // Projected MRR = weighted pipeline: open product lines (not won/lost), monthly recurring × win probability
+  const projectedMrr = productLines
+    .filter(l => !l.won_at && !l.lost_at)
+    .reduce((s, l) => s + (Number(l.mrr) || 0) * (Number(l.probability) || 0) / 100, 0)
+  const projectedArr = projectedMrr * 12
+  const activeProjects = projects.filter(p => ACTIVE_PROJECT_STATUSES.includes(p.status))
   const totalPaid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0)
 
   const TABS = [
@@ -2041,6 +2056,14 @@ export default function CustomerDetail() {
             <div className="text-center">
               <p className="text-2xl font-bold text-emerald-400">{formatCurrency(totalPaid)}</p>
               <p className="text-xs text-gray-500 mt-0.5">Paid</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-amber-400">{formatCurrency(Math.round(projectedMrr))}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Proj. MRR</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-amber-400/80">{formatCurrency(Math.round(projectedArr))}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Proj. ARR</p>
             </div>
           </div>
         </div>
