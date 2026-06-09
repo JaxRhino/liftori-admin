@@ -1390,13 +1390,18 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
         if (error) throw error
         // Auto-create a linked Operations project so every build is visible to Operations (skip Consulting).
         if (form.product_type !== 'Consulting' && PL_PROJECT_TYPE[form.product_type]) {
+          const buildFor = customer.company_name || customer.full_name || 'the customer'
           const { data: proj } = await supabase.from('projects').insert({
             name: (customer.company_name || customer.full_name || 'Customer') + ' - ' + form.product_type,
             project_type: PL_PROJECT_TYPE[form.product_type],
             status: form.stage,
+            tier: 'Starter',
             customer_id: customerId,
             client_display_name: customer.company_name || customer.full_name || null,
             mrr: form.mrr ? Number(form.mrr) : 0,
+            brief: 'New ' + form.product_type + ' build for ' + buildFor + '.',
+            next_action: 'Kickoff — scope the ' + form.product_type + ' build & write the brief',
+            next_action_due: form.expected_close_date || null,
           }).select().single()
           if (proj && proj.id) await supabase.from('customer_product_lines').update({ project_id: proj.id, updated_at: new Date().toISOString() }).eq('id', newLine.id)
         }
