@@ -185,7 +185,7 @@ export default function Customers() {
           last_activity_at, next_follow_up_at, follow_up_notes, source, estimated_value, tags,
           waitlist_signup_id, created_at, updated_at,
           projects:projects!projects_customer_id_fkey (id, name, status, tier, mrr, created_at),
-          product_lines:customer_product_lines!customer_product_lines_profile_id_fkey (id, product_type, stage, estimated_value, mrr, term_months, probability, won_at, lost_at)
+          product_lines:customer_product_lines!customer_product_lines_profile_id_fkey (id, product_type, stage, estimated_value, mrr, term_months, probability, won_at, lost_at, project_id)
         `)
         .eq('role', 'customer')
         .is('archived_at', null)
@@ -535,6 +535,10 @@ export default function Customers() {
       else { patch.won_at = null; patch.lost_at = null; }
       const { error } = await supabase.from('customer_product_lines').update(patch).eq('id', target.id);
       if (error) throw error;
+      // Keep a linked Operations project in sync with the line stage.
+      if (target.project_id) {
+        await supabase.from('projects').update({ status: newStage, updated_at: new Date().toISOString() }).eq('id', target.project_id);
+      }
       await logActivity(customer.id, 'status_change', `Moved to ${newStage}`, `Pipeline stage changed to ${newStage}`);
       // Auto-archive when no active (non-lost) product lines remain; un-archive when one returns.
       const { data: ls } = await supabase.from('customer_product_lines').select('stage, lost_at').eq('profile_id', customer.id);

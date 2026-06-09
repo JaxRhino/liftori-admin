@@ -1385,6 +1385,7 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
         ? await table.update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editId)
         : await table.insert({ profile_id: customerId, ...payload })
       if (resp.error) throw resp.error
+      if (editId) { const el = (lines || []).find(l => l.id === editId); if (el) await syncProjectStage(el, form.stage) }
       setForm(EMPTY_FORM)
       setOpen(false)
       setEditId(null)
@@ -1399,16 +1400,21 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
     try {
       const { error } = await supabase.from('customer_product_lines').update({ stage, updated_at: new Date().toISOString() }).eq('id', line.id)
       if (error) throw error
+      await syncProjectStage(line, stage)
       onChange()
     } catch (e) { console.error(e); alert('Failed to update stage') } finally { setBusyId(null) }
   }
 
   async function markWon(line) {
-    if (!window.confirm('Mark this ' + line.product_type + ' line as Won' + (line.product_type !== 'Consulting' ? ' and create an Operations project?' : '?'))) return
+    const hasProject = !!line.project_id
+    if (!window.confirm('Mark this ' + line.product_type + ' line as Won' + (!hasProject && line.product_type !== 'Consulting' ? ' and create an Operations project?' : '?'))) return
     setBusyId(line.id)
     try {
-      let projectId = null
-      if (line.product_type !== 'Consulting') {
+      let projectId = line.project_id || null
+      if (projectId) {
+        // Already linked to an Operations project — just advance it (no duplicate).
+        await supabase.from('projects').update({ status: 'Onboarding Scheduled', updated_at: new Date().toISOString() }).eq('id', projectId)
+      } else if (line.product_type !== 'Consulting') {
         const { data: proj, error: pErr } = await supabase.from('projects').insert({
           name: (customer.company_name || customer.full_name || 'Customer') + ' - ' + line.product_type,
           project_type: PL_PROJECT_TYPE[line.product_type],
@@ -1433,6 +1439,7 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
     try {
       const { error } = await supabase.from('customer_product_lines').update({ stage: 'Lost', lost_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', line.id)
       if (error) throw error
+      await syncProjectStage(line, 'Lost')
       await syncArchived()
       onChange()
     } catch (e) { console.error(e); alert('Failed to mark lost') } finally { setBusyId(null) }
@@ -1445,6 +1452,12 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
     const hasActive = arr.some(l => !(l.stage === 'Lost' || l.lost_at))
     const archived_at = (arr.length > 0 && !hasActive) ? new Date().toISOString() : null
     await supabase.from('profiles').update({ archived_at, updated_at: new Date().toISOString() }).eq('id', customerId)
+  }
+
+  // Keep a linked Operations project's status in sync with the product line stage (shared pipeline).
+  async function syncProjectStage(line, stage) {
+    if (!line || !line.project_id) return
+    await supabase.from('projects').update({ status: stage, updated_at: new Date().toISOString() }).eq('id', line.project_id)
   }
 
   return (

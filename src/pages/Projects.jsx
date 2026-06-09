@@ -557,6 +557,16 @@ export default function Projects() {
         .eq('id', projectId)
 
       if (error) throw error
+      // Bidirectional sync: keep a linked CRM product line's stage in step with the project status.
+      {
+        const WON = ['Onboarding Scheduled', 'Buildout', 'Active', 'Payment Hold']
+        await supabase.from('customer_product_lines').update({
+          stage: newStatus,
+          won_at: WON.includes(newStatus) ? new Date().toISOString() : null,
+          lost_at: newStatus === 'Lost' ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString(),
+        }).eq('project_id', projectId)
+      }
       showToast(`${prev.name} → ${newStatus}`)
     } catch (err) {
       // Rollback
