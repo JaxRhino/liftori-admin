@@ -393,6 +393,7 @@ export default function Projects() {
   const [editForm, setEditForm] = useState(null)
   const [savingEdit, setSavingEdit] = useState(false)
   const [profileList, setProfileList] = useState([])
+  const [tierPrices, setTierPrices] = useState({}) // { 'CRM|Growth': 500, 'Website|': 300 } list MRR by product_type+tier
   // Wave E: searchQuery URL-backed too
   const searchQuery = searchParams.get('q') || ''
   const setSearchQuery = (v) => _updateParam('q', v, '')
@@ -409,6 +410,31 @@ export default function Projects() {
       setProfileList(data || [])
     })
   }, [])
+
+  // Standard tier MRR (list price) per product_type+tier, from the editable estimate templates.
+  // Used as a fallback "tier price" on cards whose actual deal MRR isn't set yet.
+  useEffect(() => {
+    supabase.from('estimate_product_templates')
+      .select('product_type, tier, is_active, estimate_product_template_items(unit_cost, qty, recurring)')
+      .eq('is_active', true)
+      .then(({ data }) => {
+        const map = {}
+        ;(data || []).forEach(t => {
+          const monthly = (t.estimate_product_template_items || [])
+            .filter(i => i.recurring)
+            .reduce((s, i) => s + (Number(i.unit_cost) || 0) * (Number(i.qty) || 1), 0)
+          map[`${t.product_type}|${t.tier || ''}`] = monthly
+        })
+        setTierPrices(map)
+      })
+  }, [])
+
+  // project_type taxonomy (plural) -> template product_type (singular)
+  const PROJ_TYPE_TO_PRODUCT = { 'Custom Builds': 'Custom Build', 'Websites': 'Website', 'CRM': 'CRM', 'Consulting': 'Consulting' }
+  function tierListPrice(project) {
+    const pt = PROJ_TYPE_TO_PRODUCT[project.project_type] || project.project_type
+    return tierPrices[`${pt}|${project.tier || ''}`] ?? tierPrices[`${pt}|`] ?? 0
+  }
 
   async function fetchProjects() {
     try {
@@ -954,7 +980,7 @@ export default function Projects() {
                       onDragStart={(e) => onCardDragStart(e, project.id)}
                       onClick={() => openProject(project)}
                       style={{cursor:"pointer"}}
-                      className={`bg-navy-800 border rounded-xl p-4 hover:border-navy-500 transition-colors group ${project.portfolio_pinned ? 'border-amber-500/40' : 'border-navy-700/50'} ${groupBy === 'status' ? 'active:cursor-grabbing' : ''}`}
+                      className={`bg-navy-800 border rounded-xl p-4 hover:border-navy-500 transition-colors group ${project.portfolio_pinned ? 'border-amber-500/40' : 'border-navy-600'} ${groupBy === 'status' ? 'active:cursor-grabbing' : ''}`}
                     >
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -1011,18 +1037,25 @@ export default function Projects() {
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          project.tier === 'Growth' ? 'bg-blue-500/20 text-blue-400' :
-                          project.tier === 'Scale' ? 'bg-purple-500/20 text-purple-400' :
-                          'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {project.tier}
-                        </span>
-                        {project.mrr > 0 && (
-                          <span className="text-xs text-emerald-400 font-medium">
-                            ${project.mrr.toLocaleString()}/mo
+                        {project.tier && (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            project.tier === 'Growth' ? 'bg-blue-500/20 text-blue-400' :
+                            project.tier === 'Scale' ? 'bg-purple-500/20 text-purple-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {project.tier}
                           </span>
                         )}
+                        {(() => {
+                          const actual = project.mrr > 0
+                          const amount = actual ? project.mrr : tierListPrice(project)
+                          if (!amount) return null
+                          return (
+                            <span className={`text-xs font-medium ml-auto ${actual ? 'text-emerald-400' : 'text-gray-500'}`} title={actual ? 'Contracted MRR' : `Standard ${project.tier || ''} price`}>
+                              ${amount.toLocaleString()}/mo
+                            </span>
+                          )
+                        })()}
                       </div>
                       {project.progress > 0 && (
                         <div className="mt-3 flex items-center gap-2">
