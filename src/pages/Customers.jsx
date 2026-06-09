@@ -682,9 +682,9 @@ export default function Customers() {
     .filter(c => customerStage(c) !== 'Lost')
     .reduce((sum, c) => sum + customerFullValue(c), 0);
 
-  // Active MRR = booked recurring from won deals; Pipeline MRR = probability-weighted forecast across open deals.
+  // Active MRR = booked recurring from won deals; Pipeline MRR = gross recurring across open deals (unweighted).
   const totalActiveMrr = customers.reduce((sum, c) => sum + customerValue(c.product_lines || []).activeMrr, 0);
-  const totalPipelineMrr = customers.reduce((sum, c) => sum + customerValue(c.product_lines || []).projectedMrr, 0);
+  const totalPipelineMrr = customers.reduce((sum, c) => sum + customerValue(c.product_lines || []).openMrr, 0);
 
   const totalMRR = customers.reduce((sum, c) => {
     return sum + (c.projects || []).reduce((ps, p) => ps + (parseFloat(p.mrr) || 0), 0);
