@@ -57,6 +57,7 @@ import InHouseBuilds from './pages/InHouseBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import MobilePreview from './pages/MobilePreview'
 import SalesPipeline from './pages/SalesPipeline'
+import Pipeline from './pages/Pipeline'
 import Investors from './pages/Investors'
 import OpsDashboard from './pages/OpsDashboard'
 import WizardBuilder from './pages/WizardBuilder'
@@ -456,7 +457,7 @@ export default function App() {
             <Route path="builds" element={<InHouseBuilds />} />
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
             <Route path="mobile-preview" element={<MobilePreview />} />
-            <Route path="pipeline" element={<SalesPipeline />} />
+            <Route path="pipeline" element={<Pipeline />} />
             <Route path="sales/pipeline" element={<Navigate to="/admin/pipeline" replace />} />
             <Route path="investors" element={<Investors />} />
             {/* Marketing Hub */}
