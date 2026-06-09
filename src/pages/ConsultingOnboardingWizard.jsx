@@ -881,6 +881,42 @@ const numVal = (v) => (v === '' || v === null || v === undefined ? '' : v)
 const onNum = (onPatch, key) => (ev) => onPatch({ [key]: ev.target.value === '' ? null : Number(ev.target.value) })
 const onNotes = (onPatch, key) => (ev) => onPatch({ [key]: ev.target.value ? { notes: ev.target.value } : null })
 
+// Structured list editor — rows of {fields}. Persists an array of objects to a jsonb column.
+function ListEditor({ items, onChange, fields, addLabel = 'Add' }) {
+  const [draft, setDraft] = useState({})
+  const list = Array.isArray(items) ? items : []
+  function add() {
+    if (!fields.some((f) => (draft[f.key] || '').toString().trim())) return
+    onChange([...list, draft])
+    setDraft({})
+  }
+  function remove(i) { onChange(list.filter((_, idx) => idx !== i)) }
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {fields.map((f) => (
+          <input key={f.key} className={`${fieldCls} flex-1 min-w-[110px]`} placeholder={f.placeholder} value={draft[f.key] || ''}
+            onChange={(ev) => setDraft((d) => ({ ...d, [f.key]: ev.target.value }))}
+            onKeyDown={(ev) => ev.key === 'Enter' && (ev.preventDefault(), add())} />
+        ))}
+        <button type="button" className={btnGhost} onClick={add}><Plus className="w-4 h-4" /> {addLabel}</button>
+      </div>
+      {list.length === 0 ? (
+        <p className="text-xs text-gray-500 italic">None captured yet.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {list.map((it, i) => (
+            <div key={i} className="flex items-center gap-2 bg-slate-800/40 rounded-lg px-3 py-2 text-sm text-gray-200">
+              <span className="flex-1">{fields.map((f) => it[f.key]).filter(Boolean).join('  ·  ')}</span>
+              <button type="button" onClick={() => remove(i)} className="text-red-400 hover:text-red-300"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function StepFinancials({ engagement, onPatch }) {
   return (
     <div className="space-y-5">
@@ -932,7 +968,7 @@ function StepOperations({ engagement, onPatch }) {
   return (
     <div className="space-y-5">
       <SectionCard title="Operations & Process" subtitle="The EOS Process component — the handful of core processes that run the business.">
-        <Field label="Core processes (3–7)" hint="Name them; note if documented & followed by all."><textarea className={`${fieldCls} min-h-[88px]`} value={engagement.core_processes?.notes || ''} onChange={onNotes(onPatch, 'core_processes')} /></Field>
+        <Field label="Core processes (3–7)" hint="Name them; note if documented & followed by all."><ListEditor items={engagement.core_processes} onChange={(v) => onPatch({ core_processes: v })} addLabel="Add process" fields={[{ key: 'name', placeholder: 'Process name' }, { key: 'documented', placeholder: 'Documented?' }, { key: 'followed', placeholder: 'Followed by all?' }]} /></Field>
         <div className="mt-4"><Field label="Bottlenecks / capacity constraints"><textarea className={`${fieldCls} min-h-[64px]`} value={engagement.bottlenecks || ''} onChange={(ev) => onPatch({ bottlenecks: ev.target.value })} /></Field></div>
         <div className="mt-4"><Field label="SOP / documentation maturity"><input className={fieldCls} placeholder="e.g. tribal knowledge / partly documented / fully documented" value={engagement.sop_maturity || ''} onChange={(ev) => onPatch({ sop_maturity: ev.target.value })} /></Field></div>
       </SectionCard>
@@ -948,7 +984,7 @@ function StepScorecard({ engagement, onPatch }) {
           <input type="checkbox" checked={!!engagement.runs_weekly_scorecard} onChange={(ev) => onPatch({ runs_weekly_scorecard: ev.target.checked })} />
           Runs a weekly scorecard today
         </label>
-        <Field label="Scorecard measurables" hint="5–15 weekly numbers, each with an owner + goal."><textarea className={`${fieldCls} min-h-[100px]`} value={engagement.scorecard_kpis?.notes || ''} onChange={onNotes(onPatch, 'scorecard_kpis')} /></Field>
+        <Field label="Scorecard measurables" hint="5–15 weekly numbers, each with an owner + goal."><ListEditor items={engagement.scorecard_kpis} onChange={(v) => onPatch({ scorecard_kpis: v })} addLabel="Add measurable" fields={[{ key: 'metric', placeholder: 'Measurable' }, { key: 'owner', placeholder: 'Owner' }, { key: 'goal', placeholder: 'Weekly goal' }]} /></Field>
       </SectionCard>
     </div>
   )
@@ -958,8 +994,8 @@ function StepIssuesGoals({ engagement, onPatch }) {
   return (
     <div className="space-y-5">
       <SectionCard title="Issues & Rocks" subtitle="The EOS Issues component + this quarter's priorities.">
-        <Field label="Issues list" hint="Top obstacles to growth — to Identify, Discuss, Solve."><textarea className={`${fieldCls} min-h-[100px]`} value={engagement.issues?.notes || ''} onChange={onNotes(onPatch, 'issues')} /></Field>
-        <div className="mt-4"><Field label="Quarterly Rocks (3–7)" hint="The most important priorities for the next 90 days."><textarea className={`${fieldCls} min-h-[88px]`} value={engagement.quarterly_rocks?.notes || ''} onChange={onNotes(onPatch, 'quarterly_rocks')} /></Field></div>
+        <Field label="Issues list" hint="Top obstacles to growth — to Identify, Discuss, Solve."><ListEditor items={engagement.issues} onChange={(v) => onPatch({ issues: v })} addLabel="Add issue" fields={[{ key: 'title', placeholder: 'Issue' }, { key: 'area', placeholder: 'Area' }, { key: 'severity', placeholder: 'Severity' }]} /></Field>
+        <div className="mt-4"><Field label="Quarterly Rocks (3–7)" hint="The most important priorities for the next 90 days."><ListEditor items={engagement.quarterly_rocks} onChange={(v) => onPatch({ quarterly_rocks: v })} addLabel="Add rock" fields={[{ key: 'title', placeholder: 'Rock' }, { key: 'owner', placeholder: 'Owner' }, { key: 'due', placeholder: 'Due' }]} /></Field></div>
       </SectionCard>
     </div>
   )
@@ -988,7 +1024,7 @@ function StepPlan({ engagement, onPatch }) {
   const plan = synthesizePlan(engagement)
   const ring = plan.healthScore >= 70 ? 'text-emerald-400' : plan.healthScore >= 40 ? 'text-amber-400' : 'text-red-400'
   function savePlan() {
-    onPatch({ health_score: plan.healthScore, quarterly_rocks: plan.rocks.length ? { notes: plan.rocks.join('\n') } : engagement.quarterly_rocks })
+    onPatch({ health_score: plan.healthScore, quarterly_rocks: plan.rocks.length ? plan.rocks.map((r) => ({ title: r })) : engagement.quarterly_rocks })
     toast.success('Plan saved to engagement')
   }
   return (

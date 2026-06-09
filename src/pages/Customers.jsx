@@ -916,7 +916,7 @@ export default function Customers() {
                   </thead>
                   <tbody>
                     {filteredConsultingEngagements.map(e => (
-                      <tr key={e.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <tr key={e.id} onClick={() => navigate(`/admin/consulting/client/${e.id}`)} className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer">
                         <td className="px-4 py-3">
                           <div className="text-white font-medium">{e.client_name || '—'}</div>
                           <div className="text-gray-500 text-xs">{e.client_email}</div>
@@ -926,7 +926,7 @@ export default function Customers() {
                           <Badge className="text-xs bg-navy-700/60 text-gray-200 border border-white/10">{e.engagement_stage}</Badge>
                         </td>
                         <td className="px-4 py-3 text-white font-medium">{e.contract_value > 0 ? `$${parseFloat(e.contract_value).toLocaleString()}` : '—'}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3" onClick={ev => ev.stopPropagation()}>
                           <select value={e.engagement_stage} onChange={ev => changeEngagementStage(e.id, ev.target.value)} className="bg-navy-900 border border-navy-700/50 rounded-lg px-2 py-1 text-xs text-white">
                             {CONSULTING_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
