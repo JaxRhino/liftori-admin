@@ -765,26 +765,12 @@ export default function Customers() {
           )}
         </button>
         <button
-          onClick={() => setActiveTab('labos')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'labos' ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          <Cpu className="h-4 w-4" /> LABOS Leads
-          <span className="ml-1 text-xs opacity-70">({labosLeads.length})</span>
-          {labosLeads.filter(l => l.status === 'new').length > 0 && (
-            <span className="bg-emerald-400 text-emerald-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
-              {labosLeads.filter(l => l.status === 'new').length}
-            </span>
-          )}
-        </button>
-        <button
           onClick={() => setActiveTab('digital')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
             activeTab === 'digital' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'
           }`}
         >
-          <ExternalLink className="h-4 w-4" /> Digital Product Leads
+          <ExternalLink className="h-4 w-4" /> Custom Build Leads
           <span className="ml-1 text-xs opacity-70">({digitalLeads.length})</span>
           {digitalLeads.filter(l => l.status === 'new').length > 0 && (
             <span className="bg-blue-400 text-blue-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
