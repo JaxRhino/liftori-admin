@@ -5,17 +5,22 @@ import { useAuth } from '../lib/AuthContext'
 import DevLab from '../components/DevLab'
 import TeamMemberSelect, { TeamMemberLabel } from '../components/TeamMemberSelect'
 
-const STATUSES = ['Wizard Complete', 'Brief Review', 'Design Approval', 'In Build', 'QA', 'Launched', 'On Hold', 'Cancelled']
+const STATUSES = ['New Lead', 'Waitlist', 'Development', 'Demo Ready', 'Demo Scheduled', 'Estimating', 'Estimate Sent', 'Pending Payment', 'Onboarding Scheduled', 'Buildout', 'Active', 'Payment Hold', 'Lost']
 
 const STATUS_COLORS = {
-  'Wizard Complete': 'bg-gray-500/20 text-gray-400',
-  'Brief Review': 'bg-yellow-500/20 text-yellow-400',
-  'Design Approval': 'bg-purple-500/20 text-purple-400',
-  'In Build': 'bg-brand-blue/20 text-brand-blue',
-  'QA': 'bg-orange-500/20 text-orange-400',
-  'Launched': 'bg-emerald-500/20 text-emerald-400',
-  'On Hold': 'bg-gray-500/20 text-gray-500',
-  'Cancelled': 'bg-red-500/20 text-red-400'
+  'New Lead': 'bg-sky-500/20 text-sky-400',
+  'Waitlist': 'bg-cyan-500/20 text-cyan-400',
+  'Development': 'bg-blue-500/20 text-blue-400',
+  'Demo Ready': 'bg-teal-500/20 text-teal-400',
+  'Demo Scheduled': 'bg-lime-500/20 text-lime-400',
+  'Estimating': 'bg-yellow-500/20 text-yellow-400',
+  'Estimate Sent': 'bg-amber-500/20 text-amber-400',
+  'Pending Payment': 'bg-orange-500/20 text-orange-400',
+  'Onboarding Scheduled': 'bg-indigo-500/20 text-indigo-400',
+  'Buildout': 'bg-brand-blue/20 text-brand-blue',
+  'Active': 'bg-emerald-500/20 text-emerald-400',
+  'Payment Hold': 'bg-rose-500/20 text-rose-400',
+  'Lost': 'bg-red-500/20 text-red-400'
 }
 
 const PROJECT_TYPES = ['Web App', 'Mobile App', 'Business Platform', 'E-Commerce', 'Dashboard', 'Marketplace', 'Book Writing App', 'CRM Builder', 'Website Builder']
@@ -156,10 +161,19 @@ export default function ProjectDetail() {
 
   async function updateStatus(newStatus) {
     const updates = { status: newStatus }
-    if (newStatus === 'Launched') updates.launched_at = new Date().toISOString()
-    if (newStatus === 'Design Approval') updates.approved_at = new Date().toISOString()
+    if (newStatus === 'Active') updates.launched_at = new Date().toISOString()
     const { error } = await supabase.from('projects').update(updates).eq('id', id)
-    if (!error) setProject(p => ({ ...p, ...updates }))
+    if (!error) {
+      setProject(p => ({ ...p, ...updates }))
+      // Bidirectional sync: keep the linked CRM product line's stage in step with the project status.
+      const WON = ['Onboarding Scheduled', 'Buildout', 'Active', 'Payment Hold']
+      await supabase.from('customer_product_lines').update({
+        stage: newStatus,
+        won_at: WON.includes(newStatus) ? new Date().toISOString() : null,
+        lost_at: newStatus === 'Lost' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      }).eq('project_id', id)
+    }
   }
 
   async function updateProgress(newProgress) {
@@ -472,7 +486,7 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
         <>
           {/* ── Status Pipeline Bar ── */}
           {(() => {
-            const PIPELINE = ['Wizard Complete', 'Brief Review', 'Design Approval', 'In Build', 'QA', 'Launched']
+            const PIPELINE = ['New Lead', 'Waitlist', 'Development', 'Demo Ready', 'Demo Scheduled', 'Estimating', 'Estimate Sent', 'Pending Payment', 'Onboarding Scheduled', 'Buildout', 'Active']
             const currentIdx = PIPELINE.indexOf(project.status)
             return (
               <div className="card mb-6 overflow-x-auto">
