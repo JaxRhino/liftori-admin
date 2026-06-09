@@ -682,6 +682,10 @@ export default function Customers() {
     .filter(c => customerStage(c) !== 'Lost')
     .reduce((sum, c) => sum + customerFullValue(c), 0);
 
+  // Active MRR = booked recurring from won deals; Pipeline MRR = probability-weighted forecast across open deals.
+  const totalActiveMrr = customers.reduce((sum, c) => sum + customerValue(c.product_lines || []).activeMrr, 0);
+  const totalPipelineMrr = customers.reduce((sum, c) => sum + customerValue(c.product_lines || []).projectedMrr, 0);
+
   const totalMRR = customers.reduce((sum, c) => {
     return sum + (c.projects || []).reduce((ps, p) => ps + (parseFloat(p.mrr) || 0), 0);
   }, 0);
@@ -1196,13 +1200,14 @@ export default function Customers() {
       )}
 
       {/* ── Stats Row ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {[
           { label: 'Total Customers', value: stats.total, icon: Users, color: 'text-sky-400' },
           { label: 'In Pipeline', value: stats.pipeline, icon: Target, color: 'text-purple-400' },
           { label: 'Active / Won', value: stats.active, icon: CheckCircle, color: 'text-green-400' },
-          { label: 'At Risk', value: stats.atRisk, icon: AlertTriangle, color: 'text-orange-400' },
-          { label: 'Pipeline Value', value: `$${totalPipelineValue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-400' },
+          { label: 'Active MRR', value: `$${Math.round(totalActiveMrr).toLocaleString()}/mo`, icon: Zap, color: 'text-emerald-400' },
+          { label: 'Pipeline MRR', value: `$${Math.round(totalPipelineMrr).toLocaleString()}/mo`, icon: TrendingUp, color: 'text-amber-400' },
+          { label: 'Pipeline Value', value: `$${Math.round(totalPipelineValue).toLocaleString()}`, icon: DollarSign, color: 'text-emerald-400' },
         ].map(stat => (
           <Card key={stat.label} className="bg-navy-800/50 border-white/10 p-4">
             <div className="flex items-center justify-between">
