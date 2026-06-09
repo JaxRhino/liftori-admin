@@ -102,7 +102,8 @@ export default function Customers() {
   const [addFollowUpOpen, setAddFollowUpOpen] = useState(false);
 
   // Forms
-  const [customerForm, setCustomerForm] = useState({ full_name: '', email: '', phone: '', company_name: '', source: '', estimated_value: '', crm_stage: 'prospect' });
+  const EMPTY_CUSTOMER_FORM = { full_name: '', title: '', email: '', phone: '', company_name: '', company_website: '', company_industry: '', company_size: '', company_founded_year: '', legal_address_line1: '', legal_address_line2: '', legal_address_city: '', legal_address_state: '', legal_address_zip: '', markets: '', licenses: '', current_software: '', source: '', estimated_value: '', crm_stage: 'prospect', lead_temperature: 'warm', tags: '' };
+  const [customerForm, setCustomerForm] = useState(EMPTY_CUSTOMER_FORM);
   const [activityForm, setActivityForm] = useState({ type: 'note', title: '', description: '' });
   const [followUpForm, setFollowUpForm] = useState({ type: 'follow_up', title: '', description: '', due_at: '', priority: 'normal' });
 
@@ -415,13 +416,27 @@ export default function Customers() {
     try {
       const { data: newCustomer, error } = await supabase.from('profiles').insert({
         full_name: customerForm.full_name,
+        title: customerForm.title || null,
         email: customerForm.email,
         phone: customerForm.phone || null,
         company_name: customerForm.company_name || null,
+        company_website: customerForm.company_website || null,
+        company_industry: customerForm.company_industry || null,
+        company_size: customerForm.company_size || null,
+        company_founded_year: customerForm.company_founded_year ? parseInt(customerForm.company_founded_year) : null,
+        legal_address_line1: customerForm.legal_address_line1 || null,
+        legal_address_line2: customerForm.legal_address_line2 || null,
+        legal_address_city: customerForm.legal_address_city || null,
+        legal_address_state: customerForm.legal_address_state || null,
+        legal_address_zip: customerForm.legal_address_zip || null,
+        markets: customerForm.markets ? customerForm.markets.split(',').map(s => s.trim()).filter(Boolean) : [],
+        licenses: customerForm.licenses ? customerForm.licenses.split('\n').map(s => s.trim()).filter(Boolean).map(l => ({ raw: l })) : [],
+        current_software: customerForm.current_software || null,
+        tags: customerForm.tags ? customerForm.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
         source: customerForm.source || 'Direct',
         estimated_value: parseFloat(customerForm.estimated_value) || 0,
         crm_stage: customerForm.crm_stage || 'prospect',
-        lead_temperature: 'warm',
+        lead_temperature: customerForm.lead_temperature || 'warm',
         role: 'customer',
       }).select().single();
       if (error) throw error;
@@ -430,7 +445,7 @@ export default function Customers() {
       await logActivity(newCustomer.id, 'system', 'Customer created', `Added to CRM as ${customerForm.crm_stage}`);
 
       toast.success(`${customerForm.full_name} added to CRM`);
-      setCustomerForm({ full_name: '', email: '', phone: '', company_name: '', source: '', estimated_value: '', crm_stage: 'prospect' });
+      setCustomerForm(EMPTY_CUSTOMER_FORM);
       setAddCustomerOpen(false);
       fetchCustomers();
     } catch (err) {
@@ -1307,55 +1322,140 @@ export default function Customers() {
 
       {/* ── Add Customer Dialog ───────────────────────────────── */}
       <Dialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-sky-400" /> Add Customer</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddCustomer} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Full Name *</label>
-                <Input value={customerForm.full_name} onChange={e => setCustomerForm(f => ({ ...f, full_name: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="John Smith" required />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Email *</label>
-                <Input type="email" value={customerForm.email} onChange={e => setCustomerForm(f => ({ ...f, email: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="john@email.com" required />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Phone</label>
-                <Input value={customerForm.phone} onChange={e => setCustomerForm(f => ({ ...f, phone: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="(555) 123-4567" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Company</label>
-                <Input value={customerForm.company_name} onChange={e => setCustomerForm(f => ({ ...f, company_name: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="Acme Inc." />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Source</label>
-                <select value={customerForm.source} onChange={e => setCustomerForm(f => ({ ...f, source: e.target.value }))} className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-sm text-gray-300">
-                  <option value="">Select source</option>
-                  <option value="Waitlist">Waitlist</option>
-                  <option value="Referral">Referral</option>
-                  <option value="Website">Website</option>
-                  <option value="Cold Outreach">Cold Outreach</option>
-                  <option value="LinkedIn">LinkedIn</option>
-                  <option value="Social Media">Social Media</option>
-                  <option value="Direct">Direct</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Estimated Value ($)</label>
-                <Input type="number" value={customerForm.estimated_value} onChange={e => setCustomerForm(f => ({ ...f, estimated_value: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="5000" />
+          <form onSubmit={handleAddCustomer} className="space-y-5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-400/80 mb-2">Contact</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Full Name *</label>
+                  <Input value={customerForm.full_name} onChange={e => setCustomerForm(f => ({ ...f, full_name: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="John Smith" required />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Title / Role</label>
+                  <Input value={customerForm.title} onChange={e => setCustomerForm(f => ({ ...f, title: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="Owner, GM..." />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Email *</label>
+                  <Input type="email" value={customerForm.email} onChange={e => setCustomerForm(f => ({ ...f, email: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="john@email.com" required />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Phone</label>
+                  <Input value={customerForm.phone} onChange={e => setCustomerForm(f => ({ ...f, phone: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="(555) 123-4567" />
+                </div>
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Starting Stage</label>
-              <select value={customerForm.crm_stage} onChange={e => setCustomerForm(f => ({ ...f, crm_stage: e.target.value }))} className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-sm text-gray-300">
-                {CRM_STAGES.slice(0, 5).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-              </select>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-400/80 mb-2">Company</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Company Name</label>
+                  <Input value={customerForm.company_name} onChange={e => setCustomerForm(f => ({ ...f, company_name: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="Acme Inc." />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Website</label>
+                  <Input value={customerForm.company_website} onChange={e => setCustomerForm(f => ({ ...f, company_website: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="acme.com" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Industry</label>
+                  <Input value={customerForm.company_industry} onChange={e => setCustomerForm(f => ({ ...f, company_industry: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="HVAC, Roofing..." />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Company Size</label>
+                  <Input value={customerForm.company_size} onChange={e => setCustomerForm(f => ({ ...f, company_size: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="1-10 / crews / trucks" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Founded Year</label>
+                  <Input type="number" value={customerForm.company_founded_year} onChange={e => setCustomerForm(f => ({ ...f, company_founded_year: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="2015" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Current Software</label>
+                  <Input value={customerForm.current_software} onChange={e => setCustomerForm(f => ({ ...f, current_software: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="ServiceTitan, spreadsheets..." />
+                </div>
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-400/80 mb-2">Address</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="text-xs text-gray-400 mb-1 block">Street</label>
+                  <Input value={customerForm.legal_address_line1} onChange={e => setCustomerForm(f => ({ ...f, legal_address_line1: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="123 Main St" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Suite / Line 2</label>
+                  <Input value={customerForm.legal_address_line2} onChange={e => setCustomerForm(f => ({ ...f, legal_address_line2: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="Suite 200" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">City</label>
+                  <Input value={customerForm.legal_address_city} onChange={e => setCustomerForm(f => ({ ...f, legal_address_city: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="Jacksonville" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">State</label>
+                    <Input value={customerForm.legal_address_state} onChange={e => setCustomerForm(f => ({ ...f, legal_address_state: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="FL" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">ZIP</label>
+                    <Input value={customerForm.legal_address_zip} onChange={e => setCustomerForm(f => ({ ...f, legal_address_zip: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="32202" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-400/80 mb-2">Markets & Licenses</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Markets / Service Areas <span className="text-gray-600">(comma-separated)</span></label>
+                  <Input value={customerForm.markets} onChange={e => setCustomerForm(f => ({ ...f, markets: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="Jacksonville FL, Savannah GA" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">License Numbers <span className="text-gray-600">(one per line)</span></label>
+                  <Textarea value={customerForm.licenses} onChange={e => setCustomerForm(f => ({ ...f, licenses: e.target.value }))} className="bg-navy-800/50 border-white/10" rows={3} placeholder="FL - HVAC - CAC1234567" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-400/80 mb-2">Sales</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Source</label>
+                  <select value={customerForm.source} onChange={e => setCustomerForm(f => ({ ...f, source: e.target.value }))} className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-sm text-gray-300">
+                    <option value="">Select source</option>
+                    <option value="Waitlist">Waitlist</option>
+                    <option value="Referral">Referral</option>
+                    <option value="Website">Website</option>
+                    <option value="Cold Outreach">Cold Outreach</option>
+                    <option value="LinkedIn">LinkedIn</option>
+                    <option value="Social Media">Social Media</option>
+                    <option value="Direct">Direct</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Estimated Value ($)</label>
+                  <Input type="number" value={customerForm.estimated_value} onChange={e => setCustomerForm(f => ({ ...f, estimated_value: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="5000" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Starting Stage</label>
+                  <select value={customerForm.crm_stage} onChange={e => setCustomerForm(f => ({ ...f, crm_stage: e.target.value }))} className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-sm text-gray-300">
+                    {CRM_STAGES.slice(0, 5).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Temperature</label>
+                  <select value={customerForm.lead_temperature} onChange={e => setCustomerForm(f => ({ ...f, lead_temperature: e.target.value }))} className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-sm text-gray-300">
+                    <option value="hot">Hot</option>
+                    <option value="warm">Warm</option>
+                    <option value="cold">Cold</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs text-gray-400 mb-1 block">Tags <span className="text-gray-600">(comma-separated)</span></label>
+                  <Input value={customerForm.tags} onChange={e => setCustomerForm(f => ({ ...f, tags: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="enterprise, multi-location" />
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setAddCustomerOpen(false)}>Cancel</Button>
