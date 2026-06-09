@@ -874,6 +874,116 @@ function StepEOS({ engagement, onPatch }) {
 // Wizard shell
 // ═══════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════
+// Steps 8–13 — Business Audit (EOS discovery)
+// ═══════════════════════════════════════════════════════════════════════
+const numVal = (v) => (v === '' || v === null || v === undefined ? '' : v)
+const onNum = (onPatch, key) => (ev) => onPatch({ [key]: ev.target.value === '' ? null : Number(ev.target.value) })
+const onNotes = (onPatch, key) => (ev) => onPatch({ [key]: ev.target.value ? { notes: ev.target.value } : null })
+
+function StepFinancials({ engagement, onPatch }) {
+  return (
+    <div className="space-y-5">
+      <SectionCard title="Financial Health" subtitle="Real numbers where the client will share them — everything here is skippable.">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field label="Revenue — last year ($)"><input type="number" className={fieldCls} value={numVal(engagement.revenue_y1)} onChange={onNum(onPatch, 'revenue_y1')} /></Field>
+          <Field label="Revenue — 2 yrs ago ($)"><input type="number" className={fieldCls} value={numVal(engagement.revenue_y2)} onChange={onNum(onPatch, 'revenue_y2')} /></Field>
+          <Field label="Revenue — 3 yrs ago ($)"><input type="number" className={fieldCls} value={numVal(engagement.revenue_y3)} onChange={onNum(onPatch, 'revenue_y3')} /></Field>
+          <Field label="Revenue growth (% YoY)"><input type="number" className={fieldCls} value={numVal(engagement.revenue_growth_pct)} onChange={onNum(onPatch, 'revenue_growth_pct')} /></Field>
+          <Field label="Gross margin (%)"><input type="number" className={fieldCls} value={numVal(engagement.gross_margin_pct)} onChange={onNum(onPatch, 'gross_margin_pct')} /></Field>
+          <Field label="Net margin (%)"><input type="number" className={fieldCls} value={numVal(engagement.net_margin_pct)} onChange={onNum(onPatch, 'net_margin_pct')} /></Field>
+          <Field label="Monthly recurring ($)"><input type="number" className={fieldCls} value={numVal(engagement.monthly_recurring)} onChange={onNum(onPatch, 'monthly_recurring')} /></Field>
+          <Field label="Cash on hand ($)"><input type="number" className={fieldCls} value={numVal(engagement.cash_on_hand)} onChange={onNum(onPatch, 'cash_on_hand')} /></Field>
+          <Field label="Runway (months)"><input type="number" className={fieldCls} value={numVal(engagement.runway_months)} onChange={onNum(onPatch, 'runway_months')} /></Field>
+          <Field label="Burn rate ($/mo)"><input type="number" className={fieldCls} value={numVal(engagement.burn_rate)} onChange={onNum(onPatch, 'burn_rate')} /></Field>
+          <Field label="DSO (days)"><input type="number" className={fieldCls} value={numVal(engagement.dso_days)} onChange={onNum(onPatch, 'dso_days')} /></Field>
+          <Field label="Total debt ($)"><input type="number" className={fieldCls} value={numVal(engagement.total_debt)} onChange={onNum(onPatch, 'total_debt')} /></Field>
+          <Field label="Avg deal size ($)"><input type="number" className={fieldCls} value={numVal(engagement.avg_deal_size)} onChange={onNum(onPatch, 'avg_deal_size')} /></Field>
+          <Field label="CAC ($)"><input type="number" className={fieldCls} value={numVal(engagement.cac)} onChange={onNum(onPatch, 'cac')} /></Field>
+          <Field label="LTV ($)"><input type="number" className={fieldCls} value={numVal(engagement.ltv)} onChange={onNum(onPatch, 'ltv')} /></Field>
+          <Field label="Accounting system"><input className={fieldCls} value={engagement.accounting_system || ''} onChange={(ev) => onPatch({ accounting_system: ev.target.value })} /></Field>
+        </div>
+      </SectionCard>
+    </div>
+  )
+}
+
+function StepSalesMktg({ engagement, onPatch }) {
+  return (
+    <div className="space-y-5">
+      <SectionCard title="Sales & Marketing" subtitle="How they attract and win customers.">
+        <Field label="Ideal customer profile (ICP)"><textarea className={`${fieldCls} min-h-[64px]`} value={engagement.icp || ''} onChange={(ev) => onPatch({ icp: ev.target.value })} /></Field>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <Field label="Sales cycle (days)"><input type="number" className={fieldCls} value={numVal(engagement.sales_cycle_days)} onChange={onNum(onPatch, 'sales_cycle_days')} /></Field>
+          <Field label="Lead → close (%)"><input type="number" className={fieldCls} value={numVal(engagement.conversion_pct)} onChange={onNum(onPatch, 'conversion_pct')} /></Field>
+          <Field label="Marketing spend ($/mo)"><input type="number" className={fieldCls} value={numVal(engagement.marketing_spend_monthly)} onChange={onNum(onPatch, 'marketing_spend_monthly')} /></Field>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <Field label="Lead sources" hint="Where leads come from."><textarea className={`${fieldCls} min-h-[64px]`} value={engagement.lead_sources?.notes || ''} onChange={onNotes(onPatch, 'lead_sources')} /></Field>
+          <Field label="Marketing channels"><textarea className={`${fieldCls} min-h-[64px]`} value={engagement.marketing_channels?.notes || ''} onChange={onNotes(onPatch, 'marketing_channels')} /></Field>
+        </div>
+        <div className="mt-4"><Field label="Positioning / differentiators"><textarea className={`${fieldCls} min-h-[64px]`} value={engagement.positioning || ''} onChange={(ev) => onPatch({ positioning: ev.target.value })} /></Field></div>
+      </SectionCard>
+    </div>
+  )
+}
+
+function StepOperations({ engagement, onPatch }) {
+  return (
+    <div className="space-y-5">
+      <SectionCard title="Operations & Process" subtitle="The EOS Process component — the handful of core processes that run the business.">
+        <Field label="Core processes (3–7)" hint="Name them; note if documented & followed by all."><textarea className={`${fieldCls} min-h-[88px]`} value={engagement.core_processes?.notes || ''} onChange={onNotes(onPatch, 'core_processes')} /></Field>
+        <div className="mt-4"><Field label="Bottlenecks / capacity constraints"><textarea className={`${fieldCls} min-h-[64px]`} value={engagement.bottlenecks || ''} onChange={(ev) => onPatch({ bottlenecks: ev.target.value })} /></Field></div>
+        <div className="mt-4"><Field label="SOP / documentation maturity"><input className={fieldCls} placeholder="e.g. tribal knowledge / partly documented / fully documented" value={engagement.sop_maturity || ''} onChange={(ev) => onPatch({ sop_maturity: ev.target.value })} /></Field></div>
+      </SectionCard>
+    </div>
+  )
+}
+
+function StepScorecard({ engagement, onPatch }) {
+  return (
+    <div className="space-y-5">
+      <SectionCard title="Data & Scorecard" subtitle="The EOS Data component — a weekly pulse of 5–15 measurables.">
+        <label className="flex items-center gap-2 text-sm text-gray-300 mb-3">
+          <input type="checkbox" checked={!!engagement.runs_weekly_scorecard} onChange={(ev) => onPatch({ runs_weekly_scorecard: ev.target.checked })} />
+          Runs a weekly scorecard today
+        </label>
+        <Field label="Scorecard measurables" hint="5–15 weekly numbers, each with an owner + goal."><textarea className={`${fieldCls} min-h-[100px]`} value={engagement.scorecard_kpis?.notes || ''} onChange={onNotes(onPatch, 'scorecard_kpis')} /></Field>
+      </SectionCard>
+    </div>
+  )
+}
+
+function StepIssuesGoals({ engagement, onPatch }) {
+  return (
+    <div className="space-y-5">
+      <SectionCard title="Issues & Rocks" subtitle="The EOS Issues component + this quarter's priorities.">
+        <Field label="Issues list" hint="Top obstacles to growth — to Identify, Discuss, Solve."><textarea className={`${fieldCls} min-h-[100px]`} value={engagement.issues?.notes || ''} onChange={onNotes(onPatch, 'issues')} /></Field>
+        <div className="mt-4"><Field label="Quarterly Rocks (3–7)" hint="The most important priorities for the next 90 days."><textarea className={`${fieldCls} min-h-[88px]`} value={engagement.quarterly_rocks?.notes || ''} onChange={onNotes(onPatch, 'quarterly_rocks')} /></Field></div>
+      </SectionCard>
+    </div>
+  )
+}
+
+function StepTraction({ engagement, onPatch }) {
+  return (
+    <div className="space-y-5">
+      <SectionCard title="Traction & Rhythm" subtitle="The EOS Traction component — meeting cadence & execution discipline.">
+        <label className="flex items-center gap-2 text-sm text-gray-300 mb-3">
+          <input type="checkbox" checked={!!engagement.runs_l10} onChange={(ev) => onPatch({ runs_l10: ev.target.checked })} />
+          Runs a weekly Level 10 Meeting today
+        </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Rock completion rate (%)"><input type="number" className={fieldCls} value={numVal(engagement.rock_completion_pct)} onChange={onNum(onPatch, 'rock_completion_pct')} /></Field>
+          <Field label="Meeting pulse (1–10)"><input type="number" className={fieldCls} value={numVal(engagement.meeting_pulse)} onChange={onNum(onPatch, 'meeting_pulse')} /></Field>
+          <Field label="Weekly meeting day"><input className={fieldCls} value={engagement.weekly_meeting_day || ''} onChange={(ev) => onPatch({ weekly_meeting_day: ev.target.value })} /></Field>
+          <Field label="Weekly meeting time"><input className={fieldCls} value={engagement.weekly_meeting_time || ''} onChange={(ev) => onPatch({ weekly_meeting_time: ev.target.value })} /></Field>
+        </div>
+      </SectionCard>
+    </div>
+  )
+}
+
 export default function ConsultingOnboardingWizard() {
   const { engagementId } = useParams()
   const navigate = useNavigate()
@@ -1080,6 +1190,12 @@ export default function ConsultingOnboardingWizard() {
         {step.key === 'offering'   && <StepOffering   engagement={merged} onPatch={handlePatch} />}
         {step.key === 'systems'    && <StepSystems    engagement={merged} onPatch={handlePatch} />}
         {step.key === 'eos_seed'   && <StepEOS        engagement={merged} onPatch={handlePatch} />}
+        {step.key === 'financials'   && <StepFinancials  engagement={merged} onPatch={handlePatch} />}
+        {step.key === 'sales_mktg'   && <StepSalesMktg   engagement={merged} onPatch={handlePatch} />}
+        {step.key === 'operations'   && <StepOperations  engagement={merged} onPatch={handlePatch} />}
+        {step.key === 'scorecard'    && <StepScorecard   engagement={merged} onPatch={handlePatch} />}
+        {step.key === 'issues_goals' && <StepIssuesGoals engagement={merged} onPatch={handlePatch} />}
+        {step.key === 'traction'     && <StepTraction    engagement={merged} onPatch={handlePatch} />}
       </div>
 
       {/* Footer actions */}

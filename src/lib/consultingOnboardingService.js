@@ -55,6 +55,12 @@ export const ONBOARDING_STEPS = [
   { id: 5, key: 'offering',      label: 'Offering & Goals' },
   { id: 6, key: 'systems',       label: 'Current Systems' },
   { id: 7, key: 'eos_seed',      label: 'EOS Vision Seed' },
+  { id: 8,  key: 'financials',   label: 'Financials' },
+  { id: 9,  key: 'sales_mktg',   label: 'Sales & Marketing' },
+  { id: 10, key: 'operations',   label: 'Operations' },
+  { id: 11, key: 'scorecard',    label: 'Data & Scorecard' },
+  { id: 12, key: 'issues_goals', label: 'Issues & Rocks' },
+  { id: 13, key: 'traction',     label: 'Traction' },
 ]
 
 // ═══════════════════════════════════════════════════════════════════════
