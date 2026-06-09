@@ -1349,12 +1349,29 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
   const [form, setForm] = useState({ product_type: 'CRM', stage: 'New Lead', estimated_value: '', mrr: '', term_months: '', expected_close_date: '', notes: '' })
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState(null)
+  const [editId, setEditId] = useState(null)
+
+  const EMPTY_FORM = { product_type: 'CRM', stage: 'New Lead', estimated_value: '', mrr: '', term_months: '', expected_close_date: '', notes: '' }
+  function openAdd() { setEditId(null); setForm(EMPTY_FORM); setOpen(true) }
+  function closeForm() { setOpen(false); setEditId(null) }
+  function startEdit(l) {
+    setForm({
+      product_type: l.product_type || 'CRM',
+      stage: l.stage || 'New Lead',
+      estimated_value: l.estimated_value ?? '',
+      mrr: l.mrr ?? '',
+      term_months: l.term_months ?? '',
+      expected_close_date: l.expected_close_date || '',
+      notes: l.notes || '',
+    })
+    setEditId(l.id)
+    setOpen(true)
+  }
 
   async function save() {
     setSaving(true)
     try {
-      const { error } = await supabase.from('customer_product_lines').insert({
-        profile_id: customerId,
+      const payload = {
         product_type: form.product_type,
         stage: form.stage,
         estimated_value: form.estimated_value ? Number(form.estimated_value) : 0,
@@ -1362,12 +1379,17 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
         term_months: form.term_months ? Number(form.term_months) : null,
         expected_close_date: form.expected_close_date || null,
         notes: form.notes || null,
-      })
-      if (error) throw error
-      setForm({ product_type: 'CRM', stage: 'New Lead', estimated_value: '', mrr: '', term_months: '', expected_close_date: '', notes: '' })
+      }
+      const table = supabase.from('customer_product_lines')
+      const resp = editId
+        ? await table.update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editId)
+        : await table.insert({ profile_id: customerId, ...payload })
+      if (resp.error) throw resp.error
+      setForm(EMPTY_FORM)
       setOpen(false)
+      setEditId(null)
       onChange()
-    } catch (e) { console.error(e); alert('Failed to add product line: ' + (e.message || '')) }
+    } catch (e) { console.error(e); alert('Failed to save product line: ' + (e.message || '')) }
     finally { setSaving(false) }
   }
 
@@ -1418,7 +1440,7 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-400">{lines.length} product line{lines.length !== 1 ? 's' : ''}. A customer can run several at once.</p>
-        <button onClick={() => setOpen(o => !o)} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg font-medium">{open ? 'Cancel' : '+ New Product Line'}</button>
+        <button onClick={() => open ? closeForm() : openAdd()} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg font-medium">{open ? 'Cancel' : '+ New Product Line'}</button>
       </div>
       {open && (
         <div className="bg-navy-800 border border-brand-blue/30 rounded-xl p-4 space-y-3">
@@ -1436,8 +1458,8 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
             <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes (optional)" rows={2} className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white resize-none" />
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
-            <button onClick={save} disabled={saving} className="px-4 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white rounded-lg font-medium">{saving ? 'Saving...' : 'Add Line'}</button>
+            <button onClick={closeForm} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
+            <button onClick={save} disabled={saving} className="px-4 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white rounded-lg font-medium">{saving ? 'Saving...' : (editId ? 'Save Changes' : 'Add Line')}</button>
           </div>
         </div>
       )}
@@ -1466,15 +1488,18 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
                     {l.lost_at && <span className="text-red-400">Lost {formatDate(l.lost_at)}</span>}
                   </div>
                 </div>
-                {!terminal && (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <select value={l.stage} onChange={e => setStage(l, e.target.value)} disabled={busyId === l.id} className="bg-navy-900 border border-navy-700/50 rounded-lg px-2 py-1 text-xs text-white">
-                      {PL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <button onClick={() => markWon(l)} disabled={busyId === l.id} className="px-2.5 py-1 text-xs bg-emerald-500/90 hover:bg-emerald-500 text-white rounded-lg font-medium disabled:opacity-50">Won</button>
-                    <button onClick={() => markLost(l)} disabled={busyId === l.id} className="px-2.5 py-1 text-xs text-gray-400 hover:text-red-400">Lost</button>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button onClick={() => startEdit(l)} className="px-2.5 py-1 text-xs text-gray-300 hover:text-white border border-navy-700/60 rounded-lg">Edit</button>
+                  {!terminal && (
+                    <>
+                      <select value={l.stage} onChange={e => setStage(l, e.target.value)} disabled={busyId === l.id} className="bg-navy-900 border border-navy-700/50 rounded-lg px-2 py-1 text-xs text-white">
+                        {PL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <button onClick={() => markWon(l)} disabled={busyId === l.id} className="px-2.5 py-1 text-xs bg-emerald-500/90 hover:bg-emerald-500 text-white rounded-lg font-medium disabled:opacity-50">Won</button>
+                      <button onClick={() => markLost(l)} disabled={busyId === l.id} className="px-2.5 py-1 text-xs text-gray-400 hover:text-red-400">Lost</button>
+                    </>
+                  )}
+                </div>
               </div>
             )
           })}
@@ -1962,7 +1987,7 @@ export default function CustomerDetail() {
 
   const initials = getInitials(customer.full_name, customer.email)
   // Customer value rollup: weighted projections + gross full value (TCV). See lib/customerValue.
-  const { projectedMrr, projectedArr, fullValue } = customerValue(productLines)
+  const { mrr: customerMrr, arr: customerArr, fullValue } = customerValue(productLines)
   const activeProjects = projects.filter(p => ACTIVE_PROJECT_STATUSES.includes(p.status))
   const totalPaid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0)
 
@@ -2056,12 +2081,12 @@ export default function CustomerDetail() {
               <p className="text-xs text-gray-500 mt-0.5">Paid</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-amber-400">{formatCurrency(Math.round(projectedMrr))}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Proj. MRR</p>
+              <p className="text-2xl font-bold text-amber-400">{formatCurrency(Math.round(customerMrr))}</p>
+              <p className="text-xs text-gray-500 mt-0.5">MRR</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-amber-400/80">{formatCurrency(Math.round(projectedArr))}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Proj. ARR</p>
+              <p className="text-2xl font-bold text-amber-400/80">{formatCurrency(Math.round(customerArr))}</p>
+              <p className="text-xs text-gray-500 mt-0.5">ARR</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-white">{formatCurrency(Math.round(fullValue))}</p>

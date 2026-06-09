@@ -78,11 +78,15 @@ export function lineTcv(line) {
 export function customerValue(lines = []) {
   const open = lines.filter(isOpen)
   const notLost = lines.filter((l) => !isLost(l))
+  // Gross recurring across all live (non-lost) deals — the customer's actual MRR/ARR.
+  const mrr = notLost.reduce((s, l) => s + (Number(l.mrr) || 0), 0)
+  const arr = mrr * 12
+  // Probability-weighted recurring across OPEN deals — for aggregate pipeline forecasting, not a single customer.
   const projectedMrr = open.reduce((s, l) => s + (Number(l.mrr) || 0) * (stageProbability(l) / 100), 0)
   const projectedArr = projectedMrr * 12
   const activeMrr = lines.filter(isWon).reduce((s, l) => s + (Number(l.mrr) || 0), 0)
   const fullValue = notLost.reduce((s, l) => s + lineTcv(l), 0)
-  return { projectedMrr, projectedArr, activeMrr, fullValue }
+  return { mrr, arr, projectedMrr, projectedArr, activeMrr, fullValue }
 }
 
 export function stageRank(stage) {
