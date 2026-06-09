@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import TeamMemberSelect, { TeamMemberLabel } from '../components/TeamMemberSelect'
 import { STAGE_PIPELINE, customerValue, isWon, isLost } from '../lib/customerValue'
 
+const LIFTORI_ORG_ID = '18589b33-a730-4aed-b71b-2d55c1f15415'
+
 const STATUS_COLORS = {
   'Wizard Complete': 'bg-gray-500/20 text-gray-400',
   'Brief Review': 'bg-yellow-500/20 text-yellow-400',
@@ -1625,6 +1627,7 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
       const { error } = await supabase.from('customer_estimates').insert({
         contact_id: customerId,
         estimate_number: 'EST-' + new Date().getFullYear() + '-' + String(n).padStart(4, '0'),
+        org_id: LIFTORI_ORG_ID,
         title: types.join(' + ') + ' estimate',
         line_items: lineItems,
         subtotal: oneTime,
@@ -1649,6 +1652,7 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
         contact_id: customerId,
         project_id: form.project_id || null,
         estimate_number: 'EST-' + new Date().getFullYear() + '-' + String(n).padStart(4, '0'),
+        org_id: LIFTORI_ORG_ID,
         title: form.title.trim(),
         total: form.total ? Number(form.total) : 0,
         subtotal: form.total ? Number(form.total) : 0,
@@ -1778,6 +1782,7 @@ function AgreementsTab({ customerId, agreements, estimates, projects, onChange }
     try {
       const n = (agreements || []).length + 1
       const { error } = await supabase.from('customer_agreements').insert({
+        org_id: LIFTORI_ORG_ID,
         contact_id: customerId,
         project_id: form.project_id || null,
         estimate_id: form.estimate_id || null,
