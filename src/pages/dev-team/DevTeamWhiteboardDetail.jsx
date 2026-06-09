@@ -18,6 +18,20 @@ function relTime(ts) {
   return d.toLocaleDateString()
 }
 
+// Cheap fingerprint for an Excalidraw element array. Sums versionNonce-derived
+// state so we can detect real edits (add/modify/delete) vs. non-element changes
+// in appState (scroll, zoom, selection, view mode) that also fire onChange.
+function elementsFingerprint(elements) {
+  if (!elements || elements.length === 0) return 0
+  let h = elements.length | 0
+  for (const el of elements) {
+    h = ((h * 31) | 0) + ((el.version || 0) | 0)
+    h = ((h * 31) | 0) + (((el.versionNonce || 0) | 0))
+    if (el.id) h = ((h * 31) | 0) + (el.id.charCodeAt(0) | 0)
+  }
+  return h
+}
+
 export default function DevTeamWhiteboardDetail() {
   const { slug } = useParams()
   const { user, profile } = useAuth()
@@ -38,6 +52,7 @@ export default function DevTeamWhiteboardDetail() {
   const latestScene = useRef(null)
   // Track whether we've announced "I am editing" so we don't spam the channel.
   const editingAnnounced = useRef(false)
+  const lastSceneFingerprint = useRef(null)
   const editingClearTimer = useRef(null)
 
   const me = useMemo(() => ({
@@ -127,19 +142,46 @@ export default function DevTeamWhiteboardDetail() {
   // Excalidraw fires onChange for almost every interaction. We capture the scene
   // and debounce-save. We also use onChange to announce "I'm editing" + selection.
   function handleChange(elements, appState) {
+    // Excalidraw fires onChange for any appState change — scroll, zoom,
+    // selection, cursor moves, view toggles — not just element edits.
+    // We fingerprint the elements array and only treat THIS as a real change
+    // when the fingerprint actually moves. Otherwise the 1.5s save debounce
+    // gets reset on every mouse move and the "Saving" badge sticks forever.
+    const fp = elementsFingerprint(elements)
+    const isFirstChange = lastSceneFingerprint.current === null
+    const elementsChanged = !isFirstChange && fp !== lastSceneFingerprint.current
+
+    // Selection broadcasts on every onChange — cheap and a meaningful collab
+    // signal even when nothing structural changed.
+    broadcastSelection(appState?.selectedElementIds || {})
+
+    // First onChange after canvas load: snapshot the fingerprint silently so
+    // mounting doesn't trigger a phantom save.
+    if (isFirstChange) {
+      lastSceneFingerprint.current = fp
+      latestScene.current = {
+        elements: elements || [],
+        appState: {
+          viewBackgroundColor: appState?.viewBackgroundColor || '#0b1220',
+          gridSize: appState?.gridSize ?? null,
+        },
+      }
+      return
+    }
+
+    // No element change: bail. Don't reset save timer, don't claim editing.
+    if (!elementsChanged) return
+
+    // Real change.
+    lastSceneFingerprint.current = fp
     latestScene.current = {
       elements: elements || [],
       appState: {
-        // Keep a minimal appState subset — full appState includes scroll/zoom that
-        // shouldn't be persisted across viewers.
         viewBackgroundColor: appState?.viewBackgroundColor || '#0b1220',
         gridSize: appState?.gridSize ?? null,
       },
     }
     scheduleSave()
-
-    // Selection broadcast (cheap — only fires when selection actually changes shape).
-    broadcastSelection(appState?.selectedElementIds || {})
 
     // Editing claim — start.
     if (!editingAnnounced.current) {
