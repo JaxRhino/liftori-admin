@@ -19,6 +19,15 @@ const PRODUCT_ABOUT = {
   Consulting: `EOS-based business consulting that installs real operating discipline — a clear vision, the right people in the right seats, a weekly scorecard, quarterly Rocks, and a Level 10 meeting rhythm — so your business runs on a system, not on you.`,
 }
 
+const TERMS = `1. Scope — This estimate covers the line items listed above. Work outside this scope will be quoted separately.
+2. Payment — Project (one-time) fees are billed 50% at design approval, 40% at staging delivery, and 10% at launch. Recurring / managed-service fees are billed monthly in advance and begin at launch.
+3. Validity — This estimate is valid until the date shown on the cover. Pricing may change thereafter.
+4. Term — Recurring services run for the term shown and renew automatically unless cancelled with 30 days' written notice.
+5. Ownership — Upon full payment, you own the delivered work product. Liftori retains its pre-existing tools, libraries, and frameworks.
+6. Changes — Either party may request changes in writing. Material changes may affect price and timeline.
+7. Confidentiality — Both parties will keep each other's non-public information confidential.
+8. Acceptance — Signing below authorizes Liftori to begin work and constitutes agreement to these terms.`
+
 const money = (n) => '$' + Math.round(Number(n) || 0).toLocaleString()
 
 export default function EstimateDocument() {
@@ -30,6 +39,8 @@ export default function EstimateDocument() {
   const [term, setTerm] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [signer, setSigner] = useState('')
+  const [signing, setSigning] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -42,6 +53,7 @@ export default function EstimateDocument() {
         supabase.from('customer_product_lines').select('term_months, lost_at').eq('profile_id', e.contact_id),
       ])
       setCustomer(c)
+      setSigner(prev => prev || c?.full_name || '')
       const terms = (pls || []).filter(p => !p.lost_at).map(p => Number(p.term_months) || 0)
       setTerm(Math.max(0, ...terms))
     }
@@ -66,6 +78,17 @@ export default function EstimateDocument() {
     setSaving(true)
     await supabase.from('customer_estimates').update({ line_items: lines, subtotal: oneTime, total: oneTimeNet, updated_at: new Date().toISOString() }).eq('id', id)
     setSaving(false)
+  }
+
+  async function signEstimate() {
+    if (!signer.trim()) { alert('Type your name to sign'); return }
+    setSigning(true)
+    await supabase.from('customer_estimates').update({
+      esign_status: 'signed', esign_signed_at: new Date().toISOString(), signer_name: signer.trim(),
+      status: 'accepted', updated_at: new Date().toISOString(),
+    }).eq('id', id)
+    setSigning(false)
+    load()
   }
 
   if (loading) return <div className="p-6 text-gray-400">Loading…</div>
@@ -157,7 +180,33 @@ export default function EstimateDocument() {
           </div>
         </section>
 
-        <p className="text-center text-[11px] text-gray-600 print:hidden">Terms &amp; conditions and e-signature coming in the next update.</p>
+        {/* TERMS */}
+        <section className={sectionCls}>
+          <h2 className="text-xl font-bold text-white mb-3">Terms &amp; Conditions</h2>
+          <div className="text-xs text-gray-400 whitespace-pre-line leading-relaxed">{TERMS}</div>
+        </section>
+
+        {/* SIGNATURE / E-SIGN */}
+        <section className={sectionCls}>
+          <h2 className="text-xl font-bold text-white mb-4">Acceptance &amp; Signature</h2>
+          {est.esign_status === 'signed' ? (
+            <div className="flex items-center gap-3 text-sm flex-wrap">
+              <span className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-semibold">✓ Signed</span>
+              <span className="text-2xl text-brand-blue" style={{ fontFamily: 'cursive' }}>{est.signer_name}</span>
+              <span className="text-gray-500">on {est.esign_signed_at ? new Date(est.esign_signed_at).toLocaleString() : ''}</span>
+            </div>
+          ) : (
+            <div className="space-y-3 max-w-md">
+              <p className="text-xs text-gray-500">By signing, you accept this proposal and its terms and authorize Liftori to begin work.</p>
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.2em] text-gray-500 block mb-1">Type your full name to sign</label>
+                <input value={signer} onChange={e => setSigner(e.target.value)} className="w-full bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-white" />
+              </div>
+              {signer.trim() && <p className="text-2xl text-brand-blue px-1" style={{ fontFamily: 'cursive' }}>{signer}</p>}
+              <button onClick={signEstimate} disabled={signing || !signer.trim()} className="px-4 py-2 text-sm bg-emerald-500/90 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg font-semibold print:hidden">{signing ? 'Signing…' : 'Agree & Sign'}</button>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   )
