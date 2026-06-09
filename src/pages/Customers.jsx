@@ -185,7 +185,7 @@ export default function Customers() {
           last_activity_at, next_follow_up_at, follow_up_notes, source, estimated_value, tags,
           waitlist_signup_id, created_at, updated_at,
           projects:projects!projects_customer_id_fkey (id, name, status, tier, mrr, created_at),
-          product_lines:customer_product_lines!customer_product_lines_profile_id_fkey (stage, estimated_value, mrr, term_months, probability, won_at, lost_at)
+          product_lines:customer_product_lines!customer_product_lines_profile_id_fkey (id, product_type, stage, estimated_value, mrr, term_months, probability, won_at, lost_at)
         `)
         .eq('role', 'customer')
         .order('created_at', { ascending: false });
@@ -517,6 +517,28 @@ export default function Customers() {
         fetchActivities(customerId);
       }
       toast.success(`${customerName || 'Customer'} moved to ${STAGE_MAP[newStage]?.label}`);
+    } catch (err) {
+      toast.error('Failed to update stage');
+    }
+  }
+
+  // Move a customer's pipeline stage by updating their product line (CRM line preferred).
+  async function changeLineStage(customer, newStage) {
+    try {
+      const lines = customer.product_lines || [];
+      const target = lines.find(l => l.product_type === 'CRM') || lines[0];
+      if (!target?.id) { toast.error('No product line to move — add one in the customer record'); return; }
+      const patch = { stage: newStage, updated_at: new Date().toISOString() };
+      if (WON_STAGES.includes(newStage)) { patch.won_at = target.won_at || new Date().toISOString(); patch.lost_at = null; }
+      else if (newStage === 'Lost') { patch.lost_at = target.lost_at || new Date().toISOString(); }
+      else { patch.won_at = null; patch.lost_at = null; }
+      const { error } = await supabase.from('customer_product_lines').update(patch).eq('id', target.id);
+      if (error) throw error;
+      await logActivity(customer.id, 'status_change', `Moved to ${newStage}`, `Pipeline stage changed to ${newStage}`);
+      const apply = (l) => l.id === target.id ? { ...l, ...patch } : l;
+      setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, product_lines: (c.product_lines || []).map(apply) } : c));
+      setSelectedCustomer(prev => (prev && prev.id === customer.id) ? { ...prev, product_lines: (prev.product_lines || []).map(apply) } : prev);
+      toast.success(`${customer.full_name || 'Customer'} moved to ${newStage}`);
     } catch (err) {
       toast.error('Failed to update stage');
     }
@@ -1315,8 +1337,8 @@ export default function Customers() {
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openDetail(customer)} title="View details">
                           <Eye className="h-3.5 w-3.5 text-sky-400" />
                         </Button>
-                        {customer.crm_stage === 'prospect' && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => changeStage(customer.id, 'qualified', customer.full_name)} title="Qualify">
+                        {customerStage(customer) === 'New Lead' && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => changeLineStage(customer, 'Development')} title="Advance to Development">
                             <CheckCircle className="h-3.5 w-3.5 text-green-400" />
                           </Button>
                         )}
@@ -1530,10 +1552,10 @@ export default function Customers() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 flex-wrap">
                       <h2 className="text-2xl font-bold text-white">{selectedCustomer.full_name}</h2>
-                      <StageBadge stage={selectedCustomer.crm_stage} />
+                      <PipelineStageBadge stage={customerStage(selectedCustomer)} />
                       <TempBadge temp={selectedCustomer.lead_temperature} />
-                      {selectedCustomer.estimated_value > 0 && (
-                        <span className="text-sm font-bold text-emerald-400">${parseFloat(selectedCustomer.estimated_value).toLocaleString()}</span>
+                      {customerFullValue(selectedCustomer) > 0 && (
+                        <span className="text-sm font-bold text-emerald-400">${Math.round(customerFullValue(selectedCustomer)).toLocaleString()}</span>
                       )}
                       <button
                         onClick={() => { setDetailOpen(false); navigate(`/admin/customers/${selectedCustomer.id}`); }}
@@ -1568,17 +1590,17 @@ export default function Customers() {
 
                 {/* Stage Progress */}
                 <div className="flex items-center gap-1 mt-5">
-                  {CRM_STAGES.map(s => {
-                    const stageOrder = CRM_STAGES.map(st => st.key);
-                    const currentIdx = stageOrder.indexOf(selectedCustomer.crm_stage);
-                    const thisIdx = stageOrder.indexOf(s.key);
+                  {STAGE_PIPELINE.map(s => {
+                    const curStage = customerStage(selectedCustomer);
+                    const currentIdx = STAGE_PIPELINE.indexOf(curStage);
+                    const thisIdx = STAGE_PIPELINE.indexOf(s);
                     const isActive = thisIdx <= currentIdx;
-                    const isCurrent = s.key === selectedCustomer.crm_stage;
+                    const isCurrent = s === curStage;
                     return (
-                      <button key={s.key} onClick={() => changeStage(selectedCustomer.id, s.key, selectedCustomer.full_name)} className="flex-1 group">
-                        <div className={`h-2 rounded-full transition-colors ${isActive ? s.color : 'bg-gray-700/50'} group-hover:opacity-80`} />
-                        <span className={`text-[10px] mt-1 block text-center ${isCurrent ? 'text-white font-semibold' : isActive ? 'text-gray-400' : 'text-gray-600'} group-hover:text-white`}>
-                          {s.label}
+                      <button key={s} onClick={() => changeLineStage(selectedCustomer, s)} className="flex-1 group">
+                        <div className={`h-2 rounded-full transition-colors ${isActive ? (STAGE_BAR_COLOR[s] || 'bg-gray-500') : 'bg-gray-700/50'} group-hover:opacity-80`} />
+                        <span className={`text-[10px] mt-1 block text-center leading-tight ${isCurrent ? 'text-white font-semibold' : isActive ? 'text-gray-400' : 'text-gray-600'} group-hover:text-white`}>
+                          {s}
                         </span>
                       </button>
                     );
@@ -1752,22 +1774,25 @@ export default function Customers() {
                   <Card className="bg-navy-800/30 border-white/10 p-5">
                     <h3 className="text-sm font-semibold text-white mb-3">Move Stage</h3>
                     <div className="space-y-1.5">
-                      {CRM_STAGES.map(s => (
+                      {STAGE_PIPELINE.map(s => {
+                        const curStage = customerStage(selectedCustomer);
+                        return (
                         <button
-                          key={s.key}
-                          onClick={() => changeStage(selectedCustomer.id, s.key, selectedCustomer.full_name)}
-                          disabled={selectedCustomer.crm_stage === s.key}
+                          key={s}
+                          onClick={() => changeLineStage(selectedCustomer, s)}
+                          disabled={curStage === s}
                           className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                            selectedCustomer.crm_stage === s.key
+                            curStage === s
                               ? 'bg-sky-500/20 text-sky-400 font-medium border border-sky-500/30'
                               : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
                           }`}
                         >
-                          <div className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
-                          {s.label}
-                          {selectedCustomer.crm_stage === s.key && <Check className="h-3.5 w-3.5 ml-auto" />}
+                          <div className={`w-2.5 h-2.5 rounded-full ${STAGE_BAR_COLOR[s] || 'bg-gray-500'}`} />
+                          {s}
+                          {curStage === s && <Check className="h-3.5 w-3.5 ml-auto" />}
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   </Card>
                 </div>
