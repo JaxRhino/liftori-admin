@@ -1024,7 +1024,7 @@ function StepPlan({ engagement, onPatch }) {
   const plan = synthesizePlan(engagement)
   const ring = plan.healthScore >= 70 ? 'text-emerald-400' : plan.healthScore >= 40 ? 'text-amber-400' : 'text-red-400'
   function savePlan() {
-    onPatch({ health_score: plan.healthScore, quarterly_rocks: plan.rocks.length ? plan.rocks.map((r) => ({ title: r })) : engagement.quarterly_rocks })
+    onPatch({ quarterly_rocks: plan.rocks.length ? plan.rocks.map((r) => ({ title: r })) : engagement.quarterly_rocks })
     toast.success('Plan saved to engagement')
   }
   return (

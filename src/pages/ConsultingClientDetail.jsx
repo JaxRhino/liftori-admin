@@ -20,6 +20,7 @@ import {
   Target,
 } from 'lucide-react';
 import { CompanyTab, OrgChartTab, WebSeoTab, EosTab } from '../components/consulting/ConsultingClientTabs';
+import { synthesizePlan } from '../lib/consultingOnboardingService';
 
 const STAGES = [
   { id: 'lead', label: 'Lead', color: 'bg-blue-900/30 text-blue-300' },
@@ -370,6 +371,36 @@ export default function ConsultingClientDetail() {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
+              {(() => {
+                const plan = synthesizePlan(engagement);
+                const ring = plan.healthScore >= 70 ? 'text-emerald-400' : plan.healthScore >= 40 ? 'text-amber-400' : 'text-red-400';
+                return (
+                  <div className="bg-slate-700/30 border border-slate-700/50 rounded-lg p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-emerald-400">Plan Synthesis</h3>
+                      <button onClick={() => navigate(`/admin/consulting/onboard/${engagement.id}`)} className="text-xs text-purple-400 hover:text-purple-300">Open audit wizard →</button>
+                    </div>
+                    <div className="flex items-center gap-6 flex-wrap">
+                      <div className="text-center"><p className={`text-4xl font-bold ${ring}`}>{plan.healthScore}</p><p className="text-xs text-gray-500">Audit Score</p></div>
+                      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 min-w-[240px]">
+                        {plan.components.map((c) => (
+                          <div key={c.name} className="bg-slate-900/40 rounded-lg p-2 text-center"><p className="text-sm font-bold text-white">{c.score}</p><p className="text-[10px] text-gray-500">{c.name}</p></div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Key Findings</p>
+                        {plan.findings.length === 0 ? <p className="text-xs text-gray-500 italic">No red flags from captured data.</p> : <ul className="space-y-1">{plan.findings.map((f, i) => <li key={i} className="text-sm text-gray-300 flex gap-2"><span className="text-amber-400">•</span>{f}</li>)}</ul>}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Recommended 90-Day Rocks</p>
+                        {plan.rocks.length === 0 ? <p className="text-xs text-gray-500 italic">None flagged.</p> : <ul className="space-y-1">{plan.rocks.map((r, i) => <li key={i} className="text-sm text-gray-300 flex gap-2"><span className="text-emerald-400">✓</span>{r}</li>)}</ul>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="grid grid-cols-2 gap-6">
                 {/* Client Info */}
                 <div className="bg-slate-700/30 border border-slate-700/50 rounded-lg p-4">
