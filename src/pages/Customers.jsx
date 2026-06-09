@@ -188,6 +188,7 @@ export default function Customers() {
           product_lines:customer_product_lines!customer_product_lines_profile_id_fkey (id, product_type, stage, estimated_value, mrr, term_months, probability, won_at, lost_at)
         `)
         .eq('role', 'customer')
+        .is('archived_at', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
       setCustomers(data || []);
@@ -535,10 +536,17 @@ export default function Customers() {
       const { error } = await supabase.from('customer_product_lines').update(patch).eq('id', target.id);
       if (error) throw error;
       await logActivity(customer.id, 'status_change', `Moved to ${newStage}`, `Pipeline stage changed to ${newStage}`);
+      // Auto-archive when no active (non-lost) product lines remain; un-archive when one returns.
+      const { data: ls } = await supabase.from('customer_product_lines').select('stage, lost_at').eq('profile_id', customer.id);
+      const arr = ls || [];
+      const hasActive = arr.some(l => !(l.stage === 'Lost' || l.lost_at));
+      const archived_at = (arr.length > 0 && !hasActive) ? new Date().toISOString() : null;
+      await supabase.from('profiles').update({ archived_at, updated_at: new Date().toISOString() }).eq('id', customer.id);
       const apply = (l) => l.id === target.id ? { ...l, ...patch } : l;
       setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, product_lines: (c.product_lines || []).map(apply) } : c));
       setSelectedCustomer(prev => (prev && prev.id === customer.id) ? { ...prev, product_lines: (prev.product_lines || []).map(apply) } : prev);
       toast.success(`${customer.full_name || 'Customer'} moved to ${newStage}`);
+      if (archived_at) { setDetailOpen(false); fetchCustomers(); }
     } catch (err) {
       toast.error('Failed to update stage');
     }

@@ -1388,6 +1388,7 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
       setForm(EMPTY_FORM)
       setOpen(false)
       setEditId(null)
+      await syncArchived()
       onChange()
     } catch (e) { console.error(e); alert('Failed to save product line: ' + (e.message || '')) }
     finally { setSaving(false) }
@@ -1432,8 +1433,18 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
     try {
       const { error } = await supabase.from('customer_product_lines').update({ stage: 'Lost', lost_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', line.id)
       if (error) throw error
+      await syncArchived()
       onChange()
     } catch (e) { console.error(e); alert('Failed to mark lost') } finally { setBusyId(null) }
+  }
+
+  // Archive the customer when no active (non-lost) product lines remain; un-archive when one returns.
+  async function syncArchived() {
+    const { data: ls } = await supabase.from('customer_product_lines').select('stage, lost_at').eq('profile_id', customerId)
+    const arr = ls || []
+    const hasActive = arr.some(l => !(l.stage === 'Lost' || l.lost_at))
+    const archived_at = (arr.length > 0 && !hasActive) ? new Date().toISOString() : null
+    await supabase.from('profiles').update({ archived_at, updated_at: new Date().toISOString() }).eq('id', customerId)
   }
 
   return (

@@ -91,6 +91,11 @@ export function customerValue(lines = []) {
   return { mrr, arr, openMrr, projectedMrr, projectedArr, activeMrr, fullValue }
 }
 
+// True if the customer still has at least one non-lost product line.
+export function hasActiveProduct(lines = []) {
+  return lines.some((l) => !isLost(l))
+}
+
 export function stageRank(stage) {
   return STAGE_PIPELINE.indexOf(stage)
 }
