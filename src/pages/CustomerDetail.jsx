@@ -1444,18 +1444,40 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
       </div>
       {open && (
         <div className="bg-navy-800 border border-brand-blue/30 rounded-xl p-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-200">{editId ? 'Edit product line' : 'New product line'}</p>
           <div className="grid grid-cols-2 gap-3">
-            <select value={form.product_type} onChange={e => setForm(f => ({ ...f, product_type: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
-              {PL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <select value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
-              {PL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <input type="number" value={form.estimated_value} onChange={e => setForm(f => ({ ...f, estimated_value: e.target.value }))} placeholder="One-time setup $" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
-            <input type="number" value={form.mrr} onChange={e => setForm(f => ({ ...f, mrr: e.target.value }))} placeholder="MRR $ / month" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
-            <input type="number" value={form.term_months} onChange={e => setForm(f => ({ ...f, term_months: e.target.value }))} placeholder="Term (months)" className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
-            <input type="date" value={form.expected_close_date} onChange={e => setForm(f => ({ ...f, expected_close_date: e.target.value }))} className="bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" style={{ colorScheme: 'dark' }} />
-            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes (optional)" rows={2} className="col-span-2 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white resize-none" />
+            <div>
+              <label className="text-[11px] text-gray-400 mb-1 block">Product type</label>
+              <select value={form.product_type} onChange={e => setForm(f => ({ ...f, product_type: e.target.value }))} className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+                {PL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-gray-400 mb-1 block">Stage</label>
+              <select value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value }))} className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white">
+                {PL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-gray-400 mb-1 block">One-time setup ($)</label>
+              <input type="number" value={form.estimated_value} onChange={e => setForm(f => ({ ...f, estimated_value: e.target.value }))} placeholder="0" className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            </div>
+            <div>
+              <label className="text-[11px] text-gray-400 mb-1 block">MRR ($ / month)</label>
+              <input type="number" value={form.mrr} onChange={e => setForm(f => ({ ...f, mrr: e.target.value }))} placeholder="0" className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            </div>
+            <div>
+              <label className="text-[11px] text-gray-400 mb-1 block">Term (months)</label>
+              <input type="number" value={form.term_months} onChange={e => setForm(f => ({ ...f, term_months: e.target.value }))} placeholder="e.g. 12" className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" />
+            </div>
+            <div>
+              <label className="text-[11px] text-gray-400 mb-1 block">Expected close</label>
+              <input type="date" value={form.expected_close_date} onChange={e => setForm(f => ({ ...f, expected_close_date: e.target.value }))} className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white" style={{ colorScheme: 'dark' }} />
+            </div>
+            <div className="col-span-2">
+              <label className="text-[11px] text-gray-400 mb-1 block">Notes</label>
+              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes (optional)" rows={2} className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white resize-none" />
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <button onClick={closeForm} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
