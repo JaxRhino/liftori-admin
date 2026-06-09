@@ -41,6 +41,17 @@ export default function EstimateDocument() {
   const [saving, setSaving] = useState(false)
   const [signer, setSigner] = useState('')
   const [signing, setSigning] = useState(false)
+  const [custView, setCustView] = useState(false)
+
+  const SECTIONS = [
+    { id: 'cover', label: 'Cover' },
+    { id: 'about-liftori', label: 'About Liftori' },
+    { id: 'about-product', label: 'About the Product' },
+    { id: 'estimate', label: 'Estimate' },
+    { id: 'terms', label: 'Terms' },
+    { id: 'signature', label: 'Signature' },
+  ]
+  const jump = (sid) => document.getElementById(sid)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   async function load() {
     setLoading(true)
@@ -61,8 +72,8 @@ export default function EstimateDocument() {
   }
   useEffect(() => { load() }, [id])
 
-  const oneTime = lines.filter(l => !l.recurring).reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unit_cost) || 0), 0)
-  const monthly = lines.filter(l => l.recurring).reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unit_cost) || 0), 0)
+  const oneTime = lines.filter(l => l.included !== false && !l.recurring).reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unit_cost) || 0), 0)
+  const monthly = lines.filter(l => l.included !== false && l.recurring).reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unit_cost) || 0), 0)
   const discount = Number(est?.discount_amount) || 0
   const oneTimeNet = oneTime - discount
   const effTerm = term > 0 ? term : (monthly > 0 ? 12 : 0)
@@ -98,17 +109,22 @@ export default function EstimateDocument() {
 
   return (
     <div className="bg-navy-950 min-h-screen">
-      <div className="max-w-4xl mx-auto p-4 space-y-4">
+      <div className="max-w-5xl mx-auto p-4 flex gap-4">
+        <nav className="hidden md:block w-40 flex-shrink-0 sticky top-4 self-start space-y-1 print:hidden">
+          {SECTIONS.map(s => <button key={s.id} onClick={() => jump(s.id)} className="block w-full text-left text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-navy-800/60">{s.label}</button>)}
+        </nav>
+        <div className="flex-1 min-w-0 space-y-4">
         <div className="flex justify-between items-center print:hidden">
           <button onClick={() => navigate(-1)} className="text-sm text-gray-400 hover:text-white">← Back</button>
           <div className="flex gap-2">
+            <button onClick={() => setCustView(v => !v)} className={`px-3 py-1.5 text-xs rounded-lg font-medium ${custView ? 'bg-emerald-500/90 text-white' : 'bg-navy-700 text-gray-200 hover:bg-navy-600'}`}>{custView ? 'Customer view ✓' : 'Customer view'}</button>
             <button onClick={saveDoc} disabled={saving} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white rounded-lg font-medium">{saving ? 'Saving…' : 'Save'}</button>
             <button onClick={() => window.print()} className="px-3 py-1.5 text-xs bg-navy-700 hover:bg-navy-600 text-gray-200 rounded-lg font-medium">Print / PDF</button>
           </div>
         </div>
 
         {/* COVER */}
-        <section className="bg-navy-900 rounded-xl p-10 border border-white/10">
+        <section id="cover" className="bg-navy-900 rounded-xl p-10 border border-white/10">
           <div className="text-4xl font-black tracking-tight"><span className="text-white">LIFT</span><span className="text-brand-blue">ORI</span></div>
           <p className="text-gray-500 mt-1 text-sm">Lift Your Idea</p>
           <div className="mt-14">
@@ -133,34 +149,43 @@ export default function EstimateDocument() {
         </section>
 
         {/* ABOUT LIFTORI */}
-        <section className={sectionCls}>
+        <section id="about-liftori" className={sectionCls}>
           <h2 className="text-xl font-bold text-white mb-3">About Liftori</h2>
           <div className="text-sm text-gray-300 whitespace-pre-line leading-relaxed">{ABOUT_LIFTORI}</div>
         </section>
 
         {/* ABOUT PRODUCT(S) */}
+        <div id="about-product" className="space-y-4">
         {products.filter(p => PRODUCT_ABOUT[p]).map(p => (
           <section key={p} className={sectionCls}>
             <h2 className="text-xl font-bold text-white mb-3">About {p}</h2>
             <div className="text-sm text-gray-300 whitespace-pre-line leading-relaxed">{PRODUCT_ABOUT[p]}</div>
           </section>
         ))}
+        </div>
 
         {/* LINE ITEMS */}
-        <section className={sectionCls}>
+        <section id="estimate" className={sectionCls}>
           <h2 className="text-xl font-bold text-white mb-4">Estimate</h2>
           {products.map(p => (
             <div key={p} className="mb-5">
               <p className="text-sm font-semibold text-brand-blue mb-1">{p}</p>
               <table className="w-full text-sm">
                 <tbody>
-                  {lines.map((l, i) => l.product === p ? (
-                    <tr key={i} className="border-b border-white/5">
+                  {lines.map((l, i) => (l.product === p && (!custView || l.included !== false)) ? (
+                    <tr key={i} className={`border-b border-white/5 ${l.included === false ? 'opacity-40' : ''}`}>
+                      {!custView && <td className="py-1.5 w-8"><input type="checkbox" checked={l.included !== false} onChange={e => updateLine(i, { included: e.target.checked })} /></td>}
                       <td className="py-1.5 text-gray-300">{l.label}{l.recurring && <span className="text-amber-400 text-[11px]"> /mo</span>}</td>
-                      <td className="py-1.5 w-16"><input type="number" value={l.qty ?? 1} onChange={e => updateLine(i, { qty: Number(e.target.value) })} className="w-14 bg-navy-800 border border-navy-700/50 rounded px-1.5 py-0.5 text-white print:border-0" /></td>
-                      <td className="py-1.5 w-28"><input type="number" value={l.unit_cost ?? 0} onChange={e => updateLine(i, { unit_cost: Number(e.target.value) })} className="w-24 bg-navy-800 border border-navy-700/50 rounded px-1.5 py-0.5 text-white print:border-0" /></td>
+                      {custView ? (
+                        <td className="py-1.5 text-right text-gray-400 pr-4">{(Number(l.qty) || 0) > 1 ? (l.qty + ' × ') : ''}{money(Number(l.unit_cost) || 0)}</td>
+                      ) : (
+                        <>
+                          <td className="py-1.5 w-16"><input type="number" value={l.qty ?? 1} onChange={e => updateLine(i, { qty: Number(e.target.value) })} className="w-14 bg-navy-800 border border-navy-700/50 rounded px-1.5 py-0.5 text-white print:border-0" /></td>
+                          <td className="py-1.5 w-28"><input type="number" value={l.unit_cost ?? 0} onChange={e => updateLine(i, { unit_cost: Number(e.target.value) })} className="w-24 bg-navy-800 border border-navy-700/50 rounded px-1.5 py-0.5 text-white print:border-0" /></td>
+                        </>
+                      )}
                       <td className="py-1.5 w-28 text-right text-white">{money((Number(l.qty) || 0) * (Number(l.unit_cost) || 0))}{l.recurring ? '/mo' : ''}</td>
-                      <td className="py-1.5 w-8 text-right print:hidden"><button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-300 text-xs">✕</button></td>
+                      {!custView && <td className="py-1.5 w-8 text-right print:hidden"><button onClick={() => removeLine(i)} className="text-red-400 hover:text-red-300 text-xs">✕</button></td>}
                     </tr>
                   ) : null)}
                 </tbody>
@@ -181,13 +206,13 @@ export default function EstimateDocument() {
         </section>
 
         {/* TERMS */}
-        <section className={sectionCls}>
+        <section id="terms" className={sectionCls}>
           <h2 className="text-xl font-bold text-white mb-3">Terms &amp; Conditions</h2>
           <div className="text-xs text-gray-400 whitespace-pre-line leading-relaxed">{TERMS}</div>
         </section>
 
         {/* SIGNATURE / E-SIGN */}
-        <section className={sectionCls}>
+        <section id="signature" className={sectionCls}>
           <h2 className="text-xl font-bold text-white mb-4">Acceptance &amp; Signature</h2>
           {est.esign_status === 'signed' ? (
             <div className="flex items-center gap-3 text-sm flex-wrap">
@@ -207,6 +232,7 @@ export default function EstimateDocument() {
             </div>
           )}
         </section>
+        </div>
       </div>
     </div>
   )

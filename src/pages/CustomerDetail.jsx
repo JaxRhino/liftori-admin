@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import TeamMemberSelect, { TeamMemberLabel } from '../components/TeamMemberSelect'
 import { STAGE_PIPELINE, customerValue, isWon, isLost } from '../lib/customerValue'
@@ -1586,6 +1586,7 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
   const [discount, setDiscount] = useState(0)
   const [genData, setGenData] = useState(null)
   const [genBusy, setGenBusy] = useState(false)
+  const navigate = useNavigate()
 
   async function openGen() {
     const sel = {}; (productLines || []).filter(l => !isLost(l)).forEach(l => { sel[l.id] = true })
@@ -1616,7 +1617,7 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
       selLines.forEach(l => {
         ((genData && genData.itemsByType[l.product_type]) || []).forEach(i => {
           const qty = Number(i.qty) || 1, unit = Number(i.unit_cost) || 0
-          lineItems.push({ product: l.product_type, label: i.label, category: i.category, qty, unit_cost: unit, line_total: qty * unit, recurring: !!i.recurring })
+          lineItems.push({ product: l.product_type, label: i.label, category: i.category, qty, unit_cost: unit, line_total: qty * unit, recurring: !!i.recurring, included: true })
         })
       })
       const oneTime = lineItems.filter(l => !l.recurring).reduce((s, l) => s + l.line_total, 0)
@@ -1624,7 +1625,7 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
       const discountAmount = Math.round(oneTime * (Number(discount) || 0) / 100)
       const types = [...new Set(selLines.map(l => l.product_type))]
       const n = (estimates || []).length + 1
-      const { error } = await supabase.from('customer_estimates').insert({
+      const { data: resp, error } = await supabase.from('customer_estimates').insert({
         contact_id: customerId,
         estimate_number: 'EST-' + new Date().getFullYear() + '-' + String(n).padStart(4, '0'),
         org_id: LIFTORI_ORG_ID,
@@ -1635,10 +1636,11 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
         total: oneTime - discountAmount,
         status: 'draft',
         notes: monthly > 0 ? ('Plus $' + monthly.toLocaleString() + '/mo recurring') : null,
-      })
+      }).select('id').single()
       if (error) throw error
       setGen(false); setDiscount(0); setGenSel({})
       onChange()
+      if (resp && resp.id) navigate('/admin/estimate/' + resp.id)
     } catch (e) { console.error(e); alert('Failed to generate estimate: ' + (e.message || '')) }
     finally { setGenBusy(false) }
   }
@@ -1673,7 +1675,7 @@ function EstimatesTab({ customerId, estimates, projects, productLines, onChange 
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-400">{estimates.length} estimate{estimates.length !== 1 ? 's' : ''}</p>
         <div className="flex gap-2">
-          <button onClick={() => gen ? setGen(false) : openGen()} className="px-3 py-1.5 text-xs bg-amber-500/90 hover:bg-amber-500 text-white rounded-lg font-medium">{gen ? 'Cancel' : '⚡ Generate from product lines'}</button>
+          <button onClick={() => gen ? setGen(false) : openGen()} className="px-3 py-1.5 text-xs bg-amber-500/90 hover:bg-amber-500 text-white rounded-lg font-medium">{gen ? 'Cancel' : '⚡ Generate default estimate'}</button>
           <button onClick={() => { setGen(false); setOpen(o => !o) }} className="px-3 py-1.5 text-xs bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg font-medium">
             {open ? 'Cancel' : '+ New Estimate'}
           </button>
