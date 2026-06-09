@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
-import { customerValue, currentStage } from '../lib/customerValue';
+import { customerValue, currentStage, STAGE_PIPELINE, WON_STAGES } from '../lib/customerValue';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -32,6 +32,44 @@ const CRM_STAGES = [
   { key: 'churned', label: 'Churned', color: 'bg-red-500', badge: 'bg-red-100 text-red-800', icon: XCircle },
 ];
 const STAGE_MAP = Object.fromEntries(CRM_STAGES.map(s => [s.key, s]));
+
+// Legacy crm_stage → unified pipeline fallback (most customers have no product line yet,
+// so their stage still lives in profiles.crm_stage). Product-line stage always wins.
+const CRM_STAGE_TO_PIPELINE = {
+  prospect: 'New Lead',
+  qualified: 'Development',
+  proposal: 'Estimate Sent',
+  negotiation: 'Pending Payment',
+  won: 'Onboarding Scheduled',
+  active: 'Active',
+  at_risk: 'Payment Hold',
+  churned: 'Lost',
+};
+// Pipeline-bar segment colors, one per STAGE_PIPELINE stage.
+const STAGE_BAR_COLOR = {
+  'New Lead': 'bg-sky-500',
+  'Waitlist': 'bg-cyan-500',
+  'Development': 'bg-blue-500',
+  'Demo Ready': 'bg-teal-500',
+  'Demo Scheduled': 'bg-lime-500',
+  'Estimating': 'bg-yellow-500',
+  'Estimate Sent': 'bg-amber-500',
+  'Pending Payment': 'bg-orange-500',
+  'Onboarding Scheduled': 'bg-indigo-500',
+  'Buildout': 'bg-violet-500',
+  'Active': 'bg-emerald-500',
+  'Payment Hold': 'bg-rose-500',
+  'Lost': 'bg-red-500',
+};
+// A customer's unified stage: furthest product-line stage, else mapped crm_stage.
+function customerStage(c) {
+  return currentStage(c.product_lines || []) || CRM_STAGE_TO_PIPELINE[c.crm_stage] || 'New Lead';
+}
+// A customer's full value: product-line TCV, else legacy profile estimated_value.
+function customerFullValue(c) {
+  const v = customerValue(c.product_lines || []).fullValue;
+  return v > 0 ? v : (parseFloat(c.estimated_value) || 0);
+}
 
 const ACTIVITY_TYPES = [
   { key: 'call', label: 'Call', icon: PhoneCall, color: 'text-green-400' },
@@ -590,7 +628,7 @@ export default function Customers() {
         const q = searchQuery.toLowerCase();
         if (!c.full_name?.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q) && !c.company_name?.toLowerCase().includes(q)) return false;
       }
-      if (filterStage && c.crm_stage !== filterStage) return false;
+      if (filterStage && customerStage(c) !== filterStage) return false;
       if (filterTemp && c.lead_temperature !== filterTemp) return false;
       return true;
     });
@@ -598,8 +636,8 @@ export default function Customers() {
 
   const pipelineCounts = useMemo(() => {
     const counts = {};
-    CRM_STAGES.forEach(s => { counts[s.key] = 0; });
-    customers.forEach(c => { if (counts[c.crm_stage] !== undefined) counts[c.crm_stage]++; });
+    STAGE_PIPELINE.forEach(s => { counts[s] = 0; });
+    customers.forEach(c => { const st = customerStage(c); if (counts[st] !== undefined) counts[st]++; });
     return counts;
   }, [customers]);
 
@@ -612,14 +650,15 @@ export default function Customers() {
   });
 
   const staleCustomers = customers.filter(c => {
-    if (['won', 'active', 'churned'].includes(c.crm_stage)) return false;
+    const st = customerStage(c);
+    if (WON_STAGES.includes(st) || st === 'Lost') return false;
     const days = daysAgo(c.last_activity_at || c.created_at);
     return days > 7;
   });
 
   const totalPipelineValue = customers
-    .filter(c => !['churned', 'active', 'won'].includes(c.crm_stage))
-    .reduce((sum, c) => sum + (parseFloat(c.estimated_value) || 0), 0);
+    .filter(c => customerStage(c) !== 'Lost')
+    .reduce((sum, c) => sum + customerFullValue(c), 0);
 
   const totalMRR = customers.reduce((sum, c) => {
     return sum + (c.projects || []).reduce((ps, p) => ps + (parseFloat(p.mrr) || 0), 0);
@@ -627,9 +666,9 @@ export default function Customers() {
 
   const stats = {
     total: customers.length,
-    active: customers.filter(c => ['active', 'won'].includes(c.crm_stage)).length,
-    pipeline: customers.filter(c => !['churned', 'active', 'won'].includes(c.crm_stage)).length,
-    atRisk: customers.filter(c => c.crm_stage === 'at_risk').length,
+    active: customers.filter(c => WON_STAGES.includes(customerStage(c))).length,
+    pipeline: customers.filter(c => { const st = customerStage(c); return !WON_STAGES.includes(st) && st !== 'Lost'; }).length,
+    atRisk: customers.filter(c => customerStage(c) === 'Payment Hold').length,
   };
 
   if (loading) return <div className="p-6 text-gray-400">Loading CRM...</div>;
@@ -1156,19 +1195,19 @@ export default function Customers() {
       {/* ── Pipeline Bar ──────────────────────────────────────── */}
       <Card className="bg-navy-800/50 border-white/10 p-4">
         <div className="flex items-center gap-1">
-          {CRM_STAGES.map(stage => {
-            const count = pipelineCounts[stage.key] || 0;
-            const isFiltered = filterStage === stage.key;
+          {STAGE_PIPELINE.map(stage => {
+            const count = pipelineCounts[stage] || 0;
+            const isFiltered = filterStage === stage;
             return (
               <button
-                key={stage.key}
-                onClick={() => setFilterStage(isFiltered ? '' : stage.key)}
+                key={stage}
+                onClick={() => setFilterStage(isFiltered ? '' : stage)}
                 className={`flex-1 group relative transition-all ${isFiltered ? 'scale-105' : ''}`}
               >
-                <div className={`h-3 rounded-full transition-colors ${count > 0 ? stage.color : 'bg-gray-700/50'} ${isFiltered ? 'ring-2 ring-white/30' : ''} group-hover:opacity-80`} />
+                <div className={`h-3 rounded-full transition-colors ${count > 0 ? (STAGE_BAR_COLOR[stage] || 'bg-gray-500') : 'bg-gray-700/50'} ${isFiltered ? 'ring-2 ring-white/30' : ''} group-hover:opacity-80`} />
                 <div className="text-center mt-1.5">
-                  <span className={`text-[10px] block ${isFiltered ? 'text-white font-bold' : 'text-gray-500'} group-hover:text-white transition-colors`}>
-                    {stage.label}
+                  <span className={`text-[10px] block leading-tight ${isFiltered ? 'text-white font-bold' : 'text-gray-500'} group-hover:text-white transition-colors`}>
+                    {stage}
                   </span>
                   <span className={`text-xs font-bold ${count > 0 ? 'text-white' : 'text-gray-600'}`}>{count}</span>
                 </div>
@@ -1201,7 +1240,7 @@ export default function Customers() {
         </select>
         {filterStage && (
           <Button variant="ghost" size="sm" className="text-xs text-gray-400" onClick={() => setFilterStage('')}>
-            Clear: {STAGE_MAP[filterStage]?.label} <XCircle className="h-3 w-3 ml-1" />
+            Clear: {filterStage} <XCircle className="h-3 w-3 ml-1" />
           </Button>
         )}
       </div>
@@ -1226,10 +1265,8 @@ export default function Customers() {
               {filtered.map(customer => {
                 const isStale = !['won', 'active', 'churned'].includes(customer.crm_stage) && daysAgo(customer.last_activity_at || customer.created_at) > 7;
                 const followUpOverdue = customer.next_follow_up_at && new Date(customer.next_follow_up_at) < new Date();
-                const plLines = customer.product_lines || [];
-                const cv = customerValue(plLines);
-                const plStage = currentStage(plLines);
-                const displayValue = cv.fullValue > 0 ? cv.fullValue : (parseFloat(customer.estimated_value) || 0);
+                const plStage = customerStage(customer);
+                const displayValue = customerFullValue(customer);
                 return (
                   <tr
                     key={customer.id}
@@ -1254,7 +1291,7 @@ export default function Customers() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">{plStage ? <PipelineStageBadge stage={plStage} /> : <StageBadge stage={customer.crm_stage} />}</td>
+                    <td className="px-4 py-3"><PipelineStageBadge stage={plStage} /></td>
                     <td className="px-4 py-3"><TempBadge temp={customer.lead_temperature} /></td>
                     <td className="px-4 py-3 text-sm text-white font-medium">{displayValue > 0 ? `$${Math.round(displayValue).toLocaleString()}` : '—'}</td>
                     <td className="px-4 py-3">
