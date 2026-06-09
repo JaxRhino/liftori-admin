@@ -61,6 +61,7 @@ export const ONBOARDING_STEPS = [
   { id: 11, key: 'scorecard',    label: 'Data & Scorecard' },
   { id: 12, key: 'issues_goals', label: 'Issues & Rocks' },
   { id: 13, key: 'traction',     label: 'Traction' },
+  { id: 14, key: 'plan',         label: 'Plan' },
 ]
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -134,6 +135,54 @@ export async function finishOnboarding(id) {
 /** Advance the onboarding_step marker (for "Save & continue" clicks). */
 export async function advanceOnboardingStep(id, stepNumber) {
   return updateEngagement(id, { onboarding_step: stepNumber })
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Plan Synthesis — rule-based roll-up of the audit (health score + findings + rocks)
+// ═══════════════════════════════════════════════════════════════════════
+export function synthesizePlan(e = {}) {
+  const has = (v) => v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0)
+  const pct = (arr) => Math.round((arr.filter(Boolean).length / arr.length) * 100)
+
+  const vision = pct([has(e.core_values), has(e.core_focus_purpose) || has(e.core_focus_niche), has(e.ten_year_target), has(e.three_year_picture), has(e.one_year_plan), has(e.marketing_strategy)])
+  const people = pct([has(e.employee_count), has(e.company_size_bucket)])
+  const data = pct([!!e.runs_weekly_scorecard, has(e.scorecard_kpis?.notes)])
+  const process = pct([has(e.core_processes?.notes), has(e.sop_maturity)])
+  const issues = pct([has(e.issues?.notes), has(e.pain_points)])
+  const traction = pct([!!e.runs_l10, has(e.weekly_meeting_day), has(e.quarterly_rocks?.notes)])
+  let financial = pct([has(e.revenue_y1), has(e.gross_margin_pct), has(e.net_margin_pct), has(e.runway_months)])
+  if (e.net_margin_pct != null && e.net_margin_pct < 10) financial = Math.max(0, financial - 15)
+  if (e.runway_months != null && e.runway_months < 6) financial = Math.max(0, financial - 20)
+  if (e.revenue_growth_pct != null && e.revenue_growth_pct < 0) financial = Math.max(0, financial - 15)
+
+  const components = [
+    { name: 'Vision', score: vision }, { name: 'People', score: people }, { name: 'Data', score: data },
+    { name: 'Process', score: process }, { name: 'Issues', score: issues }, { name: 'Traction', score: traction },
+    { name: 'Financial', score: financial },
+  ]
+  const healthScore = Math.round(components.reduce((s, c) => s + c.score, 0) / components.length)
+
+  const findings = []
+  if (e.net_margin_pct != null && e.net_margin_pct < 10) findings.push('Net margin under 10% — profitability needs attention.')
+  if (e.runway_months != null && e.runway_months < 6) findings.push('Cash runway under 6 months — liquidity risk.')
+  if (e.revenue_growth_pct != null && e.revenue_growth_pct < 0) findings.push('Revenue is declining year-over-year.')
+  if (!has(e.core_values)) findings.push('Core values not defined.')
+  if (!has(e.ten_year_target)) findings.push('No 10-year target (BHAG) set.')
+  if (!has(e.core_processes?.notes)) findings.push('Core processes not documented.')
+  if (!e.runs_weekly_scorecard) findings.push('No weekly scorecard — limited data visibility.')
+  if (!e.runs_l10) findings.push('No weekly Level 10 meeting — weak execution rhythm.')
+  if (!has(e.issues?.notes)) findings.push('Issues list not captured.')
+
+  const rocks = []
+  if (!has(e.core_values)) rocks.push('Run a Vision Building session — define core values & core focus.')
+  if (people < 60) rocks.push('Build the Accountability Chart — right people, right seats (GWC).')
+  if (!e.runs_weekly_scorecard) rocks.push('Build & launch a weekly Scorecard (5–15 measurables).')
+  if (!e.runs_l10) rocks.push('Start a weekly Level 10 Meeting.')
+  if (!has(e.core_processes?.notes)) rocks.push('Document the 3–7 core processes.')
+  if (e.runway_months != null && e.runway_months < 6) rocks.push('Stabilize cash — 13-week cash-flow plan + reduce burn.')
+  if (e.net_margin_pct != null && e.net_margin_pct < 10) rocks.push('Margin improvement plan (pricing & COGS review).')
+
+  return { healthScore, components, findings, rocks }
 }
 
 // ═══════════════════════════════════════════════════════════════════════

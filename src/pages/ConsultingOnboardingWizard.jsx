@@ -28,7 +28,7 @@ import {
   fetchDepartments, createDepartment, updateDepartment, deleteDepartment,
   fetchOrgMembers, createOrgMember, updateOrgMember, deleteOrgMember,
   fetchWebsites, createWebsite, updateWebsite, deleteWebsite,
-  computeProfileCompleteness,
+  computeProfileCompleteness, synthesizePlan,
 } from '../lib/consultingOnboardingService'
 import TeamMemberSelect from '../components/TeamMemberSelect'
 
@@ -984,6 +984,49 @@ function StepTraction({ engagement, onPatch }) {
   )
 }
 
+function StepPlan({ engagement, onPatch }) {
+  const plan = synthesizePlan(engagement)
+  const ring = plan.healthScore >= 70 ? 'text-emerald-400' : plan.healthScore >= 40 ? 'text-amber-400' : 'text-red-400'
+  function savePlan() {
+    onPatch({ health_score: plan.healthScore, quarterly_rocks: plan.rocks.length ? { notes: plan.rocks.join('\n') } : engagement.quarterly_rocks })
+    toast.success('Plan saved to engagement')
+  }
+  return (
+    <div className="space-y-5">
+      <SectionCard title="Plan Synthesis" subtitle="Auto-rolled from the audit. Review and save — this feeds the Building Plan stage & the estimate.">
+        <div className="flex items-center gap-6 flex-wrap">
+          <div className="text-center">
+            <p className={`text-4xl font-bold ${ring}`}>{plan.healthScore}</p>
+            <p className="text-xs text-gray-500">Health Score</p>
+          </div>
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 min-w-[240px]">
+            {plan.components.map((c) => (
+              <div key={c.name} className="bg-slate-800/40 rounded-lg p-2 text-center">
+                <p className="text-sm font-bold text-white">{c.score}</p>
+                <p className="text-[10px] text-gray-500">{c.name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </SectionCard>
+      <SectionCard title="Key Findings">
+        {plan.findings.length === 0 ? (
+          <p className="text-xs text-gray-500 italic">No red flags from the captured data.</p>
+        ) : (
+          <ul className="space-y-1.5">{plan.findings.map((f, i) => <li key={i} className="text-sm text-gray-300 flex gap-2"><span className="text-amber-400">•</span>{f}</li>)}</ul>
+        )}
+      </SectionCard>
+      <SectionCard title="Recommended 90-Day Rocks" action={<button type="button" className={btnPrimary} onClick={savePlan}>Save plan</button>}>
+        {plan.rocks.length === 0 ? (
+          <p className="text-xs text-gray-500 italic">Nothing flagged — set Rocks manually in the Issues & Rocks step.</p>
+        ) : (
+          <ul className="space-y-1.5">{plan.rocks.map((r, i) => <li key={i} className="text-sm text-gray-300 flex gap-2"><span className="text-emerald-400">✓</span>{r}</li>)}</ul>
+        )}
+      </SectionCard>
+    </div>
+  )
+}
+
 export default function ConsultingOnboardingWizard() {
   const { engagementId } = useParams()
   const navigate = useNavigate()
@@ -1196,6 +1239,7 @@ export default function ConsultingOnboardingWizard() {
         {step.key === 'scorecard'    && <StepScorecard   engagement={merged} onPatch={handlePatch} />}
         {step.key === 'issues_goals' && <StepIssuesGoals engagement={merged} onPatch={handlePatch} />}
         {step.key === 'traction'     && <StepTraction    engagement={merged} onPatch={handlePatch} />}
+        {step.key === 'plan'         && <StepPlan        engagement={merged} onPatch={handlePatch} />}
       </div>
 
       {/* Footer actions */}
