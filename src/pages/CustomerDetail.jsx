@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import TeamMemberSelect, { TeamMemberLabel } from '../components/TeamMemberSelect'
+import { STAGE_PIPELINE, customerValue, isWon, isLost } from '../lib/customerValue'
 
 const STATUS_COLORS = {
   'Wizard Complete': 'bg-gray-500/20 text-gray-400',
@@ -1334,7 +1335,7 @@ function EmptyState({ icon, title, hint }) {
 }
 
 const PL_TYPES = ['CRM', 'Website', 'Custom Build', 'Consulting']
-const PL_STAGES = ['New Lead', 'Contacted', 'Qualified', 'Proposal', 'Negotiation']
+const PL_STAGES = STAGE_PIPELINE.filter(s => s !== 'Lost')
 const PL_TYPE_COLOR = {
   'CRM': 'bg-brand-blue/20 text-brand-blue',
   'Website': 'bg-emerald-500/20 text-emerald-400',
@@ -1397,7 +1398,7 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
         projectId = proj.id
       }
       const { error } = await supabase.from('customer_product_lines').update({
-        stage: 'Won', won_at: new Date().toISOString(), project_id: projectId, updated_at: new Date().toISOString(),
+        stage: 'Onboarding Scheduled', won_at: new Date().toISOString(), project_id: projectId, updated_at: new Date().toISOString(),
       }).eq('id', line.id)
       if (error) throw error
       onChange()
@@ -1445,7 +1446,7 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
       ) : (
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl divide-y divide-navy-700/30">
           {lines.map(l => {
-            const terminal = l.stage === 'Won' || l.stage === 'Lost'
+            const terminal = isWon(l) || isLost(l)
             return (
               <div key={l.id} className="p-4 flex items-start gap-3">
                 <div className="flex-1 min-w-0">
@@ -1960,11 +1961,8 @@ export default function CustomerDetail() {
   }
 
   const initials = getInitials(customer.full_name, customer.email)
-  // Projected MRR = weighted pipeline: open product lines (not won/lost), monthly recurring × win probability
-  const projectedMrr = productLines
-    .filter(l => !l.won_at && !l.lost_at)
-    .reduce((s, l) => s + (Number(l.mrr) || 0) * (Number(l.probability) || 0) / 100, 0)
-  const projectedArr = projectedMrr * 12
+  // Customer value rollup: weighted projections + gross full value (TCV). See lib/customerValue.
+  const { projectedMrr, projectedArr, fullValue } = customerValue(productLines)
   const activeProjects = projects.filter(p => ACTIVE_PROJECT_STATUSES.includes(p.status))
   const totalPaid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0)
 
@@ -2044,7 +2042,7 @@ export default function CustomerDetail() {
           </div>
 
           {/* Quick stats */}
-          <div className="flex gap-6 sm:gap-8 flex-shrink-0">
+          <div className="flex flex-wrap gap-x-6 gap-y-3 sm:gap-x-8 flex-shrink-0">
             <div className="text-center">
               <p className="text-2xl font-bold text-white">{projects.length}</p>
               <p className="text-xs text-gray-500 mt-0.5">Projects</p>
@@ -2064,6 +2062,10 @@ export default function CustomerDetail() {
             <div className="text-center">
               <p className="text-2xl font-bold text-amber-400/80">{formatCurrency(Math.round(projectedArr))}</p>
               <p className="text-xs text-gray-500 mt-0.5">Proj. ARR</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-white">{formatCurrency(Math.round(fullValue))}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Full Value</p>
             </div>
           </div>
         </div>
