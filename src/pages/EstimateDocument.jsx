@@ -89,6 +89,23 @@ export default function EstimateDocument() {
   async function saveDoc() {
     setSaving(true)
     await supabase.from('customer_estimates').update({ line_items: lines, subtotal: oneTime, total: oneTimeNet, updated_at: new Date().toISOString() }).eq('id', id)
+    // Reflect estimate totals into the customer's product lines so the pipeline MRR / value cards update.
+    if (est?.contact_id) {
+      const byProduct = {}
+      lines.filter(l => l.included !== false).forEach(l => {
+        if (!l.product) return
+        const amt = (Number(l.qty) || 0) * (Number(l.unit_cost) || 0)
+        const b = byProduct[l.product] || (byProduct[l.product] = { oneTime: 0, monthly: 0 })
+        if (l.recurring) b.monthly += amt; else b.oneTime += amt
+      })
+      const { data: pls } = await supabase.from('customer_product_lines').select('id, product_type, lost_at').eq('profile_id', est.contact_id)
+      for (const pl of (pls || [])) {
+        const v = byProduct[pl.product_type]
+        if (v && !pl.lost_at) {
+          await supabase.from('customer_product_lines').update({ estimated_value: v.oneTime, mrr: v.monthly, updated_at: new Date().toISOString() }).eq('id', pl.id)
+        }
+      }
+    }
     setSaving(false)
   }
 
