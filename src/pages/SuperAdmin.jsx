@@ -36,6 +36,7 @@ export default function SuperAdmin() {
   const [recentAppointments, setRecentAppointments] = useState([]);
   const [topScorecards, setTopScorecards] = useState([]);
   const [flaggedCalls, setFlaggedCalls] = useState([]);
+  const [agentFeed, setAgentFeed] = useState([]);
   const [isFounderUser, setIsFounderUser] = useState(false);
   // Tester program data
   const [testerEnrollments, setTesterEnrollments] = useState([]);
@@ -106,7 +107,8 @@ export default function SuperAdmin() {
     try {
       const [
         usersRes, projectsRes, apptsRes, scorecardsRes,
-        callsRes, speedRes, queueRes, messagesRes, ticketsRes
+        callsRes, speedRes, queueRes, messagesRes, ticketsRes,
+        productLinesRes, invoicesRes, estimatesRes, agreementsRes, convosRes, agentChatRes, devTasksRes
       ] = await Promise.all([
         supabase.from('profiles').select('id, full_name, email, role, created_at'),
         supabase.from('projects').select('id, name, status, tier, created_at'),
@@ -117,6 +119,13 @@ export default function SuperAdmin() {
         supabase.from('cc_queue').select('id, contact_name, queue_type, status, scheduled_at').order('created_at', { ascending: false }).limit(10),
         supabase.from('chat_messages').select('id, sender_name, content, created_at', { count: 'exact', head: false }).order('created_at', { ascending: false }).limit(5),
         supabase.from('support_tickets').select('id, subject, status, priority, created_at', { count: 'exact', head: false }).order('created_at', { ascending: false }).limit(5),
+        supabase.from('customer_product_lines').select('stage, estimated_value, mrr'),
+        supabase.from('invoices').select('amount_cents, status'),
+        supabase.from('customer_estimates').select('status'),
+        supabase.from('customer_agreements').select('status'),
+        supabase.from('comms_conversations').select('status, unread_count'),
+        supabase.from('dev_team_agent_chat').select('sender_display, sender_role, body, created_at').order('created_at', { ascending: false }).limit(5),
+        supabase.from('dev_team_tasks').select('status'),
       ]);
 
       const users = usersRes.data || [];
@@ -128,6 +137,27 @@ export default function SuperAdmin() {
       const queueItems = queueRes.data || [];
       const messages = messagesRes.data || [];
       const tickets = ticketsRes.data || [];
+
+      // ── Founder command center rollups ──────────────────────────
+      const productLines = productLinesRes.data || [];
+      const invoices = invoicesRes.data || [];
+      const estimates = estimatesRes.data || [];
+      const agreements = agreementsRes.data || [];
+      const convos = convosRes.data || [];
+      const devTasks = devTasksRes.data || [];
+      setAgentFeed(agentChatRes.data || []);
+
+      const openLines = productLines.filter(l => l.stage !== 'Lost' && l.stage !== 'Won');
+      const crmPipelineValue = openLines.reduce((s, l) => s + (Number(l.estimated_value) || 0), 0);
+      const crmWonValue = productLines.filter(l => l.stage === 'Won').reduce((s, l) => s + (Number(l.estimated_value) || 0), 0);
+      const crmMrr = productLines.reduce((s, l) => s + (Number(l.mrr) || 0), 0); // cents
+      const outstandingInvoices = invoices.filter(i => ['pending', 'overdue'].includes(i.status)).reduce((s, i) => s + (i.amount_cents || 0), 0); // cents
+      const estimatesAwaiting = estimates.filter(e => ['sent', 'viewed'].includes(e.status)).length;
+      const agreementsPending = agreements.filter(a => ['draft', 'sent'].includes(a.status)).length;
+      const unreadClientMsgs = convos.reduce((s, c) => s + (c.unread_count || 0), 0);
+      const openDevTasks = devTasks.filter(t => !['done', 'completed', 'cancelled'].includes(t.status)).length;
+      const projectsByStage = {};
+      projects.forEach(p => { if (p.status) projectsByStage[p.status] = (projectsByStage[p.status] || 0) + 1; });
 
       // Compute aggregate stats
       const totalRevenuePipeline = appts.reduce((sum, a) => sum + (parseFloat(a.estimated_value) || 0), 0);
@@ -164,6 +194,15 @@ export default function SuperAdmin() {
         flaggedCount: flagged.length,
         totalScorecards: scorecards.length,
         revenuePipeline: totalRevenuePipeline,
+        crmPipelineValue,
+        crmWonValue,
+        crmMrr,
+        outstandingInvoices,
+        estimatesAwaiting,
+        agreementsPending,
+        unreadClientMsgs,
+        openDevTasks,
+        projectsByStage,
       });
 
       setRecentAppointments(appts.slice(0, 5));
@@ -235,6 +274,97 @@ export default function SuperAdmin() {
           <RefreshCw className="w-4 h-4" />
           Refresh
         </button>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* FOUNDER COMMAND CENTER — Ryan + Mike, front and center   */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        {/* Revenue & Pipeline */}
+        <div className="bg-gradient-to-br from-emerald-500/10 to-slate-900/40 border border-emerald-500/20 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <DollarSign className="w-4 h-4 text-emerald-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-300">Revenue & Pipeline</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => navigate('/admin/pipeline')} className="text-left hover:opacity-80 transition">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Pipeline</p>
+              <p className="text-xl font-bold text-sky-300">{money(stats.crmPipelineValue)}</p>
+            </button>
+            <button onClick={() => navigate('/admin/finance')} className="text-left hover:opacity-80 transition">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">MRR</p>
+              <p className="text-xl font-bold text-emerald-300">{money((stats.crmMrr || 0) / 100)}</p>
+            </button>
+            <button onClick={() => navigate('/admin/pipeline')} className="text-left hover:opacity-80 transition">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Won</p>
+              <p className="text-xl font-bold text-emerald-400">{money(stats.crmWonValue)}</p>
+            </button>
+            <button onClick={() => navigate('/admin/finance/invoices')} className="text-left hover:opacity-80 transition">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Outstanding</p>
+              <p className="text-xl font-bold text-amber-300">{money((stats.outstandingInvoices || 0) / 100)}</p>
+            </button>
+          </div>
+        </div>
+
+        {/* Needs You & Mike */}
+        <div className="bg-gradient-to-br from-amber-500/10 to-slate-900/40 border border-amber-500/20 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="w-4 h-4 text-amber-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300">Needs You & Mike</h3>
+          </div>
+          <div className="space-y-1">
+            <ActionRow label="Estimates awaiting customer" value={stats.estimatesAwaiting} onClick={() => navigate('/admin/estimates')} />
+            <ActionRow label="Agreements to send / sign" value={stats.agreementsPending} onClick={() => navigate('/admin/agreements')} />
+            <ActionRow label="Flagged calls (<5/10)" value={stats.flaggedCount} tone={stats.flaggedCount > 0 ? 'red' : 'ok'} onClick={() => navigate('/admin/leadership-qc')} />
+            <ActionRow label="Unread client messages" value={stats.unreadClientMsgs} onClick={() => navigate('/admin/comms/hub')} />
+            <ActionRow label="Critical bugs open" value={openCriticalLogs.length} tone={openCriticalLogs.length > 0 ? 'red' : 'ok'} onClick={() => navigate('/admin/testing')} />
+          </div>
+        </div>
+
+        {/* Build & Agents */}
+        <div className="bg-gradient-to-br from-blue-500/10 to-slate-900/40 border border-blue-500/20 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-blue-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-blue-300">Build & Agents</h3>
+            </div>
+            <button onClick={() => navigate('/admin/dev-team/agent-chat')} className="text-[10px] text-blue-400 hover:text-blue-300">Feed →</button>
+          </div>
+          <p className="text-[11px] text-gray-500 mb-2">{stats.openDevTasks} open build tasks</p>
+          <div className="space-y-1.5">
+            {agentFeed.length === 0 ? (
+              <p className="text-xs text-gray-600">No agent activity yet</p>
+            ) : agentFeed.slice(0, 3).map((m, i) => (
+              <div key={i} className="text-[11px] leading-snug">
+                <span className={`font-semibold ${m.sender_role === 'agent_ryan' ? 'text-sky-300' : m.sender_role === 'agent_mike' ? 'text-purple-300' : 'text-gray-300'}`}>
+                  {m.sender_role === 'agent_ryan' ? 'Sage' : m.sender_role === 'agent_mike' ? 'Socrates' : (m.sender_display || 'Agent')}
+                </span>
+                <span className="text-gray-400"> {(m.body || '').replace(/\s+/g, ' ').slice(0, 64)}…</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Client & Project Health */}
+        <div className="bg-gradient-to-br from-purple-500/10 to-slate-900/40 border border-purple-500/20 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-purple-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-purple-300">Project Health</h3>
+            </div>
+            <button onClick={() => navigate('/admin/projects')} className="text-[10px] text-purple-400 hover:text-purple-300">All →</button>
+          </div>
+          <p className="text-[11px] text-gray-500 mb-2">{stats.activeProjects} active builds · {stats.totalProjects} total</p>
+          <div className="flex flex-wrap gap-1.5">
+            {Object.keys(stats.projectsByStage || {}).length === 0 ? (
+              <p className="text-xs text-gray-600">No projects</p>
+            ) : Object.entries(stats.projectsByStage).map(([stage, count]) => (
+              <span key={stage} className="px-2 py-1 rounded-md bg-slate-800/60 border border-slate-700/40 text-[10px] text-gray-300">
+                <span className="font-bold text-white">{count}</span> {stage}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Top Stat Row — Key Numbers */}
@@ -856,6 +986,22 @@ function AssignWorkModal({ assignedBy, enrollments, profilesLookup, onClose, onC
 }
 
 // --- Sub-components ---
+
+function money(n) {
+  const v = Number(n) || 0;
+  return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+}
+
+function ActionRow({ label, value, onClick, tone = 'default' }) {
+  const v = Number(value) || 0;
+  const valueColor = tone === 'red' && v > 0 ? 'text-red-400' : v > 0 ? 'text-amber-300' : 'text-gray-500';
+  return (
+    <button onClick={onClick} className="w-full flex items-center justify-between py-1 px-1.5 -mx-1.5 rounded hover:bg-slate-800/40 transition group">
+      <span className="text-[11px] text-gray-400 group-hover:text-gray-200">{label}</span>
+      <span className={`text-sm font-bold ${valueColor}`}>{v}</span>
+    </button>
+  );
+}
 
 function MetricCard({ icon: Icon, label, value, sub, color = 'default' }) {
   const colors = {
