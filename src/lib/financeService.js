@@ -338,3 +338,118 @@ export async function fetchAgingReport() {
   });
   return buckets;
 }
+// ── ALIAS ────────────────────────────────────────────────────
+// AgingReport.jsx imports under the longer "fetchARAgingReport" name; the
+// underlying logic lives in fetchAgingReport defined above. Alias so both
+// names resolve to the same function.
+export const fetchARAgingReport = fetchAgingReport;
+
+// ── BILLS (AP) ───────────────────────────────────────────────
+export async function fetchBills({ status, search, limit = 100 } = {}) {
+  let q = supabase.from('finance_bills')
+    .select('*')
+    .order('bill_date', { ascending: false })
+    .limit(limit);
+  if (status && status !== 'all') q = q.eq('status', status);
+  if (search) q = q.or(`bill_number.ilike.%${search}%,vendor_name.ilike.%${search}%`);
+  const { data, error } = await q;
+  if (error) handleError(error, 'fetchBills');
+  return data || [];
+}
+
+export async function createBill(bill) {
+  const userId = await currentUserId();
+  const billNumber = await nextNumber('finance_bills', 'BILL');
+  const {
+    vendor_name, vendor_id, bill_date, due_date, status = 'draft',
+    line_items = [], subtotal = 0, tax_amount = 0, notes = '', total,
+  } = bill;
+  const total_amount = total ?? (Number(subtotal) + Number(tax_amount));
+  const { data, error } = await supabase.from('finance_bills')
+    .insert({
+      bill_number: billNumber,
+      vendor_name, vendor_id, bill_date, due_date, status,
+      line_items, subtotal, tax_amount, total_amount,
+      amount_paid: 0, balance_due: total_amount,
+      notes, created_by: userId,
+    })
+    .select().single();
+  if (error) handleError(error, 'createBill');
+  return data;
+}
+
+export async function updateBill(id, updates) {
+  const { data, error } = await supabase.from('finance_bills')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id).select().single();
+  if (error) handleError(error, 'updateBill');
+  return data;
+}
+
+export async function recordBillPayment(billId, amount) {
+  // Reads current totals, increments amount_paid, decrements balance_due,
+  // and flips status to 'paid' when the balance reaches zero (else 'partial').
+  const { data: bill, error: e1 } = await supabase.from('finance_bills')
+    .select('amount_paid, total_amount').eq('id', billId).single();
+  if (e1) handleError(e1, 'recordBillPayment.fetch');
+  const newPaid = Number(bill.amount_paid || 0) + Number(amount);
+  const newBalance = Number(bill.total_amount || 0) - newPaid;
+  const newStatus = newBalance <= 0 ? 'paid' : 'partial';
+  const { data, error } = await supabase.from('finance_bills')
+    .update({
+      amount_paid: newPaid,
+      balance_due: Math.max(0, newBalance),
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', billId).select().single();
+  if (error) handleError(error, 'recordBillPayment.update');
+  return data;
+}
+
+// ── BUDGETS ──────────────────────────────────────────────────
+export async function fetchBudgets({ fiscalYear } = {}) {
+  let q = supabase.from('finance_budgets')
+    .select('*')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+  if (fiscalYear) q = q.eq('fiscal_year', fiscalYear);
+  const { data, error } = await q;
+  if (error) handleError(error, 'fetchBudgets');
+  return data || [];
+}
+
+export async function createBudget(budget) {
+  const userId = await currentUserId();
+  const {
+    account_id, account_name, fiscal_year, annual_total,
+    monthly_amounts = {}, period_type = 'monthly',
+    name, description = '', category = '',
+  } = budget;
+  // Derive a name when the caller hasn't supplied one — schema requires NOT NULL.
+  const computedName = name || (account_name ? `${account_name} FY${fiscal_year}` : `Budget FY${fiscal_year}`);
+  const { data, error } = await supabase.from('finance_budgets')
+    .insert({
+      name: computedName,
+      description,
+      fiscal_year,
+      period_type,
+      account_id,
+      category: category || account_name || '',
+      budget_data: monthly_amounts,
+      total_amount: annual_total,
+      is_active: true,
+      created_by: userId,
+    })
+    .select().single();
+  if (error) handleError(error, 'createBudget');
+  return data;
+}
+
+export async function updateBudget(id, updates) {
+  const { data, error } = await supabase.from('finance_budgets')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id).select().single();
+  if (error) handleError(error, 'updateBudget');
+  return data;
+}

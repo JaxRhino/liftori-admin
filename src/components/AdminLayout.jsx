@@ -938,11 +938,14 @@ export default function AdminLayout() {
                       { label: 'Dashboard', path: '/admin/finance' },
                       { label: 'Invoices', path: '/admin/finance/invoices' },
                       { label: 'Payments', path: '/admin/finance/payments' },
+                      { label: 'AR Aging', path: '/admin/finance/aging' },
                       { label: 'Expenses', path: '/admin/finance/expenses' },
+                      { label: 'Bills', path: '/admin/finance/bills' },
                       { label: 'Journal Entries', path: '/admin/finance/journal' },
                       { label: 'Reports', path: '/admin/finance/reports' },
                       { label: 'Commissions', path: '/admin/finance/commissions' },
                       { label: 'Chart of Accounts', path: '/admin/finance/accounts' },
+                      { label: 'Budgets', path: '/admin/finance/budgets' },
                     ].map(sub => (
                       <NavLink key={sub.path} to={sub.path} end={sub.path === '/admin/finance'}
                         className={({ isActive }) =>

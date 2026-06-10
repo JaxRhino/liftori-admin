@@ -106,6 +106,9 @@ import JournalEntries from './pages/finance/JournalEntries'
 import FinancialReports from './pages/finance/FinancialReports'
 import CommissionBatches from './pages/finance/CommissionBatches'
 import ChartOfAccounts from './pages/finance/ChartOfAccounts'
+import AgingReport from './pages/finance/AgingReport'
+import BillsList from './pages/finance/BillsList'
+import BudgetManager from './pages/finance/BudgetManager'
 // Marketing Hub
 import MarketingDashboard from './pages/marketing/MarketingDashboard'
 import MarketingTracker from './pages/marketing/MarketingTracker'
@@ -502,6 +505,9 @@ export default function App() {
             <Route path="finance/commissions" element={<CommissionBatches />} />
             <Route path="finance/accounts" element={<ChartOfAccounts />} />
             <Route path="finance/chart-of-accounts" element={<Navigate to="/admin/finance/accounts" replace />} />
+            <Route path="finance/aging" element={<AgingReport />} />
+            <Route path="finance/bills" element={<BillsList />} />
+            <Route path="finance/budgets" element={<BudgetManager />} />
             {/* Communications Hub */}
             <Route path="comms" element={<InternalMail />} />
             <Route path="comms/hub" element={<CommunicationsHub />} />
