@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { toast } from 'sonner'
+import ChangePasswordSection from './ChangePasswordSection'
 
 const TABS = ['Profile', 'Company', 'Notifications', 'Billing', 'Integrations']
 
@@ -279,25 +280,7 @@ function ProfileTab({ form, setForm, user, profile, onSave, saving, saved, error
       </div>
 
       {/* Account Security */}
-      <div className="card">
-        <h2 className="text-lg font-semibold mb-4">Account Security</h2>
-        <div className="flex items-center justify-between py-3 border-b border-navy-700/30">
-          <div>
-            <p className="text-sm font-medium text-white">Password</p>
-            <p className="text-xs text-gray-500 mt-0.5">Managed via Supabase Auth</p>
-          </div>
-          <button className="btn-secondary text-sm opacity-50 cursor-not-allowed" disabled>
-            Change Password
-          </button>
-        </div>
-        <div className="flex items-center justify-between py-3">
-          <div>
-            <p className="text-sm font-medium text-white">Two-Factor Authentication</p>
-            <p className="text-xs text-gray-500 mt-0.5">Not configured</p>
-          </div>
-          <span className="text-xs text-gray-500 px-2.5 py-1 rounded bg-navy-700/50">Coming soon</span>
-        </div>
-      </div>
+      <ChangePasswordSection />
     </div>
   )
 }

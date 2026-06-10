@@ -6,6 +6,8 @@ import AdminLayout from './components/AdminLayout'
 import ClientLayout from './components/ClientLayout'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import LeadHunter from './pages/LeadHunter'
@@ -337,6 +339,8 @@ export default function App() {
             <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           {/* Public onboarding wizard â€” no auth required */}
           <Route path="/onboard" element={<OnboardingWizard />} />
           {/* Public Rally guest join â€” no auth required */}
