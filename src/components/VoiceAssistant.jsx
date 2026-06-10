@@ -336,7 +336,7 @@ export default function VoiceAssistant() {
       <button
         onClick={handleClick}
         title={state === 'idle' ? `Talk to ${ea.name}` : state}
-        className={`fixed top-3 right-[170px] z-[60] w-11 h-11 rounded-full bg-gradient-to-br from-purple-700/40 to-navy-800 flex items-center justify-center text-purple-200 font-bold text-base overflow-hidden ring-2 transition-all ${ringClass}`}
+        className={`relative w-8 h-8 flex-shrink-0 rounded-full bg-gradient-to-br from-purple-700/40 to-navy-800 flex items-center justify-center text-purple-200 font-bold text-sm overflow-hidden ring-2 transition-all ${ringClass}`}
       >
         <img
           src={`/team/${ea.slug}.jpg`}
