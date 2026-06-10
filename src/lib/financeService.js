@@ -36,6 +36,25 @@ function sanitizeDates(obj) {
   return out;
 }
 
+// Form components in the finance section commonly use `memo` and `description`
+// keys that don't match Postgres column names on the finance_* tables. Map
+// memo -> notes (preserves the user's typed text) and drop `description`
+// (no top-level column for it; line items have their own `description` field
+// inside the line_items jsonb).
+function mapFormToSchema(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const out = { ...obj };
+  if ('memo' in out) {
+    if (out.memo && !out.notes) out.notes = out.memo;
+    delete out.memo;
+  }
+  if ('description' in out) {
+    delete out.description;
+  }
+  return out;
+}
+
+
 export async function fetchFinanceSummary() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -132,7 +151,7 @@ export async function fetchJournalEntries({ status, limit = 50, offset = 0 } = {
 export async function createJournalEntry(entry) {
   const userId = await currentUserId();
   const entryNumber = await nextNumber('finance_journal_entries', 'JE');
-  entry = sanitizeDates(entry);
+  entry = mapFormToSchema(sanitizeDates(entry));
   const { data, error } = await supabase.from('finance_journal_entries')
     .insert({ ...entry, entry_number: entryNumber, created_by: userId }).select().single();
   if (error) handleError(error, 'createJournalEntry');
@@ -176,7 +195,7 @@ export async function fetchInvoices({ status, search, limit = 50, offset = 0 } =
 export async function createInvoice(invoice) {
   const userId = await currentUserId();
   const invoiceNumber = await nextNumber('finance_invoices', 'INV');
-  const sanitized = sanitizeDates(invoice);
+  const sanitized = mapFormToSchema(sanitizeDates(invoice));
   if (!sanitized.status) sanitized.status = 'draft';
   const { data, error } = await supabase.from('finance_invoices')
     .insert({ ...sanitized, invoice_number: invoiceNumber, created_by: userId }).select().single();
@@ -185,7 +204,7 @@ export async function createInvoice(invoice) {
 }
 
 export async function updateInvoice(id, updates) {
-  const sanitized = sanitizeDates(updates);
+  const sanitized = mapFormToSchema(sanitizeDates(updates));
   const { data, error } = await supabase.from('finance_invoices')
     .update({ ...sanitized, updated_at: new Date().toISOString() }).eq('id', id).select().single();
   if (error) handleError(error, 'updateInvoice');
@@ -220,7 +239,7 @@ export async function fetchPayments({ search, limit = 50, offset = 0 } = {}) {
 export async function createPayment(payment) {
   const userId = await currentUserId();
   const paymentNumber = await nextNumber('finance_payments', 'PMT');
-  payment = sanitizeDates(payment);
+  payment = mapFormToSchema(sanitizeDates(payment));
   const { data, error } = await supabase.from('finance_payments')
     .insert({ ...payment, payment_number: paymentNumber, created_by: userId }).select().single();
   if (error) handleError(error, 'createPayment');
@@ -263,7 +282,7 @@ export async function fetchExpenses({ search, limit = 50, offset = 0 } = {}) {
 export async function createExpense(expense) {
   const userId = await currentUserId();
   const expenseNumber = await nextNumber('finance_expenses', 'EXP');
-  expense = sanitizeDates(expense);
+  expense = mapFormToSchema(sanitizeDates(expense));
   const { data, error } = await supabase.from('finance_expenses')
     .insert({ ...expense, expense_number: expenseNumber, created_by: userId }).select().single();
   if (error) handleError(error, 'createExpense');
@@ -271,7 +290,7 @@ export async function createExpense(expense) {
 }
 
 export async function updateExpense(id, updates) {
-  const sanitized = sanitizeDates(updates);
+  const sanitized = mapFormToSchema(sanitizeDates(updates));
   const { data, error } = await supabase.from('finance_expenses')
     .update({ ...sanitized, updated_at: new Date().toISOString() }).eq('id', id).select().single();
   if (error) handleError(error, 'updateExpense');
@@ -383,7 +402,7 @@ export async function fetchBills({ status, search, limit = 100 } = {}) {
 export async function createBill(bill) {
   const userId = await currentUserId();
   const billNumber = await nextNumber('finance_bills', 'BILL');
-  bill = sanitizeDates(bill);
+  bill = mapFormToSchema(sanitizeDates(bill));
   const {
     vendor_name, vendor_id, bill_date, due_date, status = 'draft',
     line_items = [], subtotal = 0, tax_amount = 0, notes = '', total,
