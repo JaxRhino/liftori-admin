@@ -148,7 +148,7 @@ export default function SuperAdmin() {
         admins: users.filter(u => ['admin', 'dev', 'super_admin'].includes(u.role)).length,
         customers: users.filter(u => u.role === 'customer').length,
         totalProjects: projects.length,
-        activeProjects: projects.filter(p => ['In Build', 'Active', 'In Progress'].includes(p.status)).length,
+        activeProjects: projects.filter(p => ['Development', 'Buildout', 'Active'].includes(p.status)).length,
         totalAppointments: appts.length,
         scheduledAppts,
         completedAppts,

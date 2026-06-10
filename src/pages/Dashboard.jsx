@@ -6,30 +6,34 @@ import { useOrg } from '../lib/OrgContext'
 import { fetchDashboardStats } from '../lib/eosService'
 import CustomerDashboard from './CustomerDashboard'
 
+// Unified project pipeline (matches ProjectDetail STATUSES). Terminal
+// stages (Payment Hold / Lost) are excluded from the flow widget.
 const PIPELINE_STATUSES = [
   'New Lead',
-  'Acct Created',
-  'Wizard Started',
-  'Wizard Complete',
-  'Brief Review',
+  'Waitlist',
+  'Development',
+  'Demo Ready',
+  'Demo Scheduled',
+  'Estimating',
   'Estimate Sent',
-  'Under Contract',
-  'In Build',
-  'Payment Hold',
-  'Launched',
+  'Pending Payment',
+  'Onboarding Scheduled',
+  'Buildout',
+  'Active',
 ]
 
 const PIPELINE_COLORS = {
-  'New Lead':        { bg: 'bg-sky-500/20', text: 'text-sky-400' },
-  'Acct Created':    { bg: 'bg-indigo-500/20', text: 'text-indigo-400' },
-  'Wizard Started':  { bg: 'bg-violet-500/20', text: 'text-violet-400' },
-  'Wizard Complete': { bg: 'bg-gray-500/20', text: 'text-gray-400' },
-  'Brief Review':    { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
-  'Estimate Sent':   { bg: 'bg-amber-500/20', text: 'text-amber-400' },
-  'Under Contract':  { bg: 'bg-purple-500/20', text: 'text-purple-400' },
-  'In Build':        { bg: 'bg-brand-blue/20', text: 'text-brand-blue' },
-  'Payment Hold':    { bg: 'bg-rose-500/20', text: 'text-rose-400' },
-  'Launched':        { bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
+  'New Lead':             { bg: 'bg-sky-500/20', text: 'text-sky-400' },
+  'Waitlist':             { bg: 'bg-cyan-500/20', text: 'text-cyan-400' },
+  'Development':          { bg: 'bg-blue-500/20', text: 'text-blue-400' },
+  'Demo Ready':           { bg: 'bg-indigo-500/20', text: 'text-indigo-400' },
+  'Demo Scheduled':       { bg: 'bg-violet-500/20', text: 'text-violet-400' },
+  'Estimating':           { bg: 'bg-purple-500/20', text: 'text-purple-400' },
+  'Estimate Sent':        { bg: 'bg-amber-500/20', text: 'text-amber-400' },
+  'Pending Payment':      { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+  'Onboarding Scheduled': { bg: 'bg-teal-500/20', text: 'text-teal-400' },
+  'Buildout':             { bg: 'bg-brand-blue/20', text: 'text-brand-blue' },
+  'Active':               { bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
 }
 
 const ACTIVITY_DOT = {
@@ -80,6 +84,12 @@ function AdminDashboard() {
     totalCustomers: 0,
     totalMRR: 0,
     totalRevenue: 0,
+    pipelineValue: 0,
+    wonValue: 0,
+    estimatesCount: 0,
+    agreementsCount: 0,
+    openConversations: 0,
+    unreadConversations: 0,
   })
   const [recentSignups, setRecentSignups] = useState([])
   const [recentProjects, setRecentProjects] = useState([])
@@ -124,11 +134,15 @@ function AdminDashboard() {
         { data: paidInvoices },
         { data: recentUpdates },
         { data: recentMessages },
+        { data: productLines },
+        { count: estimatesCount },
+        { count: agreementsCount },
+        { data: convos },
       ] = await Promise.all([
         supabase.from('waitlist_signups').select('*', { count: 'exact', head: true }),
         supabase.from('waitlist_signups').select('*', { count: 'exact', head: true }).gte('created_at', todayStr),
         supabase.from('projects').select('*', { count: 'exact', head: true }),
-        supabase.from('projects').select('*', { count: 'exact', head: true }).in('status', ['In Build', 'QA']),
+        supabase.from('projects').select('*', { count: 'exact', head: true }).in('status', ['Development', 'Buildout']),
         supabase.from('affiliates').select('*', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'customer'),
         supabase.from('waitlist_signups').select('*').order('created_at', { ascending: false }).limit(5),
@@ -139,7 +153,18 @@ function AdminDashboard() {
         supabase.from('invoices').select('amount_cents').eq('status', 'paid'),
         supabase.from('project_updates').select('id, title, body, project_id, created_at, projects(id, name)').order('created_at', { ascending: false }).limit(10),
         supabase.from('chat_messages').select('id, content, created_at, profiles!chat_messages_sender_id_fkey(full_name)').order('created_at', { ascending: false }).limit(10),
+        supabase.from('customer_product_lines').select('stage, estimated_value'),
+        supabase.from('customer_estimates').select('*', { count: 'exact', head: true }),
+        supabase.from('customer_agreements').select('*', { count: 'exact', head: true }),
+        supabase.from('comms_conversations').select('status, unread_count'),
       ])
+
+      // Sales Hub rollups (product-line pipeline + comms)
+      const openLines = (productLines || []).filter(l => l.stage !== 'Lost' && l.stage !== 'Won')
+      const pipelineValue = openLines.reduce((s, l) => s + (Number(l.estimated_value) || 0), 0)
+      const wonValue = (productLines || []).filter(l => l.stage === 'Won').reduce((s, l) => s + (Number(l.estimated_value) || 0), 0)
+      const openConversations = (convos || []).filter(c => c.status !== 'closed' && c.status !== 'resolved').length
+      const unreadConversations = (convos || []).reduce((s, c) => s + (c.unread_count || 0), 0)
 
       // 7-day sparkline
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -227,6 +252,12 @@ function AdminDashboard() {
         totalCustomers: totalCustomers || 0,
         totalMRR,
         totalRevenue,
+        pipelineValue,
+        wonValue,
+        estimatesCount: estimatesCount || 0,
+        agreementsCount: agreementsCount || 0,
+        openConversations,
+        unreadConversations,
       })
       setRecentSignups(signups || [])
       setRecentProjects(projects || [])
@@ -310,6 +341,35 @@ function AdminDashboard() {
             dayNames={weeklySignups.dayNames}
           />
         </div>
+      </div>
+
+      {/* Sales Hub Row — product-line pipeline, estimates, agreements, comms */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <Link to="/admin/pipeline" className="stat-card hover:border-brand-blue/40 transition-colors">
+          <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">Pipeline Value</p>
+          <p className="text-2xl font-bold text-sky-400">{money(stats.pipelineValue)}</p>
+          <p className="text-[11px] text-gray-600 mt-0.5">open product lines</p>
+        </Link>
+        <Link to="/admin/pipeline" className="stat-card hover:border-brand-blue/40 transition-colors">
+          <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">Won Value</p>
+          <p className="text-2xl font-bold text-emerald-400">{money(stats.wonValue)}</p>
+          <p className="text-[11px] text-gray-600 mt-0.5">closed-won lines</p>
+        </Link>
+        <Link to="/admin/estimates" className="stat-card hover:border-brand-blue/40 transition-colors">
+          <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">Estimates</p>
+          <p className="text-2xl font-bold text-amber-400">{stats.estimatesCount}</p>
+          <p className="text-[11px] text-gray-600 mt-0.5">total</p>
+        </Link>
+        <Link to="/admin/agreements" className="stat-card hover:border-brand-blue/40 transition-colors">
+          <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">Agreements</p>
+          <p className="text-2xl font-bold text-purple-400">{stats.agreementsCount}</p>
+          <p className="text-[11px] text-gray-600 mt-0.5">total</p>
+        </Link>
+        <Link to="/admin/comms/hub" className="stat-card hover:border-brand-blue/40 transition-colors">
+          <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">Conversations</p>
+          <p className="text-2xl font-bold text-orange-400">{stats.openConversations}</p>
+          <p className="text-[11px] text-gray-600 mt-0.5">{stats.unreadConversations} unread</p>
+        </Link>
       </div>
 
       {/* Pipeline Summary */}
@@ -591,6 +651,11 @@ function formatTimeAgo(dateStr) {
   return `${days}d ago`
 }
 
+function money(n) {
+  const v = Number(n) || 0
+  return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+}
+
 function StatCard({ label, value, color }) {
   const colorMap = {
     blue:   'text-brand-blue',
@@ -610,14 +675,19 @@ function StatCard({ label, value, color }) {
 
 function StatusBadge({ status }) {
   const statusColors = {
-    'Wizard Complete': 'bg-gray-500/20 text-gray-400',
-    'Brief Review':    'bg-yellow-500/20 text-yellow-400',
-    'Design Approval': 'bg-purple-500/20 text-purple-400',
-    'In Build':        'bg-brand-blue/20 text-brand-blue',
-    'QA':              'bg-orange-500/20 text-orange-400',
-    'Launched':        'bg-emerald-500/20 text-emerald-400',
-    'On Hold':         'bg-gray-500/20 text-gray-500',
-    'Cancelled':       'bg-red-500/20 text-red-400',
+    'New Lead':             'bg-sky-500/20 text-sky-400',
+    'Waitlist':             'bg-cyan-500/20 text-cyan-400',
+    'Development':          'bg-blue-500/20 text-blue-400',
+    'Demo Ready':           'bg-indigo-500/20 text-indigo-400',
+    'Demo Scheduled':       'bg-violet-500/20 text-violet-400',
+    'Estimating':           'bg-purple-500/20 text-purple-400',
+    'Estimate Sent':        'bg-amber-500/20 text-amber-400',
+    'Pending Payment':      'bg-yellow-500/20 text-yellow-400',
+    'Onboarding Scheduled': 'bg-teal-500/20 text-teal-400',
+    'Buildout':             'bg-brand-blue/20 text-brand-blue',
+    'Active':               'bg-emerald-500/20 text-emerald-400',
+    'Payment Hold':         'bg-rose-500/20 text-rose-400',
+    'Lost':                 'bg-red-500/20 text-red-400',
   }
   return (
     <span className={`badge ${statusColors[status] || 'bg-gray-500/20 text-gray-400'}`}>
