@@ -18,18 +18,21 @@ function relTime(ts) {
   return d.toLocaleDateString()
 }
 
-// Cheap fingerprint for an Excalidraw element array. Sums versionNonce-derived
-// state so we can detect real edits (add/modify/delete) vs. non-element changes
-// in appState (scroll, zoom, selection, view mode) that also fire onChange.
+// Deterministic fingerprint of an Excalidraw scene. We use sorted id:version
+// pairs because Excalidraw's `version` field only bumps on actual content edits
+// (drag, resize, color change, add, delete) — it's stable across selection,
+// scroll, zoom, view changes. We deliberately do NOT include `versionNonce`
+// here: that field re-rolls on selection events too, so including it would
+// trigger phantom saves on every click.
 function elementsFingerprint(elements) {
-  if (!elements || elements.length === 0) return 0
-  let h = elements.length | 0
+  if (!elements || elements.length === 0) return ''
+  const parts = []
   for (const el of elements) {
-    h = ((h * 31) | 0) + ((el.version || 0) | 0)
-    h = ((h * 31) | 0) + (((el.versionNonce || 0) | 0))
-    if (el.id) h = ((h * 31) | 0) + (el.id.charCodeAt(0) | 0)
+    if (el.isDeleted) continue
+    parts.push((el.id || '?') + ':' + (el.version || 0))
   }
-  return h
+  parts.sort()
+  return parts.join('|')
 }
 
 export default function DevTeamWhiteboardDetail() {
@@ -113,17 +116,38 @@ export default function DevTeamWhiteboardDetail() {
   }, [canvas?.id, user?.id])
 
   // Auto-save: debounce after the last onChange.
+  // We hold a ref to the Excalidraw API so the save handler can pull the LIVE
+  // scene at save-time instead of trusting a snapshot captured during onChange
+  // (which can go stale if onChange fires with a not-yet-committed elements
+  // array, or if React reorders effects). latestScene.current is kept as a
+  // fallback for the brief window before the API ref is wired up.
+  const excalidrawAPIRef = useRef(null)
   const scheduleSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     setSaveStatus('saving')
     saveTimer.current = setTimeout(async () => {
       saveTimer.current = null
-      const scene = latestScene.current
-      if (!canvas?.id || !scene) { setSaveStatus('idle'); return }
-      const payload = {
-        scene_json: scene,
-        last_edited_by: user.id,
+      if (!canvas?.id) { setSaveStatus('idle'); return }
+
+      // Prefer the live Excalidraw API; fall back to the most recent snapshot.
+      let scene = null
+      const api = excalidrawAPIRef.current
+      if (api && typeof api.getSceneElements === 'function') {
+        const liveElements = api.getSceneElements() || []
+        const liveAppState = (typeof api.getAppState === 'function' && api.getAppState()) || {}
+        scene = {
+          elements: liveElements,
+          appState: {
+            viewBackgroundColor: liveAppState.viewBackgroundColor || '#0b1220',
+            gridSize: liveAppState.gridSize ?? null,
+          },
+        }
+      } else {
+        scene = latestScene.current
       }
+      if (!scene) { setSaveStatus('idle'); return }
+
+      const payload = { scene_json: scene, last_edited_by: user.id }
       lastLocalSavedAt.current = Date.now()
       const { error } = await supabase
         .from('dev_team_canvas')
@@ -343,7 +367,7 @@ export default function DevTeamWhiteboardDetail() {
               key={refreshKey}
               initialData={initialData}
               theme="dark"
-              excalidrawAPI={api => setExcalidrawAPI(api)}
+              excalidrawAPI={api => { setExcalidrawAPI(api); excalidrawAPIRef.current = api }}
               onChange={handleChange}
               onPointerUpdate={handlePointerUpdate}
               isCollaborating={true}
