@@ -555,16 +555,16 @@ function OverviewTab({ company, scoreBreakdown }) {
                 <span className="font-medium">{company.naics_code}</span>
               </div>
             )}
-            {company.employee_count && (
+            {company.employee_count_range && (
               <div className="flex justify-between">
                 <span className="text-slate-400">Employees</span>
-                <span className="font-medium">{company.employee_count}</span>
+                <span className="font-medium">{company.employee_count_range}</span>
               </div>
             )}
-            {company.revenue_range && (
+            {company.estimated_revenue_range && (
               <div className="flex justify-between">
                 <span className="text-slate-400">Revenue</span>
-                <span className="font-medium">{company.revenue_range}</span>
+                <span className="font-medium">{company.estimated_revenue_range}</span>
               </div>
             )}
             {company.year_founded && (
@@ -608,10 +608,10 @@ function OverviewTab({ company, scoreBreakdown }) {
                 </span>
               ))}
             </div>
-            {company.cms_detected && (
+            {company.cms_platform && (
               <div className="mt-4 px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-sm">
                 <span className="text-slate-400">CMS: </span>
-                <span className="font-medium">{company.cms_detected}</span>
+                <span className="font-medium">{company.cms_platform}</span>
               </div>
             )}
           </Card>

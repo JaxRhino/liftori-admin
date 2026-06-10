@@ -48,9 +48,9 @@ export default function LeadHunterLists() {
           lh_companies(
             id,
             name,
-            website,
+            website_url,
             industry,
-            employee_count
+            employee_count_range
           )
         `)
         .eq('list_id', listId)
@@ -171,12 +171,12 @@ export default function LeadHunterLists() {
     try {
       const listMembers = members[listId] || [];
       const csv = [
-        ['Company', 'Website', 'Industry', 'Employee Count'],
+        ['Company', 'Website', 'Industry', 'Employees'],
         ...listMembers.map(m => [
           m.lh_companies?.name || '',
-          m.lh_companies?.website || '',
+          m.lh_companies?.website_url || '',
           m.lh_companies?.industry || '',
-          m.lh_companies?.employee_count || ''
+          m.lh_companies?.employee_count_range || ''
         ])
       ]
         .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
@@ -227,24 +227,10 @@ export default function LeadHunterLists() {
           industry: listMembers.find(m => m.lh_companies?.id === c.company_id)?.lh_companies?.industry || null,
           source_id: c.id,
         }));
-      } else {
-        // Fallback: use company phone if available
-        const { data: companies } = await supabase
-          .from('lh_companies')
-          .select('id, name, phone, website, industry')
-          .in('id', companyIds)
-          .not('phone', 'is', null);
-        if (companies && companies.length > 0) {
-          rows = companies.map((co, i) => ({
-            position: i + 1,
-            company: co.name,
-            phone: co.phone,
-            website: co.website || null,
-            industry: co.industry || null,
-            source_id: co.id,
-          }));
-        }
       }
+      // Note: lh_companies has no phone column — only enriched lh_contacts carry
+      // phone numbers, so there is no company-level phone fallback. If no contacts
+      // with phones exist yet, the guard below tells the user to enrich first.
 
       if (rows.length === 0) {
         showToast('No contacts with phone numbers found in this list', 'error');
@@ -497,7 +483,7 @@ export default function LeadHunterLists() {
                               <p className="text-gray-400 text-xs">{member.lh_companies?.industry}</p>
                             </div>
                             <div className="text-right text-gray-400 text-xs">
-                              {member.lh_companies?.employee_count && `${member.lh_companies.employee_count} employees`}
+                              {member.lh_companies?.employee_count_range && `${member.lh_companies.employee_count_range} employees`}
                             </div>
                           </div>
                         ))

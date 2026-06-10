@@ -258,7 +258,10 @@ export default function LeadHunterSearch() {
   }
 
   function buildQuery() {
+    // Column names below match the real lh_companies schema (website_url,
+    // cms_platform, employee_count_range, estimated_revenue_range, has_website).
     let query = tenantFilter(supabase.from('lh_companies').select('*', { count: 'exact' }))
+      .eq('is_archived', false)
 
     if (filters.industry_keyword.trim()) {
       query = query.ilike('industry', `%${filters.industry_keyword.trim()}%`)
@@ -270,39 +273,20 @@ export default function LeadHunterSearch() {
       query = query.ilike('state', `%${filters.location_state.trim()}%`)
     }
     if (filters.employee_range !== 'any') {
-      const ranges = {
-        '1-10': [1, 10],
-        '11-50': [11, 50],
-        '51-200': [51, 200],
-        '201-500': [201, 500],
-        '500+': [500, 999999],
-      }
-      const [min, max] = ranges[filters.employee_range] || [0, 0]
-      query = query.gte('employee_count', min).lte('employee_count', max)
+      query = query.eq('employee_count_range', filters.employee_range)
     }
     if (filters.revenue_range !== 'any') {
-      const ranges = {
-        '<1M': [0, 1000000],
-        '1M-5M': [1000000, 5000000],
-        '5M-10M': [5000000, 10000000],
-        '10M-50M': [10000000, 50000000],
-        '50M+': [50000000, 999999999],
-      }
-      const [min, max] = ranges[filters.revenue_range] || [0, 0]
-      query = query.gte('annual_revenue', min).lte('annual_revenue', max)
+      query = query.eq('estimated_revenue_range', filters.revenue_range)
     }
     if (filters.has_website !== 'any') {
-      if (filters.has_website === 'yes') {
-        query = query.not('website', 'is', null)
-      } else {
-        query = query.is('website', null)
-      }
+      query = query.eq('has_website', filters.has_website === 'yes')
     }
     if (filters.website_quality_max < 100) {
-      query = query.lte('website_quality_score', filters.website_quality_max)
+      // include unscored (null) companies so a quality cap never hides fresh leads
+      query = query.or(`website_quality_score.lte.${filters.website_quality_max},website_quality_score.is.null`)
     }
     if (filters.cms_detected !== 'any') {
-      query = query.eq('cms_detected', filters.cms_detected)
+      query = query.eq('cms_platform', filters.cms_detected)
     }
 
     return query
@@ -345,11 +329,13 @@ export default function LeadHunterSearch() {
 
       const response = await supabase.functions.invoke('lh-search', {
         body: {
-          action: 'discover',
-          industry_keyword: filters.industry_keyword.trim(),
-          location: `${filters.location_city.trim()}${filters.location_state.trim() ? ', ' + filters.location_state.trim() : ''}`,
-          radius_miles: filters.radius_miles,
-          tenant_id: tenantId,
+          keyword: filters.industry_keyword.trim(),
+          industry: filters.industry_keyword.trim(),
+          location: {
+            city: filters.location_city.trim(),
+            state: filters.location_state.trim() || undefined,
+            radius_miles: filters.radius_miles,
+          },
         }
       })
 
@@ -527,18 +513,18 @@ export default function LeadHunterSearch() {
     }
 
     const csv = [
-      ['Company', 'Website', 'Industry', 'City', 'State', 'Phone', 'Employee Count', 'Lead Score', 'Enrichment Status', 'CMS', 'Website Quality'],
+      ['Company', 'Website', 'Domain', 'Industry', 'City', 'State', 'Employees', 'Lead Score', 'Enrichment Status', 'CMS', 'Website Quality'],
       ...rows.map(c => [
         c.name || '',
-        c.website || '',
+        c.website_url || '',
+        c.domain || '',
         c.industry || '',
         c.city || '',
         c.state || '',
-        c.phone || '',
-        c.employee_count || '',
+        c.employee_count_range || '',
         c.lead_score || '',
         c.enrichment_status || '',
-        c.cms_detected || '',
+        c.cms_platform || '',
         c.website_quality_score || '',
       ])
     ]
@@ -900,9 +886,9 @@ export default function LeadHunterSearch() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-300">{company.industry || '—'}</td>
                       <td className="px-4 py-3 text-sm text-gray-300">{company.city && company.state ? `${company.city}, ${company.state}` : '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-300">{company.employee_count ? company.employee_count.toLocaleString() : '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-300">{company.employee_count_range || '—'}</td>
                       <td className="px-4 py-3 text-sm">
-                        {company.website ? (
+                        {company.has_website || company.website_url ? (
                           <span className="text-gray-300">Score: {company.website_quality_score ?? '—'}</span>
                         ) : (
                           <span className="text-red-400">No website</span>

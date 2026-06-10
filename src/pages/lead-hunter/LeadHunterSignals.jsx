@@ -72,7 +72,7 @@ export default function LeadHunterSignals() {
       let query = tenantFilter(
         supabase.from('lh_signals').select(`
           *,
-          lh_companies(id, name, website, industry)
+          lh_companies(id, name, website_url, industry)
         `, { count: 'exact' })
       ).gte('detected_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
@@ -329,7 +329,7 @@ export default function LeadHunterSignals() {
                       </button>
                     )}
                     <a
-                      href={signal.lh_companies?.website}
+                      href={signal.lh_companies?.website_url || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-2 bg-slate-700/30 hover:bg-slate-700 text-gray-400 hover:text-gray-300 rounded transition"
