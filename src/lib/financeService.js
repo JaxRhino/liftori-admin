@@ -20,6 +20,22 @@ async function nextNumber(table, prefix, numberField) {
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────
+// Postgres date columns reject empty-string values ("invalid input syntax for
+// type date"). Form components commonly send '' for unfilled date fields.
+// Coerce '' -> null on the well-known date keys before any insert/update.
+const DATE_KEYS = [
+  'invoice_date', 'due_date', 'payment_date', 'expense_date',
+  'entry_date', 'voided_at', 'bill_date', 'date_of_service',
+];
+function sanitizeDates(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const out = { ...obj };
+  for (const k of DATE_KEYS) {
+    if (out[k] === '') out[k] = null;
+  }
+  return out;
+}
+
 export async function fetchFinanceSummary() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -116,6 +132,7 @@ export async function fetchJournalEntries({ status, limit = 50, offset = 0 } = {
 export async function createJournalEntry(entry) {
   const userId = await currentUserId();
   const entryNumber = await nextNumber('finance_journal_entries', 'JE');
+  entry = sanitizeDates(entry);
   const { data, error } = await supabase.from('finance_journal_entries')
     .insert({ ...entry, entry_number: entryNumber, created_by: userId }).select().single();
   if (error) handleError(error, 'createJournalEntry');
@@ -159,15 +176,18 @@ export async function fetchInvoices({ status, search, limit = 50, offset = 0 } =
 export async function createInvoice(invoice) {
   const userId = await currentUserId();
   const invoiceNumber = await nextNumber('finance_invoices', 'INV');
+  const sanitized = sanitizeDates(invoice);
+  if (!sanitized.status) sanitized.status = 'draft';
   const { data, error } = await supabase.from('finance_invoices')
-    .insert({ ...invoice, invoice_number: invoiceNumber, created_by: userId }).select().single();
+    .insert({ ...sanitized, invoice_number: invoiceNumber, created_by: userId }).select().single();
   if (error) handleError(error, 'createInvoice');
   return data;
 }
 
 export async function updateInvoice(id, updates) {
+  const sanitized = sanitizeDates(updates);
   const { data, error } = await supabase.from('finance_invoices')
-    .update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+    .update({ ...sanitized, updated_at: new Date().toISOString() }).eq('id', id).select().single();
   if (error) handleError(error, 'updateInvoice');
   return data;
 }
@@ -200,6 +220,7 @@ export async function fetchPayments({ search, limit = 50, offset = 0 } = {}) {
 export async function createPayment(payment) {
   const userId = await currentUserId();
   const paymentNumber = await nextNumber('finance_payments', 'PMT');
+  payment = sanitizeDates(payment);
   const { data, error } = await supabase.from('finance_payments')
     .insert({ ...payment, payment_number: paymentNumber, created_by: userId }).select().single();
   if (error) handleError(error, 'createPayment');
@@ -242,6 +263,7 @@ export async function fetchExpenses({ search, limit = 50, offset = 0 } = {}) {
 export async function createExpense(expense) {
   const userId = await currentUserId();
   const expenseNumber = await nextNumber('finance_expenses', 'EXP');
+  expense = sanitizeDates(expense);
   const { data, error } = await supabase.from('finance_expenses')
     .insert({ ...expense, expense_number: expenseNumber, created_by: userId }).select().single();
   if (error) handleError(error, 'createExpense');
@@ -249,8 +271,9 @@ export async function createExpense(expense) {
 }
 
 export async function updateExpense(id, updates) {
+  const sanitized = sanitizeDates(updates);
   const { data, error } = await supabase.from('finance_expenses')
-    .update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+    .update({ ...sanitized, updated_at: new Date().toISOString() }).eq('id', id).select().single();
   if (error) handleError(error, 'updateExpense');
   return data;
 }
@@ -360,6 +383,7 @@ export async function fetchBills({ status, search, limit = 100 } = {}) {
 export async function createBill(bill) {
   const userId = await currentUserId();
   const billNumber = await nextNumber('finance_bills', 'BILL');
+  bill = sanitizeDates(bill);
   const {
     vendor_name, vendor_id, bill_date, due_date, status = 'draft',
     line_items = [], subtotal = 0, tax_amount = 0, notes = '', total,
