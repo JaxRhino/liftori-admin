@@ -340,6 +340,27 @@ function Composer({ form, setForm, templates, audienceCount, onLoadTemplate, bus
                   })}
                 </div>
               )}
+
+              {form.audience_type === 'customers_by_line' && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <select
+                    value={form.audience_filter?.product_type || ''}
+                    onChange={(e) => setForm((f) => ({ ...f, audience_filter: { ...f.audience_filter, product_type: e.target.value } }))}
+                    className="w-full bg-navy-900 border border-navy-700/50 rounded-md px-2 py-2 text-xs text-white"
+                  >
+                    <option value="">— Product line (required) —</option>
+                    {['CRM', 'Website', 'Custom Build', 'Consulting'].map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <select
+                    value={form.audience_filter?.stage || ''}
+                    onChange={(e) => setForm((f) => ({ ...f, audience_filter: { ...f.audience_filter, stage: e.target.value } }))}
+                    className="w-full bg-navy-900 border border-navy-700/50 rounded-md px-2 py-2 text-xs text-white"
+                  >
+                    <option value="">Any stage</option>
+                    {['New Lead', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'].map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Subject + body */}

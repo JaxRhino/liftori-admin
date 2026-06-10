@@ -353,6 +353,53 @@ function MessagesTab({ messages }) {
   )
 }
 
+// ─── Communications Tab ─────────────────────────────────────────────────────────
+function CommunicationsTab({ conversations, customerId }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <Link
+          to={`/admin/comms/hub?customer=${customerId}`}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-blue text-white text-sm font-medium hover:bg-brand-blue/90 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+          </svg>
+          Message customer
+        </Link>
+      </div>
+      {conversations.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+          <svg className="w-10 h-10 mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          <p className="text-sm">No conversations with this customer yet</p>
+        </div>
+      ) : (
+        conversations.map(conv => (
+          <Link
+            key={conv.id}
+            to={`/admin/comms/hub?conversation=${conv.id}`}
+            className="block bg-navy-900/40 border border-navy-700/30 rounded-xl p-4 hover:border-brand-blue/40 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-white capitalize">{conv.channel_type || 'conversation'}</span>
+                {conv.status && <span className="text-xs text-gray-500 capitalize">· {conv.status}</span>}
+                {(conv.unread_count || 0) > 0 && (
+                  <span className="rounded-full bg-sky-500 px-2 py-0.5 text-[10px] font-bold text-white">{conv.unread_count}</span>
+                )}
+              </div>
+              <span className="text-xs text-gray-500 flex-shrink-0">{formatDate(conv.last_message_at || conv.created_at)}</span>
+            </div>
+            <p className="text-sm text-gray-300 leading-relaxed truncate">{conv.last_message_preview || 'No messages yet'}</p>
+          </Link>
+        ))
+      )}
+    </div>
+  )
+}
+
 // ─── Invoices Tab ──────────────────────────────────────────────────────────────
 function InvoicesTab({ invoices }) {
   const totalPaid = invoices
@@ -2087,6 +2134,7 @@ export default function CustomerDetail() {
   const [notes, setNotes] = useState([])
   const [loading, setLoading] = useState(true)
   const [productLines, setProductLines] = useState([])
+  const [conversations, setConversations] = useState([])
   const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
@@ -2145,6 +2193,13 @@ export default function CustomerDetail() {
       setNotes(nts || [])
       const { data: plines } = await supabase.from('customer_product_lines').select('*, project:projects(name, status)').eq('profile_id', id).order('created_at', { ascending: false })
       setProductLines(plines || [])
+      // Communications: conversations linked to this customer by contact_id (or email fallback)
+      const { data: convs } = await supabase
+        .from('comms_conversations')
+        .select('*')
+        .or(`contact_id.eq.${id}${profile?.email ? ',contact_email.eq.' + profile.email : ''}`)
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+      setConversations(convs || [])
     } catch (err) {
       console.error('Error fetching customer detail:', err)
     } finally {
@@ -2186,6 +2241,7 @@ export default function CustomerDetail() {
     { key: 'tasks', label: `Tasks (${tasks.filter(t => t.status !== 'completed').length})` },
     { key: 'notes', label: `Notes (${notes.length})` },
     { key: 'messages', label: `Messages (${messages.length})` },
+    { key: 'comms', label: `Communications (${conversations.length})` },
     { key: 'invoices', label: `Invoices (${invoices.length})` },
     { key: 'activity', label: `Activity (${updates.length})` },
     { key: 'details', label: 'Details' },
@@ -2302,6 +2358,7 @@ export default function CustomerDetail() {
         {activeTab === 'tasks' && <TasksTab customerId={id} tasks={tasks} projects={projects} onChange={fetchAll} />}
         {activeTab === 'notes' && <NotesTab customerId={id} notes={notes} projects={projects} onChange={fetchAll} />}
         {activeTab === 'messages' && <MessagesTab messages={messages} />}
+        {activeTab === 'comms' && <CommunicationsTab conversations={conversations} customerId={id} />}
         {activeTab === 'invoices' && <InvoicesTab invoices={invoices} />}
         {activeTab === 'activity' && <ActivityTab updates={updates} />}
         {activeTab === 'edit' && (

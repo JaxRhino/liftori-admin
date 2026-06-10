@@ -7,6 +7,7 @@ export const AUDIENCE_TYPES = [
   { key: 'all_team',        label: 'All team + admins',   group: 'HR',       hint: 'Admins, sales, consultants, testers, managers' },
   { key: 'all_admins',      label: 'Admins only',         group: 'HR',       hint: 'Admin / super_admin / dev roles only' },
   { key: 'all_customers',   label: 'All customers',       group: 'Platform', hint: 'Platform users with role = customer' },
+  { key: 'customers_by_line', label: 'Customers by product line', group: 'Platform', hint: 'Customers with a CRM / Website / Custom Build / Consulting line, optionally at a sales stage' },
   { key: 'all_users',       label: 'Everyone on platform',group: 'Platform', hint: 'Every user profile in the system' },
   { key: 'specific_users',  label: 'Specific users',      group: 'Advanced', hint: 'Pick users one by one' },
   { key: 'custom_filter',   label: 'Custom role filter',  group: 'Advanced', hint: 'Filter by arbitrary role set' },
@@ -87,6 +88,13 @@ export async function previewAudienceCount(audience_type, audience_filter = {}) 
   if (audience_type === 'all_customers') {
     const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'customer')
     return count || 0
+  }
+  if (audience_type === 'customers_by_line' && audience_filter.product_type) {
+    let q = supabase.from('customer_product_lines').select('profile_id').eq('product_type', audience_filter.product_type)
+    if (audience_filter.stage) q = q.eq('stage', audience_filter.stage)
+    const { data } = await q
+    const ids = new Set((data || []).map(r => r.profile_id).filter(Boolean))
+    return ids.size
   }
   if (audience_type === 'all_admins') {
     const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['admin', 'super_admin', 'dev'])

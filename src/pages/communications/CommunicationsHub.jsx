@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../lib/AuthContext';
 import {
   fetchConversations, fetchMessages, sendMessage, createConversation,
   updateConversation, markConversationRead, fetchCommsUsers,
   starConversation, assignConversation, deleteConversation,
 } from '../../lib/commsService';
+import { supabase } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -65,10 +67,19 @@ export default function CommunicationsHub() {
     contact_email: '',
     channel_type: 'email',
     body: '',
+    customer_id: '',   // links conversation to a CRM customer (profiles.id)
+    project_id: '',    // optional link to one of that customer's projects
   });
+
+  // CRM customers (profiles role=customer) + the selected customer's projects
+  const [customers, setCustomers] = useState([]);
+  const [customerProjects, setCustomerProjects] = useState([]);
 
   const messagesEndRef = useRef(null);
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+  const [searchParams] = useSearchParams();
+  const handledParamRef = useRef(false);
 
   useEffect(() => {
     fetchData();
@@ -77,6 +88,22 @@ export default function CommunicationsHub() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Deep-links from the Customer page: ?conversation=<id> opens that thread,
+  // ?customer=<profileId> opens compose pre-linked to that customer.
+  useEffect(() => {
+    if (loading || handledParamRef.current) return;
+    const convId = searchParams.get('conversation');
+    const custId = searchParams.get('customer');
+    if (convId) {
+      const conv = conversations.find(c => c.id === convId);
+      if (conv) { handledParamRef.current = true; selectConversation(conv); }
+    } else if (custId) {
+      handledParamRef.current = true;
+      setShowCompose(true);
+      selectCustomer(custId);
+    }
+  }, [loading, searchParams, conversations, customers]);
 
   async function fetchData() {
     try {
@@ -90,12 +117,14 @@ export default function CommunicationsHub() {
       // Load internal addresses + channel id for agent picker
       try {
         const { supabase } = await import('../../lib/supabase');
-        const [addrRes, chanRes] = await Promise.all([
+        const [addrRes, chanRes, custRes] = await Promise.all([
           supabase.from('internal_email_addresses').select('id, address, display_name, participant_type, agent_id').eq('active', true).order('participant_type').order('address'),
-          supabase.from('comms_channels').select('id').eq('channel_type', 'internal').maybeSingle()
+          supabase.from('comms_channels').select('id').eq('channel_type', 'internal').maybeSingle(),
+          supabase.from('profiles').select('id, full_name, email').eq('role', 'customer').order('full_name')
         ]);
         setInternalAddresses(addrRes.data || []);
         setInternalChannelId(chanRes.data?.id || null);
+        setCustomers(custRes.data || []);
       } catch (ie) { console.warn('[Comms Hub] internal addresses load failed:', ie); }
       if ((convResult.data || []).length > 0) {
         selectConversation(convResult.data[0]);
@@ -139,6 +168,33 @@ export default function CommunicationsHub() {
     }
   }
 
+  async function selectCustomer(customerId) {
+    if (!customerId) {
+      setComposing(c => ({ ...c, customer_id: '', project_id: '' }));
+      setCustomerProjects([]);
+      return;
+    }
+    const cust = customers.find(c => c.id === customerId);
+    setComposing(c => ({
+      ...c,
+      customer_id: customerId,
+      contact_name: cust?.full_name || c.contact_name,
+      contact_email: cust?.email || c.contact_email,
+      project_id: '',
+    }));
+    try {
+      const { data } = await supabase
+        .from('projects')
+        .select('id, name')
+        .eq('customer_id', customerId)
+        .order('created_at', { ascending: false });
+      setCustomerProjects(data || []);
+    } catch (e) {
+      console.warn('[Comms Hub] load customer projects failed:', e);
+      setCustomerProjects([]);
+    }
+  }
+
   async function handleCreateConversation() {
     if (!composing.contact_name.trim() || !composing.contact_email.trim()) {
       toast.error('Name and email required');
@@ -149,6 +205,8 @@ export default function CommunicationsHub() {
         contact_name: composing.contact_name,
         contact_email: composing.contact_email,
         channel_type: composing.channel_type,
+        contact_id: composing.customer_id || null,
+        project_id: composing.project_id || null,
         status: 'open',
         unread_count: 0,
         last_message_at: new Date().toISOString(),
@@ -164,7 +222,8 @@ export default function CommunicationsHub() {
 
       setConversations(prev => [conv, ...prev]);
       setShowCompose(false);
-      setComposing({ contact_name: '', contact_email: '', channel_type: 'email', body: '' });
+      setComposing({ contact_name: '', contact_email: '', channel_type: 'email', body: '', customer_id: '', project_id: '' });
+      setCustomerProjects([]);
       toast.success('Conversation created');
       selectConversation(conv);
     } catch (err) {
@@ -551,6 +610,39 @@ export default function CommunicationsHub() {
             <DialogTitle className="text-white">New Conversation</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {composing.channel_type !== 'internal' && (
+              <div>
+                <label className="text-sm font-semibold text-gray-400">Link to customer (optional)</label>
+                <select
+                  value={composing.customer_id}
+                  onChange={(e) => selectCustomer(e.target.value)}
+                  className="mt-1 w-full rounded bg-slate-700/50 border border-slate-600 px-3 py-2 text-white"
+                >
+                  <option value="">— New / unlinked contact —</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.full_name || c.email}</option>
+                  ))}
+                </select>
+                {composing.customer_id && customerProjects.length > 0 && (
+                  <div className="mt-2">
+                    <label className="text-sm font-semibold text-gray-400">Link to project (optional)</label>
+                    <select
+                      value={composing.project_id}
+                      onChange={(e) => setComposing({ ...composing, project_id: e.target.value })}
+                      className="mt-1 w-full rounded bg-slate-700/50 border border-slate-600 px-3 py-2 text-white"
+                    >
+                      <option value="">— No project —</option>
+                      {customerProjects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {composing.customer_id && customerProjects.length === 0 && (
+                  <p className="mt-1 text-xs text-gray-500">No projects for this customer yet.</p>
+                )}
+              </div>
+            )}
             <div>
               <label className="text-sm font-semibold text-gray-400">Contact Name</label>
               <Input
