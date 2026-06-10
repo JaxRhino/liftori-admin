@@ -453,3 +453,19 @@ export async function updateBudget(id, updates) {
   if (error) handleError(error, 'updateBudget');
   return data;
 }
+
+// ── INVOICE DETAIL FETCHERS (Wave F2.2) ──────────────────────
+export async function fetchInvoice(id) {
+  const { data, error } = await supabase.from('finance_invoices')
+    .select('*').eq('id', id).single();
+  if (error) handleError(error, 'fetchInvoice');
+  return data;
+}
+
+export async function fetchPaymentsForInvoice(invoiceId) {
+  const { data, error } = await supabase.from('finance_payments')
+    .select('*').eq('invoice_id', invoiceId)
+    .order('payment_date', { ascending: false });
+  if (error) handleError(error, 'fetchPaymentsForInvoice');
+  return data || [];
+}

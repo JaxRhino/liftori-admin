@@ -100,6 +100,7 @@ import EOSVTO from './pages/eos/EOSVTO'
 // Finance Hub
 import FinanceDashboard from './pages/finance/FinanceDashboard'
 import InvoicesList from './pages/finance/InvoicesList'
+import InvoiceDetail from './pages/finance/InvoiceDetail'
 import PaymentsList from './pages/finance/PaymentsList'
 import ExpensesList from './pages/finance/ExpensesList'
 import JournalEntries from './pages/finance/JournalEntries'
@@ -498,6 +499,7 @@ export default function App() {
             {/* Finance Hub */}
             <Route path="finance" element={<FinanceDashboard />} />
             <Route path="finance/invoices" element={<InvoicesList />} />
+            <Route path="finance/invoices/:id" element={<InvoiceDetail />} />
             <Route path="finance/payments" element={<PaymentsList />} />
             <Route path="finance/expenses" element={<ExpensesList />} />
             <Route path="finance/journal" element={<JournalEntries />} />
