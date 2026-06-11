@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -113,7 +114,7 @@ export default function PaymentsList() {
                 <tbody>
                   {payments.map(pmt => (
                     <tr key={pmt.id} className="border-b border-navy-700/50 hover:bg-navy-750">
-                      <td className="px-4 py-3 text-brand-blue font-medium">{pmt.payment_number || '—'}</td>
+                      <td className="px-4 py-3 text-brand-blue font-medium"><Link to={`/admin/finance/payments/${pmt.id}`} className="hover:underline">{pmt.payment_number || "—"}</Link></td>
                       <td className="px-4 py-3 text-gray-400">{fmtDate(pmt.payment_date)}</td>
                       <td className="px-4 py-3 text-white">{pmt.customer_name || '—'}</td>
                       <td className="px-4 py-3 text-green-400 font-medium">{fmt(pmt.amount)}</td>

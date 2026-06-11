@@ -512,3 +512,11 @@ export async function fetchPaymentsForInvoice(invoiceId) {
   if (error) handleError(error, 'fetchPaymentsForInvoice');
   return data || [];
 }
+
+// ── PAYMENT DETAIL FETCHER (Wave F2.3) ───────────────────────
+export async function fetchPayment(id) {
+  const { data, error } = await supabase.from('finance_payments')
+    .select('*').eq('id', id).single();
+  if (error) handleError(error, 'fetchPayment');
+  return data;
+}

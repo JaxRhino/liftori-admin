@@ -102,6 +102,7 @@ import FinanceDashboard from './pages/finance/FinanceDashboard'
 import InvoicesList from './pages/finance/InvoicesList'
 import InvoiceDetail from './pages/finance/InvoiceDetail'
 import PaymentsList from './pages/finance/PaymentsList'
+import PaymentDetail from './pages/finance/PaymentDetail'
 import ExpensesList from './pages/finance/ExpensesList'
 import JournalEntries from './pages/finance/JournalEntries'
 import FinancialReports from './pages/finance/FinancialReports'
@@ -501,6 +502,7 @@ export default function App() {
             <Route path="finance/invoices" element={<InvoicesList />} />
             <Route path="finance/invoices/:id" element={<InvoiceDetail />} />
             <Route path="finance/payments" element={<PaymentsList />} />
+            <Route path="finance/payments/:id" element={<PaymentDetail />} />
             <Route path="finance/expenses" element={<ExpensesList />} />
             <Route path="finance/journal" element={<JournalEntries />} />
             <Route path="finance/reports" element={<FinancialReports />} />
