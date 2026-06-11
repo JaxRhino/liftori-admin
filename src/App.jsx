@@ -584,6 +584,15 @@ export default function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<CrmDashboard />} />
             <Route path="sales" element={<CrmSales />} />
+            <Route path="overview" element={<CscOverview />} />
+            <Route path="jobs" element={<CscJobs />} />
+            <Route path="jobs/:jobId" element={<CscJobDetail />} />
+            <Route path="deficiencies" element={<CscDeficiencies />} />
+            <Route path="certificates" element={<CscCertificates />} />
+            <Route path="stickers" element={<CscStickers />} />
+            <Route path="ahj" element={<CscAhjMap />} />
+            <Route path="customers" element={<CscCustomers />} />
+            <Route path="invoices" element={<CscInvoices />} />
             <Route path="estimate/:estimateId" element={<CrmEstimateDocument />} />
             <Route path="operations" element={<CrmOperations />}>
               <Route index element={<Navigate to="dashboard" replace />} />
