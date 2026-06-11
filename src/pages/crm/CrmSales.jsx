@@ -1166,6 +1166,7 @@ function NewEstimateModal({ open, onClose, client, contacts, onSaved }) {
     }
   }, [open])
 
+  const { platform, orgSettings } = useCrmClient()
   const [templates, setTemplates] = useState([])
   const [photos, setPhotos] = useState([])
   const [extra, setExtra] = useState({ template_id: '', theme_key: 'classic', show_photos: true, photo_ids: [], terms: '' })
@@ -1173,7 +1174,17 @@ function NewEstimateModal({ open, onClose, client, contacts, onSaved }) {
   useEffect(() => {
     if (!open) return
     setExtra({ template_id: '', theme_key: 'classic', show_photos: true, photo_ids: [], terms: '' })
-    client.from('estimate_templates').select('*').eq('is_active', true).order('name').then(({ data }) => setTemplates(data || []))
+    ;(async () => {
+      const { data } = await client.from('estimate_templates').select('*').eq('is_active', true).order('name')
+      const all = data || []
+      const norm = (s) => (s || '').toLowerCase().replace(/[^a-z]/g, '')
+      const tn = norm((platform && platform.industry) || (orgSettings && orgSettings.industry))
+      const matched = all.filter((t) => { const ti = norm(t.industry); return ti && tn && (tn.includes(ti) || ti.includes(tn)) })
+      const list = matched.length ? matched : all
+      setTemplates(list)
+      if (list.length) applyTemplateFrom(list, list[0].id)
+      else setLineItems([{ description: '', qty: 1, unit_price: 0 }])
+    })()
   }, [open])
 
   useEffect(() => {
@@ -1181,16 +1192,17 @@ function NewEstimateModal({ open, onClose, client, contacts, onSaved }) {
     client.from('customer_photos').select('*').eq('contact_id', form.contact_id).order('created_at', { ascending: false }).then(({ data }) => setPhotos(data || []))
   }, [open, form.contact_id])
 
-  async function applyTemplate(tid) {
+  async function applyTemplateFrom(list, tid) {
     setExtra((x) => ({ ...x, template_id: tid }))
-    if (!tid) return
-    const tpl = templates.find((t) => t.id === tid)
+    if (!tid) { setLineItems([{ description: '', qty: 1, unit_price: 0 }]); return }
+    const tpl = (list || []).find((t) => t.id === tid)
     const { data: its } = await client.from('estimate_template_items').select('*').eq('template_id', tid).order('step_order')
     if (its && its.length) {
       setLineItems(its.map((it) => ({ description: it.name, qty: Number(it.quantity) || 1, unit_price: Number(it.unit_price) || 0, unit: it.unit || '', group_name: it.group_name || null, is_optional: !!it.is_optional })))
     }
     if (tpl) setExtra((x) => ({ ...x, template_id: tid, theme_key: tpl.theme_key || 'classic', show_photos: tpl.show_photos !== false, terms: tpl.default_terms || '' }))
   }
+  function applyTemplate(tid) { applyTemplateFrom(templates, tid) }
 
   function togglePhoto(id) {
     setExtra((x) => ({ ...x, photo_ids: x.photo_ids.includes(id) ? x.photo_ids.filter((p) => p !== id) : [...x.photo_ids, id] }))
