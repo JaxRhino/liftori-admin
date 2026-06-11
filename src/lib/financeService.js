@@ -36,6 +36,19 @@ function sanitizeDates(obj) {
   return out;
 }
 
+// Wave F2.6c: defensive column whitelist for finance_expenses.
+// Form payloads sometimes carry project_name / project_id keys that don't
+// exist on the schema. Stripping them here keeps the Supabase REST layer
+// happy without forcing every form to drop them explicitly.
+const EXPENSE_COLS = new Set([
+  'description', 'category', 'amount', 'expense_date',
+  'account_id', 'vendor_name', 'receipt_url', 'status', 'notes',
+]);
+function pickExpenseCols(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  return Object.fromEntries(Object.entries(obj).filter(([k]) => EXPENSE_COLS.has(k)));
+}
+
 // Form components in the finance section commonly use `memo` and `description`
 // keys that don't match Postgres column names on the finance_* tables. Map
 // memo -> notes (preserves the user's typed text) and drop `description`
@@ -283,15 +296,15 @@ export async function createExpense(expense) {
   const userId = await currentUserId();
   // Note: finance_expenses has no expense_number column (unlike finance_invoices
   // and finance_payments). Display layer derives a label from description/vendor.
-  expense = mapFormToSchema(sanitizeDates(expense));
+  const cleaned = pickExpenseCols(mapFormToSchema(sanitizeDates(expense)));
   const { data, error } = await supabase.from('finance_expenses')
-    .insert({ ...expense, created_by: userId }).select().single();
+    .insert({ ...cleaned, created_by: userId }).select().single();
   if (error) handleError(error, 'createExpense');
   return data;
 }
 
 export async function updateExpense(id, updates) {
-  const sanitized = mapFormToSchema(sanitizeDates(updates));
+  const sanitized = pickExpenseCols(mapFormToSchema(sanitizeDates(updates)));
   const { data, error } = await supabase.from('finance_expenses')
     .update({ ...sanitized, updated_at: new Date().toISOString() }).eq('id', id).select().single();
   if (error) handleError(error, 'updateExpense');
