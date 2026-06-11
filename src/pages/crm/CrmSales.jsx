@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { HubPage, StatCard, Section, EmptyState, useCrmClient } from './_shared'
+import CustomerPhotos from '../../components/crm/CustomerPhotos'
 
 // ---------- formatters ----------
 const fmtCents = (c) =>
@@ -1592,6 +1593,8 @@ function ContactDrawer({ contact, onClose, pipeline, estimates, agreements }) {
           </ul>
         )}
       </div>
+
+      <CustomerPhotos contactId={contact.id} />
 
       <div className="mt-4">
         <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Recent Estimates ({relatedEstimates.length})</div>
