@@ -77,7 +77,9 @@ function LabosShell() {
     { key: 'invoices', label: 'Invoices', path: 'invoices', icon: FinanceIcon },
   ]
   const matchedHubs = HUB_DEFS.filter(h => enabledHubs.includes(h.key))
-  const hubs = matchedHubs.length > 0 ? matchedHubs : HUB_DEFS
+  const baseHubs = matchedHubs.length > 0 ? matchedHubs : HUB_DEFS
+  // KEC (hood-cleaning) industry tenants get the industry hub layer appended.
+  const hubs = platform?.industry === 'kec' ? [...baseHubs, ...CSC_HUB_DEFS] : baseHubs
 
   return (
     <div className="min-h-screen bg-navy-950 flex">
