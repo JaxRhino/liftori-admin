@@ -281,10 +281,11 @@ export async function fetchExpenses({ search, limit = 50, offset = 0 } = {}) {
 
 export async function createExpense(expense) {
   const userId = await currentUserId();
-  const expenseNumber = await nextNumber('finance_expenses', 'EXP');
+  // Note: finance_expenses has no expense_number column (unlike finance_invoices
+  // and finance_payments). Display layer derives a label from description/vendor.
   expense = mapFormToSchema(sanitizeDates(expense));
   const { data, error } = await supabase.from('finance_expenses')
-    .insert({ ...expense, expense_number: expenseNumber, created_by: userId }).select().single();
+    .insert({ ...expense, created_by: userId }).select().single();
   if (error) handleError(error, 'createExpense');
   return data;
 }
