@@ -107,6 +107,23 @@ function EventTypeBadge({ type }) {
 // =====================================================================
 // MAIN COMPONENT
 // =====================================================================
+const DASH_PERIODS = [
+  { key: 'today', label: 'Today' },
+  { key: '7d', label: 'Last 7 days' },
+  { key: '30d', label: 'Last 30 days' },
+  { key: '90d', label: 'Last 90 days' },
+  { key: 'ytd', label: 'Year to date' },
+  { key: 'all', label: 'All time' },
+]
+function dashPeriodStartISO(key) {
+  const now = new Date()
+  if (key === 'today') { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString() }
+  if (key === 'ytd') { return new Date(now.getFullYear(), 0, 1).toISOString() }
+  if (key === 'all') { return new Date(0).toISOString() }
+  const days = key === '7d' ? 7 : key === '90d' ? 90 : 30
+  return new Date(Date.now() - days * 86400000).toISOString()
+}
+
 export default function CrmDashboard() {
   const { client, platform } = useCrm()
   const { orgSettings } = useCrmClient()
@@ -114,6 +131,10 @@ export default function CrmDashboard() {
 
   // ---- state ----
   const [pipeline, setPipeline] = useState([])
+  const [period, setPeriod] = useState('30d')
+  const periodStart = useMemo(() => dashPeriodStartISO(period), [period])
+  const periodLabel = (DASH_PERIODS.find((p) => p.key === period) || {}).label || ''
+
   const [leads, setLeads] = useState([])
   const [estimates, setEstimates] = useState([])
   const [schedule, setSchedule] = useState([])
@@ -172,7 +193,7 @@ export default function CrmDashboard() {
       ),
       runQuery(
         'sales_leads',
-        client.from('sales_leads').select('id,title,contact_name,source,deal_value_cents,stage,created_at').gte('created_at', sevenDaysAgo).order('created_at', { ascending: false }).limit(50),
+        client.from('sales_leads').select('id,title,contact_name,source,deal_value_cents,stage,created_at').gte('created_at', periodStart).order('created_at', { ascending: false }).limit(50),
         setLeads,
         'leads'
       ),
@@ -214,7 +235,7 @@ export default function CrmDashboard() {
       ),
       runQuery(
         'finance_payments',
-        client.from('finance_payments').select('id,amount,payment_date,status').gte('payment_date', thirtyDaysAgo.toISOString().slice(0, 10)).limit(500),
+        client.from('finance_payments').select('id,amount,payment_date,status').gte('payment_date', periodStart.slice(0, 10)).limit(500),
         setPayments,
         'payments'
       ),
@@ -222,7 +243,7 @@ export default function CrmDashboard() {
 
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client])
+  }, [client, period])
 
   // ---- lookups ----
   const contactById = useMemo(() => {
@@ -342,14 +363,14 @@ export default function CrmDashboard() {
   const linkBase = `/crm/${platformId}`
 
   return (
-    <HubPage title="Dashboard" subtitle={`${clientName} at a glance`}>
+    <HubPage title="Dashboard" actions={<select value={period} onChange={(e) => setPeriod(e.target.value)} className="bg-navy-800 border border-navy-700/60 rounded-lg px-3 py-1.5 text-sm text-white">{DASH_PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}</select>} subtitle={`${clientName} at a glance`}>
       {/* ===== row 1 + row 2 stat cards ===== */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         {loading.pipeline ? <StatSkeleton /> : (
           <StatCard label="Pipeline Value" value={fmtMoney(stats.pipelineValue)} accent="text-brand-cyan" hint="open deals" />
         )}
         {loading.leads ? <StatSkeleton /> : (
-          <StatCard label="New Leads (7d)" value={stats.newLeads7d} accent="text-brand-blue" />
+          <StatCard label={`New Leads (${periodLabel})`} value={stats.newLeads7d} accent="text-brand-blue" />
         )}
         {loading.estimates ? <StatSkeleton /> : (
           <StatCard label="Estimates Pending" value={stats.estimatesPending} accent="text-amber-400" hint="sent or draft, unsigned" />
@@ -375,7 +396,7 @@ export default function CrmDashboard() {
           />
         )}
         {loading.payments ? <StatSkeleton /> : (
-          <StatCard label="Revenue (30d)" value={fmtMoney(stats.revenue30d)} accent="text-emerald-400" />
+          <StatCard label={`Revenue (${periodLabel})`} value={fmtMoney(stats.revenue30d)} accent="text-emerald-400" />
         )}
       </div>
 
