@@ -16,6 +16,7 @@ const TYPE_META = {
   support_reply:       { label: 'Support reply',       color: 'bg-indigo-500/15 text-indigo-300'   },
   notification:        { label: 'Notification',        color: 'bg-slate-500/15 text-slate-300'     },
   announcement:        { label: 'Announcement',        color: 'bg-violet-500/15 text-violet-300'   },
+  invoice:             { label: 'Invoice',             color: 'bg-cyan-500/15 text-cyan-300'       },
   receipt:             { label: 'Receipt',             color: 'bg-emerald-500/15 text-emerald-300' },
   onboarding_complete: { label: 'Onboarding complete', color: 'bg-emerald-500/15 text-emerald-300' },
   custom:              { label: 'Custom',              color: 'bg-zinc-500/15 text-zinc-300'       },

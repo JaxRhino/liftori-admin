@@ -11,10 +11,11 @@ import {
 } from '../../components/ui/dialog';
 import {
   fetchInvoice, fetchPaymentsForInvoice, createPayment, voidInvoice, updateInvoice,
-  fetchJournalEntriesForSource,
+  fetchJournalEntriesForSource, fetchCustomerEmail, fetchInvoiceEmails,
+  sendInvoiceEmail, buildInvoiceEmailHtml,
 } from '../../lib/financeService';
 import {
-  ArrowLeft, FileText, CreditCard, Loader, ExternalLink, User, Briefcase, AlertCircle, Trash2, Send, BookOpen,
+  ArrowLeft, FileText, CreditCard, Loader, ExternalLink, User, Briefcase, AlertCircle, Trash2, Send, BookOpen, Mail, CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -41,6 +42,12 @@ export default function InvoiceDetail() {
   const [invoice, setInvoice] = useState(null);
   const [payments, setPayments] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
+  // Wave F2.7e: send-email state
+  const [emailHistory, setEmailHistory] = useState([]);
+  const [customerProfile, setCustomerProfile] = useState(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailForm, setEmailForm] = useState({ to: '', cc: '', subject: '', message: '' });
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [payOpen, setPayOpen] = useState(false);
   const [payForm, setPayForm] = useState({ amount: '', payment_method: 'check', reference_number: '', memo: '' });
@@ -51,14 +58,19 @@ export default function InvoiceDetail() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const [inv, pays, journalData] = await Promise.all([
+      const [inv, pays, journalData, emails] = await Promise.all([
         fetchInvoice(id),
         fetchPaymentsForInvoice(id),
         fetchJournalEntriesForSource('invoice', id),
+        fetchInvoiceEmails(id),
       ]);
       setInvoice(inv);
       setPayments(pays || []);
       setJournalEntries(journalData);
+      setEmailHistory(emails);
+      if (inv?.customer_id) {
+        try { setCustomerProfile(await fetchCustomerEmail(inv.customer_id)); } catch { /* non-fatal */ }
+      }
     } catch (e) {
       toast.error('Failed to load invoice');
     } finally {
@@ -118,6 +130,37 @@ export default function InvoiceDetail() {
     }
   }
 
+  function openSendEmail() {
+    const to = customerProfile?.email || '';
+    const subject = `Invoice ${invoice.invoice_number} from Liftori${invoice.total_amount ? ` — ${fmt(invoice.total_amount)}` : ''}`;
+    const message = `Here is invoice ${invoice.invoice_number} for your records. The balance due is ${fmt(invoice.balance_due)}. Please let me know if you have any questions.`;
+    setEmailForm({ to, cc: '', subject, message });
+    setEmailOpen(true);
+  }
+
+  async function handleSendEmail() {
+    if (!emailForm.to.trim()) { toast.error('Recipient email is required'); return; }
+    if (!emailForm.subject.trim()) { toast.error('Subject is required'); return; }
+    try {
+      setEmailSubmitting(true);
+      const html = buildInvoiceEmailHtml(invoice, { message: emailForm.message });
+      await sendInvoiceEmail(invoice, {
+        to: emailForm.to.trim(),
+        cc: emailForm.cc.trim() || undefined,
+        subject: emailForm.subject.trim(),
+        html,
+      });
+      toast.success('Invoice email sent');
+      setEmailOpen(false);
+      // Refresh both history and invoice (status may have flipped to sent)
+      load();
+    } catch (e) {
+      toast.error('Failed to send: ' + (e?.message || 'unknown error'));
+    } finally {
+      setEmailSubmitting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -159,12 +202,21 @@ export default function InvoiceDetail() {
               <CreditCard className="w-4 h-4 mr-2" /> Record Payment
             </Button>
           )}
+          {isOpen && (
+            <Button
+              onClick={openSendEmail}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white"
+            >
+              <Mail className="w-4 h-4 mr-2" /> Send Email
+            </Button>
+          )}
           {isDraft && (
             <Button
               onClick={handleMarkSent}
-              className="bg-cyan-600 hover:bg-cyan-700 text-white"
+              variant="outline"
+              className="border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10"
             >
-              <Send className="w-4 h-4 mr-2" /> Mark as Sent
+              <CheckCircle2 className="w-4 h-4 mr-2" /> Mark as Sent
             </Button>
           )}
           {isDraft && (
@@ -393,6 +445,36 @@ export default function InvoiceDetail() {
       </Dialog>
 
       {/* Void dialog */}
+      {/* Wave F2.7e: Email History */}
+      <Card className="bg-navy-800 border-navy-700 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Mail className="w-5 h-5 text-cyan-400" />
+            Email History
+          </h2>
+          <Link to="/admin/comms/outbound-log" className="text-xs text-brand-blue hover:underline">All outbound &rarr;</Link>
+        </div>
+        {emailHistory.length === 0 ? (
+          <div className="text-sm text-gray-500 italic">No emails sent for this invoice yet.</div>
+        ) : (
+          <div className="divide-y divide-navy-700">
+            {emailHistory.map(em => (
+              <div key={em.id} className="py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-white truncate">{em.recipient_email}</span>
+                    <Badge className={em.status === 'sent' || em.status === 'delivered' ? 'bg-emerald-600/20 text-emerald-300' : em.status === 'failed' || em.status === 'bounced' ? 'bg-rose-600/20 text-rose-300' : 'bg-gray-700 text-gray-300'}>{em.status}</Badge>
+                  </div>
+                  <div className="text-xs text-gray-400 mt-0.5 truncate">{em.subject}</div>
+                  {em.error_message && <div className="text-[10px] text-rose-400 mt-0.5 truncate">{em.error_message}</div>}
+                </div>
+                <div className="text-xs text-gray-500 shrink-0">{fmtDate(em.sent_at)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {/* Wave F2.7: Linked Journal Entries */}
       <Card className="bg-navy-800 border-navy-700 p-6">
         <div className="flex items-center justify-between mb-4">
@@ -422,6 +504,58 @@ export default function InvoiceDetail() {
           </div>
         )}
       </Card>
+
+      {/* Wave F2.7e: Send Email dialog */}
+      <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+        <DialogContent className="bg-navy-900 border-navy-700 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Mail className="w-5 h-5 text-cyan-400" /> Send Invoice Email
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            {!customerProfile?.email && invoice.customer_id && (
+              <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2">
+                No email on file for this customer. Enter one manually or update the customer record in CRM.
+              </div>
+            )}
+            <div>
+              <Label className="text-gray-300 text-xs">To *</Label>
+              <Input value={emailForm.to} onChange={e => setEmailForm({ ...emailForm, to: e.target.value })}
+                placeholder="customer@example.com"
+                className="bg-navy-800 border-navy-700 text-white mt-1" />
+            </div>
+            <div>
+              <Label className="text-gray-300 text-xs">CC (optional)</Label>
+              <Input value={emailForm.cc} onChange={e => setEmailForm({ ...emailForm, cc: e.target.value })}
+                placeholder="cc@example.com"
+                className="bg-navy-800 border-navy-700 text-white mt-1" />
+            </div>
+            <div>
+              <Label className="text-gray-300 text-xs">Subject *</Label>
+              <Input value={emailForm.subject} onChange={e => setEmailForm({ ...emailForm, subject: e.target.value })}
+                className="bg-navy-800 border-navy-700 text-white mt-1" />
+            </div>
+            <div>
+              <Label className="text-gray-300 text-xs">Personal message (goes above the invoice details)</Label>
+              <Textarea value={emailForm.message} onChange={e => setEmailForm({ ...emailForm, message: e.target.value })}
+                rows={4}
+                className="bg-navy-800 border-navy-700 text-white mt-1" />
+            </div>
+            <div className="text-[10px] text-gray-500 leading-tight pt-1">
+              From: Liftori &lt;sales@liftori.ai&gt; &middot; Invoice details, line items, totals, and balance due are appended automatically to the email body. {isDraft && <span className="text-cyan-300">Sending will also mark this invoice as Sent.</span>}
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setEmailOpen(false)}
+              className="border-navy-700 text-white hover:bg-navy-700">Cancel</Button>
+            <Button onClick={handleSendEmail} disabled={emailSubmitting}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white">
+              {emailSubmitting ? <><Loader className="w-4 h-4 mr-2 animate-spin" /> Sending...</> : <><Send className="w-4 h-4 mr-2" /> Send Now</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={voidDialog} onOpenChange={setVoidDialog}>
         <DialogContent className="bg-navy-900 border-navy-700 text-white max-w-md">

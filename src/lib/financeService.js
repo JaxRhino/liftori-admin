@@ -710,3 +710,126 @@ export async function fetchRecentFinanceActivity(limit = 8) {
   items.sort((a, b) => new Date(b.ts) - new Date(a.ts));
   return items.slice(0, limit);
 }
+
+// ── EMAIL SENDING (Wave F2.7e) ──────────────────────────────
+// Uses the existing send-email edge fn (Resend) + outbound_emails audit table.
+
+export async function fetchCustomerEmail(customerId) {
+  if (!customerId) return null;
+  const { data, error } = await supabase.from('profiles')
+    .select('id, email, full_name, company_name')
+    .eq('id', customerId).maybeSingle();
+  if (error) handleError(error, 'fetchCustomerEmail');
+  return data;
+}
+
+export async function fetchInvoiceEmails(invoiceId) {
+  if (!invoiceId) return [];
+  const { data, error } = await supabase.from('outbound_emails')
+    .select('id, recipient_email, recipient_name, subject, status, provider_message_id, error_message, sent_at')
+    .eq('related_entity_type', 'finance_invoice')
+    .eq('related_entity_id', invoiceId)
+    .order('sent_at', { ascending: false });
+  if (error) handleError(error, 'fetchInvoiceEmails');
+  return data || [];
+}
+
+// Self-contained HTML email template for a finance invoice.
+export function buildInvoiceEmailHtml(invoice, { greeting, message, signature } = {}) {
+  const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(v) || 0);
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const lineItems = Array.isArray(invoice.line_items) ? invoice.line_items : [];
+  const lineRows = lineItems.map(li => `
+    <tr>
+      <td style="padding:8px 0;border-bottom:1px solid #e6e8eb;color:#1f2937;">${esc(li.description)}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #e6e8eb;text-align:right;color:#1f2937;">${li.quantity || 0}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #e6e8eb;text-align:right;color:#1f2937;">${fmt(li.unit_price)}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #e6e8eb;text-align:right;color:#1f2937;">${fmt((li.quantity || 0) * (li.unit_price || 0))}</td>
+    </tr>`).join('');
+  const greet = greeting || `Hi ${esc(invoice.customer_name) || 'there'},`;
+  const msg = message || `Here is invoice ${esc(invoice.invoice_number)} for your records.`;
+  const sig = signature || 'Thanks,<br/>The Liftori team';
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${esc(invoice.invoice_number)}</title></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f4f6f9;"><tr><td style="padding:30px 20px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
+      <tr><td style="padding:24px 28px;background:#0b2545;color:#ffffff;"><div style="font-size:18px;font-weight:700;letter-spacing:0.5px;">LIFTORI</div></td></tr>
+      <tr><td style="padding:28px;">
+        <p style="margin:0 0 12px;color:#1f2937;font-size:15px;">${greet}</p>
+        <p style="margin:0 0 24px;color:#1f2937;font-size:15px;">${msg}</p>
+        <div style="background:#f4f6f9;border-radius:8px;padding:20px;margin-bottom:24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+              <td style="padding-bottom:12px;"><div style="color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Invoice</div><div style="color:#1f2937;font-size:18px;font-weight:700;margin-top:2px;">${esc(invoice.invoice_number)}</div></td>
+              <td style="padding-bottom:12px;text-align:right;"><div style="color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Balance Due</div><div style="color:#b45309;font-size:22px;font-weight:700;margin-top:2px;">${fmt(invoice.balance_due)}</div></td>
+            </tr>
+            <tr>
+              <td style="padding:12px 0 0;border-top:1px solid #e6e8eb;"><div style="color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Invoice Date</div><div style="color:#1f2937;font-size:14px;margin-top:2px;">${fmtDate(invoice.invoice_date)}</div></td>
+              <td style="padding:12px 0 0;border-top:1px solid #e6e8eb;text-align:right;"><div style="color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Due Date</div><div style="color:#1f2937;font-size:14px;margin-top:2px;">${fmtDate(invoice.due_date) || 'Upon receipt'}</div></td>
+            </tr>
+          </table>
+        </div>
+        ${lineItems.length > 0 ? `<div style="margin-bottom:24px;"><div style="color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Line Items</div>
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="font-size:13px;"><thead><tr>
+            <th style="text-align:left;padding:6px 0;color:#6b7280;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e6e8eb;">Description</th>
+            <th style="text-align:right;padding:6px 0;color:#6b7280;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e6e8eb;width:50px;">Qty</th>
+            <th style="text-align:right;padding:6px 0;color:#6b7280;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e6e8eb;width:90px;">Unit</th>
+            <th style="text-align:right;padding:6px 0;color:#6b7280;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e6e8eb;width:90px;">Total</th>
+          </tr></thead><tbody>${lineRows}</tbody></table></div>` : ''}
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="font-size:13px;">
+          <tr><td style="padding:4px 0;color:#6b7280;">Subtotal</td><td style="padding:4px 0;text-align:right;color:#1f2937;">${fmt(invoice.subtotal)}</td></tr>
+          <tr><td style="padding:4px 0;color:#6b7280;">Tax (${(invoice.tax_rate || 0)}%)</td><td style="padding:4px 0;text-align:right;color:#1f2937;">${fmt(invoice.tax_amount)}</td></tr>
+          <tr><td style="padding:8px 0;color:#1f2937;font-weight:700;border-top:2px solid #e6e8eb;">Total</td><td style="padding:8px 0;text-align:right;color:#1f2937;font-weight:700;border-top:2px solid #e6e8eb;">${fmt(invoice.total_amount)}</td></tr>
+          ${Number(invoice.amount_paid || 0) > 0 ? `<tr><td style="padding:4px 0;color:#059669;">Paid</td><td style="padding:4px 0;text-align:right;color:#059669;">${fmt(invoice.amount_paid)}</td></tr>` : ''}
+          <tr><td style="padding:8px 0;color:#b45309;font-weight:700;border-top:1px solid #e6e8eb;">Balance Due</td><td style="padding:8px 0;text-align:right;color:#b45309;font-weight:700;border-top:1px solid #e6e8eb;">${fmt(invoice.balance_due)}</td></tr>
+        </table>
+        ${invoice.notes ? `<div style="margin-top:24px;padding-top:20px;border-top:1px solid #e6e8eb;"><div style="color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Notes</div><div style="color:#1f2937;font-size:13px;white-space:pre-wrap;">${esc(invoice.notes)}</div></div>` : ''}
+        <p style="margin:28px 0 0;color:#6b7280;font-size:13px;">If you have any questions about this invoice, simply reply to this email.</p>
+        <p style="margin:20px 0 0;color:#1f2937;font-size:13px;">${sig}</p>
+      </td></tr>
+      <tr><td style="padding:18px 28px;background:#f4f6f9;border-top:1px solid #e6e8eb;color:#9ca3af;font-size:11px;text-align:center;">This invoice was sent by Liftori. If you received this in error, please disregard.</td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+}
+
+export async function sendInvoiceEmail(invoice, { to, cc, subject, html, fromName } = {}) {
+  if (!invoice?.id || !to || !subject || !html) throw new Error('invoice, to, subject, html required');
+  const userId = await currentUserId();
+  const fromAddress = fromName ? `${fromName} <sales@liftori.ai>` : 'Liftori <sales@liftori.ai>';
+  const body = { to, subject, html, from: fromAddress };
+  if (cc) body.cc = cc;
+
+  const preview = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const baseRow = {
+    sent_by: userId,
+    recipient_email: Array.isArray(to) ? to[0] : to,
+    recipient_name: invoice.customer_name || null,
+    subject,
+    body_html: html,
+    body_preview: preview,
+    email_type: 'invoice',
+    provider: 'resend',
+    related_entity_type: 'finance_invoice',
+    related_entity_id: invoice.id,
+    metadata: { invoice_number: invoice.invoice_number, total_amount: invoice.total_amount, cc: cc || null },
+  };
+
+  const { data: sendResult, error: sendErr } = await supabase.functions.invoke('send-email', { body });
+  if (sendErr || sendResult?.error) {
+    const errMsg = sendErr?.message || sendResult?.error || 'unknown send-email failure';
+    await supabase.from('outbound_emails').insert({ ...baseRow, status: 'failed', error_message: String(errMsg).slice(0, 500) });
+    throw new Error(errMsg);
+  }
+  await supabase.from('outbound_emails').insert({
+    ...baseRow,
+    status: 'sent',
+    provider_message_id: sendResult?.id || null,
+  });
+  if (invoice.status === 'draft') {
+    try { await updateInvoice(invoice.id, { status: 'sent' }); } catch (e) { /* don't fail email flow on status flip */ }
+  }
+  return sendResult;
+}
