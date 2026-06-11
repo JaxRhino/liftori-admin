@@ -7,6 +7,7 @@ import { Badge } from '../../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
+import { supabase } from '../../lib/supabase';
 import { fetchInvoices, createInvoice, updateInvoice, voidInvoice, deleteInvoice, createPayment } from '../../lib/financeService';
 import {
   FileText, Plus, Search, Loader, Edit2, Trash2, CreditCard,
@@ -28,7 +29,8 @@ const STATUS = {
 };
 
 const EMPTY_FORM = {
-  customer_name: '', project_name: '', invoice_date: new Date().toISOString().split('T')[0],
+  customer_id: '', customer_name: '',
+  project_name: '', invoice_date: new Date().toISOString().split('T')[0],
   due_date: '', description: '', memo: '', tax_rate: 0,
   line_items: [{ description: '', quantity: 1, unit_price: 0 }],
 };
@@ -55,6 +57,10 @@ export default function InvoicesList() {
   const [payForm, setPayForm] = useState({ amount: '', payment_method: 'check', reference_number: '', memo: '' });
   const [submitting, setSubmitting] = useState(false);
   const PAGE = 25;
+  // Wave F2.5b: customer picker
+  const [customers, setCustomers] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -71,8 +77,44 @@ export default function InvoicesList() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Wave F2.5b: load customer list for the picker (profiles where role='customer')
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCustomers() {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, company_name, email')
+        .eq('role', 'customer')
+        .is('archived_at', null)
+        .order('full_name', { ascending: true });
+      if (cancelled) return;
+      if (!error) setCustomers(data || []);
+    }
+    loadCustomers();
+    return () => { cancelled = true; };
+  }, []);
+
+  function selectCustomer(c) {
+    const label = c.full_name || c.company_name || c.email || 'Customer';
+    setForm(prev => ({ ...prev, customer_id: c.id, customer_name: label }));
+    setCustomerSearch(label);
+    setPickerOpen(false);
+  }
+  function clearCustomer() {
+    setForm(prev => ({ ...prev, customer_id: '', customer_name: '' }));
+    setCustomerSearch('');
+  }
+  const filteredCustomers = customers.filter(c => {
+    if (!customerSearch) return true;
+    const q = customerSearch.toLowerCase();
+    return (c.full_name || '').toLowerCase().includes(q)
+        || (c.company_name || '').toLowerCase().includes(q)
+        || (c.email || '').toLowerCase().includes(q);
+  }).slice(0, 8);
+
   function openEdit(inv) {
     setForm({
+      customer_id: inv.customer_id || '',
       customer_name: inv.customer_name || '',
       project_name: inv.project_name || '',
       invoice_date: inv.invoice_date || new Date().toISOString().split('T')[0],
@@ -82,11 +124,12 @@ export default function InvoicesList() {
       tax_rate: inv.tax_rate || 0,
       line_items: inv.line_items?.length ? inv.line_items : [{ description: '', quantity: 1, unit_price: 0 }],
     });
+    setCustomerSearch(inv.customer_name || '');
     setEditInvoice(inv);
   }
 
   async function handleSave() {
-    if (!form.customer_name) return toast.error('Customer name is required');
+    if (!form.customer_id) return toast.error('Pick a customer from the dropdown');
     try {
       setSubmitting(true);
       const totals = calcTotals(form.line_items, form.tax_rate);
@@ -104,6 +147,7 @@ export default function InvoicesList() {
         setCreateOpen(false);
       }
       setForm(EMPTY_FORM);
+      setCustomerSearch('');
     } catch {
       toast.error('Failed to save invoice');
     } finally {
@@ -169,10 +213,40 @@ export default function InvoicesList() {
   const invoiceForm = (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label className="text-gray-300 text-xs">Customer Name *</Label>
-          <Input value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })}
-            className="bg-navy-800 border-navy-700 text-white mt-1" placeholder="Customer name" />
+        <div className="relative">
+          <Label className="text-gray-300 text-xs">Customer *</Label>
+          <div className="relative mt-1">
+            <Input
+              value={customerSearch}
+              onChange={e => { setCustomerSearch(e.target.value); setPickerOpen(true); if (form.customer_id) setForm(prev => ({ ...prev, customer_id: '' })); }}
+              onFocus={() => setPickerOpen(true)}
+              className="bg-navy-800 border-navy-700 text-white pr-8"
+              placeholder="Type to search customers..."
+              autoComplete="off"
+            />
+            {form.customer_id && (
+              <button type="button" onClick={clearCustomer} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white" title="Clear customer">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {pickerOpen && !form.customer_id && (
+            <div className="absolute z-20 mt-1 w-full bg-navy-800 border border-navy-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+              {filteredCustomers.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-gray-500 italic">No matches. Add a customer in CRM first.</div>
+              ) : filteredCustomers.map(c => (
+                <button key={c.id} type="button" onClick={() => selectCustomer(c)}
+                  className="w-full text-left px-3 py-2 hover:bg-navy-700/60 border-b border-navy-700/40 last:border-b-0">
+                  <div className="text-sm text-white">{c.full_name || c.company_name || '(no name)'}</div>
+                  {(c.company_name && c.full_name) && <div className="text-xs text-gray-500">{c.company_name}</div>}
+                  {c.email && <div className="text-xs text-gray-500">{c.email}</div>}
+                </button>
+              ))}
+            </div>
+          )}
+          {form.customer_id && (
+            <p className="text-[10px] text-emerald-400/70 mt-1">Linked - will appear on customer's Finance Hub tab.</p>
+          )}
         </div>
         <div>
           <Label className="text-gray-300 text-xs">Project</Label>
