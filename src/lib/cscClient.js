@@ -1,14 +1,13 @@
 // =====================================================================
 // CSC Services LABOS-KEC client
-// Demo phase: csc_* tables on VJ's Supabase (zymgttmngwxkobmdgdia).
-// Migrate to dedicated liftori-csc-labos project once Pro greenlit;
-// only this file changes.
+// csc_* tables now live on the dedicated CSC tenant DB (spgainjpxualjtbatfmk).
+// Migrated off VJ's shared Supabase 2026-06-11. This client is CSC-only;
+// when a 2nd KEC tenant ships, switch these pages to the CrmContext client.
 // =====================================================================
 import { createClient } from '@supabase/supabase-js'
 
-const CSC_URL = import.meta.env.VITE_CSC_SUPABASE_URL || 'https://zymgttmngwxkobmdgdia.supabase.co'
-const CSC_ANON = import.meta.env.VITE_CSC_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bWd0dG1uZ3d4a29ibWRnZGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NzcxMDMsImV4cCI6MjA5MjI1MzEwM30.rhfz_Io8k1-LzwVIOWjw119G919yqpJLFnLcF7sid9I'
+const CSC_URL = 'https://spgainjpxualjtbatfmk.supabase.co'
+const CSC_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwZ2FpbmpweHVhbGp0YmF0Zm1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMTMzODYsImV4cCI6MjA5Njc4OTM4Nn0.bQckTNILfG8nz4_TChbiPc7ni78Ity6qx9tJr1AVFcs'
 
 export const cscSupabase = createClient(CSC_URL, CSC_ANON, {
   auth: { storageKey: 'csc-labos-kec', persistSession: true, autoRefreshToken: true },
