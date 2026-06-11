@@ -49,12 +49,14 @@ export default function InvoiceDetail() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const [inv, pays] = await Promise.all([
+      const [inv, pays, journalData] = await Promise.all([
         fetchInvoice(id),
         fetchPaymentsForInvoice(id),
+        fetchJournalEntriesForSource('invoice', id),
       ]);
       setInvoice(inv);
       setPayments(pays || []);
+      setJournalEntries(journalData);
     } catch (e) {
       toast.error('Failed to load invoice');
     } finally {

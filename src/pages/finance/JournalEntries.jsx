@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
 import { fetchJournalEntries, createJournalEntry, postJournalEntry, deleteJournalEntry, fetchAccounts } from '../../lib/financeService';
-import { BookOpen, Plus, Search, Loader, CheckCircle, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { BookOpen, Plus, Search, Loader, CheckCircle, Trash2, ChevronLeft, ChevronRight, X, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
@@ -30,6 +31,17 @@ function calcBalance(lines) {
   const totalDebits = lines.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);
   const totalCredits = lines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
   return { totalDebits, totalCredits, balanced: Math.abs(totalDebits - totalCredits) < 0.01 };
+}
+
+
+// Wave F2.7: derive a route to the source document for cross-link UI.
+function sourceLinkFor(sourceType, sourceId) {
+  if (!sourceType || !sourceId) return null;
+  if (sourceType === 'invoice') return `/admin/finance/invoices/${sourceId}`;
+  if (sourceType === 'payment') return `/admin/finance/payments/${sourceId}`;
+  if (sourceType === 'expense') return `/admin/finance/expenses`;
+  if (sourceType === 'bill') return `/admin/finance/bills`;
+  return null;
 }
 
 export default function JournalEntries() {
@@ -182,6 +194,15 @@ export default function JournalEntries() {
                     <div className="text-right">
                       <p className="text-white text-sm font-medium">{fmt(entry.total_debits)}</p>
                       <p className="text-gray-500 text-xs">{entry.reference || ''}</p>
+                      {sourceLinkFor(entry.source_type, entry.source_id) && (
+                        <Link
+                          to={sourceLinkFor(entry.source_type, entry.source_id)}
+                          onClick={e => e.stopPropagation()}
+                          className="text-[10px] text-brand-blue hover:underline inline-flex items-center gap-0.5 mt-0.5"
+                        >
+                          {entry.source_type} <ExternalLink className="w-2.5 h-2.5" />
+                        </Link>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 ml-2">
                       {entry.status === 'draft' && (

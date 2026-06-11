@@ -6,10 +6,10 @@ import { Badge } from '../../components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '../../components/ui/dialog';
-import { fetchPayment, fetchInvoice, deletePayment } from '../../lib/financeService';
+import { fetchPayment, fetchInvoice, deletePayment, fetchJournalEntriesForSource } from '../../lib/financeService';
 import {
   ArrowLeft, CreditCard, Loader, ExternalLink, User, FileText,
-  AlertCircle, Trash2, Hash,
+  AlertCircle, Trash2, Hash, BookOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -33,6 +33,7 @@ export default function PaymentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [payment, setPayment] = useState(null);
+  const [journalEntries, setJournalEntries] = useState([]);
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -40,8 +41,12 @@ export default function PaymentDetail() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const pmt = await fetchPayment(id);
+      const [pmt, journalData] = await Promise.all([
+        fetchPayment(id),
+        fetchJournalEntriesForSource('payment', id),
+      ]);
       setPayment(pmt);
+      setJournalEntries(journalData);
       if (pmt?.invoice_id) {
         try {
           const inv = await fetchInvoice(pmt.invoice_id);
@@ -230,6 +235,36 @@ export default function PaymentDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Wave F2.7: Linked Journal Entries */}
+      <Card className="bg-navy-800 border-navy-700 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-brand-blue" />
+            Journal Entries
+          </h2>
+          <Link to="/admin/finance/journal" className="text-xs text-brand-blue hover:underline">All journal &rarr;</Link>
+        </div>
+        {journalEntries.length === 0 ? (
+          <div className="text-sm text-gray-500 italic">No journal entries linked to this payment yet.</div>
+        ) : (
+          <div className="divide-y divide-navy-700">
+            {journalEntries.map(je => (
+              <div key={je.id} className="py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-brand-blue font-medium text-sm">{je.entry_number || '\u2014'}</span>
+                    <span className="text-xs text-gray-500">{fmtDate(je.transaction_date)}</span>
+                  </div>
+                  <div className="text-xs text-gray-400 mt-0.5 truncate">{je.description}</div>
+                </div>
+                <div className="text-sm text-white font-medium">{fmt(je.total_debits)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
     </div>
   );
 }

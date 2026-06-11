@@ -49,6 +49,44 @@ function pickExpenseCols(obj) {
   return Object.fromEntries(Object.entries(obj).filter(([k]) => EXPENSE_COLS.has(k)));
 }
 
+// Wave F2.7 schema sweep: defensive whitelists for every finance table
+// create/update fn. Kills the class-of-bug we hit five times in F2.
+const INVOICE_COLS = new Set([
+  'invoice_number', 'customer_id', 'customer_name', 'project_id', 'project_name',
+  'invoice_date', 'due_date', 'status', 'line_items', 'subtotal', 'tax_rate',
+  'tax_amount', 'total_amount', 'amount_paid', 'balance_due', 'notes', 'terms',
+  'voided_at', 'void_reason',
+]);
+const PAYMENT_COLS = new Set([
+  'payment_number', 'invoice_id', 'customer_id', 'customer_name', 'amount',
+  'payment_date', 'payment_method', 'reference_number', 'status', 'notes',
+]);
+const BILL_COLS = new Set([
+  'bill_number', 'vendor_name', 'vendor_id', 'bill_date', 'due_date', 'status',
+  'line_items', 'subtotal', 'tax_amount', 'total_amount', 'amount_paid',
+  'balance_due', 'notes',
+]);
+const BUDGET_COLS = new Set([
+  'name', 'description', 'fiscal_year', 'period_type', 'account_id',
+  'category', 'budget_data', 'total_amount', 'is_active',
+]);
+const JOURNAL_ENTRY_COLS = new Set([
+  'entry_number', 'reference', 'transaction_date', 'entry_date', 'status',
+  'source_type', 'source_id', 'is_reversal', 'reverses_entry_id',
+  'reversed_by_entry_id', 'description', 'total_debits', 'total_credits',
+  'primary_project_id', 'primary_project_name', 'approval_record_id',
+  'posted_at', 'posted_by',
+]);
+function pickCols(allowed, obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  return Object.fromEntries(Object.entries(obj).filter(([k]) => allowed.has(k)));
+}
+const pickInvoiceCols = (o) => pickCols(INVOICE_COLS, o);
+const pickPaymentCols = (o) => pickCols(PAYMENT_COLS, o);
+const pickBillCols = (o) => pickCols(BILL_COLS, o);
+const pickBudgetCols = (o) => pickCols(BUDGET_COLS, o);
+const pickJournalEntryCols = (o) => pickCols(JOURNAL_ENTRY_COLS, o);
+
 // Form components in the finance section commonly use `memo` and `description`
 // keys that don't match Postgres column names on the finance_* tables. Map
 // memo -> notes (preserves the user's typed text) and drop `description`
@@ -151,8 +189,9 @@ export async function deleteAccount(id) {
 
 // ── JOURNAL ENTRIES ─────────────────────────────────────────
 export async function fetchJournalEntries({ status, limit = 50, offset = 0 } = {}) {
+  // Wave F2.7: embed lines so the expand-view in JournalEntries.jsx populates.
   let q = supabase.from('finance_journal_entries')
-    .select('*', { count: 'exact' })
+    .select('*, lines:finance_journal_lines(*)', { count: 'exact' })
     .order('transaction_date', { ascending: false })
     .range(offset, offset + limit - 1);
   if (status && status !== 'all') q = q.eq('status', status);
@@ -164,16 +203,59 @@ export async function fetchJournalEntries({ status, limit = 50, offset = 0 } = {
 export async function createJournalEntry(entry) {
   const userId = await currentUserId();
   const entryNumber = await nextNumber('finance_journal_entries', 'JE');
-  entry = mapFormToSchema(sanitizeDates(entry));
+  const sanitized = mapFormToSchema(sanitizeDates(entry));
+  // Wave F2.7: lines are a separate table (finance_journal_lines) - extract first,
+  // whitelist the entry payload, insert entry, then bulk-insert lines.
+  const lines = Array.isArray(sanitized.lines) ? sanitized.lines : [];
+  const entryRow = pickJournalEntryCols(sanitized);
   const { data, error } = await supabase.from('finance_journal_entries')
-    .insert({ ...entry, entry_number: entryNumber, created_by: userId }).select().single();
+    .insert({ ...entryRow, entry_number: entryNumber, created_by: userId }).select().single();
   if (error) handleError(error, 'createJournalEntry');
+  if (lines.length > 0 && data) {
+    const lineRows = lines.map(l => ({
+      journal_entry_id: data.id,
+      account_id: l.account_id || null,
+      account_code: l.account_code || null,
+      account_name: l.account_name || null,
+      debit: Number(l.debit) || 0,
+      credit: Number(l.credit) || 0,
+      description: l.description || null,
+      project_id: l.project_id || null,
+      project_name: l.project_name || null,
+      department: l.department || null,
+    }));
+    const { error: lineErr } = await supabase.from('finance_journal_lines').insert(lineRows);
+    if (lineErr) handleError(lineErr, 'createJournalEntry.lines');
+  }
+  // Re-fetch with lines embedded so the caller gets a complete object
+  return await fetchJournalEntry(data.id);
+}
+
+// Wave F2.7: single-entry fetch with lines embedded via FK join.
+export async function fetchJournalEntry(id) {
+  const { data, error } = await supabase.from('finance_journal_entries')
+    .select('*, lines:finance_journal_lines(*)').eq('id', id).single();
+  if (error) handleError(error, 'fetchJournalEntry');
   return data;
 }
 
-export async function updateJournalEntry(id, updates) {
+// Wave F2.7: polymorphic source -> journal cross-link.
+// Returns posted/draft entries that reference this source row.
+export async function fetchJournalEntriesForSource(sourceType, sourceId) {
+  if (!sourceType || !sourceId) return [];
   const { data, error } = await supabase.from('finance_journal_entries')
-    .update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+    .select('id, entry_number, transaction_date, status, description, total_debits, total_credits')
+    .eq('source_type', sourceType)
+    .eq('source_id', sourceId)
+    .order('transaction_date', { ascending: false });
+  if (error) handleError(error, 'fetchJournalEntriesForSource');
+  return data || [];
+}
+
+export async function updateJournalEntry(id, updates) {
+  const sanitized = pickJournalEntryCols(mapFormToSchema(sanitizeDates(updates)));
+  const { data, error } = await supabase.from('finance_journal_entries')
+    .update({ ...sanitized, updated_at: new Date().toISOString() }).eq('id', id).select().single();
   if (error) handleError(error, 'updateJournalEntry');
   return data;
 }
@@ -208,7 +290,7 @@ export async function fetchInvoices({ status, search, limit = 50, offset = 0 } =
 export async function createInvoice(invoice) {
   const userId = await currentUserId();
   const invoiceNumber = await nextNumber('finance_invoices', 'INV');
-  const sanitized = mapFormToSchema(sanitizeDates(invoice));
+  const sanitized = pickInvoiceCols(mapFormToSchema(sanitizeDates(invoice)));
   if (!sanitized.status) sanitized.status = 'draft';
   const { data, error } = await supabase.from('finance_invoices')
     .insert({ ...sanitized, invoice_number: invoiceNumber, created_by: userId }).select().single();
@@ -217,7 +299,7 @@ export async function createInvoice(invoice) {
 }
 
 export async function updateInvoice(id, updates) {
-  const sanitized = mapFormToSchema(sanitizeDates(updates));
+  const sanitized = pickInvoiceCols(mapFormToSchema(sanitizeDates(updates)));
   const { data, error } = await supabase.from('finance_invoices')
     .update({ ...sanitized, updated_at: new Date().toISOString() }).eq('id', id).select().single();
   if (error) handleError(error, 'updateInvoice');
@@ -252,7 +334,7 @@ export async function fetchPayments({ search, limit = 50, offset = 0 } = {}) {
 export async function createPayment(payment) {
   const userId = await currentUserId();
   const paymentNumber = await nextNumber('finance_payments', 'PMT');
-  payment = mapFormToSchema(sanitizeDates(payment));
+  payment = pickPaymentCols(mapFormToSchema(sanitizeDates(payment)));
   const { data, error } = await supabase.from('finance_payments')
     .insert({ ...payment, payment_number: paymentNumber, created_by: userId }).select().single();
   if (error) handleError(error, 'createPayment');
@@ -416,7 +498,7 @@ export async function fetchBills({ status, search, limit = 100 } = {}) {
 export async function createBill(bill) {
   const userId = await currentUserId();
   const billNumber = await nextNumber('finance_bills', 'BILL');
-  bill = mapFormToSchema(sanitizeDates(bill));
+  bill = pickBillCols(mapFormToSchema(sanitizeDates(bill)));
   const {
     vendor_name, vendor_id, bill_date, due_date, status = 'draft',
     line_items = [], subtotal = 0, tax_amount = 0, notes = '', total,
@@ -436,8 +518,9 @@ export async function createBill(bill) {
 }
 
 export async function updateBill(id, updates) {
+  const sanitized = pickBillCols(mapFormToSchema(sanitizeDates(updates)));
   const { data, error } = await supabase.from('finance_bills')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...sanitized, updated_at: new Date().toISOString() })
     .eq('id', id).select().single();
   if (error) handleError(error, 'updateBill');
   return data;
@@ -538,8 +621,9 @@ export async function createBudget(budget) {
 }
 
 export async function updateBudget(id, updates) {
+  const sanitized = pickBudgetCols(mapFormToSchema(sanitizeDates(updates)));
   const { data, error } = await supabase.from('finance_budgets')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...sanitized, updated_at: new Date().toISOString() })
     .eq('id', id).select().single();
   if (error) handleError(error, 'updateBudget');
   return data;
