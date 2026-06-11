@@ -545,17 +545,7 @@ export default function App() {
               <Route path="agent-chat" element={<DevTeamAgentChat />} />
             </Route>
             {/* CSC Services LABOS-KEC — Wave B */}
-            <Route path="csc" element={<CscLayout />}>
-              <Route index element={<CscOverview />} />
-              <Route path="customers" element={<CscCustomers />} />
-              <Route path="jobs" element={<CscJobs />} />
-              <Route path="jobs/:id" element={<CscJobDetail />} />
-              <Route path="deficiencies" element={<CscDeficiencies />} />
-              <Route path="invoices" element={<CscInvoices />} />
-              <Route path="certificates" element={<CscCertificates />} />
-              <Route path="stickers" element={<CscStickers />} />
-              <Route path="ahj" element={<CscAhjMap />} />
-            </Route>
+            <Route path="csc/*" element={<Navigate to="/crm/88888888-0002-0000-0000-000000000001/dashboard" replace />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
