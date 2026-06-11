@@ -54,7 +54,7 @@ const freightNavItems = [
 const PORTAL_INDUSTRIES = [
   { industry: 'Basic', label: 'Basic CRM', to: '/admin/new-tenant', live: false },
   { industry: 'HVAC', label: 'Apex HVAC (Demo)', to: '/crm/e3286192-580d-4478-8b88-7d44fd9f4de0/dashboard', live: true },
-  { industry: 'KEC', label: 'CSC Services', to: '/admin/csc', live: true },
+  { industry: 'KEC', label: 'CSC Services', to: '/crm/88888888-0002-0000-0000-000000000001/overview', live: true },
   { industry: 'Freight', label: 'Freight AI', to: '/admin/freight', live: true },
   { industry: 'Retail / Thrift', label: 'VJ Thrift Finds', to: '/crm/bfd355a4-17f4-4c7a-8450-b91063b6292b/dashboard', live: true },
   { industry: 'Lawncare / Landscaping', label: 'Lawncare CRM', to: '/admin/new-tenant', live: false },
