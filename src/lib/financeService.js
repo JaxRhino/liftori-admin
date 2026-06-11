@@ -95,13 +95,18 @@ const pickJournalEntryCols = (o) => pickCols(JOURNAL_ENTRY_COLS, o);
 function mapFormToSchema(obj) {
   if (!obj || typeof obj !== 'object') return obj;
   const out = { ...obj };
+  // Fold memo -> notes when both keys are present. This is universal across
+  // finance forms (invoice form sends memo; bills/payments map to notes too).
   if ('memo' in out) {
     if (out.memo && !out.notes) out.notes = out.memo;
     delete out.memo;
   }
-  if ('description' in out) {
-    delete out.description;
-  }
+  // Wave F2.7b: previously this also dropped `description` to handle the
+  // invoice form (invoices have no description column). That was over-broad -
+  // expenses, budgets, journal_entries all DO have description. The per-table
+  // whitelists added in F2.7 (pickInvoiceCols et al.) now drop description
+  // for tables that don't have it, so this delete is redundant and harmful
+  // for tables that do.
   return out;
 }
 
