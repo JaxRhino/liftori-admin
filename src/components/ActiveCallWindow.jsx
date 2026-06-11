@@ -23,6 +23,7 @@ import {
   endCall as endCallDB,
   createSpeedToLead,
 } from '../lib/callCenterService';
+import { currentStage } from '../lib/customerValue';
 import {
   sendMessage as sendChatMessage,
   fetchChannels,
@@ -171,30 +172,43 @@ export default function ActiveCallWindow({ callData, onClose }) {
       // Search profiles (customers + leads)
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name, email, phone, company_name, role, crm_stage, lead_temperature, created_at')
+        .select('id, full_name, email, phone, company_name, role, crm_stage, lead_temperature, archived_at, created_at')
         .or(`phone.ilike.%${cleaned}%,phone.ilike.%${phone}%`);
 
       // Search speed-to-lead
       const { data: leads } = await supabase
         .from('cc_speed_to_lead')
-        .select('id, lead_name, phone_number, email, source, status, received_at')
-        .or(`phone_number.ilike.%${cleaned}%,phone_number.ilike.%${phone}%`);
+        .select('id, lead_name, lead_phone, lead_email, lead_source, status, received_at')
+        .or(`lead_phone.ilike.%${cleaned}%,lead_phone.ilike.%${phone}%`);
 
       if (profiles?.length > 0) {
         const c = profiles[0];
+        c.stage = await deriveStage(c.id, c.crm_stage);
         setCustomer({ type: 'profile', ...c });
         if (c.email) setEmailTo(c.email);
         loadCallHistory(c.phone);
       } else if (leads?.length > 0) {
         const l = leads[0];
-        setCustomer({ type: 'lead', id: l.id, full_name: l.lead_name, phone: l.phone_number, email: l.email, source: l.source, crm_stage: l.status });
-        if (l.email) setEmailTo(l.email);
-        loadCallHistory(l.phone_number);
+        setCustomer({ type: 'lead', id: l.id, full_name: l.lead_name, phone: l.lead_phone, email: l.lead_email, source: l.lead_source, stage: l.status });
+        if (l.lead_email) setEmailTo(l.lead_email);
+        loadCallHistory(l.lead_phone);
       }
     } catch (err) {
       console.error('Customer lookup error:', err);
     } finally {
       setCustomerLoading(false);
+    }
+  }
+
+  async function deriveStage(profileId, fallback) {
+    try {
+      const { data: lines } = await supabase
+        .from('customer_product_lines')
+        .select('stage, won_at, lost_at')
+        .eq('profile_id', profileId);
+      return currentStage(lines || []) || fallback || null;
+    } catch {
+      return fallback || null;
     }
   }
 
@@ -204,10 +218,10 @@ export default function ActiveCallWindow({ callData, onClose }) {
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, email, phone, company_name, role, crm_stage')
+        .select('id, full_name, email, phone, company_name, role, crm_stage, archived_at, lines:customer_product_lines!customer_product_lines_profile_id_fkey(stage, won_at, lost_at)')
         .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%,company_name.ilike.%${q}%`)
         .limit(10);
-      setSearchResults(data || []);
+      setSearchResults((data || []).map(r => ({ ...r, stage: currentStage(r.lines || []) || r.crm_stage || null })));
     } catch (err) {
       console.error('Search error:', err);
     } finally {
@@ -593,8 +607,8 @@ export default function ActiveCallWindow({ callData, onClose }) {
                           <p className="text-white text-sm font-medium truncate">{r.full_name}</p>
                           <p className="text-slate-400 text-xs truncate">{r.email} {r.phone ? `| ${r.phone}` : ''}</p>
                         </div>
-                        {r.crm_stage && (
-                          <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">{r.crm_stage}</span>
+                        {(r.stage || r.crm_stage) && (
+                          <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">{r.stage || r.crm_stage}</span>
                         )}
                       </button>
                     ))}
@@ -623,8 +637,11 @@ export default function ActiveCallWindow({ callData, onClose }) {
                         {customer.phone && <span>{customer.phone}</span>}
                       </div>
                       <div className="mt-2 flex gap-2">
-                        {customer.crm_stage && (
-                          <span className="text-xs px-2.5 py-1 rounded-full bg-sky-500/20 text-sky-400 font-medium">{customer.crm_stage}</span>
+                        {(customer.stage || customer.crm_stage) && (
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-sky-500/20 text-sky-400 font-medium">{customer.stage || customer.crm_stage}</span>
+                        )}
+                        {customer.archived_at && (
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-slate-600/40 text-slate-300 font-medium">Archived</span>
                         )}
                         {customer.lead_temperature && (
                           <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
