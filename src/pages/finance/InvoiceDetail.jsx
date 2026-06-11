@@ -10,10 +10,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '../../components/ui/dialog';
 import {
-  fetchInvoice, fetchPaymentsForInvoice, createPayment, voidInvoice,
+  fetchInvoice, fetchPaymentsForInvoice, createPayment, voidInvoice, updateInvoice,
 } from '../../lib/financeService';
 import {
-  ArrowLeft, FileText, CreditCard, Loader, ExternalLink, User, Briefcase, AlertCircle, Trash2,
+  ArrowLeft, FileText, CreditCard, Loader, ExternalLink, User, Briefcase, AlertCircle, Trash2, Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -104,6 +104,16 @@ export default function InvoiceDetail() {
     }
   }
 
+  async function handleMarkSent() {
+    try {
+      const updated = await updateInvoice(invoice.id, { status: 'sent' });
+      setInvoice(updated);
+      toast.success('Invoice marked as sent');
+    } catch {
+      toast.error('Failed to mark as sent');
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -143,6 +153,14 @@ export default function InvoiceDetail() {
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               <CreditCard className="w-4 h-4 mr-2" /> Record Payment
+            </Button>
+          )}
+          {isDraft && (
+            <Button
+              onClick={handleMarkSent}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white"
+            >
+              <Send className="w-4 h-4 mr-2" /> Mark as Sent
             </Button>
           )}
           {isDraft && (

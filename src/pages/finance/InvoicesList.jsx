@@ -20,6 +20,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString() : '—';
 
 const STATUS = {
   draft: { label: 'Draft', cls: 'bg-gray-700 text-gray-300' },
+  sent: { label: 'Sent', cls: 'bg-cyan-500/20 text-cyan-300' },
   pending_approval: { label: 'Pending', cls: 'bg-yellow-500/20 text-yellow-400' },
   approved: { label: 'Approved', cls: 'bg-blue-500/20 text-blue-400' },
   posted: { label: 'Posted', cls: 'bg-indigo-500/20 text-indigo-400' },

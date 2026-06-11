@@ -531,6 +531,7 @@ function FinanceTab({ customerId }) {
 
   const FIN_STATUS_COLORS = {
     draft: 'bg-gray-500/20 text-gray-400',
+    sent: 'bg-cyan-500/20 text-cyan-300',
     approved: 'bg-blue-500/20 text-blue-400',
     posted: 'bg-brand-blue/20 text-brand-blue',
     partial: 'bg-yellow-500/20 text-yellow-400',
@@ -2425,7 +2426,7 @@ export default function CustomerDetail() {
     { key: 'notes', label: `Notes (${notes.length})` },
     { key: 'messages', label: `Messages (${messages.length})` },
     { key: 'comms', label: `Communications (${conversations.length})` },
-    { key: 'invoices', label: `Invoices (${invoices.length})` },
+    { key: 'invoices', label: `Project Invoices (${invoices.length})` },
     { key: 'finance', label: 'Finance Hub' },
     { key: 'activity', label: `Activity (${updates.length})` },
     { key: 'details', label: 'Details' },
