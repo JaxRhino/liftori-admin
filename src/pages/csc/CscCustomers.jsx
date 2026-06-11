@@ -42,34 +42,34 @@ export default function CscCustomers() {
           placeholder="Search by name or city…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/40 focus:outline-none focus:border-orange-400/50 w-72"
+          className="px-3 py-2 bg-navy-800 border border-navy-700/50 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-brand-cyan/40 w-72"
         />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-navy-800 border border-navy-700/50 rounded-lg text-white text-sm">
           <option value="all">All statuses</option>
           <option value="active">Active</option>
           <option value="paused">Paused</option>
           <option value="lost">Lost</option>
           <option value="prospect">Prospect</option>
         </select>
-        <select value={tierFilter} onChange={e => setTierFilter(e.target.value)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm">
+        <select value={tierFilter} onChange={e => setTierFilter(e.target.value)} className="px-3 py-2 bg-navy-800 border border-navy-700/50 rounded-lg text-white text-sm">
           <option value="all">All frequencies</option>
           <option value="monthly">Monthly</option>
           <option value="quarterly">Quarterly</option>
           <option value="semi_annual">Semi-annual</option>
           <option value="annual">Annual</option>
         </select>
-        <select value={chainFilter} onChange={e => setChainFilter(e.target.value)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm">
+        <select value={chainFilter} onChange={e => setChainFilter(e.target.value)} className="px-3 py-2 bg-navy-800 border border-navy-700/50 rounded-lg text-white text-sm">
           <option value="all">All chains + standalones</option>
           {chains.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <div className="ml-auto text-xs text-white/50">
+        <div className="ml-auto text-xs text-gray-400">
           {filtered.length} of {restaurants.length} accounts · <span className={overdueCount > 0 ? 'text-red-300' : 'text-emerald-300'}>{overdueCount} overdue</span>
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+      <div className="rounded-xl border border-navy-700/50 bg-navy-800 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-white/5 text-xs uppercase tracking-wider text-white/40">
+          <thead className="bg-navy-800 text-xs uppercase tracking-wider text-gray-500">
             <tr>
               <th className="text-left px-5 py-3 font-semibold">Account</th>
               <th className="text-left px-3 py-3 font-semibold">Chain</th>
@@ -80,26 +80,26 @@ export default function CscCustomers() {
               <th className="text-right px-5 py-3 font-semibold">Per visit</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
-            {loading && <tr><td colSpan="7" className="px-5 py-6 text-white/40">Loading…</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan="7" className="px-5 py-6 text-white/40">No matching accounts.</td></tr>}
+          <tbody className="divide-y divide-navy-700/50">
+            {loading && <tr><td colSpan="7" className="px-5 py-6 text-gray-500">Loading…</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan="7" className="px-5 py-6 text-gray-500">No matching accounts.</td></tr>}
             {filtered.map(r => {
               const overdue = r.next_due_at && new Date(r.next_due_at) < new Date() && r.status === 'active'
               return (
-                <tr key={r.id} className="hover:bg-white/5">
+                <tr key={r.id} className="hover:bg-navy-800">
                   <td className="px-5 py-3">
                     <div className="text-white">{r.name}</div>
-                    <div className="text-xs text-white/40">{r.city}, {r.state} · {r.hood_count} hood{r.hood_count !== 1 ? 's' : ''}</div>
+                    <div className="text-xs text-gray-500">{r.city}, {r.state} · {r.hood_count} hood{r.hood_count !== 1 ? 's' : ''}</div>
                   </td>
-                  <td className="px-3 py-3 text-white/70">{r.chain?.name || <span className="text-white/30 italic">Standalone</span>}</td>
-                  <td className="px-3 py-3 text-white/70">{FREQUENCY_LABELS[r.frequency_tier] || '—'}</td>
-                  <td className="px-3 py-3 text-white/70">{fmtDate(r.last_cleaned_at)}</td>
+                  <td className="px-3 py-3 text-gray-300">{r.chain?.name || <span className="text-gray-500 italic">Standalone</span>}</td>
+                  <td className="px-3 py-3 text-gray-300">{FREQUENCY_LABELS[r.frequency_tier] || '—'}</td>
+                  <td className="px-3 py-3 text-gray-300">{fmtDate(r.last_cleaned_at)}</td>
                   <td className="px-3 py-3">
-                    <div className={overdue ? 'text-red-300' : 'text-white/70'}>{fmtDate(r.next_due_at)}</div>
-                    <div className="text-xs text-white/40">{relTime(r.next_due_at)}</div>
+                    <div className={overdue ? 'text-red-300' : 'text-gray-300'}>{fmtDate(r.next_due_at)}</div>
+                    <div className="text-xs text-gray-500">{relTime(r.next_due_at)}</div>
                   </td>
-                  <td className="px-3 py-3 text-white/70 text-xs">{r.ahj?.name || '—'}</td>
-                  <td className="px-5 py-3 text-right text-white/70">{fmtMoney(r.base_price_per_visit)}</td>
+                  <td className="px-3 py-3 text-gray-300 text-xs">{r.ahj?.name || '—'}</td>
+                  <td className="px-5 py-3 text-right text-gray-300">{fmtMoney(r.base_price_per_visit)}</td>
                 </tr>
               )
             })}
