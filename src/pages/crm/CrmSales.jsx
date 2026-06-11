@@ -1697,6 +1697,7 @@ function EstimateDrawer({ estimate, onClose, client, contactName, onChanged }) {
       title={estimate.estimate_number || 'Estimate'}
       footer={
         <div className="flex justify-end gap-2">
+          <a href={window.location.pathname.split('/sales')[0] + '/estimate/' + estimate.id} target="_blank" rel="noreferrer" className="text-xs px-3 py-1.5 border border-navy-700/60 text-gray-300 rounded-lg hover:text-white">View / Print</a>
           <button onClick={sendToCustomer} disabled={busy} className="text-xs px-3 py-1.5 border border-navy-700/60 text-gray-300 rounded-lg hover:text-white">
             Send to Customer
           </button>
