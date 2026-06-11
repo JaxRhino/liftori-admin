@@ -65,8 +65,18 @@ function LabosShell() {
   // are layered on as we build them. If a tenant's labos_hubs match NONE
   // of the base hubs (misconfigured / industry-only keys), fall back to
   // the full base CRM so we never render a bare sidebar.
+  const CSC_HUB_DEFS = [
+    { key: 'overview', label: 'Overview', path: 'overview', icon: DashboardIcon },
+    { key: 'jobs', label: 'Jobs', path: 'jobs', icon: OpsIcon },
+    { key: 'deficiencies', label: 'Deficiencies', path: 'deficiencies', icon: NotificationsIcon },
+    { key: 'certificates', label: 'Certificates', path: 'certificates', icon: NotesIcon },
+    { key: 'stickers', label: 'Stickers', path: 'stickers', icon: TasksIcon },
+    { key: 'ahj', label: 'AHJ Map', path: 'ahj', icon: CalendarIcon },
+    { key: 'customers', label: 'Customers', path: 'customers', icon: SalesIcon },
+    { key: 'invoices', label: 'Invoices', path: 'invoices', icon: FinanceIcon },
+  ]
   const matchedHubs = HUB_DEFS.filter(h => enabledHubs.includes(h.key))
-  const hubs = matchedHubs.length > 0 ? matchedHubs : HUB_DEFS
+  const hubs = platform?.industry === 'kec' ? CSC_HUB_DEFS : (matchedHubs.length > 0 ? matchedHubs : HUB_DEFS)
 
   return (
     <div className="min-h-screen bg-navy-950 flex">
