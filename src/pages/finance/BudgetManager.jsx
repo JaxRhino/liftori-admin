@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchBudgets, createBudget, updateBudget, fetchAccounts } from '../../lib/financeService';
+import { fetchBudgetVariance, createBudget, updateBudget, fetchAccounts } from '../../lib/financeService';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -19,7 +19,7 @@ export default function BudgetManager() {
   const [loading, setLoading] = useState(true);
   const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ account_id: '', account_name: '', annual_total: '' });
+  const [form, setForm] = useState({ account_id: '', account_name: '', category: '', annual_total: '' });
 
   useEffect(() => { load(); }, [fiscalYear]);
 
@@ -27,7 +27,7 @@ export default function BudgetManager() {
     try {
       setLoading(true);
       const [budgetData, acctData] = await Promise.all([
-        fetchBudgets({ fiscalYear }),
+        fetchBudgetVariance({ fiscalYear }),
         fetchAccounts(),
       ]);
       setBudgets(budgetData || []);
@@ -52,18 +52,19 @@ export default function BudgetManager() {
         fiscal_year: fiscalYear,
         annual_total: parseFloat(form.annual_total),
         monthly_amounts: {},
+        category: form.category || acct?.category || acct?.name || '',
       });
       toast.success('Budget created');
       setCreateOpen(false);
-      setForm({ account_id: '', account_name: '', annual_total: '' });
+      setForm({ account_id: '', account_name: '', category: '', annual_total: '' });
       load();
     } catch (e) {
       toast.error('Failed to create budget');
     }
   }
 
-  const totalBudgeted = budgets.reduce((s, b) => s + (b.annual_total || 0), 0);
-  const totalActual = budgets.reduce((s, b) => s + (b.actual_total || 0), 0);
+  const totalBudgeted = budgets.reduce((s, b) => s + Number(b.total_amount || 0), 0);
+  const totalActual = budgets.reduce((s, b) => s + Number(b.actual_total || 0), 0);
   const totalVariance = totalBudgeted - totalActual;
 
   return (
@@ -125,17 +126,21 @@ export default function BudgetManager() {
             </thead>
             <tbody className="divide-y divide-navy-700/50">
               {budgets.map(b => {
-                const variance = (b.annual_total || 0) - (b.actual_total || 0);
-                const pctUsed = b.annual_total > 0 ? Math.min(((b.actual_total || 0) / b.annual_total) * 100, 100) : 0;
+                const totalAmt = Number(b.total_amount || 0);
+                const actualAmt = Number(b.actual_total || 0);
+                const variance = totalAmt - actualAmt;
+                const pctUsed = totalAmt > 0 ? Math.min((actualAmt / totalAmt) * 100, 100) : 0;
                 return (
                   <tr key={b.id} className="text-white hover:bg-navy-800/50">
                     <td className="py-3">
-                      <div className="font-medium">{b.account_name}</div>
-                      {b.finance_accounts && <div className="text-xs text-gray-400">{b.finance_accounts.code}</div>}
+                      <div className="font-medium">{b.name || b.category || 'Untitled'}</div>
+                      {b.category && <div className="text-xs text-gray-400 capitalize">Category: {b.category}</div>}
                     </td>
-                    <td className="py-3 text-right">{fmt(b.annual_total)}</td>
-                    <td className="py-3 text-right">{fmt(b.actual_total)}</td>
-                    <td className={`py-3 text-right font-medium ${variance >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(Math.abs(variance))}</td>
+                    <td className="py-3 text-right">{fmt(totalAmt)}</td>
+                    <td className="py-3 text-right">{fmt(actualAmt)}</td>
+                    <td className={`py-3 text-right font-medium ${variance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {variance >= 0 ? '' : '-'}{fmt(Math.abs(variance))}
+                    </td>
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <div className="w-16 bg-navy-700 rounded-full h-1.5">
@@ -163,6 +168,13 @@ export default function BudgetManager() {
                 <option value="">Select account</option>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Category <span className="text-gray-500">(used to match expenses for variance)</span>
+              </label>
+              <Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
+                className="bg-navy-800 border-navy-700 text-white" placeholder="e.g. Marketing, Software, Travel" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Annual Budget *</label>

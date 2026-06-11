@@ -462,6 +462,40 @@ export async function fetchBudgets({ fiscalYear } = {}) {
   return data || [];
 }
 
+// Wave F2.6: enrich budgets with actual expense totals for variance display.
+// Match expenses to budgets by category (case-insensitive trim) within the
+// budget's fiscal_year date range. Returns same shape as fetchBudgets but
+// with `actual_total` populated on each row.
+export async function fetchBudgetVariance({ fiscalYear } = {}) {
+  const year = fiscalYear || new Date().getFullYear();
+  const [budgetsRes, expensesRes] = await Promise.all([
+    supabase.from('finance_budgets')
+      .select('*')
+      .eq('is_active', true)
+      .eq('fiscal_year', year)
+      .order('total_amount', { ascending: false }),
+    supabase.from('finance_expenses')
+      .select('category, amount, status, expense_date')
+      .gte('expense_date', `${year}-01-01`)
+      .lte('expense_date', `${year}-12-31`),
+  ]);
+  if (budgetsRes.error) handleError(budgetsRes.error, 'fetchBudgetVariance.budgets');
+  if (expensesRes.error) handleError(expensesRes.error, 'fetchBudgetVariance.expenses');
+
+  // Sum expenses by lowercased+trimmed category; skip voided.
+  const totalsByCat = (expensesRes.data || []).reduce((acc, e) => {
+    if (e.status === 'voided') return acc;
+    const key = (e.category || '').toLowerCase().trim();
+    acc[key] = (acc[key] || 0) + Number(e.amount || 0);
+    return acc;
+  }, {});
+
+  return (budgetsRes.data || []).map(b => ({
+    ...b,
+    actual_total: totalsByCat[(b.category || '').toLowerCase().trim()] || 0,
+  }));
+}
+
 export async function createBudget(budget) {
   const userId = await currentUserId();
   const {
