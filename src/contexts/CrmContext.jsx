@@ -7,6 +7,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getClientSupabase } from '../lib/clientSupabase'
+import { supabase as mainDb } from '../lib/supabase'
 
 const CrmContext = createContext(null)
 
@@ -15,6 +16,7 @@ export function CrmProvider({ children }) {
   const [client, setClient] = useState(null)
   const [platform, setPlatform] = useState(null)
   const [orgSettings, setOrgSettings] = useState(null)
+  const [tierConfig, setTierConfig] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -31,6 +33,9 @@ export function CrmProvider({ children }) {
         const { data: settings } = await client.from('org_settings').select('*').limit(1).maybeSingle()
         if (!active) return
         setOrgSettings(settings)
+        const { data: tiers } = await mainDb.from('crm_tiers').select('*')
+        if (!active) return
+        setTierConfig(tiers || [])
       } catch (e) {
         if (active) setError(e)
       } finally {
@@ -42,14 +47,17 @@ export function CrmProvider({ children }) {
   }, [platformId])
 
   const enabledHubs = useMemo(() => {
+    const tierKey = platform?.tier || 'starter'
+    const tierRow = (tierConfig || []).find((t) => t.key === tierKey)
+    if (tierRow && Array.isArray(tierRow.hubs) && tierRow.hubs.length) return tierRow.hubs
     const hubs = platform?.labos_hubs
     if (Array.isArray(hubs)) return hubs
-    return ['dashboard','sales','operations','marketing','finance','communications','chat','support']
-  }, [platform])
+    return ['dashboard','sales','operations','finance','communications','chat','support']
+  }, [platform, tierConfig])
 
   const value = useMemo(() => ({
-    platformId, client, platform, orgSettings, enabledHubs, loading, error,
-  }), [platformId, client, platform, orgSettings, enabledHubs, loading, error])
+    platformId, client, platform, orgSettings, enabledHubs, tier: platform?.tier || 'starter', tierConfig, loading, error,
+  }), [platformId, client, platform, orgSettings, enabledHubs, tierConfig, loading, error])
 
   return <CrmContext.Provider value={value}>{children}</CrmContext.Provider>
 }
