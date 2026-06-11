@@ -76,7 +76,7 @@ function LabosShell() {
     { key: 'invoices', label: 'Invoices', path: 'invoices', icon: FinanceIcon },
   ]
   const matchedHubs = HUB_DEFS.filter(h => enabledHubs.includes(h.key))
-  const hubs = platform?.industry === 'kec' ? CSC_HUB_DEFS : (matchedHubs.length > 0 ? matchedHubs : HUB_DEFS)
+  const hubs = matchedHubs.length > 0 ? matchedHubs : HUB_DEFS
 
   return (
     <div className="min-h-screen bg-navy-950 flex">
