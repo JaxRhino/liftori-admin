@@ -39,33 +39,33 @@ export default function CscStickers() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <input type="text" placeholder="Search QR or account…" value={search} onChange={e => setSearch(e.target.value)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/40 focus:outline-none focus:border-orange-400/50 w-72" />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm">
+        <input type="text" placeholder="Search QR or account…" value={search} onChange={e => setSearch(e.target.value)} className="px-3 py-2 bg-navy-800 border border-navy-700/50 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-brand-cyan/40 w-72" />
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-navy-800 border border-navy-700/50 rounded-lg text-white text-sm">
           <option value="all">All statuses</option><option value="active">Active</option><option value="expired">Expired</option><option value="replaced">Replaced</option><option value="damaged">Damaged</option>
         </select>
-        <div className="ml-auto text-xs text-white/50">{filtered.length} of {stickers.length}</div>
+        <div className="ml-auto text-xs text-gray-400">{filtered.length} of {stickers.length}</div>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+      <div className="rounded-xl border border-navy-700/50 bg-navy-800 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-white/5 text-xs uppercase tracking-wider text-white/40">
+          <thead className="bg-navy-800 text-xs uppercase tracking-wider text-gray-500">
             <tr><th className="text-left px-5 py-3 font-semibold">QR Code</th><th className="text-left px-3 py-3 font-semibold">Cert #</th><th className="text-left px-3 py-3 font-semibold">Account</th><th className="text-left px-3 py-3 font-semibold">Hood location</th><th className="text-left px-3 py-3 font-semibold">Placed</th><th className="text-left px-3 py-3 font-semibold">Status</th><th className="text-left px-5 py-3 font-semibold">Verify URL</th></tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
-            {loading && <tr><td colSpan="7" className="px-5 py-6 text-white/40">Loading…</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan="7" className="px-5 py-6 text-white/40">No stickers match.</td></tr>}
+          <tbody className="divide-y divide-navy-700/50">
+            {loading && <tr><td colSpan="7" className="px-5 py-6 text-gray-500">Loading…</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan="7" className="px-5 py-6 text-gray-500">No stickers match.</td></tr>}
             {filtered.map(s => (
-              <tr key={s.id} className="hover:bg-white/5">
-                <td className="px-5 py-3 font-mono text-xs text-orange-300">{s.qr_code}</td>
-                <td className="px-3 py-3 font-mono text-xs text-white/70">{s.certificate?.cert_number || '—'}</td>
+              <tr key={s.id} className="hover:bg-navy-800">
+                <td className="px-5 py-3 font-mono text-xs text-brand-cyan">{s.qr_code}</td>
+                <td className="px-3 py-3 font-mono text-xs text-gray-300">{s.certificate?.cert_number || '—'}</td>
                 <td className="px-3 py-3">
-                  <div className="text-white/80">{s.certificate?.restaurant?.name || '—'}</div>
-                  <div className="text-xs text-white/40">{s.certificate?.restaurant?.city}, {s.certificate?.restaurant?.state}</div>
+                  <div className="text-gray-200">{s.certificate?.restaurant?.name || '—'}</div>
+                  <div className="text-xs text-gray-500">{s.certificate?.restaurant?.city}, {s.certificate?.restaurant?.state}</div>
                 </td>
-                <td className="px-3 py-3 text-white/70 text-xs capitalize">{(s.hood_location || '').replace('_', ' ')}</td>
+                <td className="px-3 py-3 text-gray-300 text-xs capitalize">{(s.hood_location || '').replace('_', ' ')}</td>
                 <td className="px-3 py-3 text-xs">
-                  <div className="text-white/70">{fmtDate(s.placed_at)}</div>
-                  <div className="text-white/40">{relTime(s.placed_at)}</div>
+                  <div className="text-gray-300">{fmtDate(s.placed_at)}</div>
+                  <div className="text-gray-500">{relTime(s.placed_at)}</div>
                 </td>
                 <td className="px-3 py-3"><Pill tone={STATUS_TONES[s.status]}>{s.status}</Pill></td>
                 <td className="px-5 py-3 font-mono text-[11px] text-blue-300/80 truncate max-w-xs">/verify/{s.qr_code}</td>
