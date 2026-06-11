@@ -18,6 +18,8 @@ const HUB_DEFS = [
   { key:'tasks',          label:'Tasks',          path:'tasks',          icon: TasksIcon },
   { key:'notes',          label:'Notes',          path:'notes',          icon: NotesIcon },
   { key:'finance',        label:'Finance',        path:'finance',        icon: FinanceIcon },
+  { key:'marketing',      label:'Marketing',      path:'marketing',      icon: MarketingIcon },
+  { key:'call_center',    label:'Call Center',    path:'call-center',    icon: CommsIcon },
   { key:'communications', label:'Communications', path:'communications', icon: CommsIcon },
   { key:'chat',           label:'Chat',           path:'chat',           icon: ChatIcon },
   { key:'eos',            label:'EOS',            path:'eos',            icon: EOSIcon },
