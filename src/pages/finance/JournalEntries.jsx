@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
+import { supabase } from '../../lib/supabase';
 import { fetchJournalEntries, createJournalEntry, postJournalEntry, deleteJournalEntry, fetchAccounts } from '../../lib/financeService';
 import { BookOpen, Plus, Search, Loader, CheckCircle, Trash2, ChevronLeft, ChevronRight, X, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
@@ -24,6 +25,7 @@ const EMPTY_LINE = { account_id: '', account_name: '', debit: '', credit: '', de
 const EMPTY_FORM = {
   transaction_date: new Date().toISOString().split('T')[0],
   description: '', reference: '',
+  source_type: '', source_id: '',
   lines: [{ ...EMPTY_LINE }, { ...EMPTY_LINE }],
 };
 
@@ -51,6 +53,10 @@ export default function JournalEntries() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [accounts, setAccounts] = useState([]);
+  // Wave F2.7d: source picker state
+  const [sourceOptions, setSourceOptions] = useState([]);
+  const [sourceSearch, setSourceSearch] = useState('');
+  const [sourceLabel, setSourceLabel] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -75,6 +81,41 @@ export default function JournalEntries() {
   }, [statusFilter, page]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Wave F2.7d: load source options when source_type changes
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSources() {
+      if (!form.source_type) { setSourceOptions([]); return; }
+      const cfg = {
+        invoice: { tbl: 'finance_invoices', cols: 'id, invoice_number, customer_name', order: 'invoice_date' },
+        payment: { tbl: 'finance_payments', cols: 'id, payment_number, customer_name', order: 'payment_date' },
+        expense: { tbl: 'finance_expenses', cols: 'id, description, vendor_name', order: 'expense_date' },
+        bill:    { tbl: 'finance_bills',    cols: 'id, bill_number, vendor_name',   order: 'bill_date' },
+      }[form.source_type];
+      if (!cfg) { setSourceOptions([]); return; }
+      const { data, error } = await supabase.from(cfg.tbl)
+        .select(cfg.cols).order(cfg.order, { ascending: false }).limit(100);
+      if (cancelled) return;
+      if (!error) setSourceOptions(data || []);
+    }
+    loadSources();
+    return () => { cancelled = true; };
+  }, [form.source_type]);
+
+  function sourceLabelFor(opt) {
+    if (!opt) return '';
+    if (form.source_type === 'invoice') return `${opt.invoice_number || opt.id.slice(0,8)} - ${opt.customer_name || ''}`;
+    if (form.source_type === 'payment') return `${opt.payment_number || opt.id.slice(0,8)} - ${opt.customer_name || ''}`;
+    if (form.source_type === 'expense') return `${opt.description || 'Expense'} - ${opt.vendor_name || ''}`;
+    if (form.source_type === 'bill')    return `${opt.bill_number || opt.id.slice(0,8)} - ${opt.vendor_name || ''}`;
+    return opt.id?.slice(0,8) || '';
+  }
+  const filteredSources = sourceOptions.filter(o => {
+    if (!sourceSearch) return true;
+    const q = sourceSearch.toLowerCase();
+    return sourceLabelFor(o).toLowerCase().includes(q);
+  }).slice(0, 8);
 
   function updateLine(idx, field, value) {
     const lines = [...form.lines];
@@ -112,6 +153,7 @@ export default function JournalEntries() {
       setCount(c => c + 1);
       setCreateOpen(false);
       setForm(EMPTY_FORM);
+      setSourceLabel(''); setSourceSearch('');
       toast.success('Journal entry created');
     } catch {
       toast.error('Failed to create journal entry');
@@ -288,6 +330,43 @@ export default function JournalEntries() {
                 <Label className="text-gray-300 text-xs">Reference</Label>
                 <Input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })}
                   className="bg-navy-800 border-navy-700 text-white mt-1" placeholder="Check #, invoice #, etc." />
+              </div>
+            </div>
+            {/* Wave F2.7d: Source picker (cross-link the entry to a source document) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-gray-300 text-xs">Source Type</Label>
+                <select value={form.source_type}
+                  onChange={e => { setForm({ ...form, source_type: e.target.value, source_id: '' }); setSourceLabel(''); setSourceSearch(''); }}
+                  className="w-full bg-navy-800 border border-navy-700 text-white rounded px-2 py-1.5 text-sm mt-1">
+                  <option value="">(none)</option>
+                  <option value="invoice">Invoice</option>
+                  <option value="payment">Payment</option>
+                  <option value="expense">Expense</option>
+                  <option value="bill">Bill</option>
+                </select>
+              </div>
+              <div className="relative">
+                <Label className="text-gray-300 text-xs">Source (cross-link)</Label>
+                <Input
+                  value={sourceSearch || sourceLabel}
+                  disabled={!form.source_type}
+                  onChange={e => { setSourceSearch(e.target.value); if (form.source_id) { setForm(prev => ({ ...prev, source_id: '' })); setSourceLabel(''); } }}
+                  placeholder={form.source_type ? `Search ${form.source_type}s...` : 'Pick a Source Type first'}
+                  className="bg-navy-800 border-navy-700 text-white mt-1"
+                  autoComplete="off"
+                />
+                {form.source_type && !form.source_id && sourceSearch && filteredSources.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full bg-navy-800 border border-navy-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                    {filteredSources.map(opt => (
+                      <button key={opt.id} type="button"
+                        onClick={() => { const lbl = sourceLabelFor(opt); setForm(prev => ({ ...prev, source_id: opt.id })); setSourceLabel(lbl); setSourceSearch(''); }}
+                        className="w-full text-left px-3 py-2 hover:bg-navy-700/60 text-sm text-white border-b border-navy-700/40 last:border-b-0">
+                        {sourceLabelFor(opt)}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div>
