@@ -203,6 +203,7 @@ import OpsProjects from './pages/customer/ops/OpsProjects'
 import CrmLayout from './components/crm/CrmLayout'
 import CrmDashboard from './pages/crm/CrmDashboard'
 import CrmSales from './pages/crm/CrmSales'
+import CrmEstimateDocument from './pages/crm/EstimateDocument'
 import CrmOperations from './pages/crm/CrmOperations'
 import OperationsDashboard from './pages/crm/operations/OperationsDashboard'
 import OperationsInventory from './pages/crm/operations/OperationsInventory'
@@ -583,6 +584,7 @@ export default function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<CrmDashboard />} />
             <Route path="sales" element={<CrmSales />} />
+            <Route path="estimate/:estimateId" element={<CrmEstimateDocument />} />
             <Route path="operations" element={<CrmOperations />}>
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<OperationsDashboard />} />
