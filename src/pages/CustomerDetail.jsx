@@ -479,6 +479,189 @@ function InvoicesTab({ invoices }) {
   )
 }
 
+
+// ─── Finance Tab (Wave F2.5) ──────────────────────────────────────────────────
+// Pulls finance_invoices + finance_payments rows scoped to this customer_id.
+// Separate from the legacy InvoicesTab above (which reads /invoices joined by project_id).
+function FinanceTab({ customerId }) {
+  const [loading, setLoading] = useState(true)
+  const [finInvoices, setFinInvoices] = useState([])
+  const [finPayments, setFinPayments] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      const [invRes, payRes] = await Promise.all([
+        supabase.from('finance_invoices')
+          .select('id, invoice_number, total_amount, balance_due, amount_paid, status, due_date, invoice_date, created_at')
+          .eq('customer_id', customerId)
+          .order('invoice_date', { ascending: false }),
+        supabase.from('finance_payments')
+          .select('id, payment_number, amount, payment_method, payment_date, invoice_id, created_at')
+          .eq('customer_id', customerId)
+          .order('payment_date', { ascending: false })
+          .limit(20),
+      ])
+      if (cancelled) return
+      setFinInvoices(invRes.data || [])
+      setFinPayments(payRes.data || [])
+      setLoading(false)
+    }
+    if (customerId) load()
+    return () => { cancelled = true }
+  }, [customerId])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-gray-500">
+        <div className="animate-spin rounded-full h-6 w-6 border-2 border-brand-blue border-t-transparent" />
+        <span className="ml-3 text-sm">Loading finance...</span>
+      </div>
+    )
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  const totalInvoiced = finInvoices.reduce((s, i) => s + Number(i.total_amount || 0), 0)
+  const totalCollected = finInvoices.reduce((s, i) => s + Number(i.amount_paid || 0), 0)
+  const outstanding = finInvoices.reduce((s, i) => s + Number(i.balance_due || 0), 0)
+  const overdueCount = finInvoices.filter(i =>
+    Number(i.balance_due || 0) > 0 && i.due_date && i.due_date < today && i.status !== 'paid' && i.status !== 'voided'
+  ).length
+
+  const FIN_STATUS_COLORS = {
+    draft: 'bg-gray-500/20 text-gray-400',
+    approved: 'bg-blue-500/20 text-blue-400',
+    posted: 'bg-brand-blue/20 text-brand-blue',
+    partial: 'bg-yellow-500/20 text-yellow-400',
+    paid: 'bg-emerald-500/20 text-emerald-400',
+    overdue: 'bg-red-500/20 text-red-400',
+    voided: 'bg-gray-500/20 text-gray-500',
+  }
+
+  if (finInvoices.length === 0 && finPayments.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+          <svg className="w-10 h-10 mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-sm">No finance records yet</p>
+          <p className="text-xs text-gray-600 mt-1">
+            Create one from <Link to="/admin/finance/invoices" className="text-brand-blue hover:underline">Finance &rarr; Invoices</Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Rollup stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-navy-900/40 border border-navy-700/30 rounded-xl p-3">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">Total Invoiced</p>
+          <p className="text-xl font-bold text-white mt-1">{formatCurrency(totalInvoiced)}</p>
+        </div>
+        <div className="bg-navy-900/40 border border-navy-700/30 rounded-xl p-3">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">Collected</p>
+          <p className="text-xl font-bold text-emerald-400 mt-1">{formatCurrency(totalCollected)}</p>
+        </div>
+        <div className="bg-navy-900/40 border border-navy-700/30 rounded-xl p-3">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">Outstanding</p>
+          <p className="text-xl font-bold text-amber-400 mt-1">{formatCurrency(outstanding)}</p>
+        </div>
+        <div className="bg-navy-900/40 border border-navy-700/30 rounded-xl p-3">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">Overdue</p>
+          <p className={`text-xl font-bold mt-1 ${overdueCount > 0 ? 'text-red-400' : 'text-gray-300'}`}>{overdueCount}</p>
+        </div>
+      </div>
+
+      {/* Finance Invoices */}
+      <div className="bg-navy-900/40 border border-navy-700/30 rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-navy-700/30 bg-navy-900/30">
+          <h3 className="text-sm font-semibold text-white">Finance Invoices ({finInvoices.length})</h3>
+          <Link to="/admin/finance/invoices" className="text-xs text-brand-blue hover:underline">View all in Finance &rarr;</Link>
+        </div>
+        {finInvoices.length === 0 ? (
+          <div className="px-4 py-6 text-sm text-gray-500 italic">No finance invoices for this customer.</div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-navy-700/30">
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider">Invoice</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider">Total</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider">Balance</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider">Due</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-navy-700/20">
+              {finInvoices.map(inv => (
+                <tr key={inv.id} className="hover:bg-navy-700/20 transition-colors">
+                  <td className="px-4 py-2.5 text-sm">
+                    <Link to={`/admin/finance/invoices/${inv.id}`} className="text-brand-blue hover:underline font-medium">
+                      {inv.invoice_number || `INV-${inv.id.slice(0, 8)}`}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2.5 text-sm text-white">{formatCurrency(inv.total_amount)}</td>
+                  <td className="px-4 py-2.5 text-sm">
+                    <span className={Number(inv.balance_due || 0) > 0 ? 'text-amber-300 font-medium' : 'text-gray-500'}>
+                      {formatCurrency(inv.balance_due)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${FIN_STATUS_COLORS[inv.status] || 'bg-gray-500/20 text-gray-400'}`}>
+                      {inv.status || 'draft'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-sm text-gray-400">{formatDate(inv.due_date)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Finance Payments */}
+      <div className="bg-navy-900/40 border border-navy-700/30 rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-navy-700/30 bg-navy-900/30">
+          <h3 className="text-sm font-semibold text-white">Payments Received ({finPayments.length})</h3>
+          <Link to="/admin/finance/payments" className="text-xs text-brand-blue hover:underline">View all in Finance &rarr;</Link>
+        </div>
+        {finPayments.length === 0 ? (
+          <div className="px-4 py-6 text-sm text-gray-500 italic">No payments recorded for this customer.</div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-navy-700/30">
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider">Payment</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider">Amount</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider">Method</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-navy-700/20">
+              {finPayments.map(pay => (
+                <tr key={pay.id} className="hover:bg-navy-700/20 transition-colors">
+                  <td className="px-4 py-2.5 text-sm">
+                    <Link to={`/admin/finance/payments/${pay.id}`} className="text-brand-blue hover:underline font-medium">
+                      {pay.payment_number || `PAY-${pay.id.slice(0, 8)}`}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2.5 text-sm text-emerald-400 font-medium">{formatCurrency(pay.amount)}</td>
+                  <td className="px-4 py-2.5 text-sm text-gray-400 capitalize">{pay.payment_method || '—'}</td>
+                  <td className="px-4 py-2.5 text-sm text-gray-400">{formatDate(pay.payment_date || pay.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Activity Tab ──────────────────────────────────────────────────────────────
 function ActivityTab({ updates }) {
   if (updates.length === 0) {
@@ -2243,6 +2426,7 @@ export default function CustomerDetail() {
     { key: 'messages', label: `Messages (${messages.length})` },
     { key: 'comms', label: `Communications (${conversations.length})` },
     { key: 'invoices', label: `Invoices (${invoices.length})` },
+    { key: 'finance', label: 'Finance Hub' },
     { key: 'activity', label: `Activity (${updates.length})` },
     { key: 'details', label: 'Details' },
     { key: 'edit', label: 'Edit' },
@@ -2360,6 +2544,7 @@ export default function CustomerDetail() {
         {activeTab === 'messages' && <MessagesTab messages={messages} />}
         {activeTab === 'comms' && <CommunicationsTab conversations={conversations} customerId={id} />}
         {activeTab === 'invoices' && <InvoicesTab invoices={invoices} />}
+        {activeTab === 'finance' && <FinanceTab customerId={id} />}
         {activeTab === 'activity' && <ActivityTab updates={updates} />}
         {activeTab === 'edit' && (
           <EditTab
