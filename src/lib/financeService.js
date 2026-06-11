@@ -546,7 +546,7 @@ export async function fetchRecentFinanceActivity(limit = 8) {
       .select('id, payment_number, customer_name, amount, invoice_id, created_at')
       .order('created_at', { ascending: false }).limit(limit),
     supabase.from('finance_expenses')
-      .select('id, expense_number, description, amount, created_at')
+      .select('id, description, vendor_name, amount, created_at')
       .order('created_at', { ascending: false }).limit(limit),
   ]);
   if (invRes.error) handleError(invRes.error, 'fetchRecentFinanceActivity.invoices');
@@ -565,7 +565,7 @@ export async function fetchRecentFinanceActivity(limit = 8) {
       to: `/admin/finance/payments/${r.id}`,
     })),
     ...(expRes.data || []).map(r => ({
-      kind: 'expense', id: r.id, number: r.expense_number, label: r.description || 'Expense',
+      kind: 'expense', id: r.id, number: r.description || 'Expense', label: r.vendor_name || 'expense',
       amount: r.amount, status: 'logged', ts: r.created_at,
       to: `/admin/finance/expenses`,
     })),
