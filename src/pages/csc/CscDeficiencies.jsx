@@ -47,64 +47,64 @@ export default function CscDeficiencies() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Open</div>
+        <div className="rounded-lg border border-navy-700/50 bg-navy-800 p-4">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Open</div>
           <div className="text-2xl font-heading text-amber-300 mt-1">{stats.open}</div>
         </div>
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">In Pipeline (quoted)</div>
+        <div className="rounded-lg border border-navy-700/50 bg-navy-800 p-4">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">In Pipeline (quoted)</div>
           <div className="text-2xl font-heading text-blue-300 mt-1">{stats.quoted}</div>
-          <div className="text-xs text-white/40 mt-1">{fmtMoney(stats.pipelineValue)}</div>
+          <div className="text-xs text-gray-500 mt-1">{fmtMoney(stats.pipelineValue)}</div>
         </div>
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Approved</div>
+        <div className="rounded-lg border border-navy-700/50 bg-navy-800 p-4">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Approved</div>
           <div className="text-2xl font-heading text-emerald-300 mt-1">{stats.approved}</div>
-          <div className="text-xs text-white/40 mt-1">{fmtMoney(stats.wonValue)} won</div>
+          <div className="text-xs text-gray-500 mt-1">{fmtMoney(stats.wonValue)} won</div>
         </div>
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Declined value</div>
-          <div className="text-2xl font-heading text-zinc-400 mt-1">{fmtMoney(stats.lostValue)}</div>
-          <div className="text-xs text-white/40 mt-1">documented for liability</div>
+        <div className="rounded-lg border border-navy-700/50 bg-navy-800 p-4">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Declined value</div>
+          <div className="text-2xl font-heading text-gray-400 mt-1">{fmtMoney(stats.lostValue)}</div>
+          <div className="text-xs text-gray-500 mt-1">documented for liability</div>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/40 focus:outline-none focus:border-orange-400/50 w-72" />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm">
+        <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} className="px-3 py-2 bg-navy-800 border border-navy-700/50 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-brand-cyan/40 w-72" />
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-navy-800 border border-navy-700/50 rounded-lg text-white text-sm">
           <option value="all">All statuses</option><option value="open">Open</option><option value="quoted">Quoted</option><option value="approved">Approved</option><option value="declined">Declined</option><option value="completed">Completed</option><option value="expired">Expired</option>
         </select>
-        <select value={severityFilter} onChange={e => setSeverityFilter(e.target.value)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm">
+        <select value={severityFilter} onChange={e => setSeverityFilter(e.target.value)} className="px-3 py-2 bg-navy-800 border border-navy-700/50 rounded-lg text-white text-sm">
           <option value="all">All severities</option><option value="critical">Critical</option><option value="major">Major</option><option value="minor">Minor</option><option value="observation">Observation</option>
         </select>
-        <div className="ml-auto text-xs text-white/50">{filtered.length} of {items.length}</div>
+        <div className="ml-auto text-xs text-gray-400">{filtered.length} of {items.length}</div>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+      <div className="rounded-xl border border-navy-700/50 bg-navy-800 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-white/5 text-xs uppercase tracking-wider text-white/40">
+          <thead className="bg-navy-800 text-xs uppercase tracking-wider text-gray-500">
             <tr><th className="text-left px-5 py-3 font-semibold">Deficiency</th><th className="text-left px-3 py-3 font-semibold">Account</th><th className="text-left px-3 py-3 font-semibold">Severity</th><th className="text-left px-3 py-3 font-semibold">NFPA</th><th className="text-left px-3 py-3 font-semibold">Status</th><th className="text-left px-3 py-3 font-semibold">Logged</th><th className="text-right px-5 py-3 font-semibold">Quote</th></tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
-            {loading && <tr><td colSpan="7" className="px-5 py-6 text-white/40">Loading…</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan="7" className="px-5 py-6 text-white/40">No deficiencies match.</td></tr>}
+          <tbody className="divide-y divide-navy-700/50">
+            {loading && <tr><td colSpan="7" className="px-5 py-6 text-gray-500">Loading…</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan="7" className="px-5 py-6 text-gray-500">No deficiencies match.</td></tr>}
             {filtered.map(d => (
-              <tr key={d.id} className="hover:bg-white/5">
+              <tr key={d.id} className="hover:bg-navy-800">
                 <td className="px-5 py-3 max-w-md">
                   <div className="text-white truncate">{d.title}</div>
-                  {d.description && <div className="text-xs text-white/40 truncate">{d.description}</div>}
+                  {d.description && <div className="text-xs text-gray-500 truncate">{d.description}</div>}
                 </td>
                 <td className="px-3 py-3">
-                  <div className="text-white/80">{d.restaurant?.name || '—'}</div>
-                  <div className="text-xs text-white/40">{d.restaurant?.city}, {d.restaurant?.state}</div>
+                  <div className="text-gray-200">{d.restaurant?.name || '—'}</div>
+                  <div className="text-xs text-gray-500">{d.restaurant?.city}, {d.restaurant?.state}</div>
                 </td>
                 <td className="px-3 py-3"><Pill tone={SEVERITY_TONES[d.severity]}>{d.severity}</Pill></td>
-                <td className="px-3 py-3 text-xs text-white/60">{d.nfpa_code_ref || '—'}</td>
+                <td className="px-3 py-3 text-xs text-gray-400">{d.nfpa_code_ref || '—'}</td>
                 <td className="px-3 py-3">
                   <Pill tone={QUOTE_STATUS_TONES[d.quote_status]}>{d.quote_status}</Pill>
-                  {d.approved_by_name && <div className="text-[11px] text-white/40 mt-1">by {d.approved_by_name}</div>}
+                  {d.approved_by_name && <div className="text-[11px] text-gray-500 mt-1">by {d.approved_by_name}</div>}
                 </td>
-                <td className="px-3 py-3 text-xs text-white/60">{fmtDate(d.created_at)}</td>
-                <td className="px-5 py-3 text-right text-white/80">{fmtMoney(d.quote_amount)}</td>
+                <td className="px-3 py-3 text-xs text-gray-400">{fmtDate(d.created_at)}</td>
+                <td className="px-5 py-3 text-right text-gray-200">{fmtMoney(d.quote_amount)}</td>
               </tr>
             ))}
           </tbody>
