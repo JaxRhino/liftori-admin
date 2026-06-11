@@ -520,3 +520,56 @@ export async function fetchPayment(id) {
   if (error) handleError(error, 'fetchPayment');
   return data;
 }
+
+// ── DASHBOARD WIDGET FETCHERS (Wave F2.4) ────────────────────
+export async function fetchTopOverdueInvoices(limit = 5) {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase.from('finance_invoices')
+    .select('id, invoice_number, customer_name, total_amount, balance_due, due_date, status')
+    .not('status', 'in', '(paid,voided)')
+    .gt('balance_due', 0)
+    .lt('due_date', today)
+    .order('due_date', { ascending: true })
+    .limit(limit);
+  if (error) handleError(error, 'fetchTopOverdueInvoices');
+  return data || [];
+}
+
+export async function fetchRecentFinanceActivity(limit = 8) {
+  // Pull recent rows from invoices + payments + expenses, merge by created_at,
+  // return a unified feed for the dashboard's Recent Activity widget.
+  const [invRes, payRes, expRes] = await Promise.all([
+    supabase.from('finance_invoices')
+      .select('id, invoice_number, customer_name, total_amount, status, created_at')
+      .order('created_at', { ascending: false }).limit(limit),
+    supabase.from('finance_payments')
+      .select('id, payment_number, customer_name, amount, invoice_id, created_at')
+      .order('created_at', { ascending: false }).limit(limit),
+    supabase.from('finance_expenses')
+      .select('id, expense_number, description, amount, created_at')
+      .order('created_at', { ascending: false }).limit(limit),
+  ]);
+  if (invRes.error) handleError(invRes.error, 'fetchRecentFinanceActivity.invoices');
+  if (payRes.error) handleError(payRes.error, 'fetchRecentFinanceActivity.payments');
+  if (expRes.error) handleError(expRes.error, 'fetchRecentFinanceActivity.expenses');
+
+  const items = [
+    ...(invRes.data || []).map(r => ({
+      kind: 'invoice', id: r.id, number: r.invoice_number, label: r.customer_name || 'Unknown',
+      amount: r.total_amount, status: r.status, ts: r.created_at,
+      to: `/admin/finance/invoices/${r.id}`,
+    })),
+    ...(payRes.data || []).map(r => ({
+      kind: 'payment', id: r.id, number: r.payment_number, label: r.customer_name || 'Customer',
+      amount: r.amount, status: 'recorded', ts: r.created_at,
+      to: `/admin/finance/payments/${r.id}`,
+    })),
+    ...(expRes.data || []).map(r => ({
+      kind: 'expense', id: r.id, number: r.expense_number, label: r.description || 'Expense',
+      amount: r.amount, status: 'logged', ts: r.created_at,
+      to: `/admin/finance/expenses`,
+    })),
+  ];
+  items.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+  return items.slice(0, limit);
+}

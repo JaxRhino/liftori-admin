@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { fetchFinanceSummary } from '../../lib/financeService';
+import { fetchFinanceSummary, fetchTopOverdueInvoices, fetchRecentFinanceActivity } from '../../lib/financeService';
 import {
   DollarSign, FileText, CreditCard, TrendingUp, TrendingDown,
-  AlertTriangle, Clock, ArrowRight, Loader, RefreshCw,
+  AlertTriangle, Clock, ArrowRight, Loader, RefreshCw, Activity, Receipt,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,6 +43,8 @@ function StatCard({ icon: Icon, label, value, sub, color = 'blue', onClick }) {
 export default function FinanceDashboard() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
+  const [topOverdue, setTopOverdue] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -50,7 +52,14 @@ export default function FinanceDashboard() {
     try {
       if (refresh) setRefreshing(true);
       else setLoading(true);
-      setSummary(await fetchFinanceSummary());
+      const [sum, overdue, activity] = await Promise.all([
+        fetchFinanceSummary(),
+        fetchTopOverdueInvoices(5),
+        fetchRecentFinanceActivity(8),
+      ]);
+      setSummary(sum);
+      setTopOverdue(overdue);
+      setRecentActivity(activity);
     } catch {
       toast.error('Failed to load finance summary');
     } finally {
@@ -98,7 +107,7 @@ export default function FinanceDashboard() {
             icon={DollarSign} label="Accounts Receivable" value={fmt(ar.total)}
             sub={ar.overdue > 0 ? `${fmt(ar.overdue)} overdue` : 'All current'}
             color={ar.overdue > 0 ? 'red' : 'green'}
-            onClick={() => navigate('/admin/finance/invoices')}
+            onClick={() => navigate(ar.overdue > 0 ? '/admin/finance/invoices?status=overdue' : '/admin/finance/invoices')}
           />
           <StatCard
             icon={TrendingUp} label="Revenue MTD" value={fmt(rev.mtd)}
@@ -112,6 +121,7 @@ export default function FinanceDashboard() {
           <StatCard
             icon={CreditCard} label="Accounts Payable" value={fmt(ap.total)}
             sub="Outstanding bills" color="purple"
+            onClick={() => navigate('/admin/finance/bills')}
           />
         </div>
 
@@ -165,6 +175,89 @@ export default function FinanceDashboard() {
                 </button>
               ))}
             </div>
+          </Card>
+        </div>
+
+
+        {/* Top Overdue + Recent Activity row (Wave F2.4) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <Card className="bg-navy-800 border-navy-700 p-6 col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                Top Overdue Invoices
+              </h2>
+              {topOverdue.length > 0 && (
+                <Link to="/admin/finance/invoices?status=overdue" className="text-xs text-brand-blue hover:underline">
+                  View all
+                </Link>
+              )}
+            </div>
+            {topOverdue.length === 0 ? (
+              <div className="text-sm text-gray-500 italic py-4">No overdue invoices. Nice.</div>
+            ) : (
+              <div className="space-y-1">
+                {topOverdue.map(inv => {
+                  const days = Math.floor((Date.now() - new Date(inv.due_date).getTime()) / 86400000);
+                  return (
+                    <Link
+                      key={inv.id}
+                      to={`/admin/finance/invoices/${inv.id}`}
+                      className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-700/50 transition-colors group"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-white group-hover:text-brand-blue truncate flex items-center gap-2">
+                          {inv.invoice_number || '—'}
+                          <span className="text-xs text-gray-500">·</span>
+                          <span className="text-xs text-gray-400 truncate">{inv.customer_name || '—'}</span>
+                        </div>
+                        <div className="text-xs text-red-400 mt-0.5">
+                          {days > 0 ? `${days} day${days === 1 ? '' : 's'} overdue` : 'Due today'}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-bold text-amber-300">{fmt(inv.balance_due)}</div>
+                        <div className="text-[10px] text-gray-500 uppercase tracking-wider">balance</div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-brand-blue shrink-0" />
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
+          <Card className="bg-navy-800 border-navy-700 p-6">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-brand-blue" />
+              Recent Activity
+            </h2>
+            {recentActivity.length === 0 ? (
+              <div className="text-sm text-gray-500 italic py-4">Nothing recent.</div>
+            ) : (
+              <div className="space-y-1">
+                {recentActivity.map(item => {
+                  const Icon = item.kind === 'invoice' ? FileText : item.kind === 'payment' ? CreditCard : Receipt;
+                  const accent = item.kind === 'invoice' ? 'text-brand-blue' : item.kind === 'payment' ? 'text-emerald-400' : 'text-yellow-400';
+                  return (
+                    <Link
+                      key={`${item.kind}-${item.id}`}
+                      to={item.to}
+                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-navy-700/50 transition-colors group"
+                    >
+                      <Icon className={`w-3.5 h-3.5 shrink-0 ${accent}`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-medium text-white group-hover:text-brand-blue truncate">
+                          {item.number || item.label}
+                        </div>
+                        <div className="text-[10px] text-gray-500 truncate">{item.kind} · {item.label}</div>
+                      </div>
+                      <div className="text-xs font-semibold text-gray-300 shrink-0">{fmt(item.amount)}</div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </Card>
         </div>
 

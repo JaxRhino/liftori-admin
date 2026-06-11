@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -44,7 +44,8 @@ export default function InvoicesList() {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [editInvoice, setEditInvoice] = useState(null);

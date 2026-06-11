@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { fetchBills, createBill, updateBill, recordBillPayment } from '../../lib/financeService';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -27,7 +28,8 @@ export default function BillsList() {
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
   const [createOpen, setCreateOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
