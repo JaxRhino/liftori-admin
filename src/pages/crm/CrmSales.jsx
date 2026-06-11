@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { HubPage, StatCard, Section, EmptyState, useCrmClient } from './_shared'
 import CustomerPhotos from '../../components/crm/CustomerPhotos'
+import { themeOptions } from '../../lib/estimateThemes'
 
 // ---------- formatters ----------
 const fmtCents = (c) =>
@@ -1165,6 +1166,36 @@ function NewEstimateModal({ open, onClose, client, contacts, onSaved }) {
     }
   }, [open])
 
+  const [templates, setTemplates] = useState([])
+  const [photos, setPhotos] = useState([])
+  const [extra, setExtra] = useState({ template_id: '', theme_key: 'classic', show_photos: true, photo_ids: [], terms: '' })
+
+  useEffect(() => {
+    if (!open) return
+    setExtra({ template_id: '', theme_key: 'classic', show_photos: true, photo_ids: [], terms: '' })
+    client.from('estimate_templates').select('*').eq('is_active', true).order('name').then(({ data }) => setTemplates(data || []))
+  }, [open])
+
+  useEffect(() => {
+    if (!open || !form.contact_id) { setPhotos([]); return }
+    client.from('customer_photos').select('*').eq('contact_id', form.contact_id).order('created_at', { ascending: false }).then(({ data }) => setPhotos(data || []))
+  }, [open, form.contact_id])
+
+  async function applyTemplate(tid) {
+    setExtra((x) => ({ ...x, template_id: tid }))
+    if (!tid) return
+    const tpl = templates.find((t) => t.id === tid)
+    const { data: its } = await client.from('estimate_template_items').select('*').eq('template_id', tid).order('step_order')
+    if (its && its.length) {
+      setLineItems(its.map((it) => ({ description: it.name, qty: Number(it.quantity) || 1, unit_price: Number(it.unit_price) || 0, unit: it.unit || '', group_name: it.group_name || null, is_optional: !!it.is_optional })))
+    }
+    if (tpl) setExtra((x) => ({ ...x, template_id: tid, theme_key: tpl.theme_key || 'classic', show_photos: tpl.show_photos !== false, terms: tpl.default_terms || '' }))
+  }
+
+  function togglePhoto(id) {
+    setExtra((x) => ({ ...x, photo_ids: x.photo_ids.includes(id) ? x.photo_ids.filter((p) => p !== id) : [...x.photo_ids, id] }))
+  }
+
   function updateItem(i, k, v) {
     const next = lineItems.slice()
     next[i] = { ...next[i], [k]: v }
@@ -1189,6 +1220,10 @@ function NewEstimateModal({ open, onClose, client, contacts, onSaved }) {
         contact_id: form.contact_id || null,
         title: form.title || null,
         line_items: lineItems,
+        theme_key: extra.theme_key,
+        show_photos: extra.show_photos,
+        photo_ids: extra.photo_ids,
+        terms: extra.terms || null,
         subtotal,
         tax_rate: Number(form.tax_rate) || 0,
         tax_amount: taxAmount,
@@ -1251,6 +1286,42 @@ function NewEstimateModal({ open, onClose, client, contacts, onSaved }) {
           onChange={(v) => setForm({ ...form, status: v })}
           options={ESTIMATE_STATUSES.map((s) => ({ value: s, label: s }))}
         />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs uppercase tracking-wider text-gray-400">Start from template</label>
+          <select value={extra.template_id} onChange={(e) => applyTemplate(e.target.value)} className="w-full mt-1 bg-navy-900 border border-navy-700/60 rounded-lg px-3 py-2 text-sm text-white">
+            <option value="">None &mdash; blank estimate</option>
+            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs uppercase tracking-wider text-gray-400">Theme</label>
+          <select value={extra.theme_key} onChange={(e) => setExtra((x) => ({ ...x, theme_key: e.target.value }))} className="w-full mt-1 bg-navy-900 border border-navy-700/60 rounded-lg px-3 py-2 text-sm text-white">
+            {themeOptions().map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+        </div>
+      </div>
+      {photos.length ? (
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs uppercase tracking-wider text-gray-400">Photos ({extra.photo_ids.length} selected)</label>
+            <label className="text-xs text-gray-300 flex items-center gap-1"><input type="checkbox" checked={extra.show_photos} onChange={(e) => setExtra((x) => ({ ...x, show_photos: e.target.checked }))} /> Show on estimate</label>
+          </div>
+          <div className="max-h-32 overflow-auto space-y-1 border border-navy-700/50 rounded-lg p-2">
+            {photos.map((p) => (
+              <label key={p.id} className="flex items-center gap-2 text-sm text-gray-300">
+                <input type="checkbox" checked={extra.photo_ids.includes(p.id)} onChange={() => togglePhoto(p.id)} />
+                <span>{p.caption || p.category || 'Photo'}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      <div className="mt-3">
+        <label className="text-xs uppercase tracking-wider text-gray-400">Terms &amp; Conditions</label>
+        <textarea value={extra.terms} onChange={(e) => setExtra((x) => ({ ...x, terms: e.target.value }))} rows={3} placeholder="Payment terms, warranty, etc." className="w-full mt-1 bg-navy-900 border border-navy-700/60 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
       </div>
 
       <div className="mt-3 mb-2 flex items-center justify-between">
