@@ -586,7 +586,7 @@ export default function App() {
             <Route path="sales" element={<CrmSales />} />
             <Route path="overview" element={<CscOverview />} />
             <Route path="jobs" element={<CscJobs />} />
-            <Route path="jobs/:jobId" element={<CscJobDetail />} />
+            <Route path="jobs/:id" element={<CscJobDetail />} />
             <Route path="deficiencies" element={<CscDeficiencies />} />
             <Route path="certificates" element={<CscCertificates />} />
             <Route path="stickers" element={<CscStickers />} />
