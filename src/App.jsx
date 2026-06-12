@@ -202,14 +202,12 @@ import OpsProjects from './pages/customer/ops/OpsProjects'
 // LABOS â€” Liftori AI Business Operating System (per-client backend)
 import CrmLayout from './components/crm/CrmLayout'
 import CrmDashboard from './pages/crm/CrmDashboard'
-import CrmSales from './pages/crm/CrmSales'
 import CrmPipeline from './pages/crm/CrmPipeline'
 import CrmOpsPipeline from './pages/crm/CrmOpsPipeline'
 import CrmCustomers from './pages/crm/CrmCustomers'
 import CrmCustomerDetail from './pages/crm/CrmCustomerDetail'
 import CrmEstimateDetail from './pages/crm/CrmEstimateDetail'
 import CrmCallCenter from './pages/crm/CrmCallCenter'
-import CrmEstimateDocument from './pages/crm/EstimateDocument'
 import CrmOperations from './pages/crm/CrmOperations'
 import OperationsDashboard from './pages/crm/operations/OperationsDashboard'
 import OperationsInventory from './pages/crm/operations/OperationsInventory'
@@ -605,7 +603,6 @@ export default function App() {
             <Route path="customers/:id" element={<CrmCustomerDetail />} />
             <Route path="estimates/:id" element={<CrmEstimateDetail />} />
             <Route path="invoices" element={<CscInvoices />} />
-            <Route path="estimate/:estimateId" element={<CrmEstimateDocument />} />
             <Route path="operations" element={<CrmOperations />}>
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<OperationsDashboard />} />
