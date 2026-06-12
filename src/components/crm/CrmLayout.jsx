@@ -5,7 +5,7 @@
 // =====================================================================
 
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Bug, ExternalLink, Globe } from 'lucide-react'
 import { CrmProvider, useCrm } from '../../contexts/CrmContext'
 import BugReportModal from './BugReportModal'
@@ -23,7 +23,25 @@ const HUB_DEFS = [
   { key:'communications', label:'Communications', path:'communications', icon: CommsIcon },
   { key:'chat',           label:'Chat',           path:'chat',           icon: ChatIcon },
   { key:'eos',            label:'EOS',            path:'eos',            icon: EOSIcon },
+  { key:'notifications',  label:'Notifications',  path:'notifications',  icon: NotificationsIcon },
 ]
+
+// Hubs that expand into a dropdown of sub-pages. Sub-page paths must match
+// the child routes mounted under /crm/:platformId in App.jsx.
+const HUB_CHILDREN = {
+  sales: [
+    { label: 'Customers', path: 'customers' },
+    { label: 'Pipeline',  path: 'pipeline' },
+  ],
+  operations: [
+    { label: 'Dashboard',    path: 'operations/dashboard' },
+    { label: 'Work Orders',  path: 'operations/work-orders' },
+    { label: 'Schedule',     path: 'operations/schedule' },
+    { label: 'Crews',        path: 'operations/crews' },
+    { label: 'Inventory',    path: 'operations/inventory' },
+    { label: 'Measurements', path: 'operations/measurements' },
+  ],
+}
 
 export default function CrmLayout() {
   return (
@@ -36,7 +54,9 @@ export default function CrmLayout() {
 function LabosShell() {
   const { platform, orgSettings, enabledHubs, loading, error, platformId } = useCrm()
   const navigate = useNavigate()
+  const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [openGroups, setOpenGroups] = useState({})
 
   if (loading) {
     return (
@@ -65,42 +85,20 @@ function LabosShell() {
   // are layered on as we build them. If a tenant's labos_hubs match NONE
   // of the base hubs (misconfigured / industry-only keys), fall back to
   // the full base CRM so we never render a bare sidebar.
+  const CSC_HUB_DEFS = [
+    { key: 'overview', label: 'Overview', path: 'overview', icon: DashboardIcon },
+    { key: 'jobs', label: 'Jobs', path: 'jobs', icon: OpsIcon },
+    { key: 'deficiencies', label: 'Deficiencies', path: 'deficiencies', icon: NotificationsIcon },
+    { key: 'certificates', label: 'Certificates', path: 'certificates', icon: NotesIcon },
+    { key: 'stickers', label: 'Stickers', path: 'stickers', icon: TasksIcon },
+    { key: 'ahj', label: 'AHJ Map', path: 'ahj', icon: CalendarIcon },
+    { key: 'customers', label: 'Customers', path: 'customers', icon: SalesIcon },
+    { key: 'invoices', label: 'Invoices', path: 'invoices', icon: FinanceIcon },
+  ]
   const matchedHubs = HUB_DEFS.filter(h => enabledHubs.includes(h.key))
   const baseHubs = matchedHubs.length > 0 ? matchedHubs : HUB_DEFS
-  // KEC (hood-cleaning) tenants get a curated, grouped nav: a single CSC
-  // dashboard, a Sales group, and an Operations group holding the field
-  // workflow tabs. The remaining base hubs stay flat below.
-  const KEC_NAV = [
-    { type: 'link', key: 'dashboard', label: 'Dashboard', path: 'overview', icon: DashboardIcon },
-    { type: 'group', key: 'sales', label: 'Sales', icon: SalesIcon, children: [
-      { key: 'customers', label: 'Customers', path: 'customers' },
-    ] },
-    { type: 'group', key: 'operations', label: 'Operations', icon: OpsIcon, children: [
-      { key: 'ops-dashboard', label: 'Operations Dashboard', path: 'operations-dashboard' },
-      { key: 'jobs', label: 'Jobs', path: 'jobs' },
-      { key: 'deficiencies', label: 'Deficiencies', path: 'deficiencies' },
-      { key: 'certificates', label: 'Certificates', path: 'certificates' },
-      { key: 'stickers', label: 'Stickers', path: 'stickers' },
-      { key: 'ahj', label: 'AHJ Map', path: 'ahj' },
-      { key: 'invoices', label: 'Invoices', path: 'invoices' },
-    ] },
-  ]
-  // EOS gets the same grouped-dropdown treatment as internal Liftori EOS.
-  const EOS_GROUP = {
-    type: 'group', key: 'eos', label: 'EOS', icon: EOSIcon, children: [
-      { key: 'eos-rocks', label: 'Rocks', path: 'eos/rocks' },
-      { key: 'eos-scorecard', label: 'Scorecard', path: 'eos/scorecard' },
-      { key: 'eos-meetings', label: 'L10 Meetings', path: 'eos/meetings' },
-      { key: 'eos-issues', label: 'Issues (IDS)', path: 'eos/issues' },
-      { key: 'eos-todos', label: 'To-Dos', path: 'eos/todos' },
-      { key: 'eos-vto', label: 'V/TO', path: 'eos/vto' },
-      { key: 'eos-accountability', label: 'Accountability', path: 'eos/accountability' },
-    ],
-  }
-  const toNav = h => h.key === 'eos' ? EOS_GROUP : { type: 'link', ...h }
-  const navItems = platform?.industry === 'kec'
-    ? [...KEC_NAV, ...baseHubs.filter(h => !['dashboard', 'sales', 'operations'].includes(h.key)).map(toNav)]
-    : baseHubs.map(toNav)
+  // KEC (hood-cleaning) industry tenants get the industry hub layer appended.
+  const hubs = platform?.industry === 'kec' ? [...baseHubs, ...CSC_HUB_DEFS] : baseHubs
 
   return (
     <div className="min-h-screen bg-navy-950 flex">
@@ -130,10 +128,69 @@ function LabosShell() {
         </div>
 
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {navItems.map(item => item.type === 'group'
-            ? <NavGroup key={item.key} group={item} platformId={platformId} onNavigate={() => setDrawerOpen(false)} />
-            : <NavLeaf key={item.key} item={item} platformId={platformId} onNavigate={() => setDrawerOpen(false)} />
-          )}
+          {hubs.map(hub => {
+            const Icon = hub.icon
+            const children = HUB_CHILDREN[hub.key]
+            if (children) {
+              const groupActive = children.some(ch => location.pathname.startsWith(`/crm/${platformId}/${ch.path}`)) || location.pathname === `/crm/${platformId}/${hub.path}`
+              const isOpen = openGroups[hub.key] !== undefined ? openGroups[hub.key] : groupActive
+              return (
+                <div key={hub.key}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenGroups(g => ({ ...g, [hub.key]: !(g[hub.key] !== undefined ? g[hub.key] : groupActive) }))}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      groupActive ? 'text-brand-blue' : 'text-gray-400 hover:bg-navy-800 hover:text-white'
+                    }`}
+                  >
+                    {Icon ? <Icon className="w-4 h-4" /> : null}
+                    <span className="flex-1 text-left">{hub.label}</span>
+                    <svg className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {isOpen && (
+                    <div className="mt-1 ml-4 pl-3 border-l border-navy-700/50 space-y-1">
+                      {children.map(ch => (
+                        <NavLink
+                          key={ch.path}
+                          to={`/crm/${platformId}/${ch.path}`}
+                          end
+                          onClick={() => setDrawerOpen(false)}
+                          className={({ isActive }) =>
+                            `block px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                              isActive
+                                ? 'bg-brand-blue/15 text-brand-blue'
+                                : 'text-gray-500 hover:bg-navy-800 hover:text-white'
+                            }`
+                          }
+                        >
+                          {ch.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+            return (
+              <NavLink
+                key={hub.key}
+                to={`/crm/${platformId}/${hub.path}`}
+                onClick={() => setDrawerOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isActive
+                      ? 'bg-brand-blue/15 text-brand-blue'
+                      : 'text-gray-400 hover:bg-navy-800 hover:text-white'
+                  }`
+                }
+              >
+                {Icon ? <Icon className="w-4 h-4" /> : null}
+                <span>{hub.label}</span>
+              </NavLink>
+            )
+          })}
 
           {/* View live website — opens storefront in a new tab */}
           {platform?.site_url && (
@@ -308,55 +365,6 @@ function CrmHeader({ onMenu }) {
 
       {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
     </header>
-  )
-}
-
-function NavLeaf({ item, platformId, onNavigate, nested }) {
-  const Icon = item.icon
-  return (
-    <NavLink
-      to={`/crm/${platformId}/${item.path}`}
-      onClick={onNavigate}
-      className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-          isActive ? 'bg-brand-blue/15 text-brand-blue' : 'text-gray-400 hover:bg-navy-800 hover:text-white'
-        }`
-      }
-    >
-      {Icon && !nested ? <Icon className="w-4 h-4" /> : nested ? <span className="w-1.5 h-1.5 rounded-full bg-current opacity-40" /> : null}
-      <span>{item.label}</span>
-    </NavLink>
-  )
-}
-
-function NavGroup({ group, platformId, onNavigate }) {
-  const location = useLocation()
-  const isChildActive = group.children.some(c =>
-    location.pathname === `/crm/${platformId}/${c.path}` ||
-    location.pathname.startsWith(`/crm/${platformId}/${c.path}/`))
-  const [open, setOpen] = useState(isChildActive)
-  useEffect(() => { if (isChildActive) setOpen(true) }, [isChildActive])
-  const Icon = group.icon
-  return (
-    <div>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-          isChildActive ? 'text-white' : 'text-gray-400 hover:bg-navy-800 hover:text-white'
-        }`}
-      >
-        {Icon ? <Icon className="w-4 h-4" /> : null}
-        <span className="flex-1 text-left">{group.label}</span>
-        <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
-      {open && (
-        <div className="mt-1 ml-3 pl-3 border-l border-navy-700/50 space-y-1">
-          {group.children.map(c => <NavLeaf key={c.key} item={c} platformId={platformId} onNavigate={onNavigate} nested />)}
-        </div>
-      )}
-    </div>
   )
 }
 
