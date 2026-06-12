@@ -42,12 +42,11 @@ const HUB_CHILDREN = {
     { label: 'Measurements', path: 'operations/measurements' },
   ],
   eos: [
-    { label: 'Dashboard', path: 'eos' },
     { label: 'Rocks', path: 'eos/rocks' },
     { label: 'Scorecard', path: 'eos/scorecard' },
     { label: 'Issues', path: 'eos/issues' },
     { label: 'To-Dos', path: 'eos/todos' },
-    { label: 'Vision', path: 'eos/vision' },
+    { label: 'Vision', path: 'eos/vto' },
     { label: 'Level 10', path: 'eos/meetings' },
     { label: 'Accountability', path: 'eos/accountability' },
     { label: 'Headlines', path: 'eos/headlines' },
