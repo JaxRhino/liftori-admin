@@ -7,13 +7,13 @@ const EVENT_COLORS = [
   { value: 'amber',   label: 'Amber',   dot: 'bg-amber-500',   pill: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
   { value: 'red',     label: 'Red',     dot: 'bg-red-500',     pill: 'bg-red-500/20 text-red-300 border-red-500/30' },
   { value: 'violet',  label: 'Violet',  dot: 'bg-violet-500',  pill: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
-  { value: 'slate',   label: 'Gray',    dot: 'bg-slate-400',   pill: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
+  { value: 'slate',   label: 'Gray',    dot: 'bg-gray-400',   pill: 'bg-gray-500/20 text-gray-300 border-gray-500/30' },
 ]
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-const INPUT = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500'
+const INPUT = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500'
 
 function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate()
@@ -73,10 +73,10 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#0D1424] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-navy-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 pt-5 pb-0">
           <h2 className="text-white font-semibold">{event ? 'Edit Event' : 'New Event'}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -87,15 +87,15 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
             placeholder="Event title *" className={INPUT} autoFocus />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="Description (optional)" rows={2}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none" />
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none" />
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Start Date</label>
+              <label className="text-gray-400 text-xs mb-1 block">Start Date</label>
               <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
                 className={INPUT} />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">End Date</label>
+              <label className="text-gray-400 text-xs mb-1 block">End Date</label>
               <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
                 className={INPUT} />
             </div>
@@ -103,24 +103,24 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.all_day} onChange={e => setForm(f => ({ ...f, all_day: e.target.checked }))}
               className="w-4 h-4 rounded accent-blue-500" />
-            <span className="text-sm text-slate-300">All day</span>
+            <span className="text-sm text-gray-300">All day</span>
           </label>
           {!form.all_day && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-slate-400 text-xs mb-1 block">Start Time</label>
+                <label className="text-gray-400 text-xs mb-1 block">Start Time</label>
                 <input type="time" value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))}
                   className={INPUT} />
               </div>
               <div>
-                <label className="text-slate-400 text-xs mb-1 block">End Time</label>
+                <label className="text-gray-400 text-xs mb-1 block">End Time</label>
                 <input type="time" value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))}
                   className={INPUT} />
               </div>
             </div>
           )}
           <div>
-            <label className="text-slate-400 text-xs mb-2 block">Color</label>
+            <label className="text-gray-400 text-xs mb-2 block">Color</label>
             <div className="flex gap-2">
               {EVENT_COLORS.map(c => (
                 <button key={c.value} onClick={() => setForm(f => ({ ...f, color: c.value }))}
@@ -136,7 +136,7 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
               {saving ? 'Saving...' : event ? 'Save Changes' : 'Add Event'}
             </button>
-            <button onClick={onClose} className="text-slate-400 hover:text-white px-4 py-2 text-sm transition-colors">Cancel</button>
+            <button onClick={onClose} className="text-gray-400 hover:text-white px-4 py-2 text-sm transition-colors">Cancel</button>
           </div>
           {event && (
             <button onClick={handleDelete} disabled={deleting}
@@ -270,7 +270,7 @@ export default function Calendar() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Calendar</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Schedule and track events</p>
+          <p className="text-gray-400 text-sm mt-0.5">Schedule and track events</p>
         </div>
         <button onClick={() => openCreate(todayStr)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
@@ -281,11 +281,11 @@ export default function Calendar() {
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-5">
         {/* Calendar */}
         <div className="xl:col-span-3">
-          <div className="bg-[#0D1424] border border-white/10 rounded-2xl overflow-hidden">
+          <div className="bg-navy-900 border border-white/10 rounded-2xl overflow-hidden">
             {/* Month nav */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
               <button onClick={prevMonth}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                 </svg>
@@ -293,12 +293,12 @@ export default function Calendar() {
               <div className="flex items-center gap-3">
                 <h2 className="text-white font-semibold text-lg">{MONTHS[currentMonth]} {currentYear}</h2>
                 <button onClick={goToday}
-                  className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded border border-white/10 hover:border-white/20 transition-colors">
+                  className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded border border-white/10 hover:border-white/20 transition-colors">
                   Today
                 </button>
               </div>
               <button onClick={nextMonth}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
@@ -308,7 +308,7 @@ export default function Calendar() {
             {/* Day headers */}
             <div className="grid grid-cols-7 border-b border-white/10">
               {DAYS.map(d => (
-                <div key={d} className="py-2.5 text-center text-xs font-medium text-slate-500 uppercase tracking-wide">
+                <div key={d} className="py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wide">
                   {d}
                 </div>
               ))}
@@ -316,7 +316,7 @@ export default function Calendar() {
 
             {/* Calendar grid */}
             {loading ? (
-              <div className="py-16 text-center text-slate-400 text-sm">Loading...</div>
+              <div className="py-16 text-center text-gray-400 text-sm">Loading...</div>
             ) : (
               <div className="grid grid-cols-7">
                 {cells.map((day, i) => {
@@ -335,12 +335,12 @@ export default function Calendar() {
                       `}>
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full
-                          ${isToday ? 'bg-blue-600 text-white' : 'text-slate-400 group-hover:text-white'}`}>
+                          ${isToday ? 'bg-blue-600 text-white' : 'text-gray-400 group-hover:text-white'}`}>
                           {day}
                         </span>
                         {dayEvents.length === 0 && (
                           <button onClick={e => { e.stopPropagation(); openCreate(dateStr) }}
-                            className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-slate-400 transition-opacity text-sm leading-none">
+                            className="opacity-0 group-hover:opacity-100 text-navy-600 hover:text-gray-400 transition-opacity text-sm leading-none">
                             +
                           </button>
                         )}
@@ -360,7 +360,7 @@ export default function Calendar() {
                           )
                         })}
                         {dayEvents.length > 3 && (
-                          <div className="text-xs text-slate-500 px-1">+{dayEvents.length - 3} more</div>
+                          <div className="text-xs text-gray-500 px-1">+{dayEvents.length - 3} more</div>
                         )}
                       </div>
                     </div>
@@ -372,7 +372,7 @@ export default function Calendar() {
 
           {/* Selected day events */}
           {selectedDate && selectedDayEvents.length > 0 && (
-            <div className="mt-4 bg-[#0D1424] border border-white/10 rounded-xl p-4">
+            <div className="mt-4 bg-navy-900 border border-white/10 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-white">
                   {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -390,8 +390,8 @@ export default function Calendar() {
                       <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${col.dot}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white">{ev.title}</p>
-                        {ev.description && <p className="text-xs text-slate-400 mt-0.5">{ev.description}</p>}
-                        <p className="text-xs text-slate-500 mt-1">
+                        {ev.description && <p className="text-xs text-gray-400 mt-0.5">{ev.description}</p>}
+                        <p className="text-xs text-gray-500 mt-1">
                           {ev.all_day ? 'All day' : `${formatTime(ev.start_time)}${ev.end_time ? ` â ${formatTime(ev.end_time)}` : ''}`}
                           {ev.end_date && ev.end_date !== ev.start_date && ` Â· until ${new Date(ev.end_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                         </p>
@@ -407,21 +407,21 @@ export default function Calendar() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Month stats */}
-          <div className="bg-[#0D1424] border border-white/10 rounded-xl p-4">
-            <p className="text-xs text-slate-500 uppercase tracking-wide mb-3">This Month</p>
+          <div className="bg-navy-900 border border-white/10 rounded-xl p-4">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">This Month</p>
             <p className="text-3xl font-bold text-white mb-1">{totalThisMonth}</p>
-            <p className="text-xs text-slate-400">{totalThisMonth === 1 ? 'event' : 'events'} scheduled</p>
+            <p className="text-xs text-gray-400">{totalThisMonth === 1 ? 'event' : 'events'} scheduled</p>
           </div>
 
           {/* Color legend */}
-          <div className="bg-[#0D1424] border border-white/10 rounded-xl p-4">
-            <p className="text-xs text-slate-500 uppercase tracking-wide mb-3">Event Colors</p>
+          <div className="bg-navy-900 border border-white/10 rounded-xl p-4">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Event Colors</p>
             <div className="space-y-2">
               {EVENT_COLORS.map(c => (
                 <div key={c.value} className="flex items-center gap-2">
                   <div className={`w-2.5 h-2.5 rounded-full ${c.dot}`} />
-                  <span className="text-xs text-slate-400">{c.label}</span>
-                  <span className="text-xs text-slate-600 ml-auto">
+                  <span className="text-xs text-gray-400">{c.label}</span>
+                  <span className="text-xs text-navy-600 ml-auto">
                     {events.filter(e => e.color === c.value).length}
                   </span>
                 </div>
@@ -430,10 +430,10 @@ export default function Calendar() {
           </div>
 
           {/* Upcoming events */}
-          <div className="bg-[#0D1424] border border-white/10 rounded-xl p-4">
-            <p className="text-xs text-slate-500 uppercase tracking-wide mb-3">Upcoming (30 days)</p>
+          <div className="bg-navy-900 border border-white/10 rounded-xl p-4">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Upcoming (30 days)</p>
             {upcomingEvents.length === 0 ? (
-              <p className="text-xs text-slate-600">No upcoming events</p>
+              <p className="text-xs text-navy-600">No upcoming events</p>
             ) : (
               <div className="space-y-3">
                 {upcomingEvents.map(ev => {
@@ -445,7 +445,7 @@ export default function Calendar() {
                       <div className={`w-1 h-full min-h-[36px] rounded-full ${col.dot} flex-shrink-0 mt-0.5`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-white group-hover:text-blue-300 transition-colors truncate">{ev.title}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-xs text-gray-500 mt-0.5">
                           {evDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           {!ev.all_day && ev.start_time && ` Â· ${formatTime(ev.start_time)}`}
                         </p>
