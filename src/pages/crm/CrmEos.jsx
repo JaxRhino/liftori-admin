@@ -61,7 +61,8 @@ export default function CrmEos() {
         {active === 'headlines' && <Headlines client={client} team={team} />}
         {active === 'scorecard' && <Scorecard client={client} team={team} />}
         {active === 'vision' && <Vision client={client} />}
-        {['meetings', 'accountability'].includes(active) && <Placeholder label={(MODULES.find(m => m.key === active) || {}).label} />}
+        {active === 'accountability' && <Accountability client={client} team={team} />}
+        {active === 'meetings' && <Meetings client={client} team={team} />}
       </div>
     </div>
   );
@@ -448,6 +449,82 @@ function Vision({ client }) {
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+const DEPTS = ['leadership', 'sales', 'operations', 'marketing', 'support', 'admin'];
+function Accountability({ client, team }) {
+  const [row, setRow] = useState(null);
+  const [seats, setSeats] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [client]);
+  async function load() { if (!client) return; try { setLoading(true); const { data } = await client.from('eos_accountability_charts').select('*').eq('is_active', true).order('version', { ascending: false }).limit(1).maybeSingle(); if (data) { setRow(data); setSeats(Array.isArray(data.seats) ? data.seats : []); } } catch (e) { console.error(e); } finally { setLoading(false); } }
+  function upd(id, patch) { setSeats(s => s.map(x => x.id === id ? { ...x, ...patch } : x)); }
+  function addSeat() { setSeats(s => [...s, { id: Math.random().toString(36).slice(2, 10), title: '', department: 'operations', person_id: '', roles: [], gets_it: false, wants_it: false, capacity: false }]); }
+  function removeSeat(id) { setSeats(s => s.filter(x => x.id !== id)); }
+  async function save() { try { setSaving(true); const payload = { seats, is_active: true, updated_at: new Date().toISOString() }; if (row) await client.from('eos_accountability_charts').update(payload).eq('id', row.id); else { const { data } = await client.from('eos_accountability_charts').insert({ ...payload, version: 1 }).select().single(); setRow(data); } toast.success('Chart saved'); } catch (e) { console.error(e); toast.error('Save failed'); } finally { setSaving(false); } }
+  if (loading) return <Empty>Loading…</Empty>;
+  const gwc = (seat, key, lab) => <label className="flex items-center gap-1 text-xs text-gray-300"><input type="checkbox" checked={!!seat[key]} onChange={(e) => upd(seat.id, { [key]: e.target.checked })} className="accent-brand-blue" />{lab}</label>;
+  return (
+    <div>
+      <Header title="Accountability Chart" subtitle="Seats, roles, and GWC" onCreate={save} createLabel={saving ? 'Saving…' : 'Save'} />
+      <div className="mb-3"><Button onClick={addSeat} className="bg-navy-700 hover:bg-navy-600 text-white text-sm flex items-center gap-2"><Plus size={16} /> Add Seat</Button></div>
+      {seats.length === 0 ? <Empty>No seats yet. Add the first seat.</Empty> : (
+        <div className="grid md:grid-cols-2 gap-4">
+          {seats.map(seat => (
+            <Card key={seat.id} className="bg-navy-900 border-navy-800 p-4 space-y-3">
+              <div className="flex items-center gap-2"><input value={seat.title} onChange={(e) => upd(seat.id, { title: e.target.value })} placeholder="Seat title" className="flex-1 bg-navy-950 border border-navy-700 rounded px-2 py-1.5 text-sm text-white placeholder-gray-500" /><button onClick={() => removeSeat(seat.id)} className="text-gray-500 hover:text-red-400"><Trash2 size={15} /></button></div>
+              <div className="grid grid-cols-2 gap-2"><select value={seat.department} onChange={(e) => upd(seat.id, { department: e.target.value })} className="bg-navy-950 border border-navy-700 rounded px-2 py-1.5 text-sm text-white">{DEPTS.map(d => <option key={d} value={d}>{d}</option>)}</select><select value={seat.person_id || ''} onChange={(e) => upd(seat.id, { person_id: e.target.value })} className="bg-navy-950 border border-navy-700 rounded px-2 py-1.5 text-sm text-white"><option value="">Vacant</option>{team.team.map(m => <option key={m.id} value={m.id}>{[m.first_name, m.last_name].filter(Boolean).join(' ') || 'Member'}</option>)}</select></div>
+              <div className="flex items-center gap-4">{gwc(seat, 'gets_it', 'Gets it')}{gwc(seat, 'wants_it', 'Wants it')}{gwc(seat, 'capacity', 'Capacity')}</div>
+              <Textarea rows={2} value={(seat.roles || []).join('\n')} onChange={(e) => upd(seat.id, { roles: e.target.value.split('\n').filter(Boolean) })} placeholder="Key responsibilities (one per line)" />
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const MEET_STATUS = { scheduled: { label: 'Scheduled', color: 'bg-blue-500/20 text-blue-300' }, in_progress: { label: 'In Progress', color: 'bg-amber-500/20 text-amber-300' }, complete: { label: 'Complete', color: 'bg-emerald-500/20 text-emerald-300' }, cancelled: { label: 'Cancelled', color: 'bg-navy-700 text-gray-400' } };
+const L10_AGENDA = ['Segue (5m)', 'Scorecard (5m)', 'Rock Review (5m)', 'Headlines (5m)', 'To-Do List (5m)', 'IDS (60m)', 'Conclude (5m)'];
+function Meetings({ client, team }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const blank = () => ({ title: 'Weekly Level 10', scheduled_date: '' });
+  const [form, setForm] = useState(blank());
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [client]);
+  async function load() { if (!client) return; try { setLoading(true); const { data } = await client.from('eos_meetings').select('*').order('scheduled_date', { ascending: false, nullsFirst: false }); setRows(data || []); } catch (e) { console.error(e); } finally { setLoading(false); } }
+  async function create() { try { const num = (rows.length || 0) + 1; await client.from('eos_meetings').insert({ title: form.title, scheduled_date: form.scheduled_date || null, status: 'scheduled', meeting_type: 'l10', meeting_number: num }); setOpen(false); setForm(blank()); toast.success('Meeting scheduled'); load(); } catch (e) { console.error(e); toast.error('Could not schedule'); } }
+  async function setStatus(r, s) { try { const patch = { status: s }; if (s === 'in_progress') patch.start_time = new Date().toISOString(); if (s === 'complete') patch.completed_at = new Date().toISOString(); await client.from('eos_meetings').update(patch).eq('id', r.id); load(); } catch (e) { console.error(e); } }
+  async function remove(r) { try { await client.from('eos_meetings').delete().eq('id', r.id); load(); } catch (e) { console.error(e); } }
+  return (
+    <div>
+      <Header title="Level 10 Meetings" subtitle="Weekly leadership meeting" onCreate={() => setOpen(true)} createLabel="Schedule Meeting" />
+      {loading ? <Empty>Loading…</Empty> : rows.length === 0 ? <Empty>No meetings yet. Schedule your first Level 10.</Empty> : (
+        <div className="grid md:grid-cols-2 gap-4">
+          {rows.map(r => { const st = MEET_STATUS[r.status] || MEET_STATUS.scheduled; return (
+            <Card key={r.id} className="bg-navy-900 border-navy-800 p-4">
+              <div className="flex items-start justify-between gap-2 mb-2"><div><div className="text-white font-medium">{r.title || 'Level 10'}</div><div className="text-xs text-gray-500">{r.scheduled_date ? fmtDate(r.scheduled_date) : 'Unscheduled'}{r.meeting_number ? '  -  #' + r.meeting_number : ''}</div></div><Badge className={st.color + ' text-xs'}>{st.label}</Badge></div>
+              <div className="flex flex-wrap gap-1 mb-3">{L10_AGENDA.map((a, i) => <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-navy-800 text-gray-400">{a}</span>)}</div>
+              <div className="flex items-center gap-2">
+                {r.status === 'scheduled' ? <Button onClick={() => setStatus(r, 'in_progress')} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-xs">Start</Button> : null}
+                {r.status === 'in_progress' ? <Button onClick={() => setStatus(r, 'complete')} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">Complete</Button> : null}
+                <button onClick={() => remove(r)} className="text-gray-500 hover:text-red-400 ml-auto"><Trash2 size={15} /></button>
+              </div>
+            </Card>
+          ); })}
+        </div>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="bg-navy-900 border-navy-700 text-white">
+          <DialogHeader><DialogTitle>Schedule Meeting</DialogTitle></DialogHeader>
+          <div className="space-y-3"><Field label="Title"><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field><Field label="Date & Time"><Input type="datetime-local" value={form.scheduled_date} onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })} /></Field></div>
+          <DialogFooter><Button onClick={() => setOpen(false)} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button><Button onClick={create} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Schedule</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
