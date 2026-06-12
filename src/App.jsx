@@ -237,6 +237,7 @@ import DevTeamFeatureIdeas from './pages/dev-team/DevTeamFeatureIdeas'
 // CSC Services LABOS-KEC — Wave B operator admin shell
 import CscLayout from './pages/csc/CscLayout'
 import CscOverview from './pages/csc/CscOverview'
+import CscOpsDashboard from './pages/csc/CscOpsDashboard'
 import CscCustomers from './pages/csc/CscCustomers'
 import CscJobs from './pages/csc/CscJobs'
 import CscJobDetail from './pages/csc/CscJobDetail'
@@ -579,6 +580,7 @@ export default function App() {
             <Route path="sales" element={<CrmSales />} />
             <Route path="call-center" element={<CrmCallCenter />} />
             <Route path="overview" element={<CscOverview />} />
+            <Route path="operations-dashboard" element={<CscOpsDashboard />} />
             <Route path="jobs" element={<CscJobs />} />
             <Route path="jobs/:id" element={<CscJobDetail />} />
             <Route path="deficiencies" element={<CscDeficiencies />} />
