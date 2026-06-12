@@ -233,13 +233,6 @@ import CrmEOSScorecard from './pages/crm/eos/EOSScorecard';
 import CrmEOSVTO from './pages/crm/eos/EOSVTO';
 import CrmEOSAccountability from './pages/crm/eos/EOSAccountability';
 import CrmEOSHeadlines from './pages/crm/eos/EOSHeadlines';
-import CrmEOSRocks from './pages/crm/eos/EOSRocks';
-import CrmEOSIssues from './pages/crm/eos/EOSIssues';
-import CrmEOSTodos from './pages/crm/eos/EOSTodos';
-import CrmEOSMeetings from './pages/crm/eos/EOSMeetings';
-import CrmEOSScorecard from './pages/crm/eos/EOSScorecard';
-import CrmEOSVTO from './pages/crm/eos/EOSVTO';
-import CrmEOSAccountability from './pages/crm/eos/EOSAccountability';
 // Dev Team — Wave A foundation
 import DevTeamLayout from './pages/dev-team/DevTeamLayout'
 import DevTeamOverview from './pages/dev-team/DevTeamOverview'
