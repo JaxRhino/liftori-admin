@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 
 const money = (v) => '$' + (Number(v) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 const date = (d) => d ? new Date(d).toLocaleDateString() : '-';
+const fileSize = (b) => { const n = Number(b) || 0; if (!n) return '-'; if (n < 1024) return n + ' B'; if (n < 1048576) return (n / 1024).toFixed(0) + ' KB'; return (n / 1048576).toFixed(1) + ' MB'; };
+const DEFAULT_AGREEMENT_TERMS = `This Service Agreement (\"Agreement\") is entered into between the Company and the Client named above.\n\n1. Scope of Work. The Company agrees to perform the work described in the Scope of Work section. Any work outside that scope requires a written change order.\n\n2. Payment. The Client agrees to pay the amounts described under Payment Terms. Late balances may accrue interest as permitted by law.\n\n3. Schedule. The Company will make reasonable efforts to complete the work within the agreed dates, subject to weather, material availability, and site access.\n\n4. Warranty. The Company warrants its workmanship for the period stated in writing. Manufacturer warranties apply to materials.\n\n5. Termination. Either party may terminate this Agreement with written notice. The Client is responsible for work completed and materials ordered up to the termination date.\n\nBy signing below, both parties agree to the terms of this Agreement.`;
 
 const TABS = [
   { key: 'overview',   label: 'Overview' },
@@ -46,6 +48,46 @@ export default function CrmCustomerDetail() {
   const [payments, setPayments] = useState([]);
   const [agreements, setAgreements] = useState([]);
   const [photos, setPhotos] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [detail, setDetail] = useState(null);
+  const [agForm, setAgForm] = useState(null);
+
+  async function createDefaultAgreement() {
+    try {
+      const num = 'AGR-' + Date.now().toString().slice(-6);
+      const { data, error } = await client.from('customer_agreements').insert({
+        contact_id: id, agreement_number: num, title: 'Service Agreement', agreement_type: 'service', status: 'draft',
+        scope_of_work: 'Describe the work to be performed for the client here.', terms_text: DEFAULT_AGREEMENT_TERMS,
+        payment_terms: 'Net 30. A 50% deposit is due upon acceptance; the balance is due on completion.',
+      }).select().single();
+      if (error) throw error;
+      setAgreements(prev => [data, ...prev]); setAgForm({ ...data }); setDetail({ type: 'agreement', record: data });
+      toast.success('Default agreement created');
+    } catch (e) { console.error(e); toast.error('Could not create agreement'); }
+  }
+
+  async function saveAgreement() {
+    if (!agForm) return;
+    try {
+      setSaving(true);
+      const patch = { title: agForm.title, agreement_type: agForm.agreement_type, status: agForm.status, total_value: agForm.total_value || null, scope_of_work: agForm.scope_of_work, terms_text: agForm.terms_text, payment_terms: agForm.payment_terms, start_date: agForm.start_date || null, end_date: agForm.end_date || null };
+      const { error } = await client.from('customer_agreements').update(patch).eq('id', agForm.id);
+      if (error) throw error;
+      setAgreements(prev => prev.map(a => a.id === agForm.id ? { ...a, ...patch } : a));
+      toast.success('Agreement saved'); setDetail(null);
+    } catch (e) { console.error(e); toast.error('Save failed'); } finally { setSaving(false); }
+  }
+
+  async function openDocumentUrl(doc) {
+    try {
+      if (doc.thumbnail_url) { window.open(doc.thumbnail_url, '_blank', 'noopener'); return; }
+      if (doc.storage_path) {
+        const { data, error } = await client.storage.from('documents').createSignedUrl(doc.storage_path, 3600);
+        if (error) throw error;
+        window.open(data.signedUrl, '_blank', 'noopener');
+      } else { toast.error('No file attached'); }
+    } catch (e) { console.error(e); toast.error('Could not open file'); }
+  }
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(null);
 
@@ -65,7 +107,7 @@ export default function CrmCustomerDetail() {
         lead_source: cust.lead_source || '', notes: cust.notes || '',
       });
       const safe = (p) => p.then(r => r.data || []).catch(() => []);
-      const [pr, jb, es, inv, pay, ag, ph] = await Promise.all([
+      const [pr, jb, es, inv, pay, ag, ph, dc] = await Promise.all([
         safe(client.from('customer_projects').select('*').eq('contact_id', id).order('created_at', { ascending: false })),
         safe(client.from('ops_work_orders').select('*').eq('contact_id', id).order('scheduled_start', { ascending: false, nullsFirst: false })),
         safe(client.from('customer_estimates').select('*').eq('contact_id', id).order('created_at', { ascending: false })),
@@ -73,8 +115,9 @@ export default function CrmCustomerDetail() {
         safe(client.from('finance_payments').select('*').eq('customer_id', id).order('payment_date', { ascending: false })),
         safe(client.from('customer_agreements').select('*').eq('contact_id', id).order('created_at', { ascending: false })),
         safe(client.from('customer_photos').select('*').eq('contact_id', id).order('created_at', { ascending: false })),
+        safe(client.from('documents').select('*').eq('related_entity_id', id).order('created_at', { ascending: false })),
       ]);
-      setProjects(pr); setJobs(jb); setEstimates(es); setInvoices(inv); setPayments(pay); setAgreements(ag); setPhotos(ph);
+      setProjects(pr); setJobs(jb); setEstimates(es); setInvoices(inv); setPayments(pay); setAgreements(ag); setPhotos(ph); setDocuments(dc);
     } catch (e) {
       console.error('Error loading customer:', e);
       toast.error('Failed to load customer');
@@ -199,12 +242,12 @@ export default function CrmCustomerDetail() {
         )}
 
         {tab === 'projects' && (
-          <ListTable empty="No projects for this customer." cols={['Project', 'Type', 'Status', 'City', 'Value', 'Progress']}
+          <ListTable onRowClick={(i) => setDetail({ type: 'project', record: projects[i] })} empty="No projects for this customer." cols={['Project', 'Type', 'Status', 'City', 'Value', 'Progress']}
             rows={projects.map(p => [p.title, p.project_type, <Badge className={`${statusTone(p.status)} text-xs`}>{p.status}</Badge>, [p.job_city, p.job_state].filter(Boolean).join(', '), money(p.estimated_value), (p.completion_percentage || 0) + '%'])} />
         )}
 
         {tab === 'jobs' && (
-          <ListTable empty="No jobs for this customer." cols={['Job', 'WO #', 'Status', 'Priority', 'Scheduled', 'Value']}
+          <ListTable onRowClick={(i) => setDetail({ type: 'job', record: jobs[i] })} empty="No jobs for this customer." cols={['Job', 'WO #', 'Status', 'Priority', 'Scheduled', 'Value']}
             rows={jobs.map(j => [j.title || 'Untitled', j.work_order_number, <Badge className={`${statusTone(j.status)} text-xs`}>{j.status}</Badge>, j.priority, date(j.scheduled_start), money(j.estimated_cost)])} />
         )}
 
@@ -215,7 +258,7 @@ export default function CrmCustomerDetail() {
 
         {tab === 'invoices' && (
           <div className="space-y-6">
-            <ListTable empty="No invoices for this customer." cols={['Invoice #', 'Date', 'Due', 'Status', 'Total', 'Paid', 'Balance']}
+            <ListTable onRowClick={(i) => setDetail({ type: 'invoice', record: invoices[i] })} empty="No invoices for this customer." cols={['Invoice #', 'Date', 'Due', 'Status', 'Total', 'Paid', 'Balance']}
               rows={invoices.map(i => [i.invoice_number, date(i.invoice_date), date(i.due_date), <Badge className={`${statusTone(i.status)} text-xs`}>{i.status}</Badge>, money(i.total_amount), money(i.amount_paid), money(i.balance_due)])} />
             <div>
               <h3 className="text-sm font-semibold text-gray-300 mb-2">Payments</h3>
@@ -226,14 +269,18 @@ export default function CrmCustomerDetail() {
         )}
 
         {tab === 'agreements' && (
-          <ListTable empty="No agreements for this customer." cols={['Agreement #', 'Title', 'Type', 'Status', 'Value', 'Start', 'End']}
-            rows={agreements.map(a => [a.agreement_number, a.title, a.agreement_type, <Badge className={`${statusTone(a.status)} text-xs`}>{a.status}</Badge>, money(a.total_value), date(a.start_date), date(a.end_date)])} />
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <Button onClick={createDefaultAgreement} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">+ New Agreement</Button>
+            </div>
+            <ListTable onRowClick={(i) => { setAgForm({ ...agreements[i] }); setDetail({ type: 'agreement', record: agreements[i] }); }} empty="No agreements for this customer." cols={['Agreement #', 'Title', 'Type', 'Status', 'Value', 'Start', 'End']}
+              rows={agreements.map(a => [a.agreement_number, a.title, a.agreement_type, <Badge className={`${statusTone(a.status)} text-xs`}>{a.status}</Badge>, money(a.total_value), date(a.start_date), date(a.end_date)])} />
+          </div>
         )}
 
         {tab === 'documents' && (
-          <Card className="bg-navy-900 border-navy-800 p-10 text-center text-gray-400">
-            Documents are coming soon - a per-customer file library (contracts, permits, etc.) with upload to the tenant's storage.
-          </Card>
+          <ListTable onRowClick={(i) => setDetail({ type: 'document', record: documents[i] })} empty="No documents for this customer." cols={['Name', 'Type', 'Size', 'Added']}
+            rows={documents.map(d => [d.name || 'Untitled', d.doc_type || d.mime_type || '-', fileSize(d.file_size_bytes), date(d.created_at)])} />
         )}
 
         {tab === 'photos' && (
@@ -242,7 +289,7 @@ export default function CrmCustomerDetail() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {photos.map(p => (
-                <div key={p.id} className="bg-navy-900 border border-navy-800 rounded-lg overflow-hidden">
+                <div key={p.id} onClick={() => setDetail({ type: 'photo', record: p })} className="bg-navy-900 border border-navy-800 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-brand-blue/40 transition">
                   {p.url ? <img src={p.url} alt={p.caption || ''} className="w-full h-40 object-cover" /> : <div className="w-full h-40 bg-navy-800" />}
                   <div className="p-2">
                     {p.category && <Badge className="bg-brand-blue/20 text-brand-blue text-[10px] mb-1">{p.category}</Badge>}
@@ -254,6 +301,80 @@ export default function CrmCustomerDetail() {
           )
         )}
       </div>
+      {detail && (
+        <RecordDetail detail={detail} agForm={agForm} setAgForm={setAgForm} onSaveAgreement={saveAgreement} onOpenDoc={openDocumentUrl} onClose={() => setDetail(null)} saving={saving} />
+      )}
+    </div>
+  );
+}
+
+function RecordDetail({ detail, agForm, setAgForm, onSaveAgreement, onOpenDoc, onClose, saving }) {
+  const { type, record } = detail;
+  const r = record || {};
+  const titleMap = { project: 'Project', job: 'Work Order', invoice: 'Invoice', agreement: 'Agreement', document: 'Document', photo: 'Photo' };
+  const cityState = [r.job_city || r.city, r.job_state || r.state].filter(Boolean).join(', ');
+  const pairsByType = {
+    project: [['Title', r.title], ['Type', r.project_type], ['Status', r.status], ['Priority', r.priority], ['Location', cityState], ['Estimated Value', money(r.estimated_value)], ['Actual Cost', money(r.actual_cost)], ['Completion', (r.completion_percentage || 0) + '%'], ['Scheduled', date(r.scheduled_start) + ' - ' + date(r.scheduled_end)], ['Description', r.description], ['Notes', r.notes]],
+    job: [['Title', r.title], ['WO #', r.work_order_number], ['Status', r.status], ['Priority', r.priority], ['Category', r.category], ['Scheduled', date(r.scheduled_start) + ' - ' + date(r.scheduled_end)], ['Estimated Cost', money(r.estimated_cost)], ['Actual Cost', money(r.actual_cost)], ['Location', [r.address, cityState].filter(Boolean).join(', ')], ['Description', r.description], ['Notes', r.notes]],
+    invoice: [['Invoice #', r.invoice_number], ['Status', r.status], ['Invoice Date', date(r.invoice_date)], ['Due Date', date(r.due_date)], ['Subtotal', money(r.subtotal)], ['Tax', money(r.tax_amount)], ['Total', money(r.total_amount)], ['Paid', money(r.amount_paid)], ['Balance', money(r.balance_due)], ['Terms', r.terms], ['Notes', r.notes]],
+    document: [['Name', r.name], ['Type', r.doc_type || r.mime_type], ['Size', fileSize(r.file_size_bytes)], ['Customer Visible', r.is_customer_visible ? 'Yes' : 'No'], ['Added', date(r.created_at)], ['Description', r.description]],
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-navy-900 border border-navy-700 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-navy-800 sticky top-0 bg-navy-900 z-10">
+          <h3 className="text-white font-semibold">{titleMap[type] || 'Record'}{r.title ? ' - ' + r.title : ''}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">Close</button>
+        </div>
+        <div className="p-5 space-y-2">
+          {pairsByType[type] && pairsByType[type].map(([k, v], i) => <KV key={i} k={k} v={v} />)}
+
+          {type === 'document' && (
+            <div className="pt-3"><Button onClick={() => onOpenDoc(r)} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Open file</Button></div>
+          )}
+
+          {type === 'photo' && (
+            <div className="space-y-3">
+              {r.url ? <img src={r.url} alt={r.caption || ''} className="w-full rounded-lg max-h-[60vh] object-contain bg-navy-950" /> : <div className="w-full h-48 bg-navy-800 rounded-lg" />}
+              <KV k="Caption" v={r.caption} />
+              <KV k="Category" v={r.category} />
+            </div>
+          )}
+
+          {type === 'agreement' && agForm && (
+            <div className="space-y-3">
+              <Field2 label="Title"><Input value={agForm.title || ''} onChange={(e) => setAgForm({ ...agForm, title: e.target.value })} /></Field2>
+              <div className="grid grid-cols-2 gap-3">
+                <Field2 label="Type"><Input value={agForm.agreement_type || ''} onChange={(e) => setAgForm({ ...agForm, agreement_type: e.target.value })} /></Field2>
+                <Field2 label="Status"><Input value={agForm.status || ''} onChange={(e) => setAgForm({ ...agForm, status: e.target.value })} /></Field2>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field2 label="Total Value"><Input type="number" value={agForm.total_value || ''} onChange={(e) => setAgForm({ ...agForm, total_value: e.target.value })} /></Field2>
+                <Field2 label="Payment Terms"><Input value={agForm.payment_terms || ''} onChange={(e) => setAgForm({ ...agForm, payment_terms: e.target.value })} /></Field2>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field2 label="Start Date"><Input type="date" value={agForm.start_date || ''} onChange={(e) => setAgForm({ ...agForm, start_date: e.target.value })} /></Field2>
+                <Field2 label="End Date"><Input type="date" value={agForm.end_date || ''} onChange={(e) => setAgForm({ ...agForm, end_date: e.target.value })} /></Field2>
+              </div>
+              <Field2 label="Scope of Work"><Textarea rows={4} value={agForm.scope_of_work || ''} onChange={(e) => setAgForm({ ...agForm, scope_of_work: e.target.value })} /></Field2>
+              <Field2 label="Terms"><Textarea rows={8} value={agForm.terms_text || ''} onChange={(e) => setAgForm({ ...agForm, terms_text: e.target.value })} /></Field2>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button onClick={onClose} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button>
+                <Button onClick={onSaveAgreement} disabled={saving} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">{saving ? 'Saving...' : 'Save Agreement'}</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field2({ label, children }) {
+  return (
+    <div>
+      <label className="block text-xs text-gray-400 mb-1">{label}</label>
+      {children}
     </div>
   );
 }
@@ -308,7 +429,7 @@ function Field({ label, full, children }) {
   );
 }
 
-function ListTable({ cols, rows, empty }) {
+function ListTable({ cols, rows, empty, onRowClick }) {
   if (!rows || rows.length === 0) return <Card className="bg-navy-900 border-navy-800 p-10 text-center text-gray-400">{empty}</Card>;
   return (
     <Card className="bg-navy-900 border-navy-800 overflow-hidden">
@@ -321,7 +442,7 @@ function ListTable({ cols, rows, empty }) {
           </thead>
           <tbody>
             {rows.map((r, ri) => (
-              <tr key={ri} className="border-b border-navy-800 hover:bg-navy-800/50 transition">
+              <tr key={ri} onClick={onRowClick ? () => onRowClick(ri) : undefined} className={`border-b border-navy-800 hover:bg-navy-800/50 transition ${onRowClick ? 'cursor-pointer' : ''}`}>
                 {r.map((cell, ci) => <td key={ci} className={`px-4 py-3 ${ci >= r.length - 1 ? 'text-right text-white font-medium' : 'text-gray-300'}`}>{cell || '-'}</td>)}
               </tr>
             ))}
