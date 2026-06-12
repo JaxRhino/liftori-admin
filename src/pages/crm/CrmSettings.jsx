@@ -857,28 +857,221 @@ function CompanyInfoSection({ client, orgSettings }) {
   )
 }
 
+const ROLES = ['Owner', 'Admin', 'Manager', 'Dispatcher', 'Field Technician', 'Sales', 'Office/CSR', 'Viewer']
+const ROLE_COLORS = { Owner:'#a855f7', Admin:'#0ea5e9', Manager:'#22c55e', Dispatcher:'#f59e0b', 'Field Technician':'#38bdf8', Sales:'#ec4899', 'Office/CSR':'#14b8a6', Viewer:'#94a3b8' }
+const STATUS_COLORS = { active:'#22c55e', invited:'#f59e0b', suspended:'#ef4444' }
+const PERM_HUBS = [
+  ['dashboard','Dashboard'],['sales','Sales'],['operations','Operations'],['finance','Finance'],
+  ['marketing','Marketing'],['communications','Communications'],['chat','Chat'],['eos','EOS'],
+  ['calendar','Calendar'],['tasks','Tasks'],['notes','Notes'],['settings','Settings'],
+]
+const PERM_CAPS = [
+  ['manage_users','Manage users'],['manage_billing','Manage billing'],['manage_settings','Manage settings'],
+  ['export_data','Export data'],['delete_records','Delete records'],
+]
+function defaultPerms(role) {
+  const all = (v) => Object.fromEntries(PERM_HUBS.map(([k]) => [k, v]))
+  const allCaps = (v) => Object.fromEntries(PERM_CAPS.map(([k]) => [k, v]))
+  const hubs = (keys) => Object.fromEntries(PERM_HUBS.map(([k]) => [k, keys.includes(k)]))
+  switch (role) {
+    case 'Owner':
+    case 'Admin': return { hubs: all(true), caps: allCaps(true) }
+    case 'Manager': return { hubs: hubs(['dashboard','sales','operations','finance','marketing','communications','chat','eos','calendar','tasks','notes']), caps: { ...allCaps(false), export_data:true, delete_records:true } }
+    case 'Dispatcher': return { hubs: hubs(['dashboard','operations','calendar','tasks','communications','chat']), caps: allCaps(false) }
+    case 'Field Technician': return { hubs: hubs(['dashboard','operations','calendar','tasks','chat']), caps: allCaps(false) }
+    case 'Sales': return { hubs: hubs(['dashboard','sales','marketing','communications','chat','calendar','tasks']), caps: allCaps(false) }
+    case 'Office/CSR': return { hubs: hubs(['dashboard','sales','operations','communications','chat','calendar','tasks']), caps: allCaps(false) }
+    case 'Viewer': return { hubs: all(true), caps: allCaps(false) }
+    default: return { hubs: hubs(['dashboard']), caps: allCaps(false) }
+  }
+}
+
 function UserManagementSection({ client }) {
   const [rows, setRows] = useState(null)
-  useEffect(() => { client.from('org_team_members').select('*').order('created_at', { ascending: true }).then(({ data }) => setRows(data || [])) }, [])
+  const [crews, setCrews] = useState([])
+  const [memberCrews, setMemberCrews] = useState({})
+  const [editing, setEditing] = useState(null)
+
+  async function load() {
+    const [u, c, m] = await Promise.all([
+      client.from('org_team_members').select('*').order('created_at', { ascending: true }),
+      client.from('ops_crews').select('id,name,color').order('name'),
+      client.from('ops_crew_members').select('crew_id,email'),
+    ])
+    setRows(u.data || [])
+    setCrews(c.data || [])
+    const map = {}
+    ;(m.data || []).forEach(x => { if (x.email) { const e = x.email.toLowerCase(); (map[e] = map[e] || []).push(x.crew_id) } })
+    setMemberCrews(map)
+  }
+  useEffect(() => { load() /* eslint-disable-next-line */ }, [])
   if (!rows) return <Panel>Loading…</Panel>
+  const crewName = id => (crews.find(c => c.id === id) || {}).name || ''
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><button onClick={() => alert('Invite flow connects in a later phase')} className="px-3 py-2 rounded bg-brand-blue text-white text-sm">+ Invite User</button></div>
-      {rows.length === 0 ? <Panel>No users yet. Invite your first teammate.</Panel> : (
-        <div className="rounded-xl border border-navy-700/50 bg-navy-800/60 overflow-hidden">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-gray-500">Add teammates, assign a role + permissions, and put them on crews. Email invites and access enforcement roll out next — assignments save now.</p>
+        <button onClick={() => setEditing('new')} className="px-3 py-2 rounded bg-brand-blue text-white text-sm whitespace-nowrap">+ Add User</button>
+      </div>
+      {rows.length === 0 ? <Panel>No users yet. Add your first teammate.</Panel> : (
+        <div className="rounded-xl border border-navy-700/50 bg-navy-800/60 overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="border-b border-navy-700/40 text-gray-500"><th className="text-left px-4 py-2 font-medium">Name</th><th className="text-left px-4 py-2 font-medium">Email</th><th className="text-left px-4 py-2 font-medium">Role</th><th className="text-left px-4 py-2 font-medium">Status</th></tr></thead>
-            <tbody>{rows.map(u => (
-              <tr key={u.id} className="border-b border-navy-700/30">
-                <td className="px-4 py-2 text-white">{`${u.first_name||''} ${u.last_name||''}`.trim() || '—'}{u.title ? <span className="text-gray-500"> · {u.title}</span> : null}</td>
-                <td className="px-4 py-2 text-gray-300">{u.email || '—'}</td>
-                <td className="px-4 py-2"><Chip color="blue">{u.role || 'member'}</Chip></td>
-                <td className="px-4 py-2"><Chip color={u.status === 'active' ? 'green' : 'gray'}>{u.status || '—'}</Chip></td>
-              </tr>
-            ))}</tbody>
+            <thead><tr className="border-b border-navy-700/40 text-gray-500">
+              <th className="text-left px-4 py-2 font-medium">Name</th>
+              <th className="text-left px-4 py-2 font-medium">Role</th>
+              <th className="text-left px-4 py-2 font-medium">Teams</th>
+              <th className="text-left px-4 py-2 font-medium">Department</th>
+              <th className="text-left px-4 py-2 font-medium">Status</th>
+              <th className="text-right px-4 py-2 font-medium">Actions</th>
+            </tr></thead>
+            <tbody>{rows.map(u => {
+              const cids = memberCrews[(u.email || '').toLowerCase()] || []
+              return (
+                <tr key={u.id} className="border-b border-navy-700/30 hover:bg-navy-800/40">
+                  <td className="px-4 py-2 text-white">{`${u.first_name||''} ${u.last_name||''}`.trim() || u.email || '—'}<div className="text-[11px] text-gray-500">{u.email || ''}{u.title ? ` · ${u.title}` : ''}</div></td>
+                  <td className="px-4 py-2"><Chip color={ROLE_COLORS[u.role] || '#94a3b8'}>{u.role || 'member'}</Chip></td>
+                  <td className="px-4 py-2"><div className="flex flex-wrap gap-1">{cids.length ? cids.map(id => <Chip key={id} color={(crews.find(c => c.id === id) || {}).color || '#475569'}>{crewName(id)}</Chip>) : <span className="text-gray-600 text-xs">—</span>}</div></td>
+                  <td className="px-4 py-2 text-gray-300">{u.department || '—'}</td>
+                  <td className="px-4 py-2"><Chip color={STATUS_COLORS[u.status] || '#94a3b8'}>{u.status || '—'}</Chip></td>
+                  <td className="px-4 py-2 text-right"><button onClick={() => setEditing(u)} className="text-brand-blue hover:underline text-xs">Edit</button></td>
+                </tr>
+              )
+            })}</tbody>
           </table>
         </div>
       )}
+      {editing && <UserModal client={client} crews={crews} user={editing === 'new' ? null : editing} memberCrewIds={editing === 'new' ? [] : (memberCrews[(editing.email || '').toLowerCase()] || [])} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
+    </div>
+  )
+}
+
+function UserModal({ client, crews, user, memberCrewIds, onClose, onSaved }) {
+  const isNew = !user
+  const [f, setF] = useState(() => ({
+    first_name: user?.first_name || '', last_name: user?.last_name || '', email: user?.email || '', phone: user?.phone || '',
+    title: user?.title || '', department: user?.department || '', role: user?.role || 'Office/CSR', status: user?.status || 'invited',
+    permissions: (user?.permissions && user.permissions.hubs) ? user.permissions : defaultPerms(user?.role || 'Office/CSR'),
+  }))
+  const [crewIds, setCrewIds] = useState(memberCrewIds || [])
+  const [saving, setSaving] = useState(false)
+  const set = (k, v) => setF(s => ({ ...s, [k]: v }))
+  const changeRole = (role) => setF(s => ({ ...s, role, permissions: defaultPerms(role) }))
+  const togglePerm = (group, key) => setF(s => ({ ...s, permissions: { ...s.permissions, [group]: { ...s.permissions[group], [key]: !s.permissions[group][key] } } }))
+  const toggleCrew = (id) => setCrewIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
+
+  async function remove() {
+    if (!user || !window.confirm('Remove this user?')) return
+    try {
+      setSaving(true)
+      if (user.email) await client.from('ops_crew_members').delete().eq('email', user.email)
+      const { error } = await client.from('org_team_members').delete().eq('id', user.id)
+      if (error) throw error
+      onSaved()
+    } catch (e) { console.error(e); alert('Could not remove user') } finally { setSaving(false) }
+  }
+
+  async function save() {
+    if (!f.email.trim() && !`${f.first_name} ${f.last_name}`.trim()) { alert('Add a name or email'); return }
+    try {
+      setSaving(true)
+      const payload = { first_name: f.first_name || null, last_name: f.last_name || null, email: f.email || null, phone: f.phone || null, title: f.title || null, department: f.department || null, role: f.role, status: f.status, permissions: f.permissions, updated_at: new Date().toISOString() }
+      if (isNew) {
+        payload.invited_at = new Date().toISOString()
+        const { error } = await client.from('org_team_members').insert(payload)
+        if (error) throw error
+      } else {
+        const { error } = await client.from('org_team_members').update(payload).eq('id', user.id)
+        if (error) throw error
+      }
+      if (f.email) {
+        await client.from('ops_crew_members').delete().eq('email', f.email)
+        if (crewIds.length) {
+          const ins = crewIds.map(cid => ({ crew_id: cid, email: f.email, name: `${f.first_name} ${f.last_name}`.trim() || f.email, role: f.role, status: 'active' }))
+          const { error } = await client.from('ops_crew_members').insert(ins)
+          if (error) throw error
+        }
+      }
+      onSaved()
+    } catch (e) { console.error(e); alert('Could not save user') } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-navy-900 border border-navy-700 rounded-xl w-full max-w-2xl max-h-[88vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-navy-800 sticky top-0 bg-navy-900 z-10">
+          <h3 className="text-white font-semibold">{isNew ? 'Add User' : 'Edit User'}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">Close</button>
+        </div>
+        <div className="p-5 space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <LabeledInput label="First Name" value={f.first_name} onChange={v => set('first_name', v)} />
+            <LabeledInput label="Last Name" value={f.last_name} onChange={v => set('last_name', v)} />
+            <LabeledInput label="Email" value={f.email} onChange={v => set('email', v)} />
+            <LabeledInput label="Phone" value={f.phone} onChange={v => set('phone', v)} />
+            <LabeledInput label="Title" value={f.title} onChange={v => set('title', v)} />
+            <LabeledInput label="Department" value={f.department} onChange={v => set('department', v)} />
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Role</label>
+              <select value={f.role} onChange={e => changeRole(e.target.value)} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm">
+                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Status</label>
+              <select value={f.status} onChange={e => set('status', e.target.value)} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm">
+                {['invited','active','suspended'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm font-semibold text-white mb-2">Teams (Crews)</div>
+            {crews.length === 0 ? <p className="text-xs text-gray-500">No crews yet — add them under Operations › Crews.</p> : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {crews.map(c => (
+                  <label key={c.id} className="flex items-center gap-2 rounded-lg border border-navy-700 bg-navy-800/60 px-3 py-2 text-sm text-gray-200 cursor-pointer">
+                    <input type="checkbox" checked={crewIds.includes(c.id)} onChange={() => toggleCrew(c.id)} />
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.color || '#0ea5e9' }} />
+                    <span className="truncate">{c.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {!f.email && <p className="text-[11px] text-amber-400 mt-1">Add an email to save crew assignments.</p>}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-semibold text-white">Permissions</div>
+              <button onClick={() => set('permissions', defaultPerms(f.role))} className="text-xs text-brand-blue hover:underline">Reset to {f.role} defaults</button>
+            </div>
+            <div className="text-[11px] text-gray-500 mb-2">Hub access</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+              {PERM_HUBS.map(([k, l]) => (
+                <label key={k} className="flex items-center gap-2 text-sm text-gray-200 cursor-pointer">
+                  <input type="checkbox" checked={!!f.permissions.hubs[k]} onChange={() => togglePerm('hubs', k)} /> {l}
+                </label>
+              ))}
+            </div>
+            <div className="text-[11px] text-gray-500 mb-2">Capabilities</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {PERM_CAPS.map(([k, l]) => (
+                <label key={k} className="flex items-center gap-2 text-sm text-gray-200 cursor-pointer">
+                  <input type="checkbox" checked={!!f.permissions.caps[k]} onChange={() => togglePerm('caps', k)} /> {l}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-navy-800 sticky bottom-0 bg-navy-900">
+          {!isNew ? <button onClick={remove} disabled={saving} className="px-3 py-2 rounded text-red-400 hover:bg-red-500/10 text-sm">Remove</button> : <span />}
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="px-4 py-2 rounded bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</button>
+            <button onClick={save} disabled={saving} className="px-4 py-2 rounded bg-brand-blue text-white text-sm">{saving ? 'Saving…' : (isNew ? 'Add User' : 'Save Changes')}</button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
