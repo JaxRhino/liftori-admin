@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-navy-900 text-white;
+    @apply bg-navy-950 text-white;
   }
 
   ::-webkit-scrollbar {
@@ -12,21 +12,21 @@
     height: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: #0A1628;
+    background: #141D2E;
   }
   ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: #3F5070;
     border-radius: 5px;
-    border: 2px solid #0A1628;
+    border: 2px solid #141D2E;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: #4A5D82;
   }
 
   /* Firefox */
   * {
     scrollbar-width: auto;
-    scrollbar-color: #334155 #0A1628;
+    scrollbar-color: #3F5070 #141D2E;
   }
 }
 
@@ -93,34 +93,8 @@
 }
 
 /* =====================================================================
-   CRM THEME — single tuning point for the base CRM look.
-   Scoped to .crm-theme (set on the CrmLayout root) so it never touches
-   the rest of the admin. Lighter (still dark-mode) surfaces + brighter
-   brand-blue lines. Light mode will later add a .crm-theme.light variant.
+   The base color palette now lives in tailwind.config.js (navy-*), so the
+   whole admin shares the lighter dark theme. This block only adds CRM-
+   specific accents. Light mode later: add a .crm-theme.light variant.
    ===================================================================== */
-.crm-theme .bg-navy-950 { background-color: #141d2e !important; }   /* page background */
-.crm-theme .bg-navy-900 { background-color: #1e2940 !important; }   /* cards / surfaces / header */
-.crm-theme .bg-navy-800 { background-color: #283450 !important; }   /* raised surfaces / inputs */
-.crm-theme .bg-navy-700 { background-color: #33425f !important; }   /* buttons / sub-surfaces */
-.crm-theme .bg-navy-600 { background-color: #3f5070 !important; }
-
-/* translucent surface variants used around the app */
-.crm-theme .bg-navy-900\/50 { background-color: rgba(30,41,64,0.6) !important; }
-.crm-theme .bg-navy-900\/40 { background-color: rgba(30,41,64,0.5) !important; }
-.crm-theme .bg-navy-800\/60 { background-color: rgba(40,52,80,0.6) !important; }
-.crm-theme .bg-navy-800\/50 { background-color: rgba(40,52,80,0.5) !important; }
-.crm-theme .bg-navy-800\/40 { background-color: rgba(40,52,80,0.4) !important; }
-
-/* hover states */
-.crm-theme .hover\:bg-navy-800:hover { background-color: #2f3d5c !important; }
-.crm-theme .hover\:bg-navy-700:hover { background-color: #3a4a6b !important; }
-.crm-theme .hover\:bg-navy-600:hover { background-color: #47587a !important; }
-.crm-theme .hover\:bg-navy-800\/50:hover { background-color: rgba(47,61,92,0.55) !important; }
-
-/* brighter lines — brand-blue tint (matches the New Customer button #0EA5E9) */
-.crm-theme [class*="border-navy-"] { border-color: rgba(14,165,233,0.38) !important; }
-
-/* grey navigation sidebar (more specific than the bg-navy-900 rule so it wins) */
-.crm-theme aside.bg-navy-900 { background-color: #2b313d !important; }
-.crm-theme aside.bg-navy-900 [class*="border-navy-"],
-.crm-theme aside.bg-navy-900.bg-navy-900 { border-color: rgba(14,165,233,0.22) !important; }
+.crm-theme [class*="border-navy-"] { border-color: rgba(14,165,233,0.32) !important; }
