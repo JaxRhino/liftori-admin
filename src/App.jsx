@@ -236,6 +236,25 @@ import CrmEOSScorecard from './pages/crm/eos/EOSScorecard';
 import CrmEOSVTO from './pages/crm/eos/EOSVTO';
 import CrmEOSAccountability from './pages/crm/eos/EOSAccountability';
 import CrmEOSHeadlines from './pages/crm/eos/EOSHeadlines';
+import EcomDashboard from './pages/ecomm/EcomDashboard';
+import EcomListings from './pages/ecomm/EcomListings';
+import EcomListingEditor from './pages/ecomm/EcomListingEditor';
+import EcomOrders from './pages/ecomm/EcomOrders';
+import EcomCustomers from './pages/ecomm/EcomCustomers';
+import EcomSocial from './pages/ecomm/EcomSocial';
+import { useCrm } from './contexts/CrmContext';
+
+// Industry switch for shared /crm/:platformId route slots: ecommerce
+// tenants get the retail pages; every other industry renders the base
+// CRM exactly as before (strict no-op when industry !== 'ecommerce').
+function CrmDashboardByIndustry() {
+  const { platform } = useCrm()
+  return platform?.industry === 'ecommerce' ? <EcomDashboard /> : <CrmDashboard />
+}
+function CrmCustomersByIndustry() {
+  const { platform } = useCrm()
+  return platform?.industry === 'ecommerce' ? <EcomCustomers /> : <CrmCustomers />
+}
 // Dev Team — Wave A foundation
 import DevTeamLayout from './pages/dev-team/DevTeamLayout'
 import DevTeamOverview from './pages/dev-team/DevTeamOverview'
@@ -590,7 +609,7 @@ export default function App() {
             </ProtectedRoute>
           }>
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<CrmDashboard />} />
+            <Route path="dashboard" element={<CrmDashboardByIndustry />} />
             <Route path="sales" element={<CrmPipeline />} />
             <Route path="pipeline" element={<CrmPipeline />} />
             <Route path="sales-training" element={<CrmSalesTraining />} />
@@ -606,8 +625,14 @@ export default function App() {
             <Route path="certificates" element={<CscCertificates />} />
             <Route path="stickers" element={<CscStickers />} />
             <Route path="ahj" element={<CscAhjMap />} />
-            <Route path="customers" element={<CrmCustomers />} />
+            <Route path="customers" element={<CrmCustomersByIndustry />} />
             <Route path="customers/:id" element={<CrmCustomerDetail />} />
+            {/* E-commerce industry routes (pages self-scope via useCrmClient) */}
+            <Route path="listings" element={<EcomListings />} />
+            <Route path="listings/new" element={<EcomListingEditor />} />
+            <Route path="listings/:listingId" element={<EcomListingEditor />} />
+            <Route path="orders" element={<EcomOrders />} />
+            <Route path="social" element={<EcomSocial />} />
             <Route path="estimates/:id" element={<CrmEstimateDetail />} />
             <Route path="invoices" element={<CscInvoices />} />
             <Route path="operations" element={<CrmOperations />}>
