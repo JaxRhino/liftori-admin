@@ -6,7 +6,7 @@
 
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useState } from 'react'
-import { Bug, ExternalLink, Globe } from 'lucide-react'
+import { Bug, ExternalLink, Globe, GraduationCap } from 'lucide-react'
 import { CrmProvider, useCrm } from '../../contexts/CrmContext'
 import BugReportModal from './BugReportModal'
 
@@ -23,6 +23,7 @@ const HUB_DEFS = [
   { key:'communications', label:'Communications', path:'communications', icon: CommsIcon },
   { key:'chat',           label:'Chat',           path:'chat',           icon: ChatIcon },
   { key:'eos',            label:'EOS',            path:'eos',            icon: EOSIcon },
+  { key:'university',     label:'University',     path:'university/sales', icon: GraduationCap },
 ]
 
 // Hubs that expand into a dropdown of sub-pages. Sub-page paths must match
@@ -31,7 +32,12 @@ const HUB_CHILDREN = {
   sales: [
     { label: 'Customers', path: 'customers' },
     { label: 'Pipeline',  path: 'pipeline' },
-    { label: 'Sales Training', path: 'sales-training' },
+  ],
+  university: [
+    { label: 'Sales', path: 'university/sales' },
+    { label: 'Operations', path: 'university/operations' },
+    { label: 'Management', path: 'university/manager' },
+    { label: 'Owner / Business', path: 'university/owner' },
   ],
   operations: [
     { label: 'Dashboard',         path: 'operations/dashboard' },
