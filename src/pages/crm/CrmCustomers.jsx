@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useCrmClient } from './_shared';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -30,6 +31,8 @@ function blankForm() {
 
 export default function CrmCustomers() {
   const { client } = useCrmClient();
+  const navigate = useNavigate();
+  const { platformId } = useParams();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -164,7 +167,7 @@ export default function CrmCustomers() {
                     const t = typeConfig[c.contact_type] || typeConfig.customer;
                     return (
                       <tr key={c.id} className="border-b border-navy-800 hover:bg-navy-800/50 transition">
-                        <td className="px-4 py-3 text-white font-medium">{name(c)}</td>
+                        <td className="px-4 py-3"><button onClick={() => navigate(`/crm/${platformId}/customers/${c.id}`)} className="text-white font-medium hover:text-brand-blue transition text-left">{name(c)}</button></td>
                         <td className="px-4 py-3"><Badge className={`${t.color} text-xs`}>{t.label}</Badge></td>
                         <td className="px-4 py-3 text-gray-400">{c.email}</td>
                         <td className="px-4 py-3 text-gray-400">{c.phone}</td>
