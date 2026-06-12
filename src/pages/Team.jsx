@@ -860,7 +860,7 @@ export default function Team() {
   // ─── Role Color Helper ────────────────────────────────────────────────────
   function getRoleBadge(roleName) {
     const role = roles.find(r => r.name?.toLowerCase() === roleName?.toLowerCase());
-    const color = role?.color || 'bg-slate-500';
+    const color = role?.color || 'bg-gray-500';
     return <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${color}`}>{roleName || 'None'}</span>;
   }
 
@@ -939,7 +939,7 @@ export default function Team() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-slate-800/50 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 mb-6 bg-navy-800/50 p-1 rounded-lg w-fit">
         {TABS.map(tab => {
           const Icon = tab.icon;
           return (
@@ -949,7 +949,7 @@ export default function Team() {
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition ${
                 activeTab === tab.id
                   ? 'bg-sky-500 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-slate-700/50'
+                  : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
               }`}
             >
               <Icon size={16} />
@@ -970,15 +970,15 @@ export default function Team() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search members..."
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-sky-500"
+              className="w-full bg-navy-800 border border-navy-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-sky-500"
             />
           </div>
 
           {/* Members Table */}
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
+          <div className="bg-navy-800/50 border border-navy-700/50 rounded-lg overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-700/50">
+                <tr className="border-b border-navy-700/50">
                   <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Member</th>
                   <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Role</th>
                   <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Status</th>
@@ -988,7 +988,7 @@ export default function Team() {
               </thead>
               <tbody>
                 {filteredMembers.map(member => (
-                  <tr key={member.id} className="border-b border-slate-700/30 hover:bg-slate-700/20 transition">
+                  <tr key={member.id} className="border-b border-navy-700/30 hover:bg-navy-700/20 transition">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 font-medium text-sm">
@@ -1014,7 +1014,7 @@ export default function Team() {
                           onChange={e => handleUpdateRole(member.id, e.target.value)}
                           onBlur={() => setEditingMember(null)}
                           autoFocus
-                          className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-sky-500"
+                          className="bg-navy-700 border border-navy-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-sky-500"
                         >
                           {roleOptions.map(r => (
                             <option key={r} value={r.toLowerCase()}>{r}</option>
@@ -1039,16 +1039,16 @@ export default function Team() {
                             <MoreVertical size={16} />
                           </button>
                           {actionMenuId === member.id && (
-                            <div className="absolute right-4 top-12 bg-slate-700 border border-slate-600 rounded-lg shadow-xl py-1 z-20 min-w-[160px]">
+                            <div className="absolute right-4 top-12 bg-navy-700 border border-navy-600 rounded-lg shadow-xl py-1 z-20 min-w-[160px]">
                               <button
                                 onClick={() => { setEditingMember(member.id); setActionMenuId(null); }}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-slate-600 hover:text-white flex items-center gap-2"
+                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-navy-600 hover:text-white flex items-center gap-2"
                               >
                                 <Edit2 size={14} /> Change Role
                               </button>
                               <button
                                 onClick={() => handleToggleActive(member.id, member.status)}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-slate-600 hover:text-white flex items-center gap-2"
+                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-navy-600 hover:text-white flex items-center gap-2"
                               >
                                 {member.status === 'inactive' ? <Check size={14} /> : <X size={14} />}
                                 {member.status === 'inactive' ? 'Reactivate' : 'Deactivate'}
@@ -1077,7 +1077,7 @@ export default function Team() {
       {activeTab === 'teams' && (
         <div>
           {teams.length === 0 ? (
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-12 text-center">
+            <div className="bg-navy-800/50 border border-navy-700/50 rounded-lg p-12 text-center">
               <Layers size={48} className="mx-auto mb-4 text-gray-600" />
               <p className="text-gray-400 text-lg font-medium">No teams yet</p>
               <p className="text-gray-500 text-sm mt-1 mb-4">Create named teams like "Sales", "Consulting", or "Development" and assign members</p>
@@ -1096,10 +1096,10 @@ export default function Team() {
                 const available = getAvailableMembers(team.id);
                 const isExpanded = expandedTeam === team.id;
                 return (
-                  <div key={team.id} className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
+                  <div key={team.id} className="bg-navy-800/50 border border-navy-700/50 rounded-lg overflow-hidden">
                     {/* Team Header */}
                     <div
-                      className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-slate-700/20 transition"
+                      className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-navy-700/20 transition"
                       onClick={() => setExpandedTeam(isExpanded ? null : team.id)}
                     >
                       <div className="flex items-center gap-3">
@@ -1110,7 +1110,7 @@ export default function Team() {
                           <h3 className="text-white font-semibold text-base">{team.name}</h3>
                           {team.description && <p className="text-gray-500 text-xs mt-0.5">{team.description}</p>}
                         </div>
-                        <span className="ml-2 bg-slate-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">{teamMembersList.length} member{teamMembersList.length !== 1 ? 's' : ''}</span>
+                        <span className="ml-2 bg-navy-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">{teamMembersList.length} member{teamMembersList.length !== 1 ? 's' : ''}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -1133,7 +1133,7 @@ export default function Team() {
 
                     {/* Expanded Content */}
                     {isExpanded && (
-                      <div className="border-t border-slate-700/50 px-5 py-4">
+                      <div className="border-t border-navy-700/50 px-5 py-4">
                         {/* Members list */}
                         {teamMembersList.length === 0 ? (
                           <p className="text-gray-500 text-sm mb-3">No members assigned yet</p>
@@ -1142,7 +1142,7 @@ export default function Team() {
                             {teamMembersList.map(member => {
                               const roleObj = roles.find(r => r.name === member.role || r.name === member.title);
                               return (
-                                <div key={member.id} className="flex items-center justify-between bg-slate-700/30 rounded-lg px-4 py-2.5">
+                                <div key={member.id} className="flex items-center justify-between bg-navy-700/30 rounded-lg px-4 py-2.5">
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 text-sm font-medium">
                                       {(member.full_name || member.email || '?').charAt(0).toUpperCase()}
@@ -1152,10 +1152,10 @@ export default function Team() {
                                       {member.title && <span className="text-gray-500 text-xs ml-2">{member.title}</span>}
                                     </div>
                                     {roleObj && (
-                                      <span className={`text-xs px-2 py-0.5 rounded-full ${roleObj.color || 'bg-slate-600'} text-white`}>{roleObj.name || member.role}</span>
+                                      <span className={`text-xs px-2 py-0.5 rounded-full ${roleObj.color || 'bg-navy-600'} text-white`}>{roleObj.name || member.role}</span>
                                     )}
                                     {!roleObj && member.role && member.role !== 'customer' && (
-                                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-600 text-gray-300">{member.role}</span>
+                                      <span className="text-xs px-2 py-0.5 rounded-full bg-navy-600 text-gray-300">{member.role}</span>
                                     )}
                                   </div>
                                   <button
@@ -1173,7 +1173,7 @@ export default function Team() {
 
                         {/* Add member dropdown */}
                         {addMemberTeamId === team.id ? (
-                          <div className="bg-slate-700/30 rounded-lg p-3">
+                          <div className="bg-navy-700/30 rounded-lg p-3">
                             <p className="text-gray-400 text-xs font-medium mb-2">Add a team member:</p>
                             {available.length === 0 ? (
                               <p className="text-gray-500 text-sm">All team members are already in this team</p>
@@ -1183,7 +1183,7 @@ export default function Team() {
                                   <button
                                     key={m.id}
                                     onClick={() => handleAddMemberToTeam(team.id, m.id)}
-                                    className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-600/50 transition"
+                                    className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md hover:bg-navy-600/50 transition"
                                   >
                                     <div className="w-7 h-7 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 text-xs font-medium">
                                       {(m.full_name || m.email || '?').charAt(0).toUpperCase()}
@@ -1245,9 +1245,9 @@ export default function Team() {
               {previewMenuOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full mt-2 w-72 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-20 overflow-hidden"
+                  className="absolute right-0 top-full mt-2 w-72 bg-navy-900 border border-navy-700 rounded-lg shadow-xl z-20 overflow-hidden"
                 >
-                  <div className="px-3 py-2 text-[11px] uppercase tracking-wide text-gray-500 font-semibold border-b border-slate-700/60">
+                  <div className="px-3 py-2 text-[11px] uppercase tracking-wide text-gray-500 font-semibold border-b border-navy-700/60">
                     Select a flow to preview
                   </div>
                   {ONBOARDING_FLOWS.map(flow => {
@@ -1257,7 +1257,7 @@ export default function Team() {
                         key={flow.key}
                         role="menuitem"
                         onClick={flow.action}
-                        className="w-full flex items-start gap-3 px-3 py-2.5 text-left hover:bg-slate-800 transition border-b border-slate-700/30 last:border-b-0"
+                        className="w-full flex items-start gap-3 px-3 py-2.5 text-left hover:bg-navy-800 transition border-b border-navy-700/30 last:border-b-0"
                       >
                         <div className="w-8 h-8 rounded-md flex items-center justify-center bg-amber-500/10 text-amber-400 flex-shrink-0 mt-0.5">
                           <FlowIcon size={16} />
@@ -1276,7 +1276,7 @@ export default function Team() {
 
           {/* Active Onboarding Records */}
           {onboardingRecords.length === 0 ? (
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-12 text-center">
+            <div className="bg-navy-800/50 border border-navy-700/50 rounded-lg p-12 text-center">
               <UserPlus size={48} className="mx-auto mb-4 text-gray-600" />
               <p className="text-gray-400 text-lg font-medium mb-2">No onboarding records yet</p>
               <p className="text-gray-500 text-sm mb-6">Start onboarding a new team member to track their NDA, 1099, and setup checklist</p>
@@ -1297,7 +1297,7 @@ export default function Team() {
                 const isComplete = record.status === 'completed';
 
                 return (
-                  <div key={record.id} className={`bg-slate-800/50 border rounded-lg p-5 ${isComplete ? 'border-emerald-500/30' : 'border-slate-700/50'}`}>
+                  <div key={record.id} className={`bg-navy-800/50 border rounded-lg p-5 ${isComplete ? 'border-emerald-500/30' : 'border-navy-700/50'}`}>
                     {/* Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -1345,7 +1345,7 @@ export default function Team() {
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="w-full bg-slate-700 rounded-full h-2 mb-4">
+                    <div className="w-full bg-navy-700 rounded-full h-2 mb-4">
                       <div
                         className={`h-2 rounded-full transition-all ${isComplete ? 'bg-emerald-500' : 'bg-sky-500'}`}
                         style={{ width: `${progress}%` }}
@@ -1362,7 +1362,7 @@ export default function Team() {
                             key={step.key}
                             onClick={() => handleToggleStep(record.id, step.key)}
                             className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition ${
-                              isDone ? 'bg-emerald-500/10 hover:bg-emerald-500/15' : 'bg-slate-700/30 hover:bg-slate-700/50'
+                              isDone ? 'bg-emerald-500/10 hover:bg-emerald-500/15' : 'bg-navy-700/30 hover:bg-navy-700/50'
                             }`}
                           >
                             {isDone ? (
@@ -1392,7 +1392,7 @@ export default function Team() {
 
                     {/* Personal Info Section */}
                     {(record.personal_email || record.address) && (
-                      <div className="mt-4 pt-3 border-t border-slate-700/30 flex gap-4 text-xs text-gray-500">
+                      <div className="mt-4 pt-3 border-t border-navy-700/30 flex gap-4 text-xs text-gray-500">
                         {record.personal_email && <span>Personal: {record.personal_email}</span>}
                         {record.address && <span>Address: {record.address}</span>}
                         {record.start_date && <span>Start: {new Date(record.start_date).toLocaleDateString()}</span>}
@@ -1410,10 +1410,10 @@ export default function Team() {
       {activeTab === 'roles' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {roles.map(role => (
-            <div key={role.id} className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-5">
+            <div key={role.id} className="bg-navy-800/50 border border-navy-700/50 rounded-lg p-5">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${role.color || 'bg-slate-500'}`} />
+                  <div className={`w-3 h-3 rounded-full ${role.color || 'bg-gray-500'}`} />
                   <div>
                     <h3 className="text-white font-semibold">{role.name}</h3>
                     {role.is_system && <span className="text-gray-500 text-xs">System role</span>}
@@ -1429,7 +1429,7 @@ export default function Team() {
                   .filter(([, v]) => v)
                   .slice(0, 6)
                   .map(([key]) => (
-                    <span key={key} className="px-2 py-0.5 bg-slate-700/50 text-gray-400 rounded text-xs">
+                    <span key={key} className="px-2 py-0.5 bg-navy-700/50 text-gray-400 rounded text-xs">
                       {key.split('.')[1]?.replace(/_/g, ' ')}
                     </span>
                   ))}
@@ -1471,7 +1471,7 @@ export default function Team() {
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                     editingRole?.id === role.id
                       ? 'bg-sky-500 text-white'
-                      : 'bg-slate-800 text-gray-400 hover:text-white hover:bg-slate-700'
+                      : 'bg-navy-800 text-gray-400 hover:text-white hover:bg-navy-700'
                   }`}
                 >
                   {role.name}
@@ -1483,7 +1483,7 @@ export default function Team() {
           {editingRole ? (
             <div className="space-y-4">
               {PERMISSION_GROUPS.map(group => (
-                <div key={group.group} className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-5">
+                <div key={group.group} className="bg-navy-800/50 border border-navy-700/50 rounded-lg p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-white font-semibold">{group.group}</h3>
                     <button
@@ -1502,7 +1502,7 @@ export default function Team() {
                     {group.permissions.map(perm => (
                       <label
                         key={perm.key}
-                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-700/30 cursor-pointer transition"
+                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-navy-700/30 cursor-pointer transition"
                       >
                         <div>
                           <p className="text-white text-sm font-medium">{perm.label}</p>
@@ -1511,7 +1511,7 @@ export default function Team() {
                         <div
                           onClick={() => setRolePermissions(prev => ({ ...prev, [perm.key]: !prev[perm.key] }))}
                           className={`w-10 h-5 rounded-full relative transition cursor-pointer ${
-                            rolePermissions[perm.key] ? 'bg-sky-500' : 'bg-slate-600'
+                            rolePermissions[perm.key] ? 'bg-sky-500' : 'bg-navy-600'
                           }`}
                         >
                           <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
@@ -1536,7 +1536,7 @@ export default function Team() {
               </div>
             </div>
           ) : (
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-12 text-center">
+            <div className="bg-navy-800/50 border border-navy-700/50 rounded-lg p-12 text-center">
               <Shield size={48} className="mx-auto mb-4 text-gray-600" />
               <p className="text-gray-400">Select a role above to edit its permissions</p>
             </div>
@@ -1568,13 +1568,13 @@ export default function Team() {
 
           {/* Pending invites */}
           {testerInvites.filter(i => ['pending','opened','in_progress'].includes(i.status)).length > 0 && (
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-700/50">
+            <div className="bg-navy-800/50 border border-navy-700/50 rounded-lg overflow-hidden">
+              <div className="px-4 py-3 border-b border-navy-700/50">
                 <h3 className="text-sm font-semibold text-white">Pending invites ({testerInvites.filter(i => ['pending','opened','in_progress'].includes(i.status)).length})</h3>
               </div>
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-700/50">
+                  <tr className="border-b border-navy-700/50">
                     <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Invitee</th>
                     <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Status</th>
                     <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Sent</th>
@@ -1586,7 +1586,7 @@ export default function Team() {
                   {testerInvites
                     .filter(i => ['pending','opened','in_progress'].includes(i.status))
                     .map((inv) => (
-                      <tr key={inv.id} className="border-b border-slate-700/30 hover:bg-slate-700/20 transition">
+                      <tr key={inv.id} className="border-b border-navy-700/30 hover:bg-navy-700/20 transition">
                         <td className="px-4 py-3">
                           <div className="text-sm text-white">{inv.full_name}</div>
                           <div className="text-[11px] text-gray-500">{inv.personal_email}</div>
@@ -1616,8 +1616,8 @@ export default function Team() {
             </div>
           )}
 
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-700/50 flex items-center justify-between">
+          <div className="bg-navy-800/50 border border-navy-700/50 rounded-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-navy-700/50 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-white">Active testers ({testerEnrollments.filter(e => !e.ended_at).length})</h3>
                 <p className="text-[11px] text-gray-500 mt-0.5">{testerEnrollments.filter(e => e.ended_at).length} ended</p>
@@ -1631,7 +1631,7 @@ export default function Team() {
             </div>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-700/50">
+                <tr className="border-b border-navy-700/50">
                   <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Tester</th>
                   <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Status</th>
                   <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Rate</th>
@@ -1654,7 +1654,7 @@ export default function Team() {
                     const member = members.find((m) => m.id === e.user_id);
                     const isActive = !e.ended_at;
                     return (
-                      <tr key={e.id} className="border-b border-slate-700/30 hover:bg-slate-700/20 transition">
+                      <tr key={e.id} className="border-b border-navy-700/30 hover:bg-navy-700/20 transition">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400 font-medium text-sm">
@@ -1670,7 +1670,7 @@ export default function Team() {
                           {isActive ? (
                             <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300">Active</span>
                           ) : (
-                            <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-slate-500/15 text-slate-400">Ended</span>
+                            <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-gray-500/15 text-gray-400">Ended</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-300">{(Number(e.commission_rate) * 100).toFixed(1)}%</td>
@@ -1701,7 +1701,7 @@ export default function Team() {
 
       {/* ═══ ACTIVITY LOG TAB ═══ */}
       {activeTab === 'activity' && (
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
+        <div className="bg-navy-800/50 border border-navy-700/50 rounded-lg overflow-hidden">
           {activityLog.length === 0 ? (
             <div className="p-12 text-center">
               <Clock size={48} className="mx-auto mb-4 text-gray-600" />
@@ -1709,16 +1709,16 @@ export default function Team() {
               <p className="text-gray-500 text-sm mt-1">Team changes will appear here as they happen</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-700/30">
+            <div className="divide-y divide-navy-700/30">
               {activityLog.map((log, i) => (
-                <div key={log.id || i} className="px-4 py-3 flex items-center gap-3 hover:bg-slate-700/20 transition">
+                <div key={log.id || i} className="px-4 py-3 flex items-center gap-3 hover:bg-navy-700/20 transition">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
                     log.action === 'invited' ? 'bg-sky-500/20 text-sky-400' :
                     log.action === 'role_changed' ? 'bg-amber-500/20 text-amber-400' :
                     log.action === 'deactivated' ? 'bg-red-500/20 text-red-400' :
                     log.action === 'reactivated' ? 'bg-emerald-500/20 text-emerald-400' :
                     log.action === 'permissions_updated' ? 'bg-purple-500/20 text-purple-400' :
-                    'bg-slate-500/20 text-gray-400'
+                    'bg-gray-500/20 text-gray-400'
                   }`}>
                     {log.action === 'invited' ? <Mail size={14} /> :
                      log.action === 'role_changed' ? <Edit2 size={14} /> :
@@ -1760,7 +1760,7 @@ export default function Team() {
       {/* ═══ INVITE MODAL ═══ */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowInviteModal(false)}>
-          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-navy-800 border border-navy-700 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-white mb-4">Invite Team Member</h2>
             <form onSubmit={handleInvite} className="space-y-4">
               <div>
@@ -1771,7 +1771,7 @@ export default function Team() {
                   onChange={e => setInviteForm({ ...inviteForm, email: e.target.value })}
                   required
                   placeholder="name@company.com"
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                  className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                 />
               </div>
               <div>
@@ -1781,7 +1781,7 @@ export default function Team() {
                   value={inviteForm.full_name}
                   onChange={e => setInviteForm({ ...inviteForm, full_name: e.target.value })}
                   placeholder="John Smith"
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                  className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                 />
               </div>
               <div>
@@ -1789,7 +1789,7 @@ export default function Team() {
                 <select
                   value={inviteForm.role}
                   onChange={e => setInviteForm({ ...inviteForm, role: e.target.value })}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                  className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                 >
                   {roleOptions.map(r => (
                     <option key={r} value={r}>{r}</option>
@@ -1800,7 +1800,7 @@ export default function Team() {
                 <button
                   type="button"
                   onClick={() => setShowInviteModal(false)}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
+                  className="flex-1 bg-navy-700 hover:bg-navy-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
                 >
                   Cancel
                 </button>
@@ -1821,7 +1821,7 @@ export default function Team() {
       {/* ═══ CREATE ROLE MODAL ═══ */}
       {showRoleModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowRoleModal(false)}>
-          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-navy-800 border border-navy-700 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-white mb-4">Create Custom Role</h2>
             <form onSubmit={handleCreateRole} className="space-y-4">
               <div>
@@ -1832,7 +1832,7 @@ export default function Team() {
                   onChange={e => setRoleForm({ ...roleForm, name: e.target.value })}
                   required
                   placeholder="e.g. Designer, Intern"
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                  className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                 />
               </div>
               <div>
@@ -1842,7 +1842,7 @@ export default function Team() {
                   onChange={e => setRoleForm({ ...roleForm, description: e.target.value })}
                   placeholder="What can this role do?"
                   rows={2}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500 resize-none"
+                  className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500 resize-none"
                 />
               </div>
               <div>
@@ -1853,7 +1853,7 @@ export default function Team() {
                       key={c}
                       type="button"
                       onClick={() => setRoleForm({ ...roleForm, color: c })}
-                      className={`w-8 h-8 rounded-full ${c} transition ${roleForm.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : 'opacity-50 hover:opacity-100'}`}
+                      className={`w-8 h-8 rounded-full ${c} transition ${roleForm.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-navy-800' : 'opacity-50 hover:opacity-100'}`}
                     />
                   ))}
                 </div>
@@ -1862,7 +1862,7 @@ export default function Team() {
                 <button
                   type="button"
                   onClick={() => setShowRoleModal(false)}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
+                  className="flex-1 bg-navy-700 hover:bg-navy-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
                 >
                   Cancel
                 </button>
@@ -1881,7 +1881,7 @@ export default function Team() {
       {/* ═══ ONBOARD NEW MEMBER MODAL ═══ */}
       {showOnboardModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowOnboardModal(false)}>
-          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
+          <div className="bg-navy-800 border border-navy-700 rounded-xl shadow-2xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-white mb-1">Onboard New Team Member</h2>
             <p className="text-gray-500 text-sm mb-4">This will create an onboarding record to track NDA, 1099, account setup, and all required steps.</p>
             <form onSubmit={handleStartOnboarding} className="space-y-3">
@@ -1894,7 +1894,7 @@ export default function Team() {
                     onChange={e => setOnboardForm({ ...onboardForm, full_name: e.target.value })}
                     required
                     placeholder="Jeff Cillo"
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                    className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                   />
                 </div>
                 <div>
@@ -1902,7 +1902,7 @@ export default function Team() {
                   <select
                     value={onboardForm.role}
                     onChange={e => setOnboardForm({ ...onboardForm, role: e.target.value })}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                    className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                   >
                     {roleOptions.map(r => (
                       <option key={r} value={r}>{r}</option>
@@ -1919,7 +1919,7 @@ export default function Team() {
                     onChange={e => setOnboardForm({ ...onboardForm, email: e.target.value })}
                     required
                     placeholder="jeff@liftori.ai"
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                    className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                   />
                 </div>
                 <div>
@@ -1929,7 +1929,7 @@ export default function Team() {
                     value={onboardForm.personal_email}
                     onChange={e => setOnboardForm({ ...onboardForm, personal_email: e.target.value })}
                     placeholder="jeff@personal.com"
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                    className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                   />
                 </div>
               </div>
@@ -1941,7 +1941,7 @@ export default function Team() {
                     value={onboardForm.phone}
                     onChange={e => setOnboardForm({ ...onboardForm, phone: e.target.value })}
                     placeholder="732-610-2582"
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                    className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                   />
                 </div>
                 <div>
@@ -1950,7 +1950,7 @@ export default function Team() {
                     type="date"
                     value={onboardForm.start_date}
                     onChange={e => setOnboardForm({ ...onboardForm, start_date: e.target.value })}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                    className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                   />
                 </div>
               </div>
@@ -1961,11 +1961,11 @@ export default function Team() {
                   value={onboardForm.address}
                   onChange={e => setOnboardForm({ ...onboardForm, address: e.target.value })}
                   placeholder="Full mailing address"
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                  className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                 />
               </div>
 
-              <div className="bg-slate-700/30 border border-slate-600/30 rounded-lg p-3 mt-2">
+              <div className="bg-navy-700/30 border border-navy-600/30 rounded-lg p-3 mt-2">
                 <p className="text-gray-400 text-xs font-medium mb-2">This will initiate the following:</p>
                 <div className="grid grid-cols-2 gap-1 text-xs text-gray-500">
                   <span className="flex items-center gap-1"><FileText size={12} /> NDA generation & tracking</span>
@@ -1979,7 +1979,7 @@ export default function Team() {
                 <button
                   type="button"
                   onClick={() => setShowOnboardModal(false)}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
+                  className="flex-1 bg-navy-700 hover:bg-navy-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
                 >
                   Cancel
                 </button>
@@ -1999,7 +1999,7 @@ export default function Team() {
       {/* ═══ CREATE TEAM MODAL ═══ */}
       {showCreateTeamModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowCreateTeamModal(false)}>
-          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-navy-800 border border-navy-700 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-white mb-4">Create Team</h2>
             <form onSubmit={handleCreateTeam} className="space-y-4">
               <div>
@@ -2010,7 +2010,7 @@ export default function Team() {
                   onChange={e => setTeamForm({ ...teamForm, name: e.target.value })}
                   required
                   placeholder="e.g. Sales Team, Consulting"
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                  className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                 />
               </div>
               <div>
@@ -2020,7 +2020,7 @@ export default function Team() {
                   onChange={e => setTeamForm({ ...teamForm, description: e.target.value })}
                   placeholder="What does this team do?"
                   rows={2}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500 resize-none"
+                  className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500 resize-none"
                 />
               </div>
               <div>
@@ -2031,7 +2031,7 @@ export default function Team() {
                       key={c}
                       type="button"
                       onClick={() => setTeamForm({ ...teamForm, color: c })}
-                      className={`w-8 h-8 rounded-full ${c} transition ${teamForm.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : 'opacity-50 hover:opacity-100'}`}
+                      className={`w-8 h-8 rounded-full ${c} transition ${teamForm.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-navy-800' : 'opacity-50 hover:opacity-100'}`}
                     />
                   ))}
                 </div>
@@ -2040,7 +2040,7 @@ export default function Team() {
                 <button
                   type="button"
                   onClick={() => setShowCreateTeamModal(false)}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
+                  className="flex-1 bg-navy-700 hover:bg-navy-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
                 >
                   Cancel
                 </button>
@@ -2061,7 +2061,7 @@ export default function Team() {
       {/* ═══ EDIT TEAM MODAL ═══ */}
       {editingTeam && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setEditingTeam(null)}>
-          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-navy-800 border border-navy-700 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-white mb-4">Edit Team</h2>
             <form onSubmit={handleUpdateTeam} className="space-y-4">
               <div>
@@ -2071,7 +2071,7 @@ export default function Team() {
                   value={editingTeam.name}
                   onChange={e => setEditingTeam({ ...editingTeam, name: e.target.value })}
                   required
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
+                  className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500"
                 />
               </div>
               <div>
@@ -2080,7 +2080,7 @@ export default function Team() {
                   value={editingTeam.description || ''}
                   onChange={e => setEditingTeam({ ...editingTeam, description: e.target.value })}
                   rows={2}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500 resize-none"
+                  className="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500 resize-none"
                 />
               </div>
               <div>
@@ -2091,7 +2091,7 @@ export default function Team() {
                       key={c}
                       type="button"
                       onClick={() => setEditingTeam({ ...editingTeam, color: c })}
-                      className={`w-8 h-8 rounded-full ${c} transition ${editingTeam.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : 'opacity-50 hover:opacity-100'}`}
+                      className={`w-8 h-8 rounded-full ${c} transition ${editingTeam.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-navy-800' : 'opacity-50 hover:opacity-100'}`}
                     />
                   ))}
                 </div>
@@ -2100,7 +2100,7 @@ export default function Team() {
                 <button
                   type="button"
                   onClick={() => setEditingTeam(null)}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
+                  className="flex-1 bg-navy-700 hover:bg-navy-600 text-gray-300 py-2 rounded-lg text-sm font-medium transition"
                 >
                   Cancel
                 </button>
