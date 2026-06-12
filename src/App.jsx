@@ -594,6 +594,8 @@ export default function App() {
             <Route path="sales" element={<CrmPipeline />} />
             <Route path="pipeline" element={<CrmPipeline />} />
             <Route path="sales-training" element={<CrmSalesTraining />} />
+            <Route path="university" element={<CrmSalesTraining />} />
+            <Route path="university/:track" element={<CrmSalesTraining />} />
             <Route path="ops-pipeline" element={<CrmOpsPipeline />} />
             <Route path="call-center" element={<CrmCallCenter />} />
             <Route path="overview" element={<CscOverview />} />
