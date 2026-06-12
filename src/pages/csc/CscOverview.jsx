@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { cscSupabase, fmtMoney, fmtDate, relTime, CLEANING_STATUS_TONES, SEVERITY_TONES, INVOICE_STATUS_TONES } from '../../lib/cscClient'
+import { cscSupabase, fmtMoney, fmtDate, relTime, CLEANING_STATUS_TONES, SEVERITY_TONES } from '../../lib/cscClient'
 import DemoTools from '../../components/csc/DemoTools'
 
 function StatCard({ label, value, hint, accent, to }) {
@@ -18,9 +18,33 @@ function Pill({ tone, children }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${tone}`}>{children}</span>
 }
 
+function ComplianceBar({ current, expiring, overdue }) {
+  const total = current + expiring + overdue || 1
+  const seg = (n, cls) => n > 0 ? <div className={cls} style={{ width: `${(n / total) * 100}%` }} /> : null
+  return (
+    <div className="rounded-xl border border-navy-700/50 bg-navy-800 p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-white">Compliance Status</h3>
+        <span className="text-xs text-gray-500">{current + expiring + overdue} active accounts</span>
+      </div>
+      <div className="flex h-3 rounded-full overflow-hidden bg-navy-900">
+        {seg(current, 'bg-emerald-500')}
+        {seg(expiring, 'bg-amber-500')}
+        {seg(overdue, 'bg-red-500')}
+      </div>
+      <div className="flex items-center gap-5 mt-3 text-xs">
+        <span className="flex items-center gap-1.5 text-gray-400"><span className="w-2 h-2 rounded-full bg-emerald-500" />Current <span className="text-white font-semibold">{current}</span></span>
+        <span className="flex items-center gap-1.5 text-gray-400"><span className="w-2 h-2 rounded-full bg-amber-500" />Expiring ≤30d <span className="text-white font-semibold">{expiring}</span></span>
+        <span className="flex items-center gap-1.5 text-gray-400"><span className="w-2 h-2 rounded-full bg-red-500" />Overdue <span className="text-white font-semibold">{overdue}</span></span>
+      </div>
+    </div>
+  )
+}
+
 export default function CscOverview() {
   const { platformId } = useParams()
-  const [stats, setStats] = useState({ jobsToday: 0, overdue: 0, openDeficiencies: 0, arOutstanding: 0, revenueMTD: 0, totalRestaurants: 0 })
+  const [stats, setStats] = useState({ jobsToday: 0, openDeficiencies: 0, arOutstanding: 0, revenueMTD: 0, totalRestaurants: 0, enrolled: 0, certs: 0, complianceRate: 0 })
+  const [breakdown, setBreakdown] = useState({ current: 0, expiring: 0, overdue: 0 })
   const [recent, setRecent] = useState([])
   const [overdueList, setOverdueList] = useState([])
   const [openDeficiencies, setOpenDeficiencies] = useState([])
@@ -31,14 +55,16 @@ export default function CscOverview() {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
     const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1)
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
+    const now = Date.now()
+    const soon = now + 30 * 86400000
 
-    const [jobsToday, overdue, openDef, ar, mtd, total, recentJobs, overdueRest, openDefList, overdueInv] = await Promise.all([
+    const [jobsToday, openDef, ar, mtd, allActive, certs, recentJobs, overdueRest, openDefList, overdueInv] = await Promise.all([
       cscSupabase.from('csc_cleanings').select('id', { count: 'exact', head: true }).gte('scheduled_at', todayStart.toISOString()).lt('scheduled_at', todayEnd.toISOString()),
-      cscSupabase.from('csc_restaurants').select('id', { count: 'exact', head: true }).lt('next_due_at', new Date().toISOString()).eq('status', 'active'),
       cscSupabase.from('csc_deficiencies').select('id', { count: 'exact', head: true }).in('quote_status', ['open', 'quoted']),
       cscSupabase.from('csc_invoices').select('total_amount, amount_paid').in('status', ['sent', 'overdue', 'partial']),
       cscSupabase.from('csc_invoices').select('total_amount').eq('status', 'paid').gte('paid_at', monthStart.toISOString()),
-      cscSupabase.from('csc_restaurants').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      cscSupabase.from('csc_restaurants').select('next_due_at, ahj_enrolled').eq('status', 'active'),
+      cscSupabase.from('csc_certificates').select('id', { count: 'exact', head: true }),
       cscSupabase.from('csc_cleanings').select('id, scheduled_at, completed_at, status, tech_name, restaurant:csc_restaurants(name, city, state)').order('scheduled_at', { ascending: false }).limit(8),
       cscSupabase.from('csc_restaurants').select('id, name, city, state, next_due_at, frequency_tier').lt('next_due_at', new Date().toISOString()).eq('status', 'active').order('next_due_at').limit(5),
       cscSupabase.from('csc_deficiencies').select('id, title, severity, quote_amount, quote_status, restaurant:csc_restaurants(name)').in('quote_status', ['open', 'quoted']).order('created_at', { ascending: false }).limit(6),
@@ -47,15 +73,20 @@ export default function CscOverview() {
 
     const arSum = (ar.data || []).reduce((s, i) => s + Number(i.total_amount - (i.amount_paid || 0)), 0)
     const mtdSum = (mtd.data || []).reduce((s, i) => s + Number(i.total_amount), 0)
-
-    setStats({
-      jobsToday: jobsToday.count || 0,
-      overdue: overdue.count || 0,
-      openDeficiencies: openDef.count || 0,
-      arOutstanding: arSum,
-      revenueMTD: mtdSum,
-      totalRestaurants: total.count || 0,
+    const active = allActive.data || []
+    let cur = 0, exp = 0, od = 0, enrolled = 0
+    active.forEach(r => {
+      if (r.ahj_enrolled) enrolled++
+      const d = r.next_due_at ? new Date(r.next_due_at).getTime() : null
+      if (d == null) cur++
+      else if (d < now) od++
+      else if (d < soon) exp++
+      else cur++
     })
+    const rate = active.length ? Math.round((cur / active.length) * 100) : 0
+
+    setStats({ jobsToday: jobsToday.count || 0, openDeficiencies: openDef.count || 0, arOutstanding: arSum, revenueMTD: mtdSum, totalRestaurants: active.length, enrolled, certs: certs.count || 0, complianceRate: rate })
+    setBreakdown({ current: cur, expiring: exp, overdue: od })
     setRecent(recentJobs.data || [])
     setOverdueList(overdueRest.data || [])
     setOpenDeficiencies(openDefList.data || [])
@@ -68,20 +99,29 @@ export default function CscOverview() {
   return (
     <div className="space-y-6">
       <DemoTools />
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-sm text-gray-400 mt-0.5">NFPA 96 compliance command center</p>
+        </div>
         <a href="/csc/tech" target="_blank" rel="noopener noreferrer"
            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/30 text-brand-cyan transition-colors">
           <span>📱</span> Open tech app (new tab)
         </a>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Active Accounts" value={loading ? '—' : stats.totalRestaurants} hint="restaurants under contract" to={`/crm/${platformId}/customers`} />
+        <StatCard label="Compliance Rate" value={loading ? '—' : `${stats.complianceRate}%`} hint="accounts current on NFPA 96" accent={stats.complianceRate >= 80 ? 'text-emerald-300' : stats.complianceRate >= 60 ? 'text-amber-300' : 'text-red-300'} />
+        <StatCard label="AHJ Enrolled" value={loading ? '—' : stats.enrolled} hint="in fire-marshal portals" to={`/crm/${platformId}/ahj`} accent="text-brand-cyan" />
+        <StatCard label="Certs Issued" value={loading ? '—' : stats.certs} hint="NFPA 96 certificates" to={`/crm/${platformId}/certificates`} />
         <StatCard label="Jobs Today" value={loading ? '—' : stats.jobsToday} hint="scheduled or in progress" to={`/crm/${platformId}/jobs`} accent="text-blue-300" />
-        <StatCard label="Overdue Cleanings" value={loading ? '—' : stats.overdue} hint="past next_due_at" accent={stats.overdue > 0 ? 'text-red-300' : 'text-emerald-300'} to={`/crm/${platformId}/customers`} />
-        <StatCard label="Open Deficiencies" value={loading ? '—' : stats.openDeficiencies} hint="open or awaiting quote" to={`/crm/${platformId}/deficiencies`} accent="text-amber-300" />
+        <StatCard label="Open Deficiencies" value={loading ? '—' : stats.openDeficiencies} hint="upsell pipeline" to={`/crm/${platformId}/deficiencies`} accent="text-amber-300" />
         <StatCard label="AR Outstanding" value={loading ? '—' : fmtMoney(stats.arOutstanding)} hint="sent + overdue + partial" to={`/crm/${platformId}/invoices`} accent={stats.arOutstanding > 0 ? 'text-brand-cyan' : 'text-white'} />
         <StatCard label="Revenue MTD" value={loading ? '—' : fmtMoney(stats.revenueMTD)} hint="invoices paid this month" accent="text-emerald-300" />
       </div>
+
+      <ComplianceBar {...breakdown} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent jobs */}
