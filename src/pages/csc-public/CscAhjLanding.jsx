@@ -1,4 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { cscSupabase } from '../../lib/cscClient'
+
+const SAMPLE_QR = '4BD68761BOFF'
 
 function Stat({ value, label }) {
   return (
@@ -24,6 +28,18 @@ function Step({ num, title, body }) {
 }
 
 export default function CscAhjLanding() {
+  const [jurisdictions, setJurisdictions] = useState([])
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await cscSupabase
+        .from('csc_ahj_jurisdictions')
+        .select('id, name, state, city, slug')
+        .order('state').order('name')
+      setJurisdictions(data || [])
+    })()
+  }, [])
+
   return (
     <div className="space-y-10">
       {/* Hero */}
@@ -35,22 +51,46 @@ export default function CscAhjLanding() {
           <span className="text-orange-300">No login.</span>
         </h1>
         <p className="text-base md:text-lg text-white/70 mt-5 max-w-2xl">
-          Every restaurant under contract with a LABOS-KEC contractor wears a tamper-evident NFPA 96 sticker. Point your phone camera at the QR code and the cert opens in two seconds — full grease readings, last cleaned date, frequency tier, technician, AHJ jurisdiction.
+          Every restaurant under contract with a CSC-KEC contractor wears a tamper-evident NFPA 96 sticker. Point your phone camera at the QR code and the cert opens in two seconds — full grease readings, last cleaned date, frequency tier, technician, AHJ jurisdiction.
         </p>
         <p className="text-sm text-white/50 mt-3 max-w-2xl">
           Free for fire marshals, code officials, and inspectors. No account, no app, no friction.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <a href="/csc/verify/D6D3D506713F" target="_blank" rel="noopener noreferrer"
+          <a href={`/csc/verify/${SAMPLE_QR}`} target="_blank" rel="noopener noreferrer"
              className="px-5 py-2.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-orange-200 rounded-lg text-sm font-medium transition-colors">
             Try a sample verify →
           </a>
-          <a href="mailto:ahj@liftori.ai?subject=Request AHJ portal for our jurisdiction"
+          <a href="#jurisdictions"
              className="px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 rounded-lg text-sm font-medium transition-colors">
-            Request your jurisdiction's portal
+            Open your jurisdiction portal
           </a>
         </div>
       </div>
+
+      {/* Jurisdiction directory — the live portals */}
+      <section id="jurisdictions">
+        <h2 className="text-sm uppercase tracking-wider text-orange-300/80 font-bold mb-4">Jurisdiction compliance portals</h2>
+        <p className="text-sm text-white/50 mb-5 max-w-2xl">
+          Each portal lists every enrolled foodservice location in that jurisdiction with live NFPA 96 compliance status — current, expiring, or overdue. Free for AHJs, always.
+        </p>
+        {jurisdictions.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-sm text-white/40">Loading jurisdictions…</div>
+        ) : (
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {jurisdictions.map(j => (
+              <Link key={j.id} to={`/csc/ahj/${j.slug}`}
+                className="group rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-orange-500/30 p-4 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="text-white font-medium">{j.name}</div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/30">{j.state}</span>
+                </div>
+                <div className="text-xs text-white/40 mt-1">{j.city ? `${j.city}, ${j.state}` : j.state} · View compliance roster →</div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* What you see when you scan */}
       <section>
@@ -103,38 +143,8 @@ export default function CscAhjLanding() {
           </div>
           <div>
             <div className="text-white font-medium mb-2">Free, forever, for AHJs.</div>
-            <p className="text-white/60">LABOS-KEC contractors pay the platform fee. Fire marshals, code officials, and inspectors use it at no cost. Always. We don't monetize jurisdictional access.</p>
+            <p className="text-white/60">CSC-KEC contractors pay the platform fee. Fire marshals, code officials, and inspectors use it at no cost. Always. We don't monetize jurisdictional access.</p>
           </div>
-        </div>
-      </section>
-
-      {/* Sample */}
-      <section className="rounded-xl border border-white/10 bg-white/5 p-6">
-        <div className="text-sm uppercase tracking-wider text-orange-300/80 font-bold mb-3">Try it now</div>
-        <p className="text-sm text-white/60 mb-4 max-w-xl">
-          Below is a real verify URL from a sample LABOS-KEC cleaning. The cert is real, the QR is real, the data is real.
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <a href="/csc/verify/D6D3D506713F" target="_blank" rel="noopener noreferrer"
-             className="px-4 py-2 bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-200 rounded font-mono text-sm transition-colors">
-            /csc/verify/D6D3D506713F →
-          </a>
-          <span className="text-xs text-white/40">Dunkin' #533 · Worcester MA · threshold-violation cleaning</span>
-        </div>
-      </section>
-
-      {/* Request portal */}
-      <section className="rounded-xl border border-orange-500/30 bg-gradient-to-br from-orange-500/15 to-orange-600/5 p-6 md:p-8">
-        <div className="text-sm uppercase tracking-wider text-orange-300 font-bold mb-2">Bring LABOS-KEC to your jurisdiction</div>
-        <h3 className="text-2xl font-heading text-white">Request a jurisdiction portal</h3>
-        <p className="text-sm text-white/70 mt-3 max-w-2xl">
-          We're rolling out jurisdiction-specific portals for AHJs in CT, MA, RI, NY first. The portal shows every active sticker in your jurisdiction, expiring-soon alerts, contractor performance summary, and compliance heatmap. Free, no commitment.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <a href="mailto:ahj@liftori.ai?subject=Request AHJ portal for our jurisdiction&body=Jurisdiction:%20%0AState:%20%0AContact name:%20%0AContact email:%20%0AContact phone:%20"
-             className="px-5 py-2.5 bg-orange-500/30 hover:bg-orange-500/40 border border-orange-500/50 text-orange-100 rounded-lg text-sm font-medium transition-colors">
-            Email us → ahj@liftori.ai
-          </a>
         </div>
       </section>
 
