@@ -820,14 +820,28 @@ export async function sendInvoiceEmail(invoice, { to, cc, subject, html, fromNam
   const { data: sendResult, error: sendErr } = await supabase.functions.invoke('send-email', { body });
   if (sendErr || sendResult?.error) {
     const errMsg = sendErr?.message || sendResult?.error || 'unknown send-email failure';
-    await supabase.from('outbound_emails').insert({ ...baseRow, status: 'failed', error_message: String(errMsg).slice(0, 500) });
+    // Wave F2.7f-code: surface audit-log insert failures instead of swallowing them.
+    // Don't override the original send error if the audit insert also fails;
+    // log a [Finance] warn so the underlying cause is still discoverable.
+    const { error: auditFailErr } = await supabase.from('outbound_emails')
+      .insert({ ...baseRow, status: 'failed', error_message: String(errMsg).slice(0, 500) });
+    if (auditFailErr) console.warn('[Finance] outbound_emails audit insert (failed-path) also failed:', auditFailErr);
     throw new Error(errMsg);
   }
-  await supabase.from('outbound_emails').insert({
+  // Wave F2.7f-code: destructure {error} so a schema/RLS/CHECK violation throws
+  // a real toast instead of silently dropping the audit row (see F2.7f-migration
+  // root cause: CHECK on email_type didn't include 'invoice', supabase-js
+  // returned {error}, prior code didn't read it, Email History stayed empty).
+  const { error: auditErr } = await supabase.from('outbound_emails').insert({
     ...baseRow,
     status: 'sent',
     provider_message_id: sendResult?.id || null,
   });
+  if (auditErr) {
+    // The email DID send (Resend confirmed). Don't undo that - just throw so
+    // the UI surfaces the audit gap loudly.
+    throw new Error(`Email sent but audit log write failed: ${auditErr.message || auditErr}`);
+  }
   if (invoice.status === 'draft') {
     try { await updateInvoice(invoice.id, { status: 'sent' }); } catch (e) { /* don't fail email flow on status flip */ }
   }
