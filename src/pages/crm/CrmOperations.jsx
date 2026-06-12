@@ -1,6 +1,6 @@
 // =====================================================================
 // CrmOperations - Operations hub shell for service businesses
-// Sub-tabs: Dashboard | Work Orders | Schedule | Crews | Inventory | Measurements
+// Sub-tabs: Dashboard | Work Orders | Schedule | Crews | Crew Availability | Job Map | Inventory
 // Renders <Outlet /> for each sub-route.
 // Mobile collapses tab row to a <select> dropdown.
 // =====================================================================
@@ -8,12 +8,13 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 const TABS = [
-  { key: 'dashboard',    label: 'Dashboard',    path: 'dashboard' },
-  { key: 'work-orders',  label: 'Work Orders',  path: 'work-orders' },
-  { key: 'schedule',     label: 'Schedule',     path: 'schedule' },
-  { key: 'crews',        label: 'Crews',        path: 'crews' },
-  { key: 'inventory',    label: 'Inventory',    path: 'inventory' },
-  { key: 'measurements', label: 'Measurements', path: 'measurements' },
+  { key: 'dashboard',         label: 'Dashboard',         path: 'dashboard' },
+  { key: 'work-orders',       label: 'Work Orders',       path: 'work-orders' },
+  { key: 'schedule',          label: 'Schedule',          path: 'schedule' },
+  { key: 'crews',             label: 'Crews',             path: 'crews' },
+  { key: 'crew-availability', label: 'Crew Availability', path: 'crew-availability' },
+  { key: 'map',               label: 'Job Map',           path: 'map' },
+  { key: 'inventory',         label: 'Inventory',         path: 'inventory' },
 ]
 
 export default function CrmOperations() {
