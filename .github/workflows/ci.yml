@@ -1,7 +1,10 @@
 name: CI Gate
-# Liftori build-machine keystone (Meta-Audit 2026-06-12):
-# the one gate neither agent nor lane can skip. Runs on every push to main.
-# Phase 1: AUTO_REVERT=false (observe). Phase 2: flip to true after first green run.
+# Liftori build-machine keystone (Meta-Audit 2026-06-12, v3):
+# build + secret scan + LOCAL render smoke (vite preview + puppeteer) on every push to main.
+# v3: render smoke runs against localhost dist - NOT prod (Vercel edge challenges headless
+# runners; prod probe false-failed run #3 while prod was healthy in a real browser).
+# Auto-revert is ON. Note: a failing commit that itself edits .github/workflows/* cannot be
+# auto-reverted (GITHUB_TOKEN lacks workflow perm) - those alert only.
 on:
   push:
     branches: [main]
@@ -34,13 +37,48 @@ jobs:
             echo "::error::Secret-pattern hit - failing the gate"
             exit 1
           fi
+      - name: Render smoke (local preview + puppeteer)
+        run: |
+          npm i puppeteer@23 --no-save
+          npx vite preview --port 4173 --strictPort &
+          sleep 5
+          cat > /tmp/smoke.mjs <<'EOS'
+          import puppeteer from 'puppeteer';
+          const url = 'http://localhost:4173/';
+          const errors = [];
+          const browser = await puppeteer.launch({args: ['--no-sandbox']});
+          const page = await browser.newPage();
+          page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+          const resp = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 30000});
+          const status = resp ? resp.status() : 0;
+          await new Promise(r => setTimeout(r, 8000));
+          const rootLen = await page.evaluate(() => { const r = document.getElementById('root'); return r ? r.innerHTML.length : 0; });
+          const bodyText = await page.evaluate(() => document.body.innerText.slice(0, 300));
+          await browser.close();
+          console.log('status=' + status + ' rootLen=' + rootLen + ' pageErrors=' + errors.length);
+          if (errors.length) console.log(errors.join('; '));
+          if (status >= 400 || status === 0) { console.error('bad HTTP status ' + status); process.exit(1); }
+          if (rootLen < 200) { console.error('blank root - app did not render. body: ' + bodyText); process.exit(1); }
+          const fatal = errors.filter(e => /Minified React error|ChunkLoadError/i.test(e));
+          if (fatal.length) { console.error(fatal.join('; ')); process.exit(1); }
+          console.log('render smoke OK. body starts: ' + bodyText.slice(0, 100));
+          EOS
+          ok=0
+          for i in 1 2; do
+            if node /tmp/smoke.mjs; then ok=1; break; fi
+            echo "render smoke attempt $i failed; retry in 15s"; sleep 15
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::Render smoke failed - built bundle does not render"
+            exit 1
+          fi
       - name: Auto-revert on failure
         if: ${{ failure() && env.AUTO_REVERT == 'true' }}
         run: |
           git config user.name "liftori-ci-gate"
           git config user.email "ci@liftori.ai"
           if git revert --no-edit ${{ github.sha }}; then
-            git commit --amend -m "[ci-auto-revert] ${{ github.sha }} failed CI gate (build/secret scan) - auto-reverted; Vercel redeploys last-good"
+            git commit --amend -m "[ci-auto-revert] ${{ github.sha }} failed CI gate (build/secret/render) - auto-reverted; Vercel redeploys last-good"
             git push origin main
           else
             echo "::error::Revert conflict - manual intervention required"
@@ -51,68 +89,3 @@ jobs:
           curl -s -X POST "https://qlerfkdyslndjbaltkwo.supabase.co/functions/v1/dev-team-log" \
             -H "Content-Type: application/json" \
             -d "{\"author_user_id\":\"3f178841-4ea5-476a-b67e-6a1fc9fe9284\",\"author_display_name\":\"CI gate (liftori-admin)\",\"action\":\"ci_failure\",\"target\":\"$GITHUB_SHA\",\"target_type\":\"commit\",\"details\":{\"run_id\":\"$GITHUB_RUN_ID\",\"auto_revert\":\"$AUTO_REVERT\"}}" || true
-
-  smoke:
-    needs: verify
-    if: ${{ !startsWith(github.event.head_commit.message, '[ci-auto-revert]') }}
-    runs-on: ubuntu-latest
-    env:
-      AUTO_REVERT: "true"
-      PROD_URL: "https://admin.liftori.ai/login"
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Wait for Vercel deploy
-        run: sleep 90
-      - name: Install puppeteer
-        run: npm i puppeteer@23 --no-save
-      - name: Smoke probe (blank-root + fatal JS detection)
-        run: |
-          cat > /tmp/smoke.mjs <<'EOS'
-          import puppeteer from 'puppeteer';
-          const url = process.env.PROD_URL;
-          const errors = [];
-          const browser = await puppeteer.launch({args: ['--no-sandbox']});
-          const page = await browser.newPage();
-          page.on('pageerror', e => errors.push('pageerror: ' + e.message));
-          const resp = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 45000});
-          const status = resp ? resp.status() : 0;
-          await new Promise(r => setTimeout(r, 8000));
-          const rootLen = await page.evaluate(() => { const r = document.getElementById('root'); return r ? r.innerHTML.length : 0; });
-          await browser.close();
-          console.log('status=' + status + ' rootLen=' + rootLen + ' pageErrors=' + errors.length);
-          if (status >= 400 || status === 0) { console.error('bad HTTP status ' + status); process.exit(1); }
-          if (rootLen < 200) { console.error('blank root - app did not render'); process.exit(1); }
-          const fatal = errors.filter(e => /Minified React error|ChunkLoadError/i.test(e));
-          if (fatal.length) { console.error(fatal.join('; ')); process.exit(1); }
-          EOS
-          ok=0
-          for i in 1 2 3; do
-            if node /tmp/smoke.mjs; then ok=1; break; fi
-            echo "smoke attempt $i failed; retry in 60s"; sleep 60
-          done
-          if [ "$ok" != "1" ]; then
-            echo "::error::Smoke gate failed 3 consecutive attempts - prod render is broken"
-            exit 1
-          fi
-      - name: Auto-revert on smoke failure
-        if: ${{ failure() && env.AUTO_REVERT == 'true' }}
-        run: |
-          git config user.name "liftori-ci-gate"
-          git config user.email "ci@liftori.ai"
-          if git revert --no-edit ${{ github.sha }}; then
-            git commit --amend -m "[ci-auto-revert] ${{ github.sha }} failed SMOKE gate (prod render broken) - auto-reverted; Vercel redeploys last-good"
-            git push origin main
-          else
-            echo "::error::Revert conflict - manual intervention required"
-          fi
-      - name: Alert dev-team activity feed on smoke failure
-        if: ${{ failure() }}
-        run: |
-          curl -s -X POST "https://qlerfkdyslndjbaltkwo.supabase.co/functions/v1/dev-team-log" \
-            -H "Content-Type: application/json" \
-            -d "{\"author_user_id\":\"3f178841-4ea5-476a-b67e-6a1fc9fe9284\",\"author_display_name\":\"CI smoke gate (liftori-admin)\",\"action\":\"smoke_failure\",\"target\":\"$GITHUB_SHA\",\"target_type\":\"commit\",\"details\":{\"run_id\":\"$GITHUB_RUN_ID\"}}" || true
