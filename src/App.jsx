@@ -224,7 +224,7 @@ import CrmNotes from './pages/crm/CrmNotes';
 import CrmTasks from './pages/crm/CrmTasks';
 import CrmNotifications from './pages/crm/CrmNotifications';
 import CrmSettings from './pages/crm/CrmSettings';
-import CrmEOS from './pages/crm/CrmEOS';
+import CrmEos from './pages/crm/CrmEos';
 import CrmEOSRocks from './pages/crm/eos/EOSRocks';
 import CrmEOSIssues from './pages/crm/eos/EOSIssues';
 import CrmEOSTodos from './pages/crm/eos/EOSTodos';
@@ -621,16 +621,8 @@ export default function App() {
             <Route path="tasks" element={<CrmTasks />} />
             <Route path="notifications" element={<CrmNotifications />} />
             <Route path="settings" element={<CrmSettings />} />
-            <Route path="eos" element={<CrmEOS />}>
-              <Route index element={<Navigate to="rocks" replace />} />
-              <Route path="rocks"  element={<CrmEOSRocks />} />
-              <Route path="issues" element={<CrmEOSIssues />} />
-              <Route path="todos"  element={<CrmEOSTodos />} />
-              <Route path="meetings" element={<CrmEOSMeetings />} />
-              <Route path="scorecard" element={<CrmEOSScorecard />} />
-              <Route path="vto" element={<CrmEOSVTO />} />
-              <Route path="accountability" element={<CrmEOSAccountability />} />
-            </Route>
+            <Route path="eos" element={<CrmEos />} />
+            <Route path="eos/:module" element={<CrmEos />} />
           </Route>
 
           {/* Affiliate / Creator Portal routes */}
