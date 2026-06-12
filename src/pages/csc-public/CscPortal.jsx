@@ -55,7 +55,7 @@ export default function CscPortal() {
       setLoading(true)
       const { data: anchor, error: aErr } = await cscSupabase
         .from('csc_restaurants')
-        .select('*, chain:csc_chain_groups(id, name)')
+        .select('*, chain:csc_chain_groups(id, name), ahj:csc_ahj_jurisdictions(name, slug)')
         .eq('portal_token', token)
         .maybeSingle()
       if (aErr || !anchor) { setError('Portal link not recognized.'); setLoading(false); return }
@@ -64,7 +64,7 @@ export default function CscPortal() {
       if (anchor.chain_group_id) {
         const { data: chainSibs } = await cscSupabase
           .from('csc_restaurants')
-          .select('*, chain:csc_chain_groups(id, name)')
+          .select('*, chain:csc_chain_groups(id, name), ahj:csc_ahj_jurisdictions(name, slug)')
           .eq('chain_group_id', anchor.chain_group_id)
           .order('name')
         siblings = chainSibs && chainSibs.length ? chainSibs : [anchor]
@@ -138,6 +138,20 @@ export default function CscPortal() {
     finally { setBusyId(null) }
   }
 
+  async function enrollInAhj() {
+    if (!active) return
+    setBusyId('enroll')
+    try {
+      const { error } = await cscSupabase.from('csc_restaurants').update({
+        ahj_enrolled: true,
+        ahj_enrolled_at: new Date().toISOString(),
+      }).eq('id', active.id)
+      if (error) throw error
+      setRestaurants(prev => prev.map(r => r.id === active.id ? { ...r, ahj_enrolled: true } : r))
+    } catch (e) { alert('Could not enroll: ' + (e.message || e)) }
+    finally { setBusyId(null) }
+  }
+
   if (loading) return <div className="text-white/40 text-center py-12">Loading your portal…</div>
   if (error) return (
     <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-8 text-center">
@@ -169,6 +183,37 @@ export default function CscPortal() {
       </div>
 
       <ComplianceHeader restaurant={active} />
+
+      {/* AHJ enrollment — per-area compliance portal */}
+      <div className="rounded-xl border border-orange-500/25 bg-orange-500/5 p-5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="max-w-xl">
+            <div className="text-[10px] uppercase tracking-wider text-orange-300/80 font-semibold">Fire Marshal compliance portal</div>
+            {active.ahj_enrolled ? (
+              <>
+                <div className="text-lg text-white mt-1">Enrolled{active.ahj?.name ? ` · ${active.ahj.name}` : ''}</div>
+                <div className="text-xs text-white/50 mt-1">Your compliance status is visible to your fire marshal. Certs are pulled automatically from each cleaning.</div>
+              </>
+            ) : (
+              <>
+                <div className="text-lg text-white mt-1">Enroll in your area's compliance portal</div>
+                <div className="text-xs text-white/50 mt-1">Make your NFPA 96 status visible to {active.ahj?.name || 'your local fire marshal'} — free, and it keeps surprise inspections out of your kitchen.</div>
+              </>
+            )}
+          </div>
+          {active.ahj_enrolled ? (
+            active.ahj?.slug && (
+              <a href={`/csc/ahj/${active.ahj.slug}`} target="_blank" rel="noopener noreferrer"
+                 className="px-4 py-2 rounded-lg text-sm font-medium bg-white/5 border border-white/10 text-white/80 hover:text-white">View jurisdiction portal →</a>
+            )
+          ) : (
+            <button onClick={enrollInAhj} disabled={busyId === 'enroll'}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-500/30 border border-orange-500/50 text-orange-100 hover:bg-orange-500/40 disabled:opacity-50">
+              {busyId === 'enroll' ? 'Enrolling…' : 'Enroll now'}
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
