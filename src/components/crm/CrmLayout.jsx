@@ -23,7 +23,6 @@ const HUB_DEFS = [
   { key:'communications', label:'Communications', path:'communications', icon: CommsIcon },
   { key:'chat',           label:'Chat',           path:'chat',           icon: ChatIcon },
   { key:'eos',            label:'EOS',            path:'eos',            icon: EOSIcon },
-  { key:'notifications',  label:'Notifications',  path:'notifications',  icon: NotificationsIcon },
 ]
 
 // Hubs that expand into a dropdown of sub-pages. Sub-page paths must match
