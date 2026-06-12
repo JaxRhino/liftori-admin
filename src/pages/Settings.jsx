@@ -377,7 +377,7 @@ function CompanyTab() {
         </div>
 
         {/* Live preview */}
-        <div className="mt-6 p-4 rounded-xl border border-navy-700/50 bg-[#060B18]">
+        <div className="mt-6 p-4 rounded-xl border border-navy-700/50 bg-navy-950">
           <p className="text-xs text-gray-600 uppercase tracking-wider mb-3">Preview</p>
           <div className="flex items-center gap-3">
             <div
