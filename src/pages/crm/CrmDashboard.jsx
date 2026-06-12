@@ -15,6 +15,7 @@ const fmtMoney = (v) =>
   Number(v || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const fmtCents = (c) =>
   ((Number(c) || 0) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+const prettyStatus = (st) => (st || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
 function fmtDate(d) {
   if (!d) return '-'
@@ -143,6 +144,7 @@ export default function CrmDashboard() {
   const [contacts, setContacts] = useState([])
   const [invoices, setInvoices] = useState([])
   const [payments, setPayments] = useState([])
+  const [jobActivity, setJobActivity] = useState([])
 
   const [loading, setLoading] = useState({
     pipeline: true,
@@ -154,6 +156,7 @@ export default function CrmDashboard() {
     contacts: true,
     invoices: true,
     payments: true,
+    jobActivity: true,
   })
 
   // ---- loader ----
@@ -238,6 +241,12 @@ export default function CrmDashboard() {
         client.from('finance_payments').select('id,amount,payment_date,status').gte('payment_date', periodStart.slice(0, 10)).limit(500),
         setPayments,
         'payments'
+      ),
+      runQuery(
+        'ops_job_activity',
+        client.from('ops_job_activity').select('id,work_order_id,work_order_number,title,from_status,to_status,note,created_at').order('created_at', { ascending: false }).limit(12),
+        setJobActivity,
+        'jobActivity'
       ),
     ])
 
@@ -647,6 +656,41 @@ export default function CrmDashboard() {
                 <span className="text-amber-400 font-semibold">{fmtMoney(arTotalForBar)}</span>
               </div>
             </div>
+          )}
+        </Section>
+      </div>
+      {/* ===== Jobs Activity — ops stage moves ===== */}
+      <div className="mt-6">
+        <Section
+          title="Jobs Activity"
+          right={<Link to={`${linkBase}/ops-pipeline`} className="text-xs text-brand-cyan hover:underline">Ops Pipeline</Link>}
+        >
+          {loading.jobActivity ? (
+            <div className="p-6 text-sm text-gray-500">Loading activity...</div>
+          ) : jobActivity.length === 0 ? (
+            <EmptyState title="No job activity yet" description="When operations moves a job to a new stage, it shows up here." />
+          ) : (
+            <ul className="divide-y divide-navy-700/50">
+              {jobActivity.map((a) => (
+                <li key={a.id} className="px-5 py-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-white truncate">{a.title || a.work_order_number || 'Job'}</div>
+                    <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                      {a.from_status ? (
+                        <>
+                          <span className="px-1.5 py-0.5 rounded bg-navy-700/60">{prettyStatus(a.from_status)}</span>
+                          <span>&rarr;</span>
+                          <span className="px-1.5 py-0.5 rounded bg-brand-blue/20 text-brand-cyan">{prettyStatus(a.to_status)}</span>
+                        </>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">{a.note || 'New'}: {prettyStatus(a.to_status)}</span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-[11px] text-gray-500 whitespace-nowrap">{relTime(a.created_at)}</span>
+                </li>
+              ))}
+            </ul>
           )}
         </Section>
       </div>
