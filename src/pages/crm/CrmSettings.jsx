@@ -7,58 +7,91 @@
 // ============================================================
 import { useEffect, useMemo, useState } from 'react'
 import { useCrm } from '../../contexts/CrmContext'
+import BugReportModal from '../../components/crm/BugReportModal'
+import { Users, UserCog, Building2, FileText, BarChart3, DollarSign, Zap, Info, FolderOpen, Sparkles, ArrowLeft, LifeBuoy } from 'lucide-react'
 
-const TABS = [
-  { key: 'reports',    label: 'Reports' },
-  { key: 'estimates',  label: 'Estimate Templates' },
-  { key: 'pricing',    label: 'Company Pricing' },
-  { key: 'emails',     label: 'Email Templates' },
-  { key: 'automations',label: 'Automations' },
-  { key: 'business',   label: 'Business' },
+const SECTIONS = [
+  { key:'company_settings', label:'Company Settings',    desc:'Business name, contact, address, license & tax', icon: Building2 },
+  { key:'company_info',     label:'Company Information',  desc:'Branding, notifications & AI preferences',       icon: Info },
+  { key:'users',            label:'User Management',      desc:'Invite users and manage access',                 icon: Users },
+  { key:'teams',            label:'Team Management',      desc:'Crews, departments & roles',                     icon: UserCog },
+  { key:'templates',        label:'Templates',           desc:'Estimate & email templates',                     icon: FileText },
+  { key:'pricing',          label:'Pricing',             desc:'Price book & estimate defaults',                 icon: DollarSign },
+  { key:'reports',          label:'Reports',             desc:'Saved reports & exports',                        icon: BarChart3 },
+  { key:'automations',      label:'Automations',         desc:'Triggers & workflows',                           icon: Zap },
+  { key:'docs',             label:'Company Docs',        desc:'Shared company documents',                       icon: FolderOpen },
+  { key:'liftori_services', label:'Liftori Services',    desc:'Products, services & support',                   icon: Sparkles },
 ]
 
 export default function CrmSettings() {
   const { client, orgSettings } = useCrm()
-  const [tab, setTab] = useState('reports')
+  const [section, setSection] = useState(null)
+  const active = SECTIONS.find(s => s.key === section)
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-gray-400 text-sm mt-1">
-          Reports, templates and automations for your business — plus your org details.
-        </p>
-      </div>
-
-      <div className="mb-6 flex flex-wrap items-center gap-1 border-b border-navy-700/40">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
-              tab === t.key
-                ? 'border-brand-blue text-brand-blue'
-                : 'border-transparent text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            {t.label}
+      <div className="mb-6 flex items-center gap-3">
+        {active && (
+          <button onClick={() => setSection(null)} className="flex items-center gap-1 text-sm text-gray-400 hover:text-white">
+            <ArrowLeft size={16} /> Settings
           </button>
-        ))}
+        )}
+        <div>
+          <h1 className="text-2xl font-bold text-white">{active ? active.label : 'Settings'}</h1>
+          <p className="text-gray-400 text-sm mt-1">{active ? active.desc : 'Manage your company, team, templates, automations and Liftori services.'}</p>
+        </div>
       </div>
 
       {!client ? (
         <Panel>Connecting to your workspace…</Panel>
+      ) : !active ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {SECTIONS.map(s => <SettingCard key={s.key} s={s} onClick={() => setSection(s.key)} />)}
+        </div>
       ) : (
         <>
-          {tab === 'reports'     && <ReportsTab client={client} />}
-          {tab === 'estimates'   && <EstimateTemplatesTab client={client} />}
-          {tab === 'pricing'     && <EstimatePricingTab client={client} />}
-          {tab === 'emails'      && <EmailTemplatesTab client={client} />}
-          {tab === 'automations' && <AutomationsTab client={client} />}
-          {tab === 'business'    && <BusinessTab orgSettings={orgSettings} />}
+          {section === 'company_settings' && <CompanySettingsSection client={client} orgSettings={orgSettings} />}
+          {section === 'company_info'     && <CompanyInfoSection client={client} orgSettings={orgSettings} />}
+          {section === 'users'            && <UserManagementSection client={client} />}
+          {section === 'teams'            && <TeamManagementSection client={client} />}
+          {section === 'templates'        && <TemplatesSection client={client} />}
+          {section === 'pricing'          && <EstimatePricingTab client={client} />}
+          {section === 'reports'          && <ReportsTab client={client} />}
+          {section === 'automations'      && <AutomationsTab client={client} />}
+          {section === 'docs'             && <CompanyDocsSection client={client} />}
+          {section === 'liftori_services' && <LiftoriServicesSection />}
         </>
       )}
     </div>
+  )
+}
+
+function SettingCard({ s, onClick }) {
+  const Icon = s.icon
+  return (
+    <button onClick={onClick} className="text-left rounded-xl border border-navy-700/50 bg-navy-800/60 p-5 hover:border-brand-blue/50 hover:bg-navy-800 transition group">
+      <div className="w-11 h-11 rounded-lg bg-brand-blue/15 text-brand-blue flex items-center justify-center mb-3 group-hover:bg-brand-blue/25"><Icon size={20} /></div>
+      <div className="text-white font-semibold">{s.label}</div>
+      <div className="text-xs text-gray-400 mt-1">{s.desc}</div>
+    </button>
+  )
+}
+
+function LabeledInput({ label, value, onChange, full, type = 'text' }) {
+  return (
+    <div className={full ? 'sm:col-span-2' : ''}>
+      <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">{label}</label>
+      <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm" />
+    </div>
+  )
+}
+
+function ToggleRow({ label, checked, onChange }) {
+  return (
+    <label className="flex items-center justify-between gap-4 px-4 py-2.5 border-b border-navy-700/30 last:border-0 cursor-pointer">
+      <span className="text-sm text-gray-200">{label}</span>
+      <input type="checkbox" checked={!!checked} onChange={e => onChange(e.target.checked)} />
+    </label>
   )
 }
 
@@ -706,6 +739,252 @@ function BusinessTab({ orgSettings }) {
             <span className="text-sm text-gray-100 text-right">{String(value)}</span>
           </div>
         ))}
+    </div>
+  )
+}
+
+// ---------- new settings sections (2026-06-12) ----------
+function TemplatesSection({ client }) {
+  const [t, setT] = useState('estimate')
+  return (
+    <div>
+      <div className="mb-4 flex gap-1 border-b border-navy-700/40">
+        {[['estimate','Estimate Templates'],['email','Email Templates']].map(([k,l]) => (
+          <button key={k} onClick={() => setT(k)} className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${t===k?'border-brand-blue text-brand-blue':'border-transparent text-gray-400 hover:text-gray-200'}`}>{l}</button>
+        ))}
+      </div>
+      {t === 'estimate' ? <EstimateTemplatesTab client={client} /> : <EmailTemplatesTab client={client} />}
+    </div>
+  )
+}
+
+function CompanySettingsSection({ client, orgSettings }) {
+  const [form, setForm] = useState(orgSettings || null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  useEffect(() => {
+    if (orgSettings) { setForm(orgSettings); return }
+    client.from('org_settings').select('*').limit(1).maybeSingle().then(({ data }) => setForm(data || {}))
+  }, [orgSettings])
+  if (!form) return <Panel>Loading…</Panel>
+  const set = (k, v) => { setSaved(false); setForm(s => ({ ...s, [k]: v })) }
+  async function save() {
+    try {
+      setSaving(true)
+      const payload = { company_name:form.company_name, company_email:form.company_email, company_phone:form.company_phone, company_website:form.company_website, company_address:form.company_address, company_city:form.company_city, company_state:form.company_state, company_zip:form.company_zip, industry:form.industry, business_type:form.business_type, license_number:form.license_number, tax_id:form.tax_id, business_hours:form.business_hours, timezone:form.timezone, updated_at: new Date().toISOString() }
+      const res = form.id ? await client.from('org_settings').update(payload).eq('id', form.id) : await client.from('org_settings').insert(payload)
+      if (res.error) throw res.error
+      setSaved(true)
+    } catch (e) { console.error(e); alert('Could not save settings') } finally { setSaving(false) }
+  }
+  return (
+    <div className="rounded-xl border border-navy-700/50 bg-navy-800/60 p-5 max-w-3xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <LabeledInput label="Company Name" value={form.company_name} onChange={v=>set('company_name',v)} full />
+        <LabeledInput label="Email" value={form.company_email} onChange={v=>set('company_email',v)} />
+        <LabeledInput label="Phone" value={form.company_phone} onChange={v=>set('company_phone',v)} />
+        <LabeledInput label="Website" value={form.company_website} onChange={v=>set('company_website',v)} full />
+        <LabeledInput label="Address" value={form.company_address} onChange={v=>set('company_address',v)} full />
+        <LabeledInput label="City" value={form.company_city} onChange={v=>set('company_city',v)} />
+        <LabeledInput label="State" value={form.company_state} onChange={v=>set('company_state',v)} />
+        <LabeledInput label="Zip" value={form.company_zip} onChange={v=>set('company_zip',v)} />
+        <LabeledInput label="Industry" value={form.industry} onChange={v=>set('industry',v)} />
+        <LabeledInput label="Business Type" value={form.business_type} onChange={v=>set('business_type',v)} />
+        <LabeledInput label="License #" value={form.license_number} onChange={v=>set('license_number',v)} />
+        <LabeledInput label="Tax ID" value={form.tax_id} onChange={v=>set('tax_id',v)} />
+        <LabeledInput label="Business Hours" value={form.business_hours} onChange={v=>set('business_hours',v)} />
+        <LabeledInput label="Timezone" value={form.timezone} onChange={v=>set('timezone',v)} />
+      </div>
+      <div className="flex items-center gap-3 mt-5">
+        <button onClick={save} disabled={saving} className="px-4 py-2 rounded bg-brand-blue text-white text-sm">{saving?'Saving…':'Save Changes'}</button>
+        {saved && <span className="text-xs text-emerald-400">Saved ✓</span>}
+      </div>
+    </div>
+  )
+}
+
+function CompanyInfoSection({ client, orgSettings }) {
+  const [form, setForm] = useState(orgSettings || null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  useEffect(() => {
+    if (orgSettings) { setForm(orgSettings); return }
+    client.from('org_settings').select('*').limit(1).maybeSingle().then(({ data }) => setForm(data || {}))
+  }, [orgSettings])
+  if (!form) return <Panel>Loading…</Panel>
+  const set = (k, v) => { setSaved(false); setForm(s => ({ ...s, [k]: v })) }
+  async function save() {
+    try {
+      setSaving(true)
+      const payload = { logo_url:form.logo_url, primary_color:form.primary_color, accent_color:form.accent_color, notify_new_lead:!!form.notify_new_lead, notify_job_update:!!form.notify_job_update, notify_payment_received:!!form.notify_payment_received, notify_estimate_signed:!!form.notify_estimate_signed, notify_team_activity:!!form.notify_team_activity, ai_enabled:!!form.ai_enabled, ai_auto_dispatch:!!form.ai_auto_dispatch, ai_lead_scoring:!!form.ai_lead_scoring, ai_email_drafts:!!form.ai_email_drafts, ai_estimate_assist:!!form.ai_estimate_assist, ai_call_summary:!!form.ai_call_summary, updated_at: new Date().toISOString() }
+      const res = form.id ? await client.from('org_settings').update(payload).eq('id', form.id) : await client.from('org_settings').insert(payload)
+      if (res.error) throw res.error
+      setSaved(true)
+    } catch (e) { console.error(e); alert('Could not save') } finally { setSaving(false) }
+  }
+  return (
+    <div className="space-y-5 max-w-3xl">
+      <div className="rounded-xl border border-navy-700/50 bg-navy-800/60 p-5">
+        <h3 className="text-sm font-semibold text-white mb-3">Branding</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <LabeledInput label="Logo URL" value={form.logo_url} onChange={v=>set('logo_url',v)} full />
+          <LabeledInput label="Primary Color" value={form.primary_color} onChange={v=>set('primary_color',v)} />
+          <LabeledInput label="Accent Color" value={form.accent_color} onChange={v=>set('accent_color',v)} />
+        </div>
+      </div>
+      <div className="rounded-xl border border-navy-700/50 bg-navy-800/60">
+        <div className="px-4 py-3 border-b border-navy-700/40 text-sm font-semibold text-white">Notifications</div>
+        <ToggleRow label="New lead" checked={form.notify_new_lead} onChange={v=>set('notify_new_lead',v)} />
+        <ToggleRow label="Job updates" checked={form.notify_job_update} onChange={v=>set('notify_job_update',v)} />
+        <ToggleRow label="Payment received" checked={form.notify_payment_received} onChange={v=>set('notify_payment_received',v)} />
+        <ToggleRow label="Estimate signed" checked={form.notify_estimate_signed} onChange={v=>set('notify_estimate_signed',v)} />
+        <ToggleRow label="Team activity" checked={form.notify_team_activity} onChange={v=>set('notify_team_activity',v)} />
+      </div>
+      <div className="rounded-xl border border-navy-700/50 bg-navy-800/60">
+        <div className="px-4 py-3 border-b border-navy-700/40 text-sm font-semibold text-white">AI Assist</div>
+        <ToggleRow label="AI enabled" checked={form.ai_enabled} onChange={v=>set('ai_enabled',v)} />
+        <ToggleRow label="Auto-dispatch" checked={form.ai_auto_dispatch} onChange={v=>set('ai_auto_dispatch',v)} />
+        <ToggleRow label="Lead scoring" checked={form.ai_lead_scoring} onChange={v=>set('ai_lead_scoring',v)} />
+        <ToggleRow label="Email drafts" checked={form.ai_email_drafts} onChange={v=>set('ai_email_drafts',v)} />
+        <ToggleRow label="Estimate assist" checked={form.ai_estimate_assist} onChange={v=>set('ai_estimate_assist',v)} />
+        <ToggleRow label="Call summaries" checked={form.ai_call_summary} onChange={v=>set('ai_call_summary',v)} />
+      </div>
+      <div className="flex items-center gap-3">
+        <button onClick={save} disabled={saving} className="px-4 py-2 rounded bg-brand-blue text-white text-sm">{saving?'Saving…':'Save Changes'}</button>
+        {saved && <span className="text-xs text-emerald-400">Saved ✓</span>}
+      </div>
+    </div>
+  )
+}
+
+function UserManagementSection({ client }) {
+  const [rows, setRows] = useState(null)
+  useEffect(() => { client.from('org_team_members').select('*').order('created_at', { ascending: true }).then(({ data }) => setRows(data || [])) }, [])
+  if (!rows) return <Panel>Loading…</Panel>
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end"><button onClick={() => alert('Invite flow connects in a later phase')} className="px-3 py-2 rounded bg-brand-blue text-white text-sm">+ Invite User</button></div>
+      {rows.length === 0 ? <Panel>No users yet. Invite your first teammate.</Panel> : (
+        <div className="rounded-xl border border-navy-700/50 bg-navy-800/60 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-navy-700/40 text-gray-500"><th className="text-left px-4 py-2 font-medium">Name</th><th className="text-left px-4 py-2 font-medium">Email</th><th className="text-left px-4 py-2 font-medium">Role</th><th className="text-left px-4 py-2 font-medium">Status</th></tr></thead>
+            <tbody>{rows.map(u => (
+              <tr key={u.id} className="border-b border-navy-700/30">
+                <td className="px-4 py-2 text-white">{`${u.first_name||''} ${u.last_name||''}`.trim() || '—'}{u.title ? <span className="text-gray-500"> · {u.title}</span> : null}</td>
+                <td className="px-4 py-2 text-gray-300">{u.email || '—'}</td>
+                <td className="px-4 py-2"><Chip color="blue">{u.role || 'member'}</Chip></td>
+                <td className="px-4 py-2"><Chip color={u.status === 'active' ? 'green' : 'gray'}>{u.status || '—'}</Chip></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TeamManagementSection({ client }) {
+  const [crews, setCrews] = useState(null)
+  const [members, setMembers] = useState([])
+  useEffect(() => { (async () => {
+    const { data: c } = await client.from('ops_crews').select('*').order('name'); setCrews(c || [])
+    const { data: m } = await client.from('org_team_members').select('first_name,last_name,department,role'); setMembers(m || [])
+  })() }, [])
+  if (!crews) return <Panel>Loading…</Panel>
+  const depts = {}; members.forEach(m => { const d = m.department || 'Unassigned'; (depts[d] = depts[d] || []).push(m) })
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-semibold text-white">Crews</h3><span className="text-xs text-gray-500">Manage in Operations › Crews</span></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {crews.length === 0 ? <Panel>No crews yet.</Panel> : crews.map(c => (
+            <div key={c.id} className="rounded-xl border border-navy-700/50 bg-navy-800/60 p-4">
+              <div className="flex items-center gap-2"><span className="h-3 w-3 rounded-full" style={{ background: c.color || '#0ea5e9' }} /><span className="text-white font-medium">{c.name}</span></div>
+              <div className="text-xs text-gray-400 mt-1">{(c.specialties || []).join(', ') || '—'}</div>
+              <div className="text-[11px] text-gray-500 mt-2">Capacity {c.max_capacity || '—'} · {c.status || 'active'}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <h3 className="text-sm font-semibold text-white mb-2">Departments</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Object.entries(depts).map(([d, list]) => (
+            <div key={d} className="rounded-xl border border-navy-700/50 bg-navy-800/60 p-4">
+              <div className="text-white font-medium">{d}</div>
+              <div className="text-xs text-gray-400 mt-1">{list.length} member{list.length !== 1 ? 's' : ''}</div>
+            </div>
+          ))}
+          {members.length === 0 && <Panel>No team members yet.</Panel>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CompanyDocsSection({ client }) {
+  const [docs, setDocs] = useState(null)
+  useEffect(() => { client.from('documents').select('*').order('created_at', { ascending: false }).limit(200).then(({ data }) => setDocs(data || [])) }, [])
+  if (!docs) return <Panel>Loading…</Panel>
+  const company = docs.filter(d => !d.related_entity_id || d.related_entity_table === 'company' || d.doc_type === 'company')
+  const list = company.length ? company : docs
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end"><button onClick={() => alert('Document upload connects in a later phase')} className="px-3 py-2 rounded bg-brand-blue text-white text-sm">+ Upload Document</button></div>
+      {list.length === 0 ? <Panel>No company documents yet.</Panel> : (
+        <div className="rounded-xl border border-navy-700/50 bg-navy-800/60 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-navy-700/40 text-gray-500"><th className="text-left px-4 py-2 font-medium">Name</th><th className="text-left px-4 py-2 font-medium">Type</th><th className="text-left px-4 py-2 font-medium">Added</th></tr></thead>
+            <tbody>{list.map(d => (
+              <tr key={d.id} className="border-b border-navy-700/30">
+                <td className="px-4 py-2 text-white">{d.name || 'Untitled'}</td>
+                <td className="px-4 py-2 text-gray-300">{d.doc_type || d.mime_type || '—'}</td>
+                <td className="px-4 py-2 text-gray-400">{d.created_at ? new Date(d.created_at).toLocaleDateString() : '—'}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const LIFTORI_SERVICES = [
+  { name:'Custom Website', desc:'Marketing sites & landing pages' },
+  { name:'E-Commerce Platform', desc:'Online stores & checkout' },
+  { name:'Business Dashboard / CRM', desc:'Operations, sales & ops hubs' },
+  { name:'AI Chatbot', desc:'24/7 assistant for your site' },
+  { name:'Booking System', desc:'Scheduling & reminders' },
+  { name:'Marketing Hub', desc:'Campaigns, SEO & social' },
+  { name:'AI Call Center', desc:'Inbound/outbound voice agents' },
+  { name:'Mobile App', desc:'iOS & Android companion apps' },
+  { name:'Business Launchpad', desc:'Entity, branding & domain setup' },
+]
+
+function LiftoriServicesSection() {
+  const [showSupport, setShowSupport] = useState(false)
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-sm font-semibold text-white mb-3">Products & Services</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {LIFTORI_SERVICES.map(s => (
+            <div key={s.name} className="rounded-xl border border-navy-700/50 bg-navy-800/60 p-4">
+              <div className="text-white font-medium">{s.name}</div>
+              <div className="text-xs text-gray-400 mt-1">{s.desc}</div>
+              <a href="https://www.liftori.ai" target="_blank" rel="noopener noreferrer" className="inline-block mt-3 text-xs text-brand-blue hover:underline">Learn more →</a>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="rounded-xl border border-navy-700/50 bg-navy-800/60 p-5 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-brand-blue/15 text-brand-blue flex items-center justify-center"><LifeBuoy size={20} /></div>
+          <div><div className="text-white font-medium">Need help or want to add a service?</div><div className="text-xs text-gray-400">Submit a request to the Liftori team — same as the bug report button.</div></div>
+        </div>
+        <button onClick={() => setShowSupport(true)} className="px-4 py-2 rounded bg-brand-blue text-white text-sm">Contact Support</button>
+      </div>
+      {showSupport && <BugReportModal onClose={() => setShowSupport(false)} />}
     </div>
   )
 }
