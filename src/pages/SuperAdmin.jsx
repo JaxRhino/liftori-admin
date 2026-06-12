@@ -269,7 +269,7 @@ export default function SuperAdmin() {
         </div>
         <button
           onClick={loadDashboard}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-gray-300 hover:text-white hover:border-purple-500/30 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-navy-800 border border-navy-700 rounded-xl text-sm text-gray-300 hover:text-white hover:border-purple-500/30 transition"
         >
           <RefreshCw className="w-4 h-4" />
           Refresh
@@ -281,7 +281,7 @@ export default function SuperAdmin() {
       {/* ═══════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
         {/* Revenue & Pipeline */}
-        <div className="bg-gradient-to-br from-emerald-500/10 to-slate-900/40 border border-emerald-500/20 rounded-2xl p-4">
+        <div className="bg-gradient-to-br from-emerald-500/10 to-navy-900/40 border border-emerald-500/20 rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <DollarSign className="w-4 h-4 text-emerald-400" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-300">Revenue & Pipeline</h3>
@@ -307,7 +307,7 @@ export default function SuperAdmin() {
         </div>
 
         {/* Needs You & Mike */}
-        <div className="bg-gradient-to-br from-amber-500/10 to-slate-900/40 border border-amber-500/20 rounded-2xl p-4">
+        <div className="bg-gradient-to-br from-amber-500/10 to-navy-900/40 border border-amber-500/20 rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <Target className="w-4 h-4 text-amber-400" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300">Needs You & Mike</h3>
@@ -322,7 +322,7 @@ export default function SuperAdmin() {
         </div>
 
         {/* Build & Agents */}
-        <div className="bg-gradient-to-br from-blue-500/10 to-slate-900/40 border border-blue-500/20 rounded-2xl p-4">
+        <div className="bg-gradient-to-br from-blue-500/10 to-navy-900/40 border border-blue-500/20 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-blue-400" />
@@ -346,7 +346,7 @@ export default function SuperAdmin() {
         </div>
 
         {/* Client & Project Health */}
-        <div className="bg-gradient-to-br from-purple-500/10 to-slate-900/40 border border-purple-500/20 rounded-2xl p-4">
+        <div className="bg-gradient-to-br from-purple-500/10 to-navy-900/40 border border-purple-500/20 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-purple-400" />
@@ -359,7 +359,7 @@ export default function SuperAdmin() {
             {Object.keys(stats.projectsByStage || {}).length === 0 ? (
               <p className="text-xs text-gray-600">No projects</p>
             ) : Object.entries(stats.projectsByStage).map(([stage, count]) => (
-              <span key={stage} className="px-2 py-1 rounded-md bg-slate-800/60 border border-slate-700/40 text-[10px] text-gray-300">
+              <span key={stage} className="px-2 py-1 rounded-md bg-navy-800/60 border border-navy-700/40 text-[10px] text-gray-300">
                 <span className="font-bold text-white">{count}</span> {stage}
               </span>
             ))}
@@ -380,7 +380,7 @@ export default function SuperAdmin() {
       {/* ═════════════════════════════════════════════════════ */}
       {/* ANNOUNCEMENT CENTER — founder-posted, center-screen    */}
       {/* ═════════════════════════════════════════════════════ */}
-      <div className="border-t border-slate-800 pt-6">
+      <div className="border-t border-navy-800 pt-6">
         <AnnouncementCenter />
       </div>
 
@@ -399,7 +399,7 @@ export default function SuperAdmin() {
           </div>
 
           {/* Recent Appointments */}
-          <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+          <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Recent Appointments</h4>
               <button onClick={() => navigate('/admin/consulting')} className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-0.5">
@@ -410,7 +410,7 @@ export default function SuperAdmin() {
               {recentAppointments.length > 0 ? recentAppointments.map(appt => (
                 <div key={appt.id} className="flex items-center justify-between py-1.5">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-200 truncate">{appt.lead_name}</p>
+                    <p className="text-sm font-medium text-gray-300 truncate">{appt.lead_name}</p>
                     <p className="text-[11px] text-gray-500">{appt.company_name || 'Consulting'} &middot; {appt.appointment_date}</p>
                   </div>
                   <StatusBadge status={appt.status} />
@@ -434,7 +434,7 @@ export default function SuperAdmin() {
           <SectionHeader icon={BarChart3} title="Consulting QC" />
 
           {/* Top Scorecards */}
-          <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+          <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Latest Scorecards</h4>
               <button onClick={() => navigate('/admin/leadership-qc')} className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-0.5">
@@ -447,7 +447,7 @@ export default function SuperAdmin() {
                 const isFlagged = score < 5;
                 const appt = sc.consulting_appointments;
                 return (
-                  <div key={sc.id} className={`flex items-center gap-3 py-2 px-3 rounded-xl border ${isFlagged ? 'border-red-500/30 bg-red-500/5' : 'border-slate-700/30 bg-slate-800/20'}`}>
+                  <div key={sc.id} className={`flex items-center gap-3 py-2 px-3 rounded-xl border ${isFlagged ? 'border-red-500/30 bg-red-500/5' : 'border-navy-700/30 bg-navy-800/20'}`}>
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold border ${
                       score >= 8 ? 'text-green-400 bg-green-500/10 border-green-500/20' :
                       score >= 6 ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' :
@@ -456,7 +456,7 @@ export default function SuperAdmin() {
                       {score.toFixed(1)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-200 truncate">{appt?.lead_name || 'Unknown'}</p>
+                      <p className="text-sm font-medium text-gray-300 truncate">{appt?.lead_name || 'Unknown'}</p>
                       <p className="text-[11px] text-gray-500">{appt?.company_name || ''} &middot; {appt?.primary_interest || 'general'}</p>
                     </div>
                     {isFlagged && <span className="px-1.5 py-0.5 bg-red-500/20 border border-red-500/30 rounded text-[9px] font-bold text-red-400">FLAG</span>}
@@ -501,12 +501,12 @@ export default function SuperAdmin() {
           <SectionHeader icon={Activity} title="Platform Activity" />
 
           {/* Live Feed */}
-          <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+          <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Activity</h4>
             <div className="space-y-2">
               {recentActivity.length > 0 ? recentActivity.map((item, idx) => (
                 <div key={idx} className="flex items-start gap-2.5 py-1">
-                  <div className="mt-0.5 p-1 bg-slate-800 rounded-lg shrink-0">
+                  <div className="mt-0.5 p-1 bg-navy-800 rounded-lg shrink-0">
                     <item.icon className="w-3 h-3 text-gray-500" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -524,7 +524,7 @@ export default function SuperAdmin() {
           </div>
 
           {/* System Health */}
-          <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+          <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">System Health</h4>
             <div className="space-y-2">
               <HealthRow label="Chat Messages" value={stats.totalMessages} />
@@ -535,7 +535,7 @@ export default function SuperAdmin() {
           </div>
 
           {/* Platform Users */}
-          <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+          <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">User Breakdown</h4>
               <button onClick={() => navigate('/admin/team')} className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-0.5">
@@ -570,7 +570,7 @@ export default function SuperAdmin() {
       {/* ═════════════════════════════════════════════════════ */}
       {/* COMMUNICATIONS HUB — campaigns, templates, audit log   */}
       {/* ═════════════════════════════════════════════════════ */}
-      <div className="border-t border-slate-800 pt-6">
+      <div className="border-t border-navy-800 pt-6">
         <div className="flex items-center gap-2 mb-4">
           <Mail className="w-5 h-5 text-pink-400" />
           <h2 className="text-lg font-bold text-white">Communications Hub</h2>
@@ -579,7 +579,7 @@ export default function SuperAdmin() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <button
             onClick={() => navigate('/admin/comms/campaigns')}
-            className="bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 hover:border-pink-500/40 rounded-xl p-3 text-left transition group"
+            className="bg-navy-800/30 hover:bg-navy-800/50 border border-navy-700/50 hover:border-pink-500/40 rounded-xl p-3 text-left transition group"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-pink-500/15 flex items-center justify-center flex-shrink-0">
@@ -594,7 +594,7 @@ export default function SuperAdmin() {
           </button>
           <button
             onClick={() => navigate('/admin/comms/templates')}
-            className="bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 hover:border-sky-500/40 rounded-xl p-3 text-left transition group"
+            className="bg-navy-800/30 hover:bg-navy-800/50 border border-navy-700/50 hover:border-sky-500/40 rounded-xl p-3 text-left transition group"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-sky-500/15 flex items-center justify-center flex-shrink-0">
@@ -609,7 +609,7 @@ export default function SuperAdmin() {
           </button>
           <button
             onClick={() => navigate('/admin/comms/outbound')}
-            className="bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 hover:border-emerald-500/40 rounded-xl p-3 text-left transition group"
+            className="bg-navy-800/30 hover:bg-navy-800/50 border border-navy-700/50 hover:border-emerald-500/40 rounded-xl p-3 text-left transition group"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
@@ -628,7 +628,7 @@ export default function SuperAdmin() {
       {/* ═════════════════════════════════════════════════════ */}
       {/* TESTER PROGRAM — founder-only oversight + management   */}
       {/* ═════════════════════════════════════════════════════ */}
-      <div className="border-t border-slate-800 pt-6">
+      <div className="border-t border-navy-800 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-pink-400" />
@@ -642,7 +642,7 @@ export default function SuperAdmin() {
             >
               <Plus className="w-3 h-3" /> Assign work
             </button>
-            <button onClick={() => navigate('/admin/testing')} className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-gray-300 rounded-md font-medium">
+            <button onClick={() => navigate('/admin/testing')} className="text-xs px-3 py-1.5 bg-navy-800 border border-navy-700 text-gray-300 rounded-md font-medium">
               Full dashboard →
             </button>
           </div>
@@ -659,7 +659,7 @@ export default function SuperAdmin() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Live Tester Activity */}
-          <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+          <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <SectionHeader icon={Activity} title="Live Activity" />
             <div className="space-y-2 mt-3">
               {testerEnrollments.length === 0 ? (
@@ -667,9 +667,9 @@ export default function SuperAdmin() {
               ) : openAssignmentsByUser.map(({ user: u, enrollment: e, open, completed }) => {
                 const session = activeTesterSessions.find((s) => s.user_id === e.user_id);
                 return (
-                  <div key={e.id} className="bg-slate-900/40 rounded-lg p-3">
+                  <div key={e.id} className="bg-navy-900/40 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${session ? 'bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-500/30' : 'bg-slate-700 text-gray-400'}`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${session ? 'bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-500/30' : 'bg-navy-700 text-gray-400'}`}>
                         {(u?.full_name || u?.email || '?')[0].toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -695,12 +695,12 @@ export default function SuperAdmin() {
           </div>
 
           {/* Recent Submissions */}
-          <div className="lg:col-span-2 bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+          <div className="lg:col-span-2 bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <div className="flex items-center justify-between">
               <SectionHeader icon={Bug} title="Recent Submissions" />
               <button onClick={() => navigate('/admin/testing')} className="text-xs text-purple-400 hover:text-purple-300">View all in Testing →</button>
             </div>
-            <div className="mt-3 divide-y divide-slate-700/40">
+            <div className="mt-3 divide-y divide-navy-700/40">
               {recentTesterLogs.length === 0 ? (
                 <p className="text-xs text-gray-500 text-center py-6">No submissions yet</p>
               ) : recentTesterLogs.map((l) => (
@@ -722,14 +722,14 @@ export default function SuperAdmin() {
       {/* ═════════════════════════════════════════════════════ */}
       {/* AFFILIATE / CREATOR PROGRAM — founder-only oversight  */}
       {/* ═════════════════════════════════════════════════════ */}
-      <div className="border-t border-slate-800 pt-6">
+      <div className="border-t border-navy-800 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-pink-400" />
             <h2 className="text-lg font-bold text-white">Creator / Affiliate Program</h2>
             <span className="text-xs text-gray-500">{affiliateEnrollments.length} active</span>
           </div>
-          <button onClick={() => navigate('/admin/affiliates')} className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-gray-300 rounded-md font-medium">
+          <button onClick={() => navigate('/admin/affiliates')} className="text-xs px-3 py-1.5 bg-navy-800 border border-navy-700 text-gray-300 rounded-md font-medium">
             Manage affiliates →
           </button>
         </div>
@@ -744,7 +744,7 @@ export default function SuperAdmin() {
         </div>
 
         {/* Creators list */}
-        <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+        <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
           <SectionHeader icon={Heart} title="Active creators" />
           <div className="mt-3 space-y-2">
             {affiliateEnrollments.length === 0 ? (
@@ -754,11 +754,11 @@ export default function SuperAdmin() {
                 const u = profilesLookup[e.user_id];
                 const tier = getTier(e.tier);
                 return (
-                  <div key={e.id} className="bg-slate-900/40 rounded-lg p-3 flex items-center gap-3">
+                  <div key={e.id} className="bg-navy-900/40 rounded-lg p-3 flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                       e.tier === 'pro' ? 'bg-emerald-500/20 text-emerald-300' :
                       e.tier === 'creator' ? 'bg-sky-500/20 text-sky-300' :
-                      'bg-slate-500/20 text-gray-400'
+                      'bg-gray-500/20 text-gray-400'
                     }`}>
                       {(u?.full_name || u?.email || '?')[0].toUpperCase()}
                     </div>
@@ -780,7 +780,7 @@ export default function SuperAdmin() {
                     <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
                       e.subscription_status === 'active' ? 'bg-emerald-500/15 text-emerald-300' :
                       e.subscription_status === 'trialing' ? 'bg-amber-500/15 text-amber-300' :
-                      'bg-slate-500/15 text-slate-400'
+                      'bg-gray-500/15 text-gray-400'
                     }`}>
                       {e.subscription_status}
                     </span>
@@ -793,7 +793,7 @@ export default function SuperAdmin() {
 
         {/* Pending invites */}
         {affiliateInvites.filter((i) => ['pending','opened','in_progress'].includes(i.status)).length > 0 && (
-          <div className="mt-4 bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
+          <div className="mt-4 bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <SectionHeader icon={Clock} title="Pending invites" />
             <div className="mt-3 space-y-1.5">
               {affiliateInvites.filter((i) => ['pending','opened','in_progress'].includes(i.status)).map((i) => (
@@ -836,11 +836,11 @@ function TesterLogRow({ log, user, onChangeStatus }) {
     high: 'text-orange-400 bg-orange-500/15',
     medium: 'text-amber-400 bg-amber-500/15',
     low: 'text-sky-400 bg-sky-500/15',
-    info: 'text-slate-400 bg-slate-500/15',
-  }[log.severity] || 'text-slate-400 bg-slate-500/15';
+    info: 'text-gray-400 bg-gray-500/15',
+  }[log.severity] || 'text-gray-400 bg-gray-500/15';
   return (
     <>
-      <div className="py-2 flex items-center gap-2 cursor-pointer hover:bg-slate-800/40 px-2 -mx-2 rounded" onClick={() => setExpanded((x) => !x)}>
+      <div className="py-2 flex items-center gap-2 cursor-pointer hover:bg-navy-800/40 px-2 -mx-2 rounded" onClick={() => setExpanded((x) => !x)}>
         <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${sevColor}`}>{log.severity}</span>
         <div className="flex-1 min-w-0">
           <div className="text-sm text-white truncate">{log.title}</div>
@@ -858,16 +858,16 @@ function TesterLogRow({ log, user, onChangeStatus }) {
           className={`text-[10px] font-semibold uppercase rounded px-1.5 py-0.5 border-0 focus:outline-none ${
             log.status === 'fixed' ? 'bg-emerald-500/15 text-emerald-300' :
             log.status === 'open' ? 'bg-rose-500/15 text-rose-300' :
-            'bg-slate-500/15 text-slate-400'
+            'bg-gray-500/15 text-gray-400'
           }`}
         >
           {['open', 'triaged', 'in_progress', 'fixed', 'wontfix', 'cannot_reproduce', 'duplicate', 'closed'].map((s) => (
-            <option key={s} value={s} className="bg-slate-900 text-white">{s.replace(/_/g, ' ')}</option>
+            <option key={s} value={s} className="bg-navy-900 text-white">{s.replace(/_/g, ' ')}</option>
           ))}
         </select>
       </div>
       {expanded && (
-        <div className="bg-slate-900/40 rounded p-3 mb-2 text-xs text-gray-300 space-y-2">
+        <div className="bg-navy-900/40 rounded p-3 mb-2 text-xs text-gray-300 space-y-2">
           {log.description && <div><span className="text-gray-500 uppercase text-[10px] font-bold">Desc:</span> {log.description}</div>}
           {log.steps_to_reproduce && <div><span className="text-gray-500 uppercase text-[10px] font-bold">Steps:</span><pre className="whitespace-pre-wrap font-mono text-[11px] mt-1">{log.steps_to_reproduce}</pre></div>}
           {log.expected_result && <div><span className="text-gray-500 uppercase text-[10px] font-bold">Expected:</span> {log.expected_result}</div>}
@@ -919,8 +919,8 @@ function AssignWorkModal({ assignedBy, enrollments, profilesLookup, onClose, onC
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-auto py-10 px-4">
-      <form onSubmit={submit} className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-5 border-b border-slate-700">
+      <form onSubmit={submit} className="bg-navy-900 border border-navy-700 rounded-xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-navy-700">
           <div>
             <h2 className="text-lg font-semibold text-white">Assign work to a tester</h2>
             <p className="text-xs text-gray-500 mt-0.5">They'll see this on their dashboard.</p>
@@ -930,7 +930,7 @@ function AssignWorkModal({ assignedBy, enrollments, profilesLookup, onClose, onC
         <div className="p-5 space-y-3">
           <div>
             <label className="text-[10px] uppercase font-bold text-gray-500">Assign to *</label>
-            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} required className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} required className="w-full mt-1 bg-navy-800 border border-navy-700 rounded px-3 py-2 text-sm text-white">
               {enrollments.length === 0 && <option value="">No active testers</option>}
               {enrollments.map((e) => (
                 <option key={e.user_id} value={e.user_id}>
@@ -941,24 +941,24 @@ function AssignWorkModal({ assignedBy, enrollments, profilesLookup, onClose, onC
           </div>
           <div>
             <label className="text-[10px] uppercase font-bold text-gray-500">Title *</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" placeholder="e.g., Test mobile responsive on Ops dashboard" />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full mt-1 bg-navy-800 border border-navy-700 rounded px-3 py-2 text-sm text-white" placeholder="e.g., Test mobile responsive on Ops dashboard" />
           </div>
           <div>
             <label className="text-[10px] uppercase font-bold text-gray-500">Description</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full mt-1 bg-navy-800 border border-navy-700 rounded px-3 py-2 text-sm text-white" />
           </div>
           <div>
             <label className="text-[10px] uppercase font-bold text-gray-500">Instructions (specific test steps)</label>
-            <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={3} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white font-mono" placeholder={'1. Open page on mobile (375x667)\n2. Try to add a work order\n3. Verify form submits without errors'} />
+            <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={3} className="w-full mt-1 bg-navy-800 border border-navy-700 rounded px-3 py-2 text-sm text-white font-mono" placeholder={'1. Open page on mobile (375x667)\n2. Try to add a work order\n3. Verify form submits without errors'} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] uppercase font-bold text-gray-500">Screen path</label>
-              <input value={screenPath} onChange={(e) => setScreenPath(e.target.value)} placeholder="/admin/ops/work-orders" className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white font-mono" />
+              <input value={screenPath} onChange={(e) => setScreenPath(e.target.value)} placeholder="/admin/ops/work-orders" className="w-full mt-1 bg-navy-800 border border-navy-700 rounded px-3 py-2 text-sm text-white font-mono" />
             </div>
             <div>
               <label className="text-[10px] uppercase font-bold text-gray-500">Priority</label>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+              <select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full mt-1 bg-navy-800 border border-navy-700 rounded px-3 py-2 text-sm text-white">
                 {['low', 'medium', 'high', 'urgent'].map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
@@ -966,15 +966,15 @@ function AssignWorkModal({ assignedBy, enrollments, profilesLookup, onClose, onC
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] uppercase font-bold text-gray-500">Due date</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" />
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full mt-1 bg-navy-800 border border-navy-700 rounded px-3 py-2 text-sm text-white" />
             </div>
             <div>
               <label className="text-[10px] uppercase font-bold text-gray-500">Estimated minutes</label>
-              <input type="number" min="0" value={estMinutes} onChange={(e) => setEstMinutes(e.target.value)} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" />
+              <input type="number" min="0" value={estMinutes} onChange={(e) => setEstMinutes(e.target.value)} className="w-full mt-1 bg-navy-800 border border-navy-700 rounded px-3 py-2 text-sm text-white" />
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-700">
+        <div className="flex items-center justify-end gap-2 p-4 border-t border-navy-700">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
           <button type="submit" disabled={busy || !assignedTo} className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
             {busy ? 'Assigning…' : 'Assign work'}
@@ -996,8 +996,8 @@ function ActionRow({ label, value, onClick, tone = 'default' }) {
   const v = Number(value) || 0;
   const valueColor = tone === 'red' && v > 0 ? 'text-red-400' : v > 0 ? 'text-amber-300' : 'text-gray-500';
   return (
-    <button onClick={onClick} className="w-full flex items-center justify-between py-1 px-1.5 -mx-1.5 rounded hover:bg-slate-800/40 transition group">
-      <span className="text-[11px] text-gray-400 group-hover:text-gray-200">{label}</span>
+    <button onClick={onClick} className="w-full flex items-center justify-between py-1 px-1.5 -mx-1.5 rounded hover:bg-navy-800/40 transition group">
+      <span className="text-[11px] text-gray-400 group-hover:text-gray-300">{label}</span>
       <span className={`text-sm font-bold ${valueColor}`}>{v}</span>
     </button>
   );
@@ -1005,7 +1005,7 @@ function ActionRow({ label, value, onClick, tone = 'default' }) {
 
 function MetricCard({ icon: Icon, label, value, sub, color = 'default' }) {
   const colors = {
-    default: 'border-slate-700/50 bg-slate-800/30',
+    default: 'border-navy-700/50 bg-navy-800/30',
     purple: 'border-purple-500/20 bg-purple-500/5',
     green: 'border-green-500/20 bg-green-500/5',
     sky: 'border-sky-500/20 bg-sky-500/5',
@@ -1022,7 +1022,7 @@ function MetricCard({ icon: Icon, label, value, sub, color = 'default' }) {
         <Icon className={`w-4 h-4 ${iconColors[color]}`} />
         <span className="text-[11px] font-medium text-gray-500">{label}</span>
       </div>
-      <p className="text-2xl font-bold text-gray-100">{value}</p>
+      <p className="text-2xl font-bold text-gray-300">{value}</p>
       {sub && <p className="text-[11px] text-gray-500 mt-0.5">{sub}</p>}
     </div>
   );
@@ -1030,10 +1030,10 @@ function MetricCard({ icon: Icon, label, value, sub, color = 'default' }) {
 
 function MiniStat({ label, value, icon: Icon, badge }) {
   return (
-    <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-3 flex items-center gap-2.5">
+    <div className="bg-navy-800/30 border border-navy-700/50 rounded-xl p-3 flex items-center gap-2.5">
       <Icon className="w-4 h-4 text-gray-500 shrink-0" />
       <div>
-        <p className="text-lg font-bold text-gray-200">{value}</p>
+        <p className="text-lg font-bold text-gray-300">{value}</p>
         <p className="text-[10px] text-gray-500">{label} {badge && <span className="text-purple-400">{badge}</span>}</p>
       </div>
     </div>
@@ -1068,7 +1068,7 @@ function QuickLink({ label, path, icon: Icon, onClick }) {
   return (
     <button
       onClick={() => onClick(path)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 bg-slate-800/20 border border-slate-700/30 rounded-xl text-sm text-gray-400 hover:text-white hover:border-purple-500/30 hover:bg-slate-800/50 transition group"
+      className="w-full flex items-center gap-3 px-3 py-2.5 bg-navy-800/20 border border-navy-700/30 rounded-xl text-sm text-gray-400 hover:text-white hover:border-purple-500/30 hover:bg-navy-800/50 transition group"
     >
       <Icon className="w-4 h-4 text-gray-600 group-hover:text-purple-400 transition" />
       <span className="flex-1 text-left">{label}</span>
