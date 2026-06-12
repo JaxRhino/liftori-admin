@@ -85,9 +85,22 @@ function LabosShell() {
       { key: 'invoices', label: 'Invoices', path: 'invoices' },
     ] },
   ]
+  // EOS gets the same grouped-dropdown treatment as internal Liftori EOS.
+  const EOS_GROUP = {
+    type: 'group', key: 'eos', label: 'EOS', icon: EOSIcon, children: [
+      { key: 'eos-rocks', label: 'Rocks', path: 'eos/rocks' },
+      { key: 'eos-scorecard', label: 'Scorecard', path: 'eos/scorecard' },
+      { key: 'eos-meetings', label: 'L10 Meetings', path: 'eos/meetings' },
+      { key: 'eos-issues', label: 'Issues (IDS)', path: 'eos/issues' },
+      { key: 'eos-todos', label: 'To-Dos', path: 'eos/todos' },
+      { key: 'eos-vto', label: 'V/TO', path: 'eos/vto' },
+      { key: 'eos-accountability', label: 'Accountability', path: 'eos/accountability' },
+    ],
+  }
+  const toNav = h => h.key === 'eos' ? EOS_GROUP : { type: 'link', ...h }
   const navItems = platform?.industry === 'kec'
-    ? [...KEC_NAV, ...baseHubs.filter(h => !['dashboard', 'sales', 'operations'].includes(h.key)).map(h => ({ type: 'link', ...h }))]
-    : baseHubs.map(h => ({ type: 'link', ...h }))
+    ? [...KEC_NAV, ...baseHubs.filter(h => !['dashboard', 'sales', 'operations'].includes(h.key)).map(toNav)]
+    : baseHubs.map(toNav)
 
   return (
     <div className="min-h-screen bg-navy-950 flex">
