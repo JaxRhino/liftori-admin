@@ -51,3 +51,68 @@ jobs:
           curl -s -X POST "https://qlerfkdyslndjbaltkwo.supabase.co/functions/v1/dev-team-log" \
             -H "Content-Type: application/json" \
             -d "{\"author_user_id\":\"3f178841-4ea5-476a-b67e-6a1fc9fe9284\",\"author_display_name\":\"CI gate (liftori-admin)\",\"action\":\"ci_failure\",\"target\":\"$GITHUB_SHA\",\"target_type\":\"commit\",\"details\":{\"run_id\":\"$GITHUB_RUN_ID\",\"auto_revert\":\"$AUTO_REVERT\"}}" || true
+
+  smoke:
+    needs: verify
+    if: ${{ !startsWith(github.event.head_commit.message, '[ci-auto-revert]') }}
+    runs-on: ubuntu-latest
+    env:
+      AUTO_REVERT: "true"
+      PROD_URL: "https://admin.liftori.ai/login"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Wait for Vercel deploy
+        run: sleep 90
+      - name: Install puppeteer
+        run: npm i puppeteer@23 --no-save
+      - name: Smoke probe (blank-root + fatal JS detection)
+        run: |
+          cat > /tmp/smoke.mjs <<'EOS'
+          import puppeteer from 'puppeteer';
+          const url = process.env.PROD_URL;
+          const errors = [];
+          const browser = await puppeteer.launch({args: ['--no-sandbox']});
+          const page = await browser.newPage();
+          page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+          const resp = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 45000});
+          const status = resp ? resp.status() : 0;
+          await new Promise(r => setTimeout(r, 8000));
+          const rootLen = await page.evaluate(() => { const r = document.getElementById('root'); return r ? r.innerHTML.length : 0; });
+          await browser.close();
+          console.log('status=' + status + ' rootLen=' + rootLen + ' pageErrors=' + errors.length);
+          if (status >= 400 || status === 0) { console.error('bad HTTP status ' + status); process.exit(1); }
+          if (rootLen < 200) { console.error('blank root - app did not render'); process.exit(1); }
+          const fatal = errors.filter(e => /Minified React error|ChunkLoadError/i.test(e));
+          if (fatal.length) { console.error(fatal.join('; ')); process.exit(1); }
+          EOS
+          ok=0
+          for i in 1 2 3; do
+            if node /tmp/smoke.mjs; then ok=1; break; fi
+            echo "smoke attempt $i failed; retry in 60s"; sleep 60
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::Smoke gate failed 3 consecutive attempts - prod render is broken"
+            exit 1
+          fi
+      - name: Auto-revert on smoke failure
+        if: ${{ failure() && env.AUTO_REVERT == 'true' }}
+        run: |
+          git config user.name "liftori-ci-gate"
+          git config user.email "ci@liftori.ai"
+          if git revert --no-edit ${{ github.sha }}; then
+            git commit --amend -m "[ci-auto-revert] ${{ github.sha }} failed SMOKE gate (prod render broken) - auto-reverted; Vercel redeploys last-good"
+            git push origin main
+          else
+            echo "::error::Revert conflict - manual intervention required"
+          fi
+      - name: Alert dev-team activity feed on smoke failure
+        if: ${{ failure() }}
+        run: |
+          curl -s -X POST "https://qlerfkdyslndjbaltkwo.supabase.co/functions/v1/dev-team-log" \
+            -H "Content-Type: application/json" \
+            -d "{\"author_user_id\":\"3f178841-4ea5-476a-b67e-6a1fc9fe9284\",\"author_display_name\":\"CI smoke gate (liftori-admin)\",\"action\":\"smoke_failure\",\"target\":\"$GITHUB_SHA\",\"target_type\":\"commit\",\"details\":{\"run_id\":\"$GITHUB_RUN_ID\"}}" || true
