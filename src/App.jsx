@@ -206,6 +206,7 @@ import CrmSales from './pages/crm/CrmSales'
 import CrmPipeline from './pages/crm/CrmPipeline'
 import CrmOpsPipeline from './pages/crm/CrmOpsPipeline'
 import CrmCustomers from './pages/crm/CrmCustomers'
+import CrmCustomerDetail from './pages/crm/CrmCustomerDetail'
 import CrmCallCenter from './pages/crm/CrmCallCenter'
 import CrmEstimateDocument from './pages/crm/EstimateDocument'
 import CrmOperations from './pages/crm/CrmOperations'
@@ -600,6 +601,7 @@ export default function App() {
             <Route path="stickers" element={<CscStickers />} />
             <Route path="ahj" element={<CscAhjMap />} />
             <Route path="customers" element={<CrmCustomers />} />
+            <Route path="customers/:id" element={<CrmCustomerDetail />} />
             <Route path="invoices" element={<CscInvoices />} />
             <Route path="estimate/:estimateId" element={<CrmEstimateDocument />} />
             <Route path="operations" element={<CrmOperations />}>
