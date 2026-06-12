@@ -29,6 +29,13 @@ const HUB_DEFS = [
 // Hubs that expand into a dropdown of sub-pages. Sub-page paths must match
 // the child routes mounted under /crm/:platformId in App.jsx.
 const HUB_CHILDREN = {
+  // E-commerce industry Marketing dropdown. Only rendered when an
+  // ECOM_HUB_DEFS hub carries this key, so it is a no-op for every
+  // non-ecommerce tenant.
+  ecom_marketing: [
+    { label: 'Social',    path: 'social' },
+    { label: 'Marketing', path: 'marketing' },
+  ],
   sales: [
     { label: 'Customers', path: 'customers' },
     { label: 'Pipeline',  path: 'pipeline' },
@@ -115,10 +122,30 @@ function LabosShell() {
     { key: 'customers', label: 'Customers', path: 'customers', icon: SalesIcon },
     { key: 'invoices', label: 'Invoices', path: 'invoices', icon: FinanceIcon },
   ]
+  // E-commerce industry tenants (e.g. VJ Thrift Finds) get a curated
+  // retail nav: shop hubs first, then the base hubs minus the
+  // service-only ones. Gated on platform.industry === 'ecommerce'.
+  const ECOM_HUB_DEFS = [
+    { key: 'ecom_dashboard', label: 'Dashboard', path: 'dashboard', icon: DashboardIcon },
+    { key: 'ecom_listings',  label: 'Listings',  path: 'listings',  icon: TagIcon },
+    { key: 'ecom_orders',    label: 'Orders',    path: 'orders',    icon: BagIcon },
+    { key: 'ecom_customers', label: 'Customers', path: 'customers', icon: SalesIcon },
+    { key: 'ecom_marketing', label: 'Marketing', path: 'marketing', icon: MarketingIcon },
+    { key: 'ecom_finance',   label: 'Finance',   path: 'finance',   icon: FinanceIcon },
+  ]
+  // Base hubs hidden for ecommerce: covered by ECOM_HUB_DEFS (dashboard,
+  // marketing, finance) or service-only (sales pipeline, operations,
+  // university - not seeded for ecomm yet).
+  const ECOM_HIDDEN_BASE = ['dashboard', 'sales', 'operations', 'university', 'marketing', 'finance']
   const matchedHubs = HUB_DEFS.filter(h => enabledHubs.includes(h.key))
   const baseHubs = matchedHubs.length > 0 ? matchedHubs : HUB_DEFS
   // KEC (hood-cleaning) industry tenants get the industry hub layer appended.
-  const hubs = platform?.industry === 'kec' ? [...baseHubs, ...CSC_HUB_DEFS] : baseHubs
+  // E-commerce tenants get the curated retail nav; everyone else is untouched.
+  const hubs = platform?.industry === 'kec'
+    ? [...baseHubs, ...CSC_HUB_DEFS]
+    : platform?.industry === 'ecommerce'
+      ? [...ECOM_HUB_DEFS, ...baseHubs.filter(h => !ECOM_HIDDEN_BASE.includes(h.key))]
+      : baseHubs
 
   return (
     <div className="crm-theme min-h-screen bg-navy-950 flex">
@@ -373,3 +400,5 @@ function NotesIcon({ className }) { return <svg className={className} fill="none
 function EOSIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg> }
 function NotificationsIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg> }
 function BellIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg> }
+function TagIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 015 10V5a2 2 0 012-2z" /></svg> }
+function BagIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg> }
