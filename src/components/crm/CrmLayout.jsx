@@ -58,6 +58,8 @@ function LabosShell() {
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [openGroups, setOpenGroups] = useState({})
+  const [navPinned, setNavPinned] = useState(() => { try { return localStorage.getItem('crm_nav_pinned') !== '0' } catch (e) { return true } })
+  function toggleNavPinned() { setNavPinned(p => { const n = !p; try { localStorage.setItem('crm_nav_pinned', n ? '1' : '0') } catch (e) {} return n }) }
 
   if (loading) {
     return (
@@ -106,7 +108,7 @@ function LabosShell() {
       {/* Mobile drawer backdrop */}
       {drawerOpen && <div onClick={() => setDrawerOpen(false)} className="fixed inset-0 bg-black/50 z-30 lg:hidden" />}
       {/* SIDEBAR */}
-      <aside className={`w-64 bg-navy-900 border-r border-navy-700/50 flex flex-col fixed h-screen z-40 transform transition-transform duration-200 lg:translate-x-0 ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`w-64 bg-navy-900 border-r border-navy-700/50 flex flex-col fixed h-screen z-40 transform transition-transform duration-200 ${navPinned ? 'lg:translate-x-0' : 'lg:-translate-x-full'} ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 border-b border-navy-700/50">
           <button
             onClick={() => navigate('/admin/platforms')}
@@ -240,8 +242,8 @@ function LabosShell() {
       </aside>
 
       {/* MAIN */}
-      <div className="flex-1 ml-0 lg:ml-64 flex flex-col min-h-screen">
-        <CrmHeader onMenu={() => setDrawerOpen(true)} />
+      <div className={`flex-1 ml-0 ${navPinned ? 'lg:ml-64' : 'lg:ml-0'} flex flex-col min-h-screen transition-all duration-200`}>
+        <CrmHeader onMenu={() => setDrawerOpen(true)} navPinned={navPinned} onToggleNav={toggleNavPinned} />
         <main className="flex-1 bg-navy-900">
           <Outlet />
         </main>
@@ -250,7 +252,7 @@ function LabosShell() {
   )
 }
 
-function CrmHeader({ onMenu }) {
+function CrmHeader({ onMenu, navPinned, onToggleNav }) {
   const { client, platform, orgSettings } = useCrm()
   const siteUrl = platform?.site_url
   const [showNotifications, setShowNotifications] = useState(false)
@@ -281,6 +283,9 @@ function CrmHeader({ onMenu }) {
     <header className="h-14 bg-navy-900 border-b border-navy-700/50 flex items-center justify-between px-6 sticky top-0 z-30">
       <div className="flex items-center gap-2">
         <button onClick={onMenu} className="lg:hidden -ml-2 mr-1 w-9 h-9 rounded-lg hover:bg-navy-800 flex items-center justify-center text-gray-300" aria-label="Open menu">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+        </button>
+        <button onClick={onToggleNav} className="hidden lg:flex -ml-2 mr-1 w-9 h-9 rounded-lg hover:bg-navy-800 items-center justify-center text-gray-300" title={navPinned ? 'Hide sidebar' : 'Show sidebar'} aria-label="Toggle sidebar">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
         <span className="text-sm text-gray-500">Liftori</span>
