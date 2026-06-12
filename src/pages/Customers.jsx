@@ -113,7 +113,7 @@ function StageBadge({ stage }) {
 // Unified pipeline stage (derived from a customer's product lines), shared with Operations.
 function PipelineStageBadge({ stage }) {
   if (!stage) return null;
-  return <Badge className="text-xs bg-navy-700/60 text-gray-200 border border-white/10">{stage}</Badge>;
+  return <Badge className="text-xs bg-navy-700/60 text-gray-300 border border-white/10">{stage}</Badge>;
 }
 
 function daysAgo(dateStr) {
@@ -923,7 +923,7 @@ export default function Customers() {
                         </td>
                         <td className="px-4 py-3 text-gray-300">{e.company_name || <span className="text-gray-600">—</span>}</td>
                         <td className="px-4 py-3">
-                          <Badge className="text-xs bg-navy-700/60 text-gray-200 border border-white/10">{e.engagement_stage}</Badge>
+                          <Badge className="text-xs bg-navy-700/60 text-gray-300 border border-white/10">{e.engagement_stage}</Badge>
                         </td>
                         <td className="px-4 py-3 text-white font-medium">{e.contract_value > 0 ? `$${parseFloat(e.contract_value).toLocaleString()}` : '—'}</td>
                         <td className="px-4 py-3" onClick={ev => ev.stopPropagation()}>
@@ -1458,7 +1458,7 @@ export default function Customers() {
 
       {/* ── Add Customer Dialog ───────────────────────────────── */}
       <Dialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-navy-950 border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-sky-400" /> Add Customer</DialogTitle>
           </DialogHeader>
@@ -1603,11 +1603,11 @@ export default function Customers() {
 
       {/* ── Customer Detail Panel ─────────────────────────────── */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white w-[95vw] max-w-[1400px] h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="bg-navy-950 border-white/10 text-white w-[95vw] max-w-[1400px] h-[90vh] overflow-y-auto p-0">
           {selectedCustomer && (
             <div className="flex flex-col h-full">
               {/* Hero Header */}
-              <div className="px-8 pt-8 pb-6 border-b border-white/10 bg-gradient-to-r from-navy-800/80 to-[#0B1120]">
+              <div className="px-8 pt-8 pb-6 border-b border-white/10 bg-gradient-to-r from-navy-800/80 to-navy-950">
                 <div className="flex items-start gap-5">
                   <Avatar className="h-16 w-16 ring-2 ring-sky-500/30">
                     <AvatarFallback className="bg-sky-500/20 text-sky-400 text-xl font-bold">
@@ -1869,7 +1869,7 @@ export default function Customers() {
 
       {/* ── Log Activity Dialog ───────────────────────────────── */}
       <Dialog open={addActivityOpen} onOpenChange={setAddActivityOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-navy-950 border-white/10 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-sky-400" /> Log Activity</DialogTitle>
           </DialogHeader>
@@ -1907,7 +1907,7 @@ export default function Customers() {
 
       {/* ── Schedule Follow-Up Dialog ─────────────────────────── */}
       <Dialog open={addFollowUpOpen} onOpenChange={setAddFollowUpOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-navy-950 border-white/10 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Timer className="h-5 w-5 text-amber-400" /> Schedule Follow-Up</DialogTitle>
           </DialogHeader>
