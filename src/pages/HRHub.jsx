@@ -880,7 +880,7 @@ export default function HRHub() {
 
           {/* Add Slot Dialog */}
           <Dialog open={addSlotOpen} onOpenChange={setAddSlotOpen}>
-            <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-md">
+            <DialogContent className="bg-navy-950 border-white/10 text-white max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <CalendarPlus className="h-5 w-5 text-sky-400" />
@@ -1134,7 +1134,7 @@ export default function HRHub() {
 
       {/* ─── Add Applicant Dialog ───────────────────────────────── */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-navy-950 border-white/10 text-white max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-sky-400" />
@@ -1204,11 +1204,11 @@ export default function HRHub() {
 
       {/* ─── Applicant Detail Panel ─────────────────────────────── */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white w-[95vw] max-w-[1400px] h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="bg-navy-950 border-white/10 text-white w-[95vw] max-w-[1400px] h-[90vh] overflow-y-auto p-0">
           {selectedApplicant && (
             <div className="flex flex-col">
               {/* ── Hero Header ──────────────────────────────────── */}
-              <div className="px-8 pt-8 pb-6 border-b border-white/10 bg-gradient-to-r from-navy-800/80 to-[#0B1120]">
+              <div className="px-8 pt-8 pb-6 border-b border-white/10 bg-gradient-to-r from-navy-800/80 to-navy-950">
                 <div className="flex items-start gap-5">
                   <Avatar className="h-16 w-16 ring-2 ring-sky-500/30">
                     <AvatarFallback className="bg-sky-500/20 text-sky-400 text-xl font-bold">
@@ -1569,7 +1569,7 @@ export default function HRHub() {
 
       {/* ─── Score Dialog ───────────────────────────────────────── */}
       <Dialog open={scoreDialogOpen} onOpenChange={setScoreDialogOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-navy-950 border-white/10 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-sky-400" />
@@ -1619,7 +1619,7 @@ export default function HRHub() {
 
       {/* ─── Approve & Onboard Dialog ──────────────────────────── */}
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-navy-950 border-white/10 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-green-400" />
