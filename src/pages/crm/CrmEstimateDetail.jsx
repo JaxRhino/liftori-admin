@@ -45,6 +45,7 @@ export default function CrmEstimateDetail() {
   const [sections, setSections] = useState(defaultSections());
   const [grossMargin, setGrossMargin] = useState(50);
   const [taxRate, setTaxRate] = useState(0);
+  const [catalog, setCatalog] = useState([]);
 
   useEffect(() => { if (client && id) load(); /* eslint-disable-next-line */ }, [client, id]);
 
@@ -66,6 +67,8 @@ export default function CrmEstimateDetail() {
       ]);
       setOrg(orgRes.data || null);
       setSettings(setRes.data || null);
+      const { data: cat } = await client.from('estimate_products').select('*').eq('is_active', true).order('item_type', { ascending: true }).order('name', { ascending: true });
+      setCatalog(cat || []);
       setGrossMargin(est.gross_margin != null ? est.gross_margin : (setRes.data ? setRes.data.default_gross_margin : 50));
       setTaxRate(est.tax_rate != null ? est.tax_rate : (setRes.data ? setRes.data.default_tax_rate : 0));
       if (est.contact_id) {
@@ -83,6 +86,11 @@ export default function CrmEstimateDetail() {
   function addItem(sid) { setSections(prev => prev.map(s => s.id === sid ? { ...s, items: [...(s.items || []), { id: uid(), description: '', qty: 1, unit: '', unit_cost: 0 }] } : s)); }
   function updateItem(sid, iid, patch) { setSections(prev => prev.map(s => s.id === sid ? { ...s, items: s.items.map(it => it.id === iid ? { ...it, ...patch } : it) } : s)); }
   function removeItem(sid, iid) { setSections(prev => prev.map(s => s.id === sid ? { ...s, items: s.items.filter(it => it.id !== iid) } : s)); }
+  function addItemFromCatalog(sid, pid) {
+    const pr = catalog.find(x => x.id === pid);
+    if (!pr) return;
+    setSections(prev => prev.map(s => s.id === sid ? { ...s, items: [...(s.items || []), { id: uid(), description: pr.name, qty: 1, unit: pr.unit || '', unit_cost: Number(pr.cost) || 0 }] } : s));
+  }
 
   const sectionCost = (s) => (s.items || []).reduce((sum, it) => sum + num(it.qty) * num(it.unit_cost), 0);
 
@@ -190,7 +198,15 @@ export default function CrmEstimateDetail() {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => addItem(s.id)} className="mt-3 text-xs text-brand-blue hover:text-brand-light flex items-center gap-1"><Plus size={14} /> Add line item</button>
+                <div className="mt-3 flex items-center gap-3 flex-wrap">
+                  <button onClick={() => addItem(s.id)} className="text-xs text-brand-blue hover:text-brand-light flex items-center gap-1"><Plus size={14} /> Add line item</button>
+                  {catalog.length > 0 && (
+                    <select value="" onChange={(e) => { if (e.target.value) { addItemFromCatalog(s.id, e.target.value); e.target.value = ''; } }} className="bg-navy-950 border border-navy-700 rounded px-2 py-1 text-xs text-gray-300">
+                      <option value="">+ from catalog…</option>
+                      {catalog.map(pr => <option key={pr.id} value={pr.id}>{pr.name + ' (' + (pr.item_type === 'labor' ? 'Labor' : 'Material') + ')'}</option>)}
+                    </select>
+                  )}
+                </div>
               </Card>
             );
           })}
