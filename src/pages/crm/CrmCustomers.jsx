@@ -7,7 +7,7 @@ import { Badge } from '../../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Columns3 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Generic base Customers page. Reads the impersonated tenant's OWN DB via
@@ -21,6 +21,15 @@ const typeConfig = {
   vendor:   { label: 'Vendor',   color: 'bg-purple-500/20 text-purple-300' },
 };
 
+const OPTIONAL_COLUMNS = [
+  { key: 'type',  label: 'Type',           align: 'left' },
+  { key: 'email', label: 'Email',          align: 'left' },
+  { key: 'phone', label: 'Phone',          align: 'left' },
+  { key: 'city',  label: 'City',           align: 'left' },
+  { key: 'ltv',   label: 'Lifetime Value', align: 'right' },
+];
+const DEFAULT_COLS = ['type', 'email', 'phone', 'city', 'ltv'];
+
 function blankForm() {
   return {
     first_name: '', last_name: '', email: '', phone: '',
@@ -33,6 +42,10 @@ export default function CrmCustomers() {
   const { client } = useCrmClient();
   const navigate = useNavigate();
   const { platformId } = useParams();
+  const [visibleCols, setVisibleCols] = useState(DEFAULT_COLS);
+  const [colMenuOpen, setColMenuOpen] = useState(false);
+  useEffect(() => { try { const s = localStorage.getItem('crm_customer_cols_' + platformId); if (s) { const arr = JSON.parse(s); if (Array.isArray(arr) && arr.length) setVisibleCols(arr); } } catch (e) {} }, [platformId]);
+  function toggleCol(key) { setVisibleCols(prev => { const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]; try { localStorage.setItem('crm_customer_cols_' + platformId, JSON.stringify(next)); } catch (e) {} return next; }); }
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -143,6 +156,24 @@ export default function CrmCustomers() {
               </button>
             ))}
           </div>
+          <div className="relative">
+            <button type="button" onClick={() => setColMenuOpen(o => !o)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-navy-700 text-gray-400 hover:text-white transition">
+              <Columns3 size={14} /> Columns
+            </button>
+            {colMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setColMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 w-44 bg-navy-900 border border-navy-700 rounded-lg shadow-xl z-20 py-1">
+                  {OPTIONAL_COLUMNS.map(col => (
+                    <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-navy-800 cursor-pointer">
+                      <input type="checkbox" checked={visibleCols.includes(col.key)} onChange={() => toggleCol(col.key)} className="accent-brand-blue" />
+                      {col.label}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {filtered.length === 0 ? (
@@ -154,11 +185,9 @@ export default function CrmCustomers() {
                 <thead>
                   <tr className="border-b border-navy-800">
                     <th className="px-4 py-3 text-left text-gray-400 font-semibold">Name</th>
-                    <th className="px-4 py-3 text-left text-gray-400 font-semibold">Type</th>
-                    <th className="px-4 py-3 text-left text-gray-400 font-semibold">Email</th>
-                    <th className="px-4 py-3 text-left text-gray-400 font-semibold">Phone</th>
-                    <th className="px-4 py-3 text-left text-gray-400 font-semibold">City</th>
-                    <th className="px-4 py-3 text-right text-gray-400 font-semibold">Lifetime Value</th>
+                    {OPTIONAL_COLUMNS.filter(col => visibleCols.includes(col.key)).map(col => (
+                      <th key={col.key} className={`px-4 py-3 ${col.align === 'right' ? 'text-right' : 'text-left'} text-gray-400 font-semibold`}>{col.label}</th>
+                    ))}
                     <th className="px-4 py-3 text-right text-gray-400 font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -168,11 +197,13 @@ export default function CrmCustomers() {
                     return (
                       <tr key={c.id} className="border-b border-navy-800 hover:bg-navy-800/50 transition">
                         <td className="px-4 py-3"><button onClick={() => navigate(`/crm/${platformId}/customers/${c.id}`)} className="text-white font-medium hover:text-brand-blue transition text-left">{name(c)}</button></td>
-                        <td className="px-4 py-3"><Badge className={`${t.color} text-xs`}>{t.label}</Badge></td>
-                        <td className="px-4 py-3 text-gray-400">{c.email}</td>
-                        <td className="px-4 py-3 text-gray-400">{c.phone}</td>
-                        <td className="px-4 py-3 text-gray-400">{[c.property_city, c.property_state].filter(Boolean).join(', ')}</td>
-                        <td className="px-4 py-3 text-white text-right font-medium">${(Number(c.lifetime_value) || 0).toLocaleString()}</td>
+                        {OPTIONAL_COLUMNS.filter(col => visibleCols.includes(col.key)).map(col => {
+                          if (col.key === 'type') return <td key="type" className="px-4 py-3"><Badge className={`${t.color} text-xs`}>{t.label}</Badge></td>;
+                          if (col.key === 'email') return <td key="email" className="px-4 py-3 text-gray-400">{c.email}</td>;
+                          if (col.key === 'phone') return <td key="phone" className="px-4 py-3 text-gray-400">{c.phone}</td>;
+                          if (col.key === 'city') return <td key="city" className="px-4 py-3 text-gray-400">{[c.property_city, c.property_state].filter(Boolean).join(', ')}</td>;
+                          return <td key="ltv" className="px-4 py-3 text-white text-right font-medium">${(Number(c.lifetime_value) || 0).toLocaleString()}</td>;
+                        })}
                         <td className="px-4 py-3 text-right">
                           <div className="flex gap-2 justify-end">
                             <button onClick={() => handleEdit(c)} className="px-2 py-1 bg-brand-blue/20 hover:bg-brand-blue/30 text-brand-blue rounded text-xs transition">Edit</button>
