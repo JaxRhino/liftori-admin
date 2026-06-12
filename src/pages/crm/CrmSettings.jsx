@@ -165,8 +165,6 @@ function EstimatePricingTab({ client }) {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search items…" className="ml-auto bg-navy-950 border border-navy-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 w-48" />
         </div>
 
-        <datalist id="estimate-units">{UNIT_OPTIONS.map(u => <option key={u} value={u} />)}</datalist>
-
         {visible.length === 0 && <div className="text-gray-500 text-sm py-4">{products.length === 0 ? 'No items yet. Add your first one.' : 'No items match.'}</div>}
 
         {visible.length > 0 && (
@@ -181,7 +179,7 @@ function EstimatePricingTab({ client }) {
                   <button onClick={() => setP(key, 'item_type', 'material')} className={'flex-1 px-2 py-1.5 rounded text-xs ' + (p.item_type !== 'labor' ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400')}>Material</button>
                   <button onClick={() => setP(key, 'item_type', 'labor')} className={'flex-1 px-2 py-1.5 rounded text-xs ' + (p.item_type === 'labor' ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400')}>Labor</button>
                 </div>
-                <input list="estimate-units" value={p.unit || ''} onChange={(e) => setP(key, 'unit', e.target.value)} placeholder="ea" className="col-span-1 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white placeholder-gray-500" />
+                <select value={p.unit || ''} onChange={(e) => setP(key, 'unit', e.target.value)} className="col-span-1 bg-navy-950 border border-navy-700 rounded-lg px-1 py-1.5 text-sm text-white"><option value="">—</option>{UNIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}{p.unit && !UNIT_OPTIONS.includes(p.unit) ? <option value={p.unit}>{p.unit}</option> : null}</select>
                 <input type="number" value={p.cost ?? ''} onChange={(e) => setP(key, 'cost', e.target.value)} className="col-span-2 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white text-right" />
                 <input type="number" value={p.markup_percent ?? ''} onChange={(e) => setP(key, 'markup_percent', e.target.value)} className="col-span-1 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white text-right" />
                 <span className="col-span-2 text-right text-sm text-white font-medium">{fmt(price(p))}</span>
