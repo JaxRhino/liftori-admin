@@ -15,7 +15,7 @@ jobs:
     if: ${{ !startsWith(github.event.head_commit.message, '[ci-auto-revert]') }}
     runs-on: ubuntu-latest
     env:
-      AUTO_REVERT: "false"
+      AUTO_REVERT: "true"
     steps:
       - uses: actions/checkout@v4
         with:
