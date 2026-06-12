@@ -102,7 +102,7 @@ function LabosShell() {
   const hubs = platform?.industry === 'kec' ? [...baseHubs, ...CSC_HUB_DEFS] : baseHubs
 
   return (
-    <div className="min-h-screen bg-navy-950 flex">
+    <div className="crm-theme min-h-screen bg-navy-950 flex">
       {/* Mobile drawer backdrop */}
       {drawerOpen && <div onClick={() => setDrawerOpen(false)} className="fixed inset-0 bg-black/50 z-30 lg:hidden" />}
       {/* SIDEBAR */}
