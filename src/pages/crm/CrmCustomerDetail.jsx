@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Mail, MessageSquare, Phone, Video } from 'lucide-react';
 import { toast } from 'sonner';
 
 const money = (v) => '$' + (Number(v) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -50,6 +50,7 @@ export default function CrmCustomerDetail() {
   const [photos, setPhotos] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [detail, setDetail] = useState(null);
+  const [comms, setComms] = useState([]);
   const [agForm, setAgForm] = useState(null);
 
   async function createDefaultAgreement() {
@@ -132,7 +133,7 @@ export default function CrmCustomerDetail() {
         lead_source: cust.lead_source || '', notes: cust.notes || '',
       });
       const safe = (p) => p.then(r => r.data || []).catch(() => []);
-      const [pr, jb, es, inv, pay, ag, ph, dc] = await Promise.all([
+      const [pr, jb, es, inv, pay, ag, ph, dc, cm] = await Promise.all([
         safe(client.from('customer_projects').select('*').eq('contact_id', id).order('created_at', { ascending: false })),
         safe(client.from('ops_work_orders').select('*').eq('contact_id', id).order('scheduled_start', { ascending: false, nullsFirst: false })),
         safe(client.from('customer_estimates').select('*').eq('contact_id', id).order('created_at', { ascending: false })),
@@ -141,8 +142,9 @@ export default function CrmCustomerDetail() {
         safe(client.from('customer_agreements').select('*').eq('contact_id', id).order('created_at', { ascending: false })),
         safe(client.from('customer_photos').select('*').eq('contact_id', id).order('created_at', { ascending: false })),
         safe(client.from('documents').select('*').eq('related_entity_id', id).order('created_at', { ascending: false })),
+        safe(client.from('comms_conversations').select('*').eq('contact_id', id).order('last_message_at', { ascending: false, nullsFirst: false })),
       ]);
-      setProjects(pr); setJobs(jb); setEstimates(es); setInvoices(inv); setPayments(pay); setAgreements(ag); setPhotos(ph); setDocuments(dc);
+      setProjects(pr); setJobs(jb); setEstimates(es); setInvoices(inv); setPayments(pay); setAgreements(ag); setPhotos(ph); setDocuments(dc); setComms(cm);
     } catch (e) {
       console.error('Error loading customer:', e);
       toast.error('Failed to load customer');
@@ -152,6 +154,24 @@ export default function CrmCustomerDetail() {
   };
 
   const name = customer ? (customer.name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Customer') : '';
+
+  async function createProject() {
+    try {
+      const { data, error } = await client.from('customer_projects').insert({ contact_id: id, title: 'New Project' }).select().single();
+      if (error) throw error;
+      setProjects(prev => [data, ...prev]); setTab('projects'); setDetail({ type: 'project', record: data });
+      toast.success('Project created. Build the estimate \u2014 it converts to a Job once the estimate is signed.');
+    } catch (e) { console.error(e); toast.error('Could not create project'); }
+  }
+
+  function startVideoCall() {
+    const room = `liftori-${platformId}-${id}`.replace(/[^a-zA-Z0-9-]/g, '');
+    const url = `https://meet.jit.si/${room}`;
+    window.open(url, '_blank', 'noopener');
+    toast.success('Video room opened \u2014 share the link with the customer to join.');
+  }
+
+  function commSoon(kind) { toast.message(`${kind} composer`, { description: 'Placeholder \u2014 email / text / call sending connects in a later phase.' }); }
 
   const saveDetails = async () => {
     try {
@@ -196,7 +216,10 @@ export default function CrmCustomerDetail() {
               </div>
             </div>
           </div>
-          <Button onClick={() => setTab('details')} className="bg-brand-blue hover:bg-brand-blue/90 text-white flex items-center gap-2"><Pencil size={16} /> Edit</Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={createProject} className="bg-navy-700 hover:bg-navy-600 text-white flex items-center gap-2"><Plus size={16} /> New Project</Button>
+            <Button onClick={() => setTab('details')} className="bg-brand-blue hover:bg-brand-blue/90 text-white flex items-center gap-2"><Pencil size={16} /> Edit</Button>
+          </div>
         </div>
 
         <div className="flex items-center gap-1 mb-5 border-b border-navy-800 overflow-x-auto">
@@ -219,6 +242,22 @@ export default function CrmCustomerDetail() {
               <StatCard label="Jobs" value={stats.jobs} />
               <StatCard label="Open Balance" value={money(stats.openBalance)} />
             </div>
+            <Card className="bg-navy-900 border-navy-800 p-4">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h3 className="text-sm font-semibold text-white">Communications</h3>
+                <div className="flex items-center gap-1.5">
+                  <CommBtn icon={Mail} label="Email" onClick={() => commSoon('Email')} />
+                  <CommBtn icon={MessageSquare} label="Text" onClick={() => commSoon('Text')} />
+                  <CommBtn icon={Phone} label="Call" onClick={() => commSoon('Call')} />
+                  <CommBtn icon={Video} label="Video" onClick={startVideoCall} accent />
+                </div>
+              </div>
+              {comms.length === 0 ? (
+                <Empty>No communications yet. Email, text, and call history will appear here once channels are connected.</Empty>
+              ) : (
+                <div className="space-y-1">{comms.slice(0, 8).map(c => <CommRow key={c.id} c={c} />)}</div>
+              )}
+            </Card>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Panel title="Recent Projects">
                 {projects.slice(0, 5).map(p => <Row key={p.id} left={p.title} right={<Badge className={`${statusTone(p.status)} text-xs`}>{p.status}</Badge>} sub={money(p.estimated_value)} />)}
@@ -245,7 +284,7 @@ export default function CrmCustomerDetail() {
           <Card className="bg-navy-900 border-navy-800 p-6 max-w-3xl">
             <div className="grid grid-cols-2 gap-4">
               <Field label="First Name"><Input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
-              <Field label="Last Name"><Input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Last Name"><Input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} className="bg-navy-800 border-navy-700 text-wh	te" /></Field>
               <Field label="Email"><Input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Phone"><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Type">
@@ -449,6 +488,41 @@ function KV({ k, v }) {
 }
 
 function Empty({ children }) { return <div className="text-sm text-gray-500 py-3">{children}</div>; }
+
+const CHANNEL_META = {
+  email: { icon: Mail, label: 'Email', color: 'text-blue-300' },
+  sms:   { icon: MessageSquare, label: 'Text', color: 'text-emerald-300' },
+  text:  { icon: MessageSquare, label: 'Text', color: 'text-emerald-300' },
+  call:  { icon: Phone, label: 'Call', color: 'text-amber-300' },
+  phone: { icon: Phone, label: 'Call', color: 'text-amber-300' },
+};
+
+function CommBtn({ icon: Icon, label, onClick, accent }) {
+  return (
+    <button onClick={onClick} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition ${accent ? 'border-brand-blue/50 text-brand-blue hover:bg-brand-blue/10' : 'border-navy-700 text-gray-300 hover:bg-navy-800 hover:text-white'}`}>
+      <Icon size={14} /> {label}
+    </button>
+  );
+}
+
+function CommRow({ c }) {
+  const meta = CHANNEL_META[(c.channel_type || '').toLowerCase()] || { icon: MessageSquare, label: c.channel_type || 'Message', color: 'text-gray-300' };
+  const Icon = meta.icon;
+  const when = c.last_message_at ? new Date(c.last_message_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+  return (
+    <div className="flex items-center gap-3 py-2 border-b border-navy-800 last:border-0">
+      <div className={`w-8 h-8 rounded-lg bg-navy-800 flex items-center justify-center flex-shrink-0 ${meta.color}`}><Icon size={15} /></div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-white truncate">{c.subject || meta.label}</span>
+          <span className="text-[10px] uppercase tracking-wide text-gray-500">{meta.label}</span>
+        </div>
+        {c.last_message_preview && <div className="text-xs text-gray-500 truncate">{c.last_message_preview}</div>}
+      </div>
+      {when && <span className="text-[11px] text-gray-500 flex-shrink-0">{when}</span>}
+    </div>
+  );
+}
 
 function Field({ label, full, children }) {
   return (
