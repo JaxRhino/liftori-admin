@@ -59,7 +59,9 @@ export default function CrmEos() {
         {active === 'issues' && <Issues client={client} team={team} />}
         {active === 'todos' && <Todos client={client} team={team} />}
         {active === 'headlines' && <Headlines client={client} team={team} />}
-        {['scorecard', 'vision', 'meetings', 'accountability'].includes(active) && <Placeholder label={(MODULES.find(m => m.key === active) || {}).label} />}
+        {active === 'scorecard' && <Scorecard client={client} team={team} />}
+        {active === 'vision' && <Vision client={client} />}
+        {['meetings', 'accountability'].includes(active) && <Placeholder label={(MODULES.find(m => m.key === active) || {}).label} />}
       </div>
     </div>
   );
@@ -319,6 +321,133 @@ function Todos({ client, team }) {
           <DialogFooter><Button onClick={() => setOpen(false)} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button><Button onClick={save} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function mondayOf(d) { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0, 0, 0, 0); return x; }
+function lastWeeks(n) { const arr = []; let m = mondayOf(new Date()); for (let i = 0; i < n; i++) { arr.unshift(new Date(m)); m = new Date(m); m.setDate(m.getDate() - 7); } return arr; }
+function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+function Scorecard({ client, team }) {
+  const [metrics, setMetrics] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const blank = () => ({ name: '', owner_id: '', goal: '', category: '' });
+  const [form, setForm] = useState(blank());
+  const weeks = lastWeeks(6);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [client]);
+  async function load() { if (!client) return; try { setLoading(true); const { data: m } = await client.from('eos_scorecard_metrics').select('*').eq('is_active', true).order('display_order', { ascending: true }); setMetrics(m || []); const { data: e } = await client.from('eos_scorecard_entries').select('*').gte('period_date', isoDate(weeks[0])); setEntries(e || []); } catch (err) { console.error(err); } finally { setLoading(false); } }
+  function entryFor(mid, d) { const ds = isoDate(d); return entries.find(e => e.metric_id === mid && String(e.period_date).slice(0, 10) === ds); }
+  async function setVal(metric, d, raw) { try { const v = raw === '' ? null : Number(raw); const ds = isoDate(d); const goal = Number(metric.goal); const on = v == null ? null : (goal ? v >= goal : null); const ex = entryFor(metric.id, d); if (ex) { if (v == null) await client.from('eos_scorecard_entries').delete().eq('id', ex.id); else await client.from('eos_scorecard_entries').update({ actual_value: v, on_track: on }).eq('id', ex.id); } else if (v != null) { await client.from('eos_scorecard_entries').insert({ metric_id: metric.id, period_date: ds, actual_value: v, on_track: on }); } load(); } catch (err) { console.error(err); } }
+  function openNew() { setEditing(null); setForm(blank()); setOpen(true); }
+  function openEdit(m) { setEditing(m); setForm({ name: m.name || '', owner_id: m.owner_id || '', goal: m.goal != null ? m.goal : '', category: m.category || '' }); setOpen(true); }
+  async function saveMetric() { try { const patch = { name: form.name, owner_id: form.owner_id || null, goal: form.goal === '' ? null : Number(form.goal), category: form.category || null }; if (editing) await client.from('eos_scorecard_metrics').update(patch).eq('id', editing.id); else await client.from('eos_scorecard_metrics').insert({ ...patch, is_active: true, display_order: metrics.length }); setOpen(false); toast.success('Metric saved'); load(); } catch (err) { console.error(err); toast.error('Save failed'); } }
+  async function removeMetric(m) { try { await client.from('eos_scorecard_metrics').update({ is_active: false }).eq('id', m.id); load(); } catch (e) { console.error(e); } }
+  return (
+    <div>
+      <Header title="Scorecard" subtitle="Weekly measurables" onCreate={openNew} createLabel="Add Metric" />
+      {loading ? <Empty>Loading…</Empty> : metrics.length === 0 ? <Empty>No metrics yet. Add your first measurable.</Empty> : (
+        <Card className="bg-navy-900 border-navy-800 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-navy-800 text-gray-400">
+                <th className="px-3 py-2 text-left font-semibold">Measurable</th>
+                <th className="px-3 py-2 text-left font-semibold">Owner</th>
+                <th className="px-3 py-2 text-right font-semibold">Goal</th>
+                {weeks.map(w => <th key={isoDate(w)} className="px-2 py-2 text-center font-semibold text-xs">{(w.getMonth() + 1) + '/' + w.getDate()}</th>)}
+                <th className="px-2 py-2"></th>
+              </tr></thead>
+              <tbody>
+                {metrics.map(m => (
+                  <tr key={m.id} className="border-b border-navy-800/60">
+                    <td className="px-3 py-2 text-white">{m.name}</td>
+                    <td className="px-3 py-2 text-gray-400">{team.nameOf(m.owner_id)}</td>
+                    <td className="px-3 py-2 text-right text-gray-300">{m.goal != null ? m.goal : '-'}</td>
+                    {weeks.map(w => { const en = entryFor(m.id, w); const on = en ? en.on_track : null; return (
+                      <td key={isoDate(w)} className="px-1 py-1 text-center">
+                        <input type="number" defaultValue={en ? en.actual_value : ''} onBlur={(e) => setVal(m, w, e.target.value)} className={'w-14 text-center rounded px-1 py-1 text-xs bg-navy-950 border ' + (on === true ? 'border-emerald-600 text-emerald-300' : on === false ? 'border-red-600 text-red-300' : 'border-navy-700 text-white')} />
+                      </td>
+                    ); })}
+                    <td className="px-2 py-1 text-right whitespace-nowrap"><button onClick={() => openEdit(m)} className="text-gray-400 hover:text-white mr-2"><Pencil size={14} /></button><button onClick={() => removeMetric(m)} className="text-gray-500 hover:text-red-400"><Trash2 size={14} /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="bg-navy-900 border-navy-700 text-white">
+          <DialogHeader><DialogTitle>{editing ? 'Edit Metric' : 'Add Metric'}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Field label="Name"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Owner"><OwnerSelect team={team} value={form.owner_id} onChange={(e) => setForm({ ...form, owner_id: e.target.value })} /></Field>
+              <Field label="Goal"><Input type="number" value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })} /></Field>
+              <Field label="Category"><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Sales" /></Field>
+            </div>
+          </div>
+          <DialogFooter><Button onClick={() => setOpen(false)} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button><Button onClick={saveMetric} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Save</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+const DEFAULT_VTO = { core_values: [], core_focus: { purpose: '', niche: '' }, ten_year_target: '', marketing_strategy: { target_market: '', unique_value: '', three_uniques: ['', '', ''] }, three_year_picture: { revenue: '', profit: '', measurables: '' }, one_year_plan: { revenue: '', profit: '', goals: '' } };
+
+function Vision({ client }) {
+  const [row, setRow] = useState(null);
+  const [v, setV] = useState(DEFAULT_VTO);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [client]);
+  async function load() { if (!client) return; try { setLoading(true); const { data } = await client.from('eos_vto').select('*').eq('is_active', true).order('version', { ascending: false }).limit(1).maybeSingle(); if (data) { setRow(data); setV({ ...DEFAULT_VTO, ...data, core_focus: { ...DEFAULT_VTO.core_focus, ...(data.core_focus || {}) }, marketing_strategy: { ...DEFAULT_VTO.marketing_strategy, ...(data.marketing_strategy || {}) }, three_year_picture: { ...DEFAULT_VTO.three_year_picture, ...(data.three_year_picture || {}) }, one_year_plan: { ...DEFAULT_VTO.one_year_plan, ...(data.one_year_plan || {}) }, core_values: Array.isArray(data.core_values) ? data.core_values : [] }); } } catch (e) { console.error(e); } finally { setLoading(false); } }
+  function set(path, val) { setV(prev => { const n = { ...prev }; if (path.length === 1) n[path[0]] = val; else { n[path[0]] = { ...n[path[0]], [path[1]]: val }; } return n; }); }
+  async function save() { try { setSaving(true); const payload = { core_values: v.core_values, core_focus: v.core_focus, ten_year_target: v.ten_year_target, marketing_strategy: v.marketing_strategy, three_year_picture: v.three_year_picture, one_year_plan: v.one_year_plan, is_active: true, updated_at: new Date().toISOString() }; if (row) await client.from('eos_vto').update(payload).eq('id', row.id); else { const { data } = await client.from('eos_vto').insert({ ...payload, version: 1 }).select().single(); setRow(data); } toast.success('Vision saved'); } catch (e) { console.error(e); toast.error('Save failed'); } finally { setSaving(false); } }
+  if (loading) return <Empty>Loading…</Empty>;
+  const inp = 'w-full bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500';
+  const lbl = 'block text-xs text-gray-400 mb-1';
+  return (
+    <div>
+      <Header title="Vision/Traction Organizer" subtitle="Your V/TO" onCreate={save} createLabel={saving ? 'Saving…' : 'Save'} />
+      <div className="grid md:grid-cols-2 gap-5">
+        <div className="space-y-4">
+          <Card className="bg-navy-900 border-navy-800 p-5">
+            <div className="flex items-center justify-between mb-2"><h3 className="text-white font-semibold">Core Values</h3><button onClick={() => set(['core_values'], [...v.core_values, { name: '', description: '' }])} className="text-xs text-brand-blue hover:text-brand-light">+ Add</button></div>
+            <div className="space-y-2">{v.core_values.map((cv, i) => (<div key={i} className="flex gap-2"><input value={cv.name || ''} onChange={(e) => { const a = [...v.core_values]; a[i] = { ...a[i], name: e.target.value }; set(['core_values'], a); }} placeholder="Value" className={inp + ' flex-1'} /><input value={cv.description || ''} onChange={(e) => { const a = [...v.core_values]; a[i] = { ...a[i], description: e.target.value }; set(['core_values'], a); }} placeholder="What it means" className={inp + ' flex-[2]'} /><button onClick={() => set(['core_values'], v.core_values.filter((_, j) => j !== i))} className="text-gray-500 hover:text-red-400 text-sm">✕</button></div>))}{v.core_values.length === 0 ? <div className="text-gray-500 text-sm">No core values yet.</div> : null}</div>
+          </Card>
+          <Card className="bg-navy-900 border-navy-800 p-5 space-y-3">
+            <h3 className="text-white font-semibold">Core Focus</h3>
+            <div><label className={lbl}>Purpose / Cause / Passion</label><Textarea rows={2} value={v.core_focus.purpose} onChange={(e) => set(['core_focus', 'purpose'], e.target.value)} /></div>
+            <div><label className={lbl}>Niche</label><Input value={v.core_focus.niche} onChange={(e) => set(['core_focus', 'niche'], e.target.value)} /></div>
+          </Card>
+          <Card className="bg-navy-900 border-navy-800 p-5 space-y-3">
+            <h3 className="text-white font-semibold">10-Year Target</h3>
+            <Textarea rows={2} value={v.ten_year_target} onChange={(e) => set(['ten_year_target'], e.target.value)} />
+          </Card>
+          <Card className="bg-navy-900 border-navy-800 p-5 space-y-3">
+            <h3 className="text-white font-semibold">Marketing Strategy</h3>
+            <div><label className={lbl}>Target Market</label><Input value={v.marketing_strategy.target_market} onChange={(e) => set(['marketing_strategy', 'target_market'], e.target.value)} /></div>
+            <div><label className={lbl}>Unique Value</label><Input value={v.marketing_strategy.unique_value} onChange={(e) => set(['marketing_strategy', 'unique_value'], e.target.value)} /></div>
+          </Card>
+        </div>
+        <div className="space-y-4">
+          <Card className="bg-navy-900 border-navy-800 p-5 space-y-3">
+            <h3 className="text-white font-semibold">3-Year Picture</h3>
+            <div className="grid grid-cols-2 gap-3"><div><label className={lbl}>Revenue</label><Input value={v.three_year_picture.revenue} onChange={(e) => set(['three_year_picture', 'revenue'], e.target.value)} /></div><div><label className={lbl}>Profit</label><Input value={v.three_year_picture.profit} onChange={(e) => set(['three_year_picture', 'profit'], e.target.value)} /></div></div>
+            <div><label className={lbl}>Measurables / What it looks like</label><Textarea rows={4} value={v.three_year_picture.measurables} onChange={(e) => set(['three_year_picture', 'measurables'], e.target.value)} /></div>
+          </Card>
+          <Card className="bg-navy-900 border-navy-800 p-5 space-y-3">
+            <h3 className="text-white font-semibold">1-Year Plan</h3>
+            <div className="grid grid-cols-2 gap-3"><div><label className={lbl}>Revenue</label><Input value={v.one_year_plan.revenue} onChange={(e) => set(['one_year_plan', 'revenue'], e.target.value)} /></div><div><label className={lbl}>Profit</label><Input value={v.one_year_plan.profit} onChange={(e) => set(['one_year_plan', 'profit'], e.target.value)} /></div></div>
+            <div><label className={lbl}>Goals for the year</label><Textarea rows={4} value={v.one_year_plan.goals} onChange={(e) => set(['one_year_plan', 'goals'], e.target.value)} /></div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
