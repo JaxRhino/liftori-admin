@@ -31,6 +31,7 @@ const HUB_CHILDREN = {
   sales: [
     { label: 'Customers', path: 'customers' },
     { label: 'Pipeline',  path: 'pipeline' },
+    { label: 'Sales Training', path: 'sales-training' },
   ],
   operations: [
     { label: 'Dashboard',         path: 'operations/dashboard' },
