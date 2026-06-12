@@ -21,7 +21,7 @@ function report(message, stack) {
       app: 'liftori-admin',
     });
     if (navigator.sendBeacon) {
-      navigator.sendBeacon(FN_URL, new Blob([body], { type: 'application/json' }));
+      navigator.sendBeacon(FN_URL, new Blob([body], { type: 'text/plain' }));
     } else {
       fetch(FN_URL, {
         method: 'POST',
