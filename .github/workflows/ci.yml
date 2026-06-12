@@ -1,8 +1,8 @@
 name: CI Gate
 # Liftori build-machine keystone (Meta-Audit 2026-06-12, v3):
 # build + secret scan + LOCAL render smoke (vite preview + puppeteer) on every push to main.
-# v3: render smoke runs against localhost dist - NOT prod (Vercel edge challenges headless
-# runners; prod probe false-failed run #3 while prod was healthy in a real browser).
+# v4: smoke script must live in the repo cwd (./ci-smoke.mjs) - node ESM resolves packages
+# relative to the SCRIPT's dir, so /tmp/smoke.mjs could not find puppeteer (runs #3+#4).
 # Auto-revert is ON. Note: a failing commit that itself edits .github/workflows/* cannot be
 # auto-reverted (GITHUB_TOKEN lacks workflow perm) - those alert only.
 on:
@@ -42,7 +42,7 @@ jobs:
           npm i puppeteer@23 --no-save
           npx vite preview --port 4173 --strictPort &
           sleep 5
-          cat > /tmp/smoke.mjs <<'EOS'
+          cat > ./ci-smoke.mjs <<'EOS'
           import puppeteer from 'puppeteer';
           const url = 'http://localhost:4173/';
           const errors = [];
@@ -65,7 +65,7 @@ jobs:
           EOS
           ok=0
           for i in 1 2; do
-            if node /tmp/smoke.mjs; then ok=1; break; fi
+            if node ./ci-smoke.mjs; then ok=1; break; fi
             echo "render smoke attempt $i failed; retry in 15s"; sleep 15
           done
           if [ "$ok" != "1" ]; then
