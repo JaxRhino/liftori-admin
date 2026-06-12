@@ -92,12 +92,23 @@ export default function CrmCustomerDetail() {
   async function createEstimate() {
     try {
       const en = 'EST-' + Date.now().toString().slice(-6);
+      const rid = () => Math.random().toString(36).slice(2, 10);
       const seed = [
-        { id: Math.random().toString(36).slice(2, 10), title: 'Materials', enabled: true, items: [] },
-        { id: Math.random().toString(36).slice(2, 10), title: 'Labor', enabled: true, items: [] },
-        { id: Math.random().toString(36).slice(2, 10), title: 'Fees', enabled: true, items: [] },
+        { id: rid(), title: 'Materials', enabled: true, items: [] },
+        { id: rid(), title: 'Labor', enabled: true, items: [] },
+        { id: rid(), title: 'Fees', enabled: true, items: [] },
       ];
-      const { data, error } = await client.from('customer_estimates').insert({ contact_id: id, estimate_number: en, title: 'New Estimate', status: 'draft', sections: seed, gross_margin: 50 }).select().single();
+      let margin = 50;
+      try {
+        const { data: st } = await client.from('estimate_settings').select('default_gross_margin').limit(1).maybeSingle();
+        if (st && st.default_gross_margin != null) margin = st.default_gross_margin;
+        const { data: prods } = await client.from('estimate_products').select('*').eq('is_active', true).eq('in_default_template', true).order('name', { ascending: true });
+        (prods || []).forEach(pr => {
+          const item = { id: rid(), description: pr.name, qty: 1, unit: pr.unit || '', unit_cost: Number(pr.cost) || 0 };
+          (pr.item_type === 'labor' ? seed[1] : seed[0]).items.push(item);
+        });
+      } catch (seedErr) { console.error(seedErr); }
+      const { data, error } = await client.from('customer_estimates').insert({ contact_id: id, estimate_number: en, title: 'New Estimate', status: 'draft', sections: seed, gross_margin: margin }).select().single();
       if (error) throw error;
       navigate('/crm/' + platformId + '/estimates/' + data.id);
     } catch (e) { console.error(e); toast.error('Could not create estimate'); }
