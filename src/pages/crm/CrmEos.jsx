@@ -7,7 +7,7 @@ import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
-import { Plus, Pencil, Trash2, Target, BarChart3, AlertCircle, ListChecks, Eye, Users, Megaphone, Calendar } from 'lucide-react';
+import { Plus, Pencil, Trash2, Target, BarChart3, AlertCircle, ListChecks, Eye, Users, Megaphone, Calendar, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Base CRM EOS hub. Reads the impersonated tenant's OWN DB via useCrmClient().
@@ -46,7 +46,7 @@ function useTeam(client) {
 }
 
 export default function CrmEos() {
-  const { module, platformId } = useParams();
+  const { module, platformId, meetingId } = useParams();
   const active = module || 'dashboard';
   const navigate = useNavigate();
   const { client } = useCrmClient();
@@ -62,7 +62,8 @@ export default function CrmEos() {
         {active === 'scorecard' && <Scorecard client={client} team={team} />}
         {active === 'vision' && <Vision client={client} />}
         {active === 'accountability' && <Accountability client={client} team={team} />}
-        {active === 'meetings' && <Meetings client={client} team={team} />}
+        {active === 'meetings' && !meetingId && <Meetings client={client} team={team} navigate={navigate} platformId={platformId} />}
+        {active === 'meetings' && meetingId && <MeetingRoom client={client} team={team} meetingId={meetingId} navigate={navigate} platformId={platformId} />}
       </div>
     </div>
   );
@@ -489,7 +490,7 @@ function Accountability({ client, team }) {
 
 const MEET_STATUS = { scheduled: { label: 'Scheduled', color: 'bg-blue-500/20 text-blue-300' }, in_progress: { label: 'In Progress', color: 'bg-amber-500/20 text-amber-300' }, complete: { label: 'Complete', color: 'bg-emerald-500/20 text-emerald-300' }, cancelled: { label: 'Cancelled', color: 'bg-navy-700 text-gray-400' } };
 const L10_AGENDA = ['Segue (5m)', 'Scorecard (5m)', 'Rock Review (5m)', 'Headlines (5m)', 'To-Do List (5m)', 'IDS (60m)', 'Conclude (5m)'];
-function Meetings({ client, team }) {
+function Meetings({ client, team, navigate, platformId }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -510,8 +511,7 @@ function Meetings({ client, team }) {
               <div className="flex items-start justify-between gap-2 mb-2"><div><div className="text-white font-medium">{r.title || 'Level 10'}</div><div className="text-xs text-gray-500">{r.scheduled_date ? fmtDate(r.scheduled_date) : 'Unscheduled'}{r.meeting_number ? '  -  #' + r.meeting_number : ''}</div></div><Badge className={st.color + ' text-xs'}>{st.label}</Badge></div>
               <div className="flex flex-wrap gap-1 mb-3">{L10_AGENDA.map((a, i) => <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-navy-800 text-gray-400">{a}</span>)}</div>
               <div className="flex items-center gap-2">
-                {r.status === 'scheduled' ? <Button onClick={() => setStatus(r, 'in_progress')} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-xs">Start</Button> : null}
-                {r.status === 'in_progress' ? <Button onClick={() => setStatus(r, 'complete')} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">Complete</Button> : null}
+                <Button onClick={() => navigate('/crm/' + platformId + '/eos/meetings/' + r.id)} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-xs">{r.status === 'scheduled' ? 'Start' : r.status === 'in_progress' ? 'Join' : 'Recap'}</Button>
                 <button onClick={() => remove(r)} className="text-gray-500 hover:text-red-400 ml-auto"><Trash2 size={15} /></button>
               </div>
             </Card>
@@ -525,6 +525,96 @@ function Meetings({ client, team }) {
           <DialogFooter><Button onClick={() => setOpen(false)} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button><Button onClick={create} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Schedule</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+const SECTIONS = [
+  { key: 'segue', label: 'Segue', mins: 5 },
+  { key: 'scorecard', label: 'Scorecard', mins: 5 },
+  { key: 'rocks', label: 'Rock Review', mins: 5 },
+  { key: 'headlines', label: 'Headlines', mins: 5 },
+  { key: 'todos', label: 'To-Do List', mins: 5 },
+  { key: 'ids', label: 'IDS', mins: 60 },
+  { key: 'conclude', label: 'Conclude', mins: 5 },
+];
+function mmss(s) { const m = Math.floor(Math.abs(s) / 60); const r = Math.abs(s) % 60; return (s < 0 ? '-' : '') + m + ':' + String(r).padStart(2, '0'); }
+
+function MeetingRoom({ client, team, meetingId, navigate, platformId }) {
+  const [meeting, setMeeting] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [secIdx, setSecIdx] = useState(0);
+  const [left, setLeft] = useState(SECTIONS[0].mins * 60);
+  const [running, setRunning] = useState(false);
+  const [rocks, setRocks] = useState([]);
+  const [issues, setIssues] = useState([]);
+  const [todos, setTodos] = useState([]);
+  const [metrics, setMetrics] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [headlines, setHeadlines] = useState([]);
+  const [segue, setSegue] = useState('');
+  const [recap, setRecap] = useState('');
+  const [rating, setRating] = useState('');
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [client, meetingId]);
+  async function load() {
+    if (!client || !meetingId) return;
+    try {
+      setLoading(true);
+      const { data: m } = await client.from('eos_meetings').select('*').eq('id', meetingId).single();
+      setMeeting(m || null);
+      if (m && m.current_section) { const i = SECTIONS.findIndex(s => s.key === m.current_section); if (i >= 0) { setSecIdx(i); setLeft(SECTIONS[i].mins * 60); } }
+      const [r, is, td, mt, en, hl] = await Promise.all([
+        client.from('eos_rocks').select('*').order('created_at', { ascending: false }),
+        client.from('eos_issues').select('*').neq('status', 'archived').order('created_at', { ascending: false }),
+        client.from('eos_todos').select('*').order('created_at', { ascending: false }),
+        client.from('eos_scorecard_metrics').select('*').eq('is_active', true).order('display_order', { ascending: true }),
+        client.from('eos_scorecard_entries').select('*').order('period_date', { ascending: false }),
+        client.from('eos_headlines').select('*').order('created_at', { ascending: false }).limit(10),
+      ]);
+      setRocks(r.data || []); setIssues(is.data || []); setTodos(td.data || []); setMetrics(mt.data || []); setEntries(en.data || []); setHeadlines(hl.data || []);
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  }
+  useEffect(() => { if (!running) return; const t = setInterval(() => setLeft(x => x - 1), 1000); return () => clearInterval(t); }, [running]);
+  async function goTo(i) { if (i < 0 || i > SECTIONS.length - 1) return; setSecIdx(i); setLeft(SECTIONS[i].mins * 60); try { await client.from('eos_meetings').update({ current_section: SECTIONS[i].key }).eq('id', meetingId); } catch (e) {} }
+  async function start() { setRunning(true); try { await client.from('eos_meetings').update({ status: 'in_progress', start_time: new Date().toISOString() }).eq('id', meetingId); setMeeting(m => ({ ...(m || {}), status: 'in_progress' })); } catch (e) {} }
+  async function complete() { try { const notes = 'Segue: ' + segue + '\n\nConclude: ' + recap + (rating ? '\n\nRating: ' + rating + '/10' : ''); await client.from('eos_meetings').update({ status: 'complete', completed_at: new Date().toISOString(), current_section: 'conclude', meeting_notes: notes }).eq('id', meetingId); toast.success('Meeting completed'); navigate('/crm/' + platformId + '/eos/meetings'); } catch (e) { console.error(e); toast.error('Could not complete'); } }
+  async function toggleTodo(r) { try { const done = r.status === 'complete'; await client.from('eos_todos').update({ status: done ? 'open' : 'complete', completed_at: done ? null : new Date().toISOString() }).eq('id', r.id); setTodos(ts => ts.map(x => x.id === r.id ? { ...x, status: done ? 'open' : 'complete' } : x)); } catch (e) {} }
+  async function solveIssue(r) { try { await client.from('eos_issues').update({ status: 'solved' }).eq('id', r.id); setIssues(xs => xs.map(x => x.id === r.id ? { ...x, status: 'solved' } : x)); } catch (e) {} }
+  if (loading) return <Empty>Loading…</Empty>;
+  const sec = SECTIONS[secIdx];
+  const latestEntry = (mid) => entries.find(e => e.metric_id === mid);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <button onClick={() => navigate('/crm/' + platformId + '/eos/meetings')} className="text-gray-400 hover:text-white text-sm flex items-center gap-1"><ArrowLeft size={15} /> Meetings</button>
+          <h1 className="text-2xl font-bold text-white mt-1">{(meeting && meeting.title) || 'Level 10'}</h1>
+          <div className="text-xs text-gray-500">Section {secIdx + 1} of {SECTIONS.length} — {sec.label}</div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className={'text-3xl font-bold tabular-nums ' + (left < 0 ? 'text-red-400' : 'text-white')}>{mmss(left)}</div>
+          <Button onClick={() => setRunning(r => !r)} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">{running ? 'Pause' : 'Start Timer'}</Button>
+          {meeting && meeting.status !== 'in_progress' && meeting.status !== 'complete' ? <Button onClick={start} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Start Meeting</Button> : null}
+        </div>
+      </div>
+      <div className="grid md:grid-cols-4 gap-5">
+        <div className="md:col-span-1"><div className="space-y-1">{SECTIONS.map((s, i) => (<button key={s.key} onClick={() => goTo(i)} className={'w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between ' + (i === secIdx ? 'bg-brand-blue/15 text-brand-blue' : i < secIdx ? 'text-gray-500 hover:bg-navy-800' : 'text-gray-300 hover:bg-navy-800')}><span>{i + 1}. {s.label}</span><span className="text-xs text-gray-500">{s.mins}m</span></button>))}</div></div>
+        <div className="md:col-span-3">
+          <Card className="bg-navy-900 border-navy-800 p-5 min-h-[320px]">
+            {sec.key === 'segue' && (<div><h3 className="text-white font-semibold mb-2">Segue</h3><p className="text-gray-400 text-xs mb-3">Share a personal best and a business best from each person.</p><Textarea rows={8} value={segue} onChange={(e) => setSegue(e.target.value)} placeholder="Notes…" /></div>)}
+            {sec.key === 'scorecard' && (<div><h3 className="text-white font-semibold mb-3">Scorecard</h3>{metrics.length === 0 ? <Empty>No metrics.</Empty> : <div className="space-y-2">{metrics.map(m => { const en = latestEntry(m.id); const on = en ? en.on_track : null; return (<div key={m.id} className="flex items-center justify-between border-b border-navy-800 pb-2"><div><div className="text-white text-sm">{m.name}</div><div className="text-xs text-gray-500">{team.nameOf(m.owner_id)} · Goal {m.goal != null ? m.goal : '-'}</div></div><div className={'text-sm font-medium ' + (on === true ? 'text-emerald-400' : on === false ? 'text-red-400' : 'text-gray-400')}>{en ? en.actual_value : '-'}</div></div>); })}</div>}</div>)}
+            {sec.key === 'rocks' && (<div><h3 className="text-white font-semibold mb-3">Rock Review</h3>{rocks.length === 0 ? <Empty>No rocks.</Empty> : <div className="space-y-2">{rocks.map(r => { const st = ROCK_STATUS[r.status] || ROCK_STATUS.on_track; return (<div key={r.id} className="flex items-center justify-between border-b border-navy-800 pb-2"><div><div className="text-white text-sm">{r.title}</div><div className="text-xs text-gray-500">{team.nameOf(r.owner_id)}</div></div><Badge className={st.color + ' text-xs'}>{st.label}</Badge></div>); })}</div>}</div>)}
+            {sec.key === 'headlines' && (<div><h3 className="text-white font-semibold mb-3">Headlines</h3>{headlines.length === 0 ? <Empty>No headlines.</Empty> : <div className="space-y-2">{headlines.map(h => <div key={h.id} className="text-sm text-gray-300 border-b border-navy-800 pb-2">{h.message}</div>)}</div>}</div>)}
+            {sec.key === 'todos' && (<div><h3 className="text-white font-semibold mb-3">To-Do List</h3>{todos.length === 0 ? <Empty>No to-dos.</Empty> : <div className="space-y-2">{todos.map(t => { const done = t.status === 'complete'; return (<div key={t.id} className="flex items-center gap-2"><button onClick={() => toggleTodo(t)} className={'w-5 h-5 rounded border flex items-center justify-center ' + (done ? 'bg-brand-blue border-brand-blue text-white' : 'border-navy-600')}>{done ? '✓' : ''}</button><span className={'text-sm ' + (done ? 'text-gray-500 line-through' : 'text-white')}>{t.task}</span><span className="text-xs text-gray-500 ml-auto">{team.nameOf(t.owner_id)}</span></div>); })}</div>}</div>)}
+            {sec.key === 'ids' && (<div><h3 className="text-white font-semibold mb-3">IDS — Identify, Discuss, Solve</h3>{issues.filter(i => i.status !== 'solved').length === 0 ? <Empty>No open issues. Nice.</Empty> : <div className="space-y-2">{issues.filter(i => i.status !== 'solved').map(i => { const pr = PRIORITY[i.priority] || PRIORITY.medium; return (<div key={i.id} className="flex items-start justify-between gap-2 border-b border-navy-800 pb-2"><div><div className="flex items-center gap-2"><Badge className={pr.color + ' text-[10px]'}>{pr.label}</Badge><span className="text-white text-sm">{i.title}</span></div>{i.description ? <div className="text-xs text-gray-500 mt-0.5">{i.description}</div> : null}</div><button onClick={() => solveIssue(i)} className="text-xs px-2 py-1 rounded bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 flex-shrink-0">Solve</button></div>); })}</div>}</div>)}
+            {sec.key === 'conclude' && (<div><h3 className="text-white font-semibold mb-2">Conclude</h3><p className="text-gray-400 text-xs mb-3">Recap to-dos, cascading messages, and rate the meeting.</p><Textarea rows={5} value={recap} onChange={(e) => setRecap(e.target.value)} placeholder="Recap and cascading messages…" /><div className="mt-3 flex items-center gap-2"><label className="text-sm text-gray-400">Meeting rating</label><input type="number" min="1" max="10" value={rating} onChange={(e) => setRating(e.target.value)} className="w-20 bg-navy-950 border border-navy-700 rounded px-2 py-1.5 text-sm text-white" /><span className="text-xs text-gray-500">/ 10</span></div></div>)}
+          </Card>
+          <div className="flex items-center justify-between mt-4">
+            <Button onClick={() => goTo(secIdx - 1)} disabled={secIdx === 0} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Previous</Button>
+            {secIdx < SECTIONS.length - 1 ? <Button onClick={() => goTo(secIdx + 1)} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Next</Button> : <Button onClick={complete} className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm">Complete Meeting</Button>}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
