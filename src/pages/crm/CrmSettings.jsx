@@ -11,6 +11,7 @@ import { useCrm } from '../../contexts/CrmContext'
 const TABS = [
   { key: 'reports',    label: 'Reports' },
   { key: 'estimates',  label: 'Estimate Templates' },
+  { key: 'pricing',    label: 'Estimate Pricing' },
   { key: 'emails',     label: 'Email Templates' },
   { key: 'automations',label: 'Automations' },
   { key: 'business',   label: 'Business' },
@@ -51,6 +52,7 @@ export default function CrmSettings() {
         <>
           {tab === 'reports'     && <ReportsTab client={client} />}
           {tab === 'estimates'   && <EstimateTemplatesTab client={client} />}
+          {tab === 'pricing'     && <EstimatePricingTab client={client} />}
           {tab === 'emails'      && <EmailTemplatesTab client={client} />}
           {tab === 'automations' && <AutomationsTab client={client} />}
           {tab === 'business'    && <BusinessTab orgSettings={orgSettings} />}
@@ -61,6 +63,118 @@ export default function CrmSettings() {
 }
 
 // ---------- shared bits ----------
+function EstimatePricingTab({ client }) {
+  const [row, setRow] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => { load() /* eslint-disable-next-line */ }, [])
+
+  async function load() {
+    try {
+      setLoading(true)
+      let { data } = await client.from('estimate_settings').select('*').limit(1).maybeSingle()
+      if (!data) {
+        const ins = await client.from('estimate_settings').insert({ default_gross_margin: 50, minimum_price: 0, default_tax_rate: 0 }).select().single()
+        data = ins.data
+      }
+      setRow(data || { default_gross_margin: 50, minimum_price: 0, default_tax_rate: 0, labor_rate: 0, overhead_percent: 0, company_costs: [] })
+    } catch (e) { console.error(e) } finally { setLoading(false) }
+  }
+
+  function set(k, v) { setSaved(false); setRow(r => ({ ...r, [k]: v })) }
+  function addCost() { setSaved(false); setRow(r => ({ ...r, company_costs: [...(r.company_costs || []), { label: '', amount: 0 }] })) }
+  function updateCost(i, k, v) { setSaved(false); setRow(r => { const cc = [...(r.company_costs || [])]; cc[i] = { ...cc[i], [k]: v }; return { ...r, company_costs: cc } }) }
+  function removeCost(i) { setSaved(false); setRow(r => ({ ...r, company_costs: (r.company_costs || []).filter((_, j) => j !== i) })) }
+
+  async function save() {
+    if (!row) return
+    try {
+      setSaving(true)
+      const patch = {
+        default_gross_margin: Number(row.default_gross_margin) || 0,
+        minimum_price: Number(row.minimum_price) || 0,
+        default_tax_rate: Number(row.default_tax_rate) || 0,
+        labor_rate: Number(row.labor_rate) || 0,
+        overhead_percent: Number(row.overhead_percent) || 0,
+        company_costs: row.company_costs || [],
+        default_terms: row.default_terms || null,
+        updated_at: new Date().toISOString(),
+      }
+      const { error } = await client.from('estimate_settings').update(patch).eq('id', row.id)
+      if (error) throw error
+      setSaved(true)
+    } catch (e) { console.error(e) } finally { setSaving(false) }
+  }
+
+  if (loading || !row) return <div className="text-gray-400 text-sm py-8">Loading…</div>
+
+  const inputCls = "w-full bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500"
+  const labelCls = "block text-xs text-gray-400 mb-1"
+
+  return (
+    <div className="max-w-2xl space-y-5">
+      <div className="bg-navy-900 border border-navy-800 rounded-xl p-5">
+        <h3 className="text-white font-semibold mb-1">Pricing Defaults</h3>
+        <p className="text-gray-400 text-xs mb-4">Applied to new estimates. The gross-margin slider on an estimate starts from this margin; price never drops below the minimum.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Default Gross Margin (%)</label>
+            <input type="number" value={row.default_gross_margin ?? ''} onChange={(e) => set('default_gross_margin', e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Minimum Job Price ($)</label>
+            <input type="number" value={row.minimum_price ?? ''} onChange={(e) => set('minimum_price', e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Default Tax Rate (%)</label>
+            <input type="number" value={row.default_tax_rate ?? ''} onChange={(e) => set('default_tax_rate', e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Labor Rate ($/hr)</label>
+            <input type="number" value={row.labor_rate ?? ''} onChange={(e) => set('labor_rate', e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Overhead (%)</label>
+            <input type="number" value={row.overhead_percent ?? ''} onChange={(e) => set('overhead_percent', e.target.value)} className={inputCls} />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-navy-900 border border-navy-800 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-white font-semibold">Company Costs</h3>
+            <p className="text-gray-400 text-xs">Recurring overhead (rent, insurance, software) — for reference when setting margins.</p>
+          </div>
+          <button onClick={addCost} className="text-xs text-brand-blue hover:text-brand-light">+ Add cost</button>
+        </div>
+        <div className="space-y-2">
+          {(row.company_costs || []).length === 0 && <div className="text-gray-500 text-sm">No company costs added yet.</div>}
+          {(row.company_costs || []).map((cc, i) => (
+            <div key={i} className="grid grid-cols-12 gap-2 items-center">
+              <input value={cc.label || ''} onChange={(e) => updateCost(i, 'label', e.target.value)} placeholder="Label" className="col-span-7 bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
+              <input type="number" value={cc.amount ?? ''} onChange={(e) => updateCost(i, 'amount', e.target.value)} placeholder="Monthly $" className="col-span-4 bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
+              <button onClick={() => removeCost(i)} className="col-span-1 text-gray-500 hover:text-red-400 text-sm">✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-navy-900 border border-navy-800 rounded-xl p-5">
+        <label className={labelCls}>Default Estimate Terms</label>
+        <textarea rows={4} value={row.default_terms || ''} onChange={(e) => set('default_terms', e.target.value)} placeholder="Default payment terms / warranty language for new estimates…" className={inputCls} />
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button onClick={save} disabled={saving} className="px-4 py-2 bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg text-sm font-medium">{saving ? 'Saving…' : 'Save Pricing Settings'}</button>
+        {saved && <span className="text-emerald-400 text-sm">Saved</span>}
+      </div>
+    </div>
+  )
+}
+
 function Panel({ children }) {
   return (
     <div className="rounded-xl border border-navy-700/50 bg-navy-800/40 p-10 text-center text-gray-500">
