@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useParams } from 'react-router-dom'
 import { useCrm } from '../../contexts/CrmContext'
 import { HubPage, Section, EmptyState } from './_shared'
 import { Button } from '../../components/ui/button'
@@ -63,6 +64,16 @@ function ProgressBar({ done, total }) {
 
 export default function CrmSalesTraining() {
   const { client, platform, tier } = useCrm()
+  const { track: trackParam } = useParams()
+  const TRACK_DEFS = {
+    sales: { title: 'Sales Training', subtitle: "Liftori University sales curriculum plus your company's own training - track each rep's progress.", proPlus: false },
+    operations: { title: 'Operations Training', subtitle: "Field execution, safety, quality and closeout - Liftori University plus your company's own training.", proPlus: false },
+    manager: { title: 'Manager Training', subtitle: 'KPIs, coaching, scheduling and great meetings - train managers to run the business by the numbers.', proPlus: false },
+    owner: { title: 'Owner / Business Growth', subtitle: 'Business training for owners - financials, pricing, hiring, marketing and scaling with systems.', proPlus: true },
+  }
+  const track = TRACK_DEFS[trackParam] ? trackParam : 'sales'
+  const trackDef = TRACK_DEFS[track]
+  const ownerLocked = trackDef.proPlus && tier !== 'pro' && tier !== 'scale'
   const [courses, setCourses] = useState([])
   const [lessons, setLessons] = useState([])
   const [members, setMembers] = useState([])
@@ -76,7 +87,7 @@ export default function CrmSalesTraining() {
 
   const lsKey = `crm_training_member_${platform?.id || 'x'}`
 
-  useEffect(() => { if (client) loadBase() /* eslint-disable-next-line */ }, [client])
+  useEffect(() => { if (client) loadBase() /* eslint-disable-next-line */ }, [client, track])
   useEffect(() => { if (client && member) loadProgress() /* eslint-disable-next-line */ }, [client, member])
 
   async function loadBase() {
@@ -84,7 +95,7 @@ export default function CrmSalesTraining() {
       setLoading(true)
       const safe = (p) => p.then(r => r.data || []).catch(() => [])
       const [cs, ls, ms] = await Promise.all([
-        safe(client.from('training_courses').select('*').eq('track', 'sales').order('is_standard', { ascending: false }).order('sort_order')),
+        safe(client.from('training_courses').select('*').eq('track', track).order('is_standard', { ascending: false }).order('sort_order')),
         safe(client.from('training_lessons').select('*').order('sort_order')),
         safe(client.from('org_team_members').select('first_name,last_name,email,role').order('first_name')),
       ])
@@ -228,8 +239,19 @@ export default function CrmSalesTraining() {
     </div>
   )
 
+  if (ownerLocked) return (
+    <HubPage title={trackDef.title} subtitle={trackDef.subtitle}>
+      <div className="rounded-xl border border-brand-blue/30 bg-gradient-to-r from-brand-blue/10 to-transparent p-8 text-center">
+        <Lock className="w-8 h-8 text-brand-blue mx-auto mb-3" />
+        <h2 className="text-white font-semibold text-lg mb-2">Owner / Business Growth is a Pro feature</h2>
+        <p className="text-gray-400 text-sm max-w-xl mx-auto">Unlock the full owner curriculum - financial fundamentals, pricing for profit, lead generation, hiring, leadership and scaling with systems - by upgrading to Pro or Scale.</p>
+        <p className="text-brand-blue text-xs mt-3 uppercase tracking-wide">Available on Pro &amp; Scale</p>
+      </div>
+    </HubPage>
+  )
+
   return (
-    <HubPage title="Sales Training" subtitle="Liftori University curriculum plus your company's own training — track each rep's progress." actions={memberSelect}>
+    <HubPage title={trackDef.title} subtitle={trackDef.subtitle} actions={memberSelect}>
       <AiTrainingCard tier={tier} />
 
       <div className="mb-6">
