@@ -222,6 +222,13 @@ import CrmTasks from './pages/crm/CrmTasks';
 import CrmNotifications from './pages/crm/CrmNotifications';
 import CrmSettings from './pages/crm/CrmSettings';
 import CrmEOS from './pages/crm/CrmEOS';
+import CrmEOSRocks from './pages/crm/eos/EOSRocks';
+import CrmEOSIssues from './pages/crm/eos/EOSIssues';
+import CrmEOSTodos from './pages/crm/eos/EOSTodos';
+import CrmEOSMeetings from './pages/crm/eos/EOSMeetings';
+import CrmEOSScorecard from './pages/crm/eos/EOSScorecard';
+import CrmEOSVTO from './pages/crm/eos/EOSVTO';
+import CrmEOSAccountability from './pages/crm/eos/EOSAccountability';
 // Dev Team — Wave A foundation
 import DevTeamLayout from './pages/dev-team/DevTeamLayout'
 import DevTeamOverview from './pages/dev-team/DevTeamOverview'
@@ -610,9 +617,13 @@ export default function App() {
             <Route path="settings" element={<CrmSettings />} />
             <Route path="eos" element={<CrmEOS />}>
               <Route index element={<Navigate to="rocks" replace />} />
-              <Route path="rocks"  element={<EOSRocks />} />
-              <Route path="issues" element={<EOSIssues />} />
-              <Route path="todos"  element={<EOSTodos />} />
+              <Route path="rocks"  element={<CrmEOSRocks />} />
+              <Route path="issues" element={<CrmEOSIssues />} />
+              <Route path="todos"  element={<CrmEOSTodos />} />
+              <Route path="meetings" element={<CrmEOSMeetings />} />
+              <Route path="scorecard" element={<CrmEOSScorecard />} />
+              <Route path="vto" element={<CrmEOSVTO />} />
+              <Route path="accountability" element={<CrmEOSAccountability />} />
             </Route>
           </Route>
 
