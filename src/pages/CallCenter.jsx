@@ -158,7 +158,7 @@ function getPriorityColor(priority) {
 
 function StatCard({ label, value, icon, color = 'text-sky-400' }) {
   return (
-    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+    <div className="bg-navy-800/50 border border-navy-700 rounded-lg p-4">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-gray-400 text-sm font-medium">{label}</p>
@@ -248,11 +248,11 @@ function AgentRosterPanel({ refreshTick }) {
     const subtitle = title || roleLabel;
 
     return (
-      <div className="flex items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">
+      <div className="flex items-center gap-2 bg-navy-800/60 border border-navy-700 rounded-lg px-3 py-2">
         {avatar ? (
           <img src={avatar} alt={name} className="w-7 h-7 rounded-full object-cover" />
         ) : (
-          <div className="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center text-xs text-gray-300 font-bold">
+          <div className="w-7 h-7 rounded-full bg-navy-600 flex items-center justify-center text-xs text-gray-300 font-bold">
             {name.charAt(0)}
           </div>
         )}
@@ -268,7 +268,7 @@ function AgentRosterPanel({ refreshTick }) {
   if (loadingAgents) return null;
 
   return (
-    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+    <div className="bg-navy-800/50 border border-navy-700 rounded-lg p-4">
       <div className="flex items-center gap-3 mb-3">
         <Users size={18} className="text-sky-400" />
         <h3 className="text-white font-semibold text-sm">Agent Roster</h3>
@@ -364,7 +364,7 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
   };
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700 p-6 space-y-4">
+    <Card className="bg-navy-800/50 border-navy-700 p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3">
@@ -435,7 +435,7 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Add notes during the call..."
-          className="bg-slate-900/50 border-slate-600 text-white placeholder-gray-500 min-h-24"
+          className="bg-navy-900/50 border-navy-600 text-white placeholder-gray-500 min-h-24"
         />
         <Button
           onClick={handleUpdateNotes}
@@ -448,7 +448,7 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
       </div>
 
       <Dialog open={showEndDialog} onOpenChange={setShowEndDialog}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className="bg-navy-900 border-navy-700">
           <DialogHeader>
             <DialogTitle className="text-white">End Call</DialogTitle>
           </DialogHeader>
@@ -458,7 +458,7 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
               <select
                 value={disposition}
                 onChange={(e) => setDisposition(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white"
+                className="w-full bg-navy-800 border border-navy-700 rounded px-3 py-2 text-white"
               >
                 <option value="">— Select disposition —</option>
                 <option value="qualified">Qualified Lead</option>
@@ -496,7 +496,7 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
 function IncomingCallsList({ calls, onAccept, onReject, onVideoCall, creatingVideoCall }) {
   if (calls.length === 0) {
     return (
-      <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-8 text-center">
+      <div className="bg-navy-800/50 border border-navy-700 rounded-lg p-8 text-center">
         <PhoneIncoming className="mx-auto text-gray-500 mb-3" size={32} />
         <p className="text-gray-400">No incoming calls — you're all caught up</p>
       </div>
@@ -508,7 +508,7 @@ function IncomingCallsList({ calls, onAccept, onReject, onVideoCall, creatingVid
       {calls.map((call) => (
         <div
           key={call.id}
-          className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 flex items-center justify-between"
+          className="bg-navy-800/50 border border-navy-700 rounded-lg p-4 flex items-center justify-between"
         >
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
@@ -586,8 +586,8 @@ function SpeedToLeadSection({ leads, onCallNow, onVideoCall, onMarkContacted, on
 
   return (
     <>
-      <Card className="bg-slate-800/50 border-slate-700">
-        <div className="p-6 border-b border-slate-700 flex items-center justify-between">
+      <Card className="bg-navy-800/50 border-navy-700">
+        <div className="p-6 border-b border-navy-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Zap className="text-yellow-400" size={20} />
             <div>
@@ -603,7 +603,7 @@ function SpeedToLeadSection({ leads, onCallNow, onVideoCall, onMarkContacted, on
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-700">
+              <tr className="border-b border-navy-700">
                 <th className="text-left px-6 py-3 text-gray-400 font-semibold">Lead Name</th>
                 <th className="text-left px-6 py-3 text-gray-400 font-semibold">Phone</th>
                 <th className="text-left px-6 py-3 text-gray-400 font-semibold">Source</th>
@@ -621,7 +621,7 @@ function SpeedToLeadSection({ leads, onCallNow, onVideoCall, onMarkContacted, on
                 </tr>
               ) : (
                 leads.map((lead) => (
-                  <tr key={lead.id} className="border-b border-slate-700 hover:bg-slate-700/20">
+                  <tr key={lead.id} className="border-b border-navy-700 hover:bg-navy-700/20">
                     <td className="px-6 py-4 text-white font-medium">{lead.lead_name}</td>
                     <td className="px-6 py-4 text-gray-300">{lead.phone_number}</td>
                     <td className="px-6 py-4 text-gray-400 text-xs">{lead.source || '—'}</td>
@@ -668,7 +668,7 @@ function SpeedToLeadSection({ leads, onCallNow, onVideoCall, onMarkContacted, on
           </table>
         </div>
 
-        <div className="p-6 border-t border-slate-700">
+        <div className="p-6 border-t border-navy-700">
           <Button
             onClick={() => setShowAddDialog(true)}
             className="flex items-center gap-2"
@@ -680,7 +680,7 @@ function SpeedToLeadSection({ leads, onCallNow, onVideoCall, onMarkContacted, on
       </Card>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className="bg-navy-900 border-navy-700">
           <DialogHeader>
             <DialogTitle className="text-white">Add New Lead</DialogTitle>
           </DialogHeader>
@@ -691,7 +691,7 @@ function SpeedToLeadSection({ leads, onCallNow, onVideoCall, onMarkContacted, on
                 value={newLead.lead_name}
                 onChange={(e) => setNewLead({ ...newLead, lead_name: e.target.value })}
                 placeholder="John Smith"
-                className="bg-slate-800 border-slate-600 text-white"
+                className="bg-navy-800 border-navy-600 text-white"
               />
             </div>
             <div>
@@ -700,7 +700,7 @@ function SpeedToLeadSection({ leads, onCallNow, onVideoCall, onMarkContacted, on
                 value={newLead.phone_number}
                 onChange={(e) => setNewLead({ ...newLead, phone_number: e.target.value })}
                 placeholder="+1 (555) 123-4567"
-                className="bg-slate-800 border-slate-600 text-white"
+                className="bg-navy-800 border-navy-600 text-white"
               />
             </div>
             <div>
@@ -709,7 +709,7 @@ function SpeedToLeadSection({ leads, onCallNow, onVideoCall, onMarkContacted, on
                 value={newLead.source}
                 onChange={(e) => setNewLead({ ...newLead, source: e.target.value })}
                 placeholder="Web Form, Direct Call, etc."
-                className="bg-slate-800 border-slate-600 text-white"
+                className="bg-navy-800 border-navy-600 text-white"
               />
             </div>
           </div>
@@ -772,8 +772,8 @@ function CallQueueSection({ queueItems, onCallNow, onVideoCall, onComplete, onRe
 
   return (
     <>
-      <Card className="bg-slate-800/50 border-slate-700">
-        <div className="p-6 border-b border-slate-700 flex items-center justify-between">
+      <Card className="bg-navy-800/50 border-navy-700">
+        <div className="p-6 border-b border-navy-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Calendar className="text-sky-400" size={20} />
             <div>
@@ -786,7 +786,7 @@ function CallQueueSection({ queueItems, onCallNow, onVideoCall, onComplete, onRe
           </Badge>
         </div>
 
-        <div className="flex gap-4 px-6 pt-4 border-b border-slate-700">
+        <div className="flex gap-4 px-6 pt-4 border-b border-navy-700">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -805,7 +805,7 @@ function CallQueueSection({ queueItems, onCallNow, onVideoCall, onComplete, onRe
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-700">
+              <tr className="border-b border-navy-700">
                 <th className="text-left px-6 py-3 text-gray-400 font-semibold">Contact</th>
                 <th className="text-left px-6 py-3 text-gray-400 font-semibold">Phone</th>
                 <th className="text-left px-6 py-3 text-gray-400 font-semibold">Type</th>
@@ -828,7 +828,7 @@ function CallQueueSection({ queueItems, onCallNow, onVideoCall, onComplete, onRe
                   return (
                     <tr
                       key={item.id}
-                      className={`border-b border-slate-700 hover:bg-slate-700/20 ${
+                      className={`border-b border-navy-700 hover:bg-navy-700/20 ${
                         isUrgent ? 'border-l-4 border-l-red-500' : ''
                       }`}
                     >
@@ -899,7 +899,7 @@ function CallQueueSection({ queueItems, onCallNow, onVideoCall, onComplete, onRe
       </Card>
 
       <Dialog open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className="bg-navy-900 border-navy-700">
           <DialogHeader>
             <DialogTitle className="text-white">Reschedule Call</DialogTitle>
           </DialogHeader>
@@ -913,7 +913,7 @@ function CallQueueSection({ queueItems, onCallNow, onVideoCall, onComplete, onRe
                 type="datetime-local"
                 value={newScheduleTime}
                 onChange={(e) => setNewScheduleTime(e.target.value)}
-                className="bg-slate-800 border-slate-600 text-white"
+                className="bg-navy-800 border-navy-600 text-white"
               />
             </div>
           </div>
@@ -1052,9 +1052,9 @@ function ScheduledCallsSection({ userId }) {
   };
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
+    <Card className="bg-navy-800/50 border-navy-700">
       <div
-        className="p-6 border-b border-slate-700 flex items-center justify-between cursor-pointer"
+        className="p-6 border-b border-navy-700 flex items-center justify-between cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-3">
@@ -1074,7 +1074,7 @@ function ScheduledCallsSection({ userId }) {
 
       {expanded && (
         <>
-          <div className="p-4 border-b border-slate-700">
+          <div className="p-4 border-b border-navy-700">
             <Button onClick={() => setShowAssign(true)} className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700">
               <CalendarPlus size={16} />
               Assign New Call
@@ -1084,7 +1084,7 @@ function ScheduledCallsSection({ userId }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-700">
+                <tr className="border-b border-navy-700">
                   <th className="text-left px-6 py-3 text-gray-400 font-semibold">Contact</th>
                   <th className="text-left px-6 py-3 text-gray-400 font-semibold">Phone</th>
                   <th className="text-left px-6 py-3 text-gray-400 font-semibold">Assigned To</th>
@@ -1101,7 +1101,7 @@ function ScheduledCallsSection({ userId }) {
                 ) : calls.length === 0 ? (
                   <tr><td colSpan="8" className="px-6 py-8 text-center text-gray-400">No scheduled calls</td></tr>
                 ) : calls.map((c) => (
-                  <tr key={c.id} className="border-b border-slate-700 hover:bg-slate-700/20">
+                  <tr key={c.id} className="border-b border-navy-700 hover:bg-navy-700/20">
                     <td className="px-6 py-4 text-white font-medium">{c.contact_name}</td>
                     <td className="px-6 py-4 text-gray-300">{c.contact_phone}</td>
                     <td className="px-6 py-4">
@@ -1109,7 +1109,7 @@ function ScheduledCallsSection({ userId }) {
                         {c.assigned_to_profile?.avatar_url ? (
                           <img src={c.assigned_to_profile.avatar_url} alt="" className="w-6 h-6 rounded-full" />
                         ) : (
-                          <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-xs text-gray-300">
+                          <div className="w-6 h-6 rounded-full bg-navy-600 flex items-center justify-center text-xs text-gray-300">
                             {(c.assigned_to_profile?.full_name || '?').charAt(0)}
                           </div>
                         )}
@@ -1140,7 +1140,7 @@ function ScheduledCallsSection({ userId }) {
 
       {/* Assign Call Dialog */}
       <Dialog open={showAssign} onOpenChange={setShowAssign}>
-        <DialogContent className="bg-slate-900 border-slate-700 max-w-lg">
+        <DialogContent className="bg-navy-900 border-navy-700 max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-white">Assign & Schedule Call</DialogTitle>
           </DialogHeader>
@@ -1150,7 +1150,7 @@ function ScheduledCallsSection({ userId }) {
               <select
                 value={form.assigned_to}
                 onChange={(e) => { setForm({ ...form, assigned_to: e.target.value }); setAvailResult(null); }}
-                className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white"
+                className="w-full bg-navy-800 border border-navy-700 rounded px-3 py-2 text-white"
               >
                 <option value="">— Select agent —</option>
                 {agents.map(a => (
@@ -1163,25 +1163,25 @@ function ScheduledCallsSection({ userId }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-gray-400 text-sm font-medium block mb-1">Contact Name</label>
-                <Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} placeholder="John Smith" className="bg-slate-800 border-slate-600 text-white" />
+                <Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} placeholder="John Smith" className="bg-navy-800 border-navy-600 text-white" />
               </div>
               <div>
                 <label className="text-gray-400 text-sm font-medium block mb-1">Phone Number</label>
-                <Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} placeholder="+1 (555) 123-4567" className="bg-slate-800 border-slate-600 text-white" />
+                <Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} placeholder="+1 (555) 123-4567" className="bg-navy-800 border-navy-600 text-white" />
               </div>
             </div>
             <div>
               <label className="text-gray-400 text-sm font-medium block mb-1">Email (optional)</label>
-              <Input value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} placeholder="john@example.com" className="bg-slate-800 border-slate-600 text-white" />
+              <Input value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} placeholder="john@example.com" className="bg-navy-800 border-navy-600 text-white" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-gray-400 text-sm font-medium block mb-1">Scheduled Date & Time</label>
-                <Input type="datetime-local" value={form.scheduled_at} onChange={(e) => { setForm({ ...form, scheduled_at: e.target.value }); setAvailResult(null); }} className="bg-slate-800 border-slate-600 text-white" />
+                <Input type="datetime-local" value={form.scheduled_at} onChange={(e) => { setForm({ ...form, scheduled_at: e.target.value }); setAvailResult(null); }} className="bg-navy-800 border-navy-600 text-white" />
               </div>
               <div>
                 <label className="text-gray-400 text-sm font-medium block mb-1">Duration (min)</label>
-                <select value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: parseInt(e.target.value) })} className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white">
+                <select value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: parseInt(e.target.value) })} className="w-full bg-navy-800 border border-navy-700 rounded px-3 py-2 text-white">
                   <option value={15}>15 min</option>
                   <option value={30}>30 min</option>
                   <option value={45}>45 min</option>
@@ -1191,7 +1191,7 @@ function ScheduledCallsSection({ userId }) {
             </div>
             <div>
               <label className="text-gray-400 text-sm font-medium block mb-1">Priority</label>
-              <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white">
+              <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full bg-navy-800 border border-navy-700 rounded px-3 py-2 text-white">
                 <option value="low">Low</option>
                 <option value="normal">Normal</option>
                 <option value="high">High</option>
@@ -1200,11 +1200,11 @@ function ScheduledCallsSection({ userId }) {
             </div>
             <div>
               <label className="text-gray-400 text-sm font-medium block mb-1">Purpose</label>
-              <Input value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} placeholder="Follow-up demo, Sales call, etc." className="bg-slate-800 border-slate-600 text-white" />
+              <Input value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} placeholder="Follow-up demo, Sales call, etc." className="bg-navy-800 border-navy-600 text-white" />
             </div>
             <div>
               <label className="text-gray-400 text-sm font-medium block mb-1">Notes</label>
-              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Additional context for the agent..." className="bg-slate-800 border-slate-600 text-white" rows={2} />
+              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Additional context for the agent..." className="bg-navy-800 border-navy-600 text-white" rows={2} />
             </div>
 
             {/* Availability Check */}
@@ -1278,9 +1278,9 @@ function AgentAvailabilitySection() {
   const activeCount = [...agentMap.values()].filter(a => a.slots.length > 0).length;
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
+    <Card className="bg-navy-800/50 border-navy-700">
       <div
-        className="p-6 border-b border-slate-700 flex items-center justify-between cursor-pointer"
+        className="p-6 border-b border-navy-700 flex items-center justify-between cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-3">
@@ -1309,7 +1309,7 @@ function AgentAvailabilitySection() {
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-700">
+                <tr className="border-b border-navy-700">
                   <th className="text-left px-4 py-2 text-gray-400 font-semibold">Agent</th>
                   {DAY_NAMES.map(d => (
                     <th key={d} className="text-center px-2 py-2 text-gray-400 font-semibold">{d}</th>
@@ -1318,13 +1318,13 @@ function AgentAvailabilitySection() {
               </thead>
               <tbody>
                 {[...agentMap.entries()].filter(([, a]) => a.slots.length > 0).map(([uid, agent]) => (
-                  <tr key={uid} className="border-b border-slate-700">
+                  <tr key={uid} className="border-b border-navy-700">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {agent.avatar ? (
                           <img src={agent.avatar} alt="" className="w-6 h-6 rounded-full" />
                         ) : (
-                          <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-xs text-gray-300">{agent.name.charAt(0)}</div>
+                          <div className="w-6 h-6 rounded-full bg-navy-600 flex items-center justify-center text-xs text-gray-300">{agent.name.charAt(0)}</div>
                         )}
                         <span className="text-white text-sm">{agent.name}</span>
                       </div>
@@ -1405,9 +1405,9 @@ function VoicemailInbox({ userId }) {
   const unreadCount = voicemails.filter(v => v.status === 'new').length;
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
+    <Card className="bg-navy-800/50 border-navy-700">
       <div
-        className="p-6 border-b border-slate-700 flex items-center justify-between cursor-pointer"
+        className="p-6 border-b border-navy-700 flex items-center justify-between cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-3">
@@ -1459,7 +1459,7 @@ function VoicemailInbox({ userId }) {
                 className={`border rounded-lg p-4 transition-colors ${
                   vm.status === 'new'
                     ? 'bg-purple-900/20 border-purple-500/30'
-                    : 'bg-slate-800/40 border-slate-700'
+                    : 'bg-navy-800/40 border-navy-700'
                 }`}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -1514,7 +1514,7 @@ function VoicemailInbox({ userId }) {
                   </div>
                 </div>
                 {playingId === vm.id && vm.recording_url && (
-                  <div className="mt-3 pt-3 border-t border-slate-700">
+                  <div className="mt-3 pt-3 border-t border-navy-700">
                     <audio controls autoPlay src={vm.recording_url} className="w-full h-8" onEnded={() => setPlayingId(null)}>
                       Your browser does not support audio playback.
                     </audio>
@@ -1721,13 +1721,13 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 max-w-sm">
+      <DialogContent className="bg-navy-900 border-navy-700 max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-white">Phone</DialogTitle>
         </DialogHeader>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-700 mb-2">
+        <div className="flex border-b border-navy-700 mb-2">
           <button
             onClick={() => setTab('dialer')}
             className={`flex-1 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -1760,7 +1760,7 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
               type="tel"
               value={phoneNumber}
               placeholder="Enter number..."
-              className="bg-slate-800 border-slate-600 text-white text-center text-lg font-mono"
+              className="bg-navy-800 border-navy-600 text-white text-center text-lg font-mono"
               readOnly
             />
 
@@ -1769,26 +1769,26 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
                 <button
                   key={num}
                   onClick={() => handleDialerClick(String(num))}
-                  className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
+                  className="bg-navy-800 hover:bg-navy-700 border border-navy-700 text-white font-bold py-3 rounded"
                 >
                   {num}
                 </button>
               ))}
               <button
                 onClick={() => handleDialerClick('*')}
-                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
+                className="bg-navy-800 hover:bg-navy-700 border border-navy-700 text-white font-bold py-3 rounded"
               >
                 *
               </button>
               <button
                 onClick={() => handleDialerClick('0')}
-                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
+                className="bg-navy-800 hover:bg-navy-700 border border-navy-700 text-white font-bold py-3 rounded"
               >
                 0
               </button>
               <button
                 onClick={() => handleDialerClick('#')}
-                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3 rounded"
+                className="bg-navy-800 hover:bg-navy-700 border border-navy-700 text-white font-bold py-3 rounded"
               >
                 #
               </button>
@@ -1831,17 +1831,17 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
                 return (
                   <div
                     key={agent.id}
-                    className="flex items-center gap-3 bg-slate-800/60 border border-slate-700 rounded-lg p-3 hover:bg-slate-700/40 transition-colors"
+                    className="flex items-center gap-3 bg-navy-800/60 border border-navy-700 rounded-lg p-3 hover:bg-navy-700/40 transition-colors"
                   >
                     <div className="relative">
                       {avatar ? (
                         <img src={avatar} alt={name} className="w-10 h-10 rounded-full object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-slate-600 flex items-center justify-center text-sm text-gray-300 font-bold">
+                        <div className="w-10 h-10 rounded-full bg-navy-600 flex items-center justify-center text-sm text-gray-300 font-bold">
                           {name.charAt(0)}
                         </div>
                       )}
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${getTeamStatusColor(agent.status)}`} />
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-navy-900 ${getTeamStatusColor(agent.status)}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-medium text-sm truncate">{name}</p>
@@ -1892,7 +1892,7 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
                       <button
                         key={list.id}
                         onClick={() => selectList(list)}
-                        className="w-full text-left bg-slate-800/60 border border-slate-700 rounded-lg p-3 hover:bg-slate-700/40 transition-colors"
+                        className="w-full text-left bg-navy-800/60 border border-navy-700 rounded-lg p-3 hover:bg-navy-700/40 transition-colors"
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -1901,7 +1901,7 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
                           </div>
                           <div className="text-right">
                             <span className={`text-xs px-2 py-0.5 rounded-full ${list.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>{list.status}</span>
-                            <div className="w-16 h-1.5 bg-slate-700 rounded-full mt-1.5">
+                            <div className="w-16 h-1.5 bg-navy-700 rounded-full mt-1.5">
                               <div className="h-full bg-sky-500 rounded-full" style={{ width: `${pct}%` }} />
                             </div>
                           </div>
@@ -1926,7 +1926,7 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
                       className={`text-xs px-3 py-2 rounded-lg border transition-colors ${
                         dispForm.disposition === d.value
                           ? `${d.color} text-white border-transparent`
-                          : 'text-gray-400 border-slate-600 hover:border-gray-500'
+                          : 'text-gray-400 border-navy-600 hover:border-gray-500'
                       }`}
                     >
                       {d.label}
@@ -1936,12 +1936,12 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
                 {dispForm.disposition === 'callback' && (
                   <div>
                     <label className="text-gray-400 text-xs block mb-1">Callback Date/Time</label>
-                    <Input type="datetime-local" value={dispForm.callback_at} onChange={e => setDispForm(prev => ({ ...prev, callback_at: e.target.value }))} className="bg-slate-800 border-slate-600 text-white text-sm" />
+                    <Input type="datetime-local" value={dispForm.callback_at} onChange={e => setDispForm(prev => ({ ...prev, callback_at: e.target.value }))} className="bg-navy-800 border-navy-600 text-white text-sm" />
                   </div>
                 )}
                 <div>
                   <label className="text-gray-400 text-xs block mb-1">Notes</label>
-                  <Textarea value={dispForm.notes} onChange={e => setDispForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Call notes..." rows={2} className="bg-slate-800 border-slate-600 text-white text-sm resize-none" />
+                  <Textarea value={dispForm.notes} onChange={e => setDispForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Call notes..." rows={2} className="bg-navy-800 border-navy-600 text-white text-sm resize-none" />
                 </div>
                 <Button onClick={submitDisposition} disabled={!dispForm.disposition} className="w-full bg-emerald-600 hover:bg-emerald-700">
                   Save & Next
@@ -1959,7 +1959,7 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
                     <button
                       onClick={() => setAutoDial(!autoDial)}
                       className={`text-xs px-2 py-1 rounded-lg border transition-colors flex items-center gap-1 ${
-                        autoDial ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'text-gray-400 border-slate-600'
+                        autoDial ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'text-gray-400 border-navy-600'
                       }`}
                       title={autoDial ? 'Auto-dial ON' : 'Auto-dial OFF'}
                     >
@@ -1984,7 +1984,7 @@ function PhoneDialerModal({ open, onOpenChange, onCall, onCallExtension, twilioR
                       const c = getCurrentContact();
                       if (!c) return null;
                       return (
-                        <div className="bg-slate-800/80 border border-slate-700 rounded-lg p-4 space-y-2">
+                        <div className="bg-navy-800/80 border border-navy-700 rounded-lg p-4 space-y-2">
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-white font-semibold">{[c.first_name, c.last_name].filter(Boolean).join(' ') || 'Unknown'}</p>
@@ -2058,7 +2058,7 @@ function VideoCallLinkDialog({ open, onOpenChange, rallyLink, leadName, leadEmai
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
+      <DialogContent className="bg-navy-900 border-navy-700 max-w-md">
         <DialogHeader>
           <DialogTitle className="text-white flex items-center gap-2">
             <Video size={18} className="text-purple-400" />
@@ -2072,7 +2072,7 @@ function VideoCallLinkDialog({ open, onOpenChange, rallyLink, leadName, leadEmai
           </p>
 
           {/* Link display */}
-          <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 flex items-center justify-between gap-2">
+          <div className="bg-navy-800 border border-navy-700 rounded-lg p-3 flex items-center justify-between gap-2">
             <code className="text-sm text-sky-400 truncate flex-1">
               {rallyLink?.joinUrl || 'Generating...'}
             </code>
@@ -2083,7 +2083,7 @@ function VideoCallLinkDialog({ open, onOpenChange, rallyLink, leadName, leadEmai
 
           {/* Email option */}
           {leadEmail && (
-            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-2">
+            <div className="bg-navy-800/50 border border-navy-700 rounded-lg p-3 space-y-2">
               <p className="text-xs text-gray-400">Send to: <span className="text-gray-300">{leadEmail}</span></p>
               <Button
                 onClick={handleSendEmail}
@@ -2609,9 +2609,9 @@ export default function CallCenter() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-navy-900 text-white">
       {/* TOP BAR - STICKY */}
-      <div className="sticky top-0 z-40 bg-slate-900/95 border-b border-slate-700 backdrop-blur-sm">
+      <div className="sticky top-0 z-40 bg-navy-900/95 border-b border-navy-700 backdrop-blur-sm">
         <div className="px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">Call Center</h1>
@@ -2622,7 +2622,7 @@ export default function CallCenter() {
             {/* Voicemail button with notification badge */}
             <button
               onClick={() => setShowVoicemailPopup(true)}
-              className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-slate-700 transition-colors"
+              className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-navy-700 transition-colors"
               title="Voicemails"
             >
               <Voicemail size={20} />
@@ -2656,7 +2656,7 @@ export default function CallCenter() {
               {agentStatus === 'available' ? 'Available' : 'Offline'}
             </Badge>
 
-            <div className="w-px h-6 bg-slate-700" />
+            <div className="w-px h-6 bg-navy-700" />
 
             <Button
               onClick={() => setShowDialer(true)}
@@ -2749,8 +2749,8 @@ export default function CallCenter() {
               onUpdateCall={updateCall}
             />
           ) : (
-            <Card className="bg-slate-800/50 border-slate-700">
-              <div className="p-6 border-b border-slate-700 flex items-center justify-between">
+            <Card className="bg-navy-800/50 border-navy-700">
+              <div className="p-6 border-b border-navy-700 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <PhoneIncoming className="text-blue-400" size={20} />
                   <div>
@@ -2842,7 +2842,7 @@ export default function CallCenter() {
       />
 
       <Dialog open={showTestCall} onOpenChange={setShowTestCall}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className="bg-navy-900 border-navy-700">
           <DialogHeader>
             <DialogTitle className="text-white">Start Test Call</DialogTitle>
           </DialogHeader>
@@ -2868,7 +2868,7 @@ export default function CallCenter() {
 
       {/* SMS PANEL */}
       <Dialog open={showSmsPanel} onOpenChange={setShowSmsPanel}>
-        <DialogContent className="bg-slate-900 border-slate-700 max-w-lg max-h-[80vh] flex flex-col">
+        <DialogContent className="bg-navy-900 border-navy-700 max-w-lg max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <Mail size={20} /> SMS Messages
@@ -2876,19 +2876,19 @@ export default function CallCenter() {
           </DialogHeader>
 
           {/* Send SMS */}
-          <div className="space-y-3 border-b border-slate-700 pb-4">
+          <div className="space-y-3 border-b border-navy-700 pb-4">
             <Input
               placeholder="Phone number (e.g. +19045551234)"
               value={smsTo}
               onChange={(e) => setSmsTo(e.target.value)}
-              className="bg-slate-800 border-slate-600 text-white"
+              className="bg-navy-800 border-navy-600 text-white"
             />
             <div className="flex gap-2">
               <Textarea
                 placeholder="Type your message..."
                 value={smsBody}
                 onChange={(e) => setSmsBody(e.target.value)}
-                className="bg-slate-800 border-slate-600 text-white flex-1"
+                className="bg-navy-800 border-navy-600 text-white flex-1"
                 rows={2}
               />
               <Button
@@ -2911,7 +2911,7 @@ export default function CallCenter() {
                   key={msg.id}
                   className={`p-3 rounded-lg text-sm ${
                     msg.direction === 'inbound'
-                      ? 'bg-slate-800 border border-slate-700 mr-8'
+                      ? 'bg-navy-800 border border-navy-700 mr-8'
                       : 'bg-sky-900/40 border border-sky-700/30 ml-8'
                   }`}
                 >
@@ -2943,9 +2943,9 @@ export default function CallCenter() {
             onClick={() => setShowVoicemailPopup(false)}
           />
           {/* Popup */}
-          <div className="relative w-full max-w-2xl max-h-[80vh] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+          <div className="relative w-full max-w-2xl max-h-[80vh] bg-navy-900 border border-navy-700 rounded-xl shadow-2xl overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700 flex-shrink-0">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-navy-700 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Voicemail size={18} className="text-sky-400" />
                 <h2 className="text-white font-semibold">Voicemails</h2>
