@@ -88,6 +88,20 @@ export default function CrmCustomerDetail() {
       } else { toast.error('No file attached'); }
     } catch (e) { console.error(e); toast.error('Could not open file'); }
   }
+
+  async function createEstimate() {
+    try {
+      const en = 'EST-' + Date.now().toString().slice(-6);
+      const seed = [
+        { id: Math.random().toString(36).slice(2, 10), title: 'Materials', enabled: true, items: [] },
+        { id: Math.random().toString(36).slice(2, 10), title: 'Labor', enabled: true, items: [] },
+        { id: Math.random().toString(36).slice(2, 10), title: 'Fees', enabled: true, items: [] },
+      ];
+      const { data, error } = await client.from('customer_estimates').insert({ contact_id: id, estimate_number: en, title: 'New Estimate', status: 'draft', sections: seed, gross_margin: 50 }).select().single();
+      if (error) throw error;
+      navigate('/crm/' + platformId + '/estimates/' + data.id);
+    } catch (e) { console.error(e); toast.error('Could not create estimate'); }
+  }
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(null);
 
@@ -252,8 +266,13 @@ export default function CrmCustomerDetail() {
         )}
 
         {tab === 'estimates' && (
-          <ListTable empty="No estimates for this customer." cols={['Estimate #', 'Title', 'Status', 'Total', 'Valid Until', 'Created']}
-            rows={estimates.map(e => [e.estimate_number, e.title, <Badge className={`${statusTone(e.status)} text-xs`}>{e.status}</Badge>, money(e.total), date(e.valid_until), date(e.created_at)])} />
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <Button onClick={createEstimate} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">+ New Estimate</Button>
+            </div>
+            <ListTable onRowClick={(i) => navigate('/crm/' + platformId + '/estimates/' + estimates[i].id)} empty="No estimates for this customer." cols={['Estimate #', 'Title', 'Status', 'Total', 'Valid Until', 'Created']}
+              rows={estimates.map(e => [e.estimate_number, e.title, <Badge className={`${statusTone(e.status)} text-xs`}>{e.status}</Badge>, money(e.total), date(e.valid_until), date(e.created_at)])} />
+          </div>
         )}
 
         {tab === 'invoices' && (
