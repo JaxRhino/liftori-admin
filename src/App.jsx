@@ -623,6 +623,7 @@ export default function App() {
             <Route path="settings" element={<CrmSettings />} />
             <Route path="eos" element={<CrmEos />} />
             <Route path="eos/:module" element={<CrmEos />} />
+            <Route path="eos/meetings/:meetingId" element={<CrmEos />} />
           </Route>
 
           {/* Affiliate / Creator Portal routes */}
