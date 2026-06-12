@@ -11,7 +11,7 @@ import { useCrm } from '../../contexts/CrmContext'
 const TABS = [
   { key: 'reports',    label: 'Reports' },
   { key: 'estimates',  label: 'Estimate Templates' },
-  { key: 'pricing',    label: 'Estimate Pricing' },
+  { key: 'pricing',    label: 'Company Pricing' },
   { key: 'emails',     label: 'Email Templates' },
   { key: 'automations',label: 'Automations' },
   { key: 'business',   label: 'Business' },
@@ -63,10 +63,14 @@ export default function CrmSettings() {
 }
 
 // ---------- shared bits ----------
+const UNIT_OPTIONS = ['ea', 'Ft', 'LF', 'SF', 'SQ', 'SY', 'YD', 'CY', 'Bundle', 'Roll', 'Sheet', 'Box', 'Bag', 'Gal', 'Ton', 'Pallet', 'Hr', 'Day', 'Set', 'Pair'];
+
 function EstimatePricingTab({ client }) {
   const [settings, setSettings] = useState(null)
   const [products, setProducts] = useState([])
   const [deletedIds, setDeletedIds] = useState([])
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -86,9 +90,10 @@ function EstimatePricingTab({ client }) {
   }
 
   function setS(k, v) { setSaved(false); setSettings(s => ({ ...s, [k]: v })) }
-  function setP(i, k, v) { setSaved(false); setProducts(ps => ps.map((p, j) => j === i ? { ...p, [k]: v } : p)) }
-  function addP() { setSaved(false); setProducts(ps => [...ps, { _tmp: Math.random().toString(36).slice(2, 10), name: '', item_type: 'material', cost: 0, markup_percent: 0, unit: '', in_default_template: false, is_active: true }]) }
-  function removeP(i) { setSaved(false); setProducts(ps => { const t = ps[i]; if (t && t.id) setDeletedIds(d => [...d, t.id]); return ps.filter((_, j) => j !== i) }) }
+  const keyOf = (p) => p.id || p._tmp
+  function setP(key, k, v) { setSaved(false); setProducts(ps => ps.map(p => keyOf(p) === key ? { ...p, [k]: v } : p)) }
+  function addP() { setSaved(false); const t = typeFilter === 'labor' ? 'labor' : 'material'; setProducts(ps => [...ps, { _tmp: Math.random().toString(36).slice(2, 10), name: '', item_type: t, cost: 0, markup_percent: 0, unit: 'ea', in_default_template: false, is_active: true }]) }
+  function removeP(key) { setSaved(false); setProducts(ps => { const t = ps.find(p => keyOf(p) === key); if (t && t.id) setDeletedIds(d => [...d, t.id]); return ps.filter(p => keyOf(p) !== key) }) }
 
   async function save() {
     if (!settings) return
@@ -126,6 +131,11 @@ function EstimatePricingTab({ client }) {
   const price = (p) => (Number(p.cost) || 0) * (1 + (Number(p.markup_percent) || 0) / 100)
   const inputCls = "w-full bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500"
   const labelCls = "block text-xs text-gray-400 mb-1"
+  const q = search.trim().toLowerCase()
+  const visible = products.filter(p => (typeFilter === 'all' || (typeFilter === 'labor' ? p.item_type === 'labor' : p.item_type !== 'labor')) && (!q || (p.name || '').toLowerCase().includes(q)))
+  const filterBtn = (val, lbl) => (
+    <button onClick={() => setTypeFilter(val)} className={'px-3 py-1 rounded-full text-xs border ' + (typeFilter === val ? 'border-brand-blue text-brand-blue bg-brand-blue/10' : 'border-navy-700 text-gray-400 hover:text-white')}>{lbl}</button>
+  )
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -140,7 +150,7 @@ function EstimatePricingTab({ client }) {
       </div>
 
       <div className="bg-navy-900 border border-navy-800 rounded-xl p-5">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
           <div>
             <h3 className="text-white font-semibold">Products & Services</h3>
             <p className="text-gray-400 text-xs">Your price book. Set cost + markup to get price. Check Default to include an item on every new estimate.</p>
@@ -148,30 +158,39 @@ function EstimatePricingTab({ client }) {
           <button onClick={addP} className="text-xs text-brand-blue hover:text-brand-light">+ Add item</button>
         </div>
 
-        {products.length === 0 && <div className="text-gray-500 text-sm py-4">No products or services yet. Add your first one.</div>}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          {filterBtn('all', 'All (' + products.length + ')')}
+          {filterBtn('material', 'Materials (' + products.filter(p => p.item_type !== 'labor').length + ')')}
+          {filterBtn('labor', 'Labor / Services (' + products.filter(p => p.item_type === 'labor').length + ')')}
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search items…" className="ml-auto bg-navy-950 border border-navy-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 w-48" />
+        </div>
 
-        {products.length > 0 && (
+        <datalist id="estimate-units">{UNIT_OPTIONS.map(u => <option key={u} value={u} />)}</datalist>
+
+        {visible.length === 0 && <div className="text-gray-500 text-sm py-4">{products.length === 0 ? 'No items yet. Add your first one.' : 'No items match.'}</div>}
+
+        {visible.length > 0 && (
           <div className="space-y-2">
             <div className="hidden md:grid grid-cols-12 gap-2 text-[11px] text-gray-500 px-1">
               <span className="col-span-3">Name</span><span className="col-span-2">Type</span><span className="col-span-1">Unit</span><span className="col-span-2 text-right">Cost</span><span className="col-span-1 text-right">Markup %</span><span className="col-span-2 text-right">Price</span><span className="col-span-1 text-center">Default</span>
             </div>
-            {products.map((p, i) => (
-              <div key={p.id || p._tmp} className="grid grid-cols-12 gap-2 items-center">
-                <input value={p.name} onChange={(e) => setP(i, 'name', e.target.value)} placeholder="Item name" className="col-span-3 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white placeholder-gray-500" />
+            {visible.map(p => { const key = keyOf(p); return (
+              <div key={key} className="grid grid-cols-12 gap-2 items-center">
+                <input value={p.name} onChange={(e) => setP(key, 'name', e.target.value)} placeholder="Item name" className="col-span-3 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white placeholder-gray-500" />
                 <div className="col-span-2 flex gap-1">
-                  <button onClick={() => setP(i, 'item_type', 'material')} className={'flex-1 px-2 py-1.5 rounded text-xs ' + (p.item_type !== 'labor' ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400')}>Material</button>
-                  <button onClick={() => setP(i, 'item_type', 'labor')} className={'flex-1 px-2 py-1.5 rounded text-xs ' + (p.item_type === 'labor' ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400')}>Labor</button>
+                  <button onClick={() => setP(key, 'item_type', 'material')} className={'flex-1 px-2 py-1.5 rounded text-xs ' + (p.item_type !== 'labor' ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400')}>Material</button>
+                  <button onClick={() => setP(key, 'item_type', 'labor')} className={'flex-1 px-2 py-1.5 rounded text-xs ' + (p.item_type === 'labor' ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400')}>Labor</button>
                 </div>
-                <input value={p.unit || ''} onChange={(e) => setP(i, 'unit', e.target.value)} placeholder="ea" className="col-span-1 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white placeholder-gray-500" />
-                <input type="number" value={p.cost ?? ''} onChange={(e) => setP(i, 'cost', e.target.value)} className="col-span-2 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white text-right" />
-                <input type="number" value={p.markup_percent ?? ''} onChange={(e) => setP(i, 'markup_percent', e.target.value)} className="col-span-1 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white text-right" />
+                <input list="estimate-units" value={p.unit || ''} onChange={(e) => setP(key, 'unit', e.target.value)} placeholder="ea" className="col-span-1 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white placeholder-gray-500" />
+                <input type="number" value={p.cost ?? ''} onChange={(e) => setP(key, 'cost', e.target.value)} className="col-span-2 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white text-right" />
+                <input type="number" value={p.markup_percent ?? ''} onChange={(e) => setP(key, 'markup_percent', e.target.value)} className="col-span-1 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white text-right" />
                 <span className="col-span-2 text-right text-sm text-white font-medium">{fmt(price(p))}</span>
                 <div className="col-span-1 flex items-center justify-center gap-2">
-                  <input type="checkbox" checked={!!p.in_default_template} onChange={(e) => setP(i, 'in_default_template', e.target.checked)} className="accent-brand-blue" title="Add to default estimate template" />
-                  <button onClick={() => removeP(i)} className="text-gray-500 hover:text-red-400 text-sm">✕</button>
+                  <input type="checkbox" checked={!!p.in_default_template} onChange={(e) => setP(key, 'in_default_template', e.target.checked)} className="accent-brand-blue" title="Add to default estimate template" />
+                  <button onClick={() => removeP(key)} className="text-gray-500 hover:text-red-400 text-sm">✕</button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </div>
