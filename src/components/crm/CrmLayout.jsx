@@ -33,13 +33,14 @@ const HUB_CHILDREN = {
     { label: 'Pipeline',  path: 'pipeline' },
   ],
   operations: [
-    { label: 'Ops Pipeline', path: 'ops-pipeline' },
-    { label: 'Dashboard',    path: 'operations/dashboard' },
-    { label: 'Work Orders',  path: 'operations/work-orders' },
-    { label: 'Schedule',     path: 'operations/schedule' },
-    { label: 'Crews',        path: 'operations/crews' },
-    { label: 'Inventory',    path: 'operations/inventory' },
-    { label: 'Measurements', path: 'operations/measurements' },
+    { label: 'Dashboard',         path: 'operations/dashboard' },
+    { label: 'Ops Pipeline',      path: 'ops-pipeline' },
+    { label: 'Work Orders',       path: 'operations/work-orders' },
+    { label: 'Schedule',          path: 'operations/schedule' },
+    { label: 'Crews',             path: 'operations/crews' },
+    { label: 'Crew Availability', path: 'operations/crew-availability' },
+    { label: 'Job Map',           path: 'operations/map' },
+    { label: 'Inventory',         path: 'operations/inventory' },
   ],
   eos: [
     { label: 'Rocks', path: 'eos/rocks' },
@@ -175,11 +176,11 @@ function LabosShell() {
                                 ? 'bg-brand-blue/15 text-brand-blue'
                                 : 'text-gray-500 hover:bg-navy-800 hover:text-white'
                             }`
-                          }
-                        >
-                          {ch.label}
-                        </NavLink>
-                      ))}
+                        }
+                      >
+                        {ch.label}
+                      </NavLink>
+                    ))}
                     </div>
                   )}
                 </div>
@@ -203,24 +204,6 @@ function LabosShell() {
               </NavLink>
             )
           })}
-
-          {/* View live website — opens storefront in a new tab */}
-          {platform?.site_url && (
-            <>
-              <div className="h-px bg-navy-700/50 my-3 mx-1" />
-              <a
-                href={platform.site_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-navy-800 hover:text-white transition-colors"
-                title={`Open ${platform.site_url} in a new tab`}
-              >
-                <Globe className="w-4 h-4" />
-                <span className="flex-1">View Website</span>
-                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
-              </a>
-            </>
-          )}
           {/* Settings -- pinned at the bottom */}
           <div className="h-px bg-navy-700/50 my-3 mx-1" />
           <NavLink
@@ -303,20 +286,6 @@ function CrmHeader({ onMenu, navPinned, onToggleNav }) {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* VIEW WEBSITE — opens live storefront */}
-        {siteUrl && (
-          <a
-            href={siteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 h-9 rounded-lg border border-navy-700/60 bg-navy-800/60 hover:bg-navy-800 text-gray-300 hover:text-white text-xs font-medium transition-colors"
-            title={`Open ${siteUrl}`}
-          >
-            <Globe className="w-3.5 h-3.5" />
-            View Website
-            <ExternalLink className="w-3 h-3 opacity-60" />
-          </a>
-        )}
 
         {/* CHAT ICON — jumps to Chat hub */}
         <button
