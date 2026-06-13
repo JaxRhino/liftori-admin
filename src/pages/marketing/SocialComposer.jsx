@@ -493,19 +493,32 @@ export default function SocialComposer() {
                 {PLATFORMS.map(platform => {
                   const isPublishable = PUBLISHABLE_PLATFORMS.includes(platform.id)
                   const isSelected = selectedPlatforms.includes(platform.id)
+                  // Wave G2: honest mode. Block NEW selection of platforms whose publish
+                  // backend is not wired; allow deselection always so users can recover
+                  // from drafts that already include a non-publishable platform.
+                  const canToggle = isPublishable || isSelected
+                  const tooltip = isPublishable
+                    ? `${platform.label} publish backend is live. Click to toggle.`
+                    : `${platform.label} publish backend has not shipped yet. Selection disabled. Posts queued here would not actually go out.`
                   return (
-                    <button key={platform.id} onClick={() => togglePlatform(platform.id)}
+                    <button key={platform.id}
+                      onClick={canToggle ? () => togglePlatform(platform.id) : undefined}
+                      disabled={!canToggle}
+                      title={tooltip}
+                      aria-disabled={!canToggle}
                       className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                        isSelected
-                          ? `${platform.bgColor} ${platform.borderColor} ${platform.textColor}`
-                          : 'bg-slate-900/30 border-slate-700 text-slate-400 hover:border-slate-600'
+                        !canToggle
+                          ? 'bg-slate-900/20 border-slate-800 text-slate-600 cursor-not-allowed opacity-50'
+                          : isSelected
+                            ? `${platform.bgColor} ${platform.borderColor} ${platform.textColor}`
+                            : 'bg-slate-900/30 border-slate-700 text-slate-400 hover:border-slate-600'
                       }`}>
                       <div className={isSelected ? platform.textColor : 'text-slate-500'}>{platform.icon}</div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium flex items-center gap-2">
                           {platform.label}
                           {!isPublishable && (
-                            <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">soon</span>
+                            <span className="text-[10px] uppercase tracking-wide bg-slate-700/60 text-slate-400 px-1.5 py-0.5 rounded">backend pending</span>
                           )}
                         </div>
                         <div className="text-xs opacity-60">{platform.limit.toLocaleString()} char limit</div>
@@ -524,7 +537,7 @@ export default function SocialComposer() {
                 })}
               </div>
               <p className="text-[11px] text-slate-500 mt-3 leading-snug">
-                Wave A wires <span className="text-blue-400">Facebook</span> live. Other platforms queue but won't publish yet.
+                Only <span className="text-blue-400">Facebook</span> publish is wired today. Other platforms become selectable when their backends ship.
               </p>
             </div>
 
