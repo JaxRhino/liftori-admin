@@ -22,55 +22,24 @@ export default function ScheduleInterview() {
 
   async function validateTokenAndLoad() {
     try {
-      // Validate token
-      const { data: tkn, error: tknErr } = await supabase
-        .from('interview_tokens')
-        .select('*')
-        .eq('token', token)
-        .single();
+      const { data, error: rpcErr } = await supabase
+        .rpc('get_interview_booking_context', { p_token: token });
+      if (rpcErr) throw rpcErr;
 
-      if (tknErr || !tkn) {
-        setError('Invalid or expired scheduling link. Please contact Liftori for a new link.');
+      if (!data || data.error) {
+        const map = {
+          invalid: 'Invalid scheduling link. Please contact Liftori for a new link.',
+          used: 'This scheduling link has already been used. If you need to reschedule, please contact us.',
+          expired: 'This scheduling link has expired. Please contact Liftori for a new link.',
+          no_applicant: 'Application not found.',
+        };
+        setError((data && map[data.error]) || 'Invalid or expired scheduling link. Please contact Liftori for a new link.');
         return;
       }
 
-      if (tkn.used_at) {
-        setError('This scheduling link has already been used. If you need to reschedule, please contact us.');
-        return;
-      }
-
-      if (new Date(tkn.expires_at) < new Date()) {
-        setError('This scheduling link has expired. Please contact Liftori for a new link.');
-        return;
-      }
-
-      setTokenData(tkn);
-
-      // Get applicant info
-      const { data: app } = await supabase
-        .from('applicants')
-        .select('id, full_name, email, position')
-        .eq('id', tkn.applicant_id)
-        .single();
-
-      if (!app) {
-        setError('Application not found.');
-        return;
-      }
-      setApplicant(app);
-
-      // Get available slots (future dates, not fully booked)
-      const today = new Date().toISOString().split('T')[0];
-      const { data: availableSlots } = await supabase
-        .from('interview_slots')
-        .select('*')
-        .gte('date', today)
-        .order('date', { ascending: true })
-        .order('start_time', { ascending: true });
-
-      // Filter out fully booked slots
-      const open = (availableSlots || []).filter(s => s.current_bookings < s.max_bookings);
-      setSlots(open);
+      setTokenData(token);
+      setApplicant(data.applicant);
+      setSlots(data.slots || []);
     } catch (err) {
       console.error('Error loading scheduler:', err);
       setError('Something went wrong. Please try again or contact Liftori.');
@@ -80,46 +49,27 @@ export default function ScheduleInterview() {
   }
 
   async function handleBook() {
-    if (!selectedSlot || !tokenData || !applicant) return;
+    if (!selectedSlot || !applicant) return;
     setBooking(true);
 
     try {
-      // Insert the scheduled interview
-      const { error: bookErr } = await supabase
-        .from('scheduled_interviews')
-        .insert({
-          applicant_id: applicant.id,
-          slot_id: selectedSlot.id,
-          token_id: tokenData.id,
-          status: 'scheduled',
-        });
-      if (bookErr) throw bookErr;
+      const { data: result, error: rpcErr } = await supabase
+        .rpc('book_interview', { p_token: token, p_slot_id: selectedSlot.id });
+      if (rpcErr) throw rpcErr;
 
-      // Increment booking count on slot
-      const { error: slotErr } = await supabase
-        .from('interview_slots')
-        .update({ current_bookings: selectedSlot.current_bookings + 1 })
-        .eq('id', selectedSlot.id);
-      if (slotErr) throw slotErr;
+      if (!result || !result.ok) {
+        const map = {
+          used: 'This scheduling link has already been used.',
+          expired: 'This scheduling link has expired.',
+          slot_full: 'That time slot was just filled. Please pick another time.',
+          slot_missing: 'That time slot is no longer available. Please pick another time.',
+          invalid: 'Invalid scheduling link. Please contact Liftori.',
+        };
+        alert((result && map[result.error]) || 'Failed to book interview. Please try again.');
+        return;
+      }
 
-      // Mark token as used
-      const { error: tokenErr } = await supabase
-        .from('interview_tokens')
-        .update({ used_at: new Date().toISOString() })
-        .eq('id', tokenData.id);
-      if (tokenErr) throw tokenErr;
-
-      // Update applicant stage to interview + timestamp
-      await supabase
-        .from('applicants')
-        .update({
-          stage: 'interview',
-          interview_scheduled_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', applicant.id);
-
-      // Send confirmation email via edge function
+      // Send confirmation email via edge function (non-blocking)
       try {
         const dateStr = new Date(selectedSlot.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         const startStr = formatTime(selectedSlot.start_time);
