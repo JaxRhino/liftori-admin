@@ -411,19 +411,22 @@ export default function HRHub() {
         .upload(path, file);
       if (uploadErr) throw uploadErr;
 
-      const { data: urlData } = supabase.storage
+      // chat-files is a PRIVATE bucket - getPublicUrl yields a non-resolving URL.
+      // Use a long-lived signed URL so View/Download work for authenticated admins.
+      const { data: urlData, error: signErr } = await supabase.storage
         .from('chat-files')
-        .getPublicUrl(path);
+        .createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (signErr) throw signErr;
 
       const { error: updateErr } = await supabase
         .from('applicants')
-        .update({ resume_url: urlData.publicUrl })
+        .update({ resume_url: urlData.signedUrl })
         .eq('id', applicantId);
       if (updateErr) throw updateErr;
 
-      setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, resume_url: urlData.publicUrl } : a));
+      setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, resume_url: urlData.signedUrl } : a));
       if (selectedApplicant?.id === applicantId) {
-        setSelectedApplicant(prev => ({ ...prev, resume_url: urlData.publicUrl }));
+        setSelectedApplicant(prev => ({ ...prev, resume_url: urlData.signedUrl }));
       }
       toast.success('Resume uploaded');
     } catch (err) {
