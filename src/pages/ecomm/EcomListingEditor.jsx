@@ -330,25 +330,29 @@ export default function EcomListingEditor() {
       if (error) throw error
       if (!data) throw new Error('Empty AI response')
 
+      // The edge function returns { ok, draft }; unwrap so older flat-field
+      // reads (data.title, data.tags, ...) keep working either way.
+      const draft = data.draft || data
+
       // Figure out which user-typed fields the AI wants to change.
       const conflicts = []
       const updates = {}
       Object.entries(AI_FIELD_MAP).forEach(([aiKey, formKey]) => {
-        const aiVal = data[aiKey]
+        const aiVal = draft[aiKey]
         if (aiVal == null || aiVal === '') return
         const current = form[formKey]
         const empty = current === '' || current == null
         if (empty) updates[formKey] = aiVal
         else if (String(current) !== String(aiVal)) conflicts.push({ formKey, aiVal })
       })
-      if (Array.isArray(data.tags) && data.tags.length) {
-        if (!form.tags.length) updates.tags = data.tags
-        else updates.tags = Array.from(new Set([...form.tags, ...data.tags]))
+      if (Array.isArray(draft.tags) && draft.tags.length) {
+        if (!form.tags.length) updates.tags = draft.tags
+        else updates.tags = Array.from(new Set([...form.tags, ...draft.tags]))
       }
-      if (data.category_hint && !form.category_id) {
-        const match = categories.find(c => c.name.toLowerCase() === String(data.category_hint).toLowerCase())
+      if (draft.category_hint && !form.category_id) {
+        const match = categories.find(c => c.name.toLowerCase() === String(draft.category_hint).toLowerCase())
         if (match) updates.category_id = match.id
-        else updates.subcategory = form.subcategory || data.category_hint
+        else updates.subcategory = form.subcategory || draft.category_hint
       }
       if (conflicts.length > 0) {
         const names = conflicts.map(c => c.formKey.replace(/_/g, ' ')).join(', ')
