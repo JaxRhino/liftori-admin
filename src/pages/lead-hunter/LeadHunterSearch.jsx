@@ -1,4 +1,4 @@
-ter to import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useTenantId } from '../../lib/useTenantId'
@@ -47,7 +47,7 @@ function EnrichmentBadge({ status }) {
 }
 
 // Save Search Modal
-function SaveSearchModal({ onClose, criteria, onSaved, tenantId }) {
+function SaveSearchModal({ onClose, criteria, onSaved }) {
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -65,18 +65,14 @@ function SaveSearchModal({ onClose, criteria, onSaved, tenantId }) {
     setSaving(true)
     setError(null)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
       const { data, error: err } = await supabase
         .from('lh_searches')
         .insert({
           name: form.name.trim(),
           description: form.description.trim() || null,
           criteria,
-          is_autopilot: form.auto_pilot_enabled,
-          autopilot_frequency: form.auto_pilot_enabled ? form.auto_pilot_frequency : null,
-          is_active: true,
-          tenant_id: tenantId ?? null,
-          created_by: user?.id || null,
+          auto_pilot_enabled: form.auto_pilot_enabled,
+          auto_pilot_frequency: form.auto_pilot_enabled ? form.auto_pilot_frequency : null,
         })
         .select()
         .single()
@@ -1004,7 +1000,6 @@ export default function LeadHunterSearch() {
       {/* Save Search Modal */}
       {showSaveModal && (
         <SaveSearchModal
-          tenantId={tenantId}
           onClose={() => setShowSaveModal(false)}
           criteria={buildCriteriaObject()}
           onSaved={(data) => {
