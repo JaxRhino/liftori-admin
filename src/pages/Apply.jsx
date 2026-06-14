@@ -66,7 +66,7 @@ export default function Apply() {
     try {
       let resume_url = null;
 
-      // Upload resume if provided
+      // Upload resume if provided (chat-files is private -> signed URL)
       if (resumeFile) {
         const ext = resumeFile.name.split('.').pop();
         const path = `resumes/applications/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
@@ -74,46 +74,36 @@ export default function Apply() {
           .from('chat-files')
           .upload(path, resumeFile);
         if (!upErr) {
-          const { data: urlData } = supabase.storage
+          const { data: urlData } = await supabase.storage
             .from('chat-files')
-            .getPublicUrl(path);
-          resume_url = urlData.publicUrl;
+            .createSignedUrl(path, 60 * 60 * 24 * 365);
+          resume_url = (urlData && urlData.signedUrl) || null;
         }
       }
 
-      const { data: newApplicant, error: insertErr } = await supabase.from('applicants').insert({
-        full_name: form.full_name,
-        email: form.email,
-        phone: form.phone || null,
-        position: form.position,
-        linkedin_url: form.linkedin_url || null,
-        portfolio_url: form.portfolio_url || null,
-        salary_expectation: form.salary_expectation || null,
-        availability: form.availability || null,
-        resume_url,
-        source: referralCode ? `Referral (${referrerName || referralCode})` : 'Website',
-        referral_code: referralCode || null,
-        stage: 'applied',
-      }).select().single();
+      // Submit through the SECURITY DEFINER intake RPC - anon cannot write
+      // applicants / interview_tokens directly under RLS.
+      const { data: rpcRows, error: rpcErr } = await supabase.rpc('submit_application', {
+        p_handle: referralCode || null,
+        p_full_name: form.full_name,
+        p_email: form.email,
+        p_phone: form.phone || null,
+        p_position: form.position,
+        p_linkedin_url: form.linkedin_url || null,
+        p_portfolio_url: form.portfolio_url || null,
+        p_salary_expectation: form.salary_expectation || null,
+        p_availability: form.availability || null,
+        p_cover_note: null,
+        p_resume_url: resume_url,
+      });
+      if (rpcErr) throw rpcErr;
+      const row = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+      if (!row || !row.interview_token) throw new Error('Application could not be submitted.');
 
-      if (insertErr) throw insertErr;
-
-      // Send welcome email with interview scheduling link from Sage
+      // Send welcome email with interview scheduling link from Sage (non-blocking)
       try {
-        // Create interview token
-        const interviewToken = crypto.randomUUID().replace(/-/g, '') + Date.now().toString(36);
-        const expires = new Date();
-        expires.setDate(expires.getDate() + 7);
-
-        await supabase.from('interview_tokens').insert({
-          applicant_id: newApplicant.id,
-          token: interviewToken,
-          expires_at: expires.toISOString(),
-        });
-
-        const schedulingUrl = `${window.location.origin}/schedule-interview/${interviewToken}`;
+        const schedulingUrl = `${window.location.origin}/schedule-interview/${row.interview_token}`;
         const SUPABASE_URL = 'https://qlerfkdyslndjbaltkwo.supabase.co';
-
         await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -124,20 +114,8 @@ export default function Apply() {
             html: buildWelcomeEmail(form.full_name, form.position, schedulingUrl),
           }),
         });
-
-        // Mark email sent
-        await supabase.from('applicants')
-          .update({ welcome_email_sent_at: new Date().toISOString() })
-          .eq('id', newApplicant.id);
       } catch (emailErr) {
         console.error('Welcome email failed (non-blocking):', emailErr);
-      }
-
-      // Update referral stats if applicable
-      if (referralCode) {
-        await supabase.rpc('increment_referral_count', { code: referralCode }).catch(() => {
-          console.log('Referral count increment skipped (RPC may not exist yet)');
-        });
       }
 
       setSubmitted(true);
