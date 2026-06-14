@@ -57,7 +57,7 @@ function blankForm() {
     sku: '', quantity: 1, category_id: '', subcategory: '',
     style_era: '', brand_maker: '', material: '', color: '',
     dimensions: '', weight: '', condition_rating: '', condition_details: '',
-    shipping_profile: '', tags: [], is_featured: false,
+    shipping_profile: '', tags: [], is_featured: false, published_to_website: true,
     seo_title: '', seo_description: '',
     status: 'draft', ai_generated: false, main_image_url: '',
     sold_price: null, sold_channel: null, sold_at: null, source: '',
@@ -394,6 +394,7 @@ export default function EcomListingEditor() {
       shipping_profile: form.shipping_profile || null,
       tags: form.tags,
       is_featured: Boolean(form.is_featured),
+      published_to_website: form.published_to_website !== false,
       seo_title: form.seo_title || null,
       seo_description: form.seo_description || null,
       ai_generated: Boolean(form.ai_generated),
@@ -705,6 +706,15 @@ export default function EcomListingEditor() {
             <Field label="Sourced from" half>
               <input value={form.source || ''} onChange={(e) => set('source', e.target.value)} placeholder="Estate sale, Riverside" className={inputCls} />
             </Field>
+            <div className="col-span-2 flex items-center justify-between bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2.5">
+              <div>
+                <span className="text-sm text-gray-300">Show on website</span>
+                <span className="block text-[11px] text-gray-500">When on, this listing appears on your storefront once published.</span>
+              </div>
+              <button type="button" onClick={() => set('published_to_website', form.published_to_website === false ? true : false)} className={`w-10 h-6 rounded-full transition-colors relative shrink-0 ${form.published_to_website !== false ? 'bg-brand-blue' : 'bg-navy-700'}`} aria-label="Toggle show on website">
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${form.published_to_website !== false ? 'left-[18px]' : 'left-0.5'}`} />
+              </button>
+            </div>
             <div className="col-span-2 flex items-center justify-between bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2.5">
               <span className="text-sm text-gray-300">Feature on website</span>
               <button type="button" onClick={() => set('is_featured', !form.is_featured)} className={`w-10 h-6 rounded-full transition-colors relative ${form.is_featured ? 'bg-brand-blue' : 'bg-navy-700'}`} aria-label="Toggle featured">
