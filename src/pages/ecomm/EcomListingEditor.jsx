@@ -66,6 +66,15 @@ function blankForm() {
 
 const toNum = (v) => (v === '' || v == null ? null : Number(v))
 
+// Legacy/scan-imported listings store the photo only in listings.main_image_url
+// with no listing_images rows. Surface that image so the editor shows the cover
+// instead of an empty grid (the listings list already reads main_image_url).
+function withMainFallback(imgs, mainUrl, title) {
+  if (imgs && imgs.length) return imgs
+  if (mainUrl) return [{ id: '__main__', image_url: mainUrl, alt_text: title || null, storage_path: null, sort_order: 0, __synthetic: true }]
+  return []
+}
+
 // ---------- small local UI bits ----------
 function EditorSection({ title, open, onToggle, children, hint }) {
   return (
@@ -178,7 +187,7 @@ export default function EcomListingEditor() {
             quantity: row.quantity ?? 1,
             tags: Array.isArray(row.tags) ? row.tags : [],
           })
-          setImages(imgs || [])
+          setImages(withMainFallback(imgs, row.main_image_url, row.title))
           if (row.status === 'active') setShowSocialPanel(true)
         }
       } catch (e) {
@@ -477,7 +486,7 @@ export default function EcomListingEditor() {
   const isSold = form.status === 'sold'
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6 pb-32">
+    <div className="max-w-3xl mx-auto p-4 sm:px-6 sm:pt-6 pb-32">
       {/* HEADER */}
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => navigate(`/crm/${platformId}/listings`)} className="w-9 h-9 rounded-lg hover:bg-navy-800 flex items-center justify-center text-gray-400 hover:text-white" aria-label="Back to listings">
@@ -606,6 +615,9 @@ export default function EcomListingEditor() {
             <Field label="Condition" half>
               <select value={form.condition_rating || ''} onChange={(e) => set('condition_rating', e.target.value)} className={inputCls}>
                 <option value="">Select...</option>
+                {form.condition_rating && !CONDITION_OPTIONS.some(c => c.value === form.condition_rating) && (
+                  <option value={form.condition_rating}>{`Imported: ${form.condition_rating}`}</option>
+                )}
                 {CONDITION_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </Field>
