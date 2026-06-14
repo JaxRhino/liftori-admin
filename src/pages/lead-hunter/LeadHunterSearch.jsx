@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useTenantId } from '../../lib/useTenantId'
 import { useToast } from '../../lib/useToast'
+import AddToListModal from './AddToListModal'
 
 // Score badge colors
 function ScoreBadge({ score }) {
@@ -246,6 +247,7 @@ export default function LeadHunterSearch() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [showSaveModal, setShowSaveModal] = useState(false)
+  const [addToListIds, setAddToListIds] = useState(null)
   const [filterExpanded, setFilterExpanded] = useState(true)
   const [discoveryCount, setDiscoveryCount] = useState(null)
   const { showToast, ToastContainer } = useToast()
@@ -499,7 +501,23 @@ export default function LeadHunterSearch() {
   }
 
   function handleAddToList(companyId) {
-    navigate(`/admin/lead-hunter/lists`)
+    setAddToListIds([companyId])
+  }
+
+  // Build a list from ALL companies matching the current filters (not just this page)
+  async function handleBuildListFromSearch() {
+    try {
+      const { data, error } = await buildQuery().range(0, 999)
+      if (error) throw error
+      const ids = (data || []).map(c => c.id)
+      if (ids.length === 0) {
+        showToast('No companies to add \u2014 run a search first', 'error')
+        return
+      }
+      setAddToListIds(ids)
+    } catch (err) {
+      showToast(`Could not build list: ${err.message}`, 'error')
+    }
   }
 
   function handleExportCSV() {
@@ -566,6 +584,16 @@ export default function LeadHunterSearch() {
           <h1 className="text-2xl font-bold text-white tracking-tight">Search & Discover</h1>
           <p className="text-sm text-gray-400 mt-1">Find companies matching your ideal customer profile</p>
         </div>
+        <button
+          onClick={handleBuildListFromSearch}
+          disabled={totalCount === 0}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Build List from Search
+        </button>
         <button
           onClick={() => setShowSaveModal(true)}
           disabled={totalCount === 0}
@@ -819,7 +847,7 @@ export default function LeadHunterSearch() {
                   {enriching.size > 0 ? 'Enriching...' : 'Enrich Selected'}
                 </button>
                 <button
-                  onClick={() => navigate('/admin/lead-hunter/lists')}
+                  onClick={() => setAddToListIds([...selectedRows])}
                   className="px-3 py-1 text-sm font-medium text-white bg-sky-500/20 border border-sky-500/50 rounded-lg hover:bg-sky-500/30 transition-colors"
                 >
                   Add to List
@@ -955,6 +983,18 @@ export default function LeadHunterSearch() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Add to List Modal */}
+      {addToListIds && (
+        <AddToListModal
+          companyIds={addToListIds}
+          onClose={() => setAddToListIds(null)}
+          onAdded={({ added, skipped }) => {
+            showToast(`Added ${added} to list${skipped ? `, ${skipped} already there` : ''}`, 'success')
+            setAddToListIds(null)
+          }}
+        />
       )}
 
       {/* Save Search Modal */}
