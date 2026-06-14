@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenantId } from '../../lib/useTenantId';
 import { useToast } from '../../lib/useToast';
+import AddToListModal from './AddToListModal';
 import {
   ArrowLeft,
   ExternalLink,
@@ -58,6 +59,7 @@ export default function LeadHunterCompany() {
   const [tags, setTags] = useState([]);
   const [newTag, setNewTag] = useState('');
   const [showAddSignal, setShowAddSignal] = useState(false);
+  const [showAddToList, setShowAddToList] = useState(false);
   const [newSignal, setNewSignal] = useState({
     signal_type: 'website_change',
     signal_strength: 'medium',
@@ -435,7 +437,7 @@ export default function LeadHunterCompany() {
             )}
           </button>
           <button
-            onClick={() => navigate('/admin/lead-hunter/lists')}
+            onClick={() => setShowAddToList(true)}
             className="px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-lg font-medium"
           >
             Add to List
@@ -522,6 +524,18 @@ export default function LeadHunterCompany() {
           onChange={setNewSignal}
           onSave={addSignal}
           onClose={() => setShowAddSignal(false)}
+        />
+      )}
+
+      {/* Add to List Modal */}
+      {showAddToList && company && (
+        <AddToListModal
+          companyIds={[company.id]}
+          onClose={() => setShowAddToList(false)}
+          onAdded={({ skipped }) => {
+            showToast(`Added to list${skipped ? ' (already there)' : ''}`, 'success')
+            setShowAddToList(false)
+          }}
         />
       )}
     </div>
