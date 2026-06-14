@@ -75,7 +75,7 @@ export default function LeadHunterLists() {
           {
             name: formData.name,
             description: formData.description,
-            type: formData.type,
+            list_type: formData.type,
             company_count: 0,
             contact_count: 0,
             avg_lead_score: 0,
