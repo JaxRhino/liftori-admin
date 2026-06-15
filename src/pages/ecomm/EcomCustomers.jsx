@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { supabase as mainDb } from '../../lib/supabase'
 import { HubPage, StatCard } from '../crm/_shared'
 import {
   useCrmClient, fmtMoney, fmtMoney0, fmtDate, relTime,
@@ -15,7 +16,8 @@ import {
 const COUNTED_STATUSES = ['paid', 'packaging', 'shipped', 'delivered']
 
 export default function EcomCustomers() {
-  const { client } = useCrmClient()
+  useCrmClient()
+  const client = mainDb
   const [customers, setCustomers] = useState([])
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)

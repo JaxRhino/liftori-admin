@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { supabase as mainDb } from '../../lib/supabase'
 import { HubPage } from '../crm/_shared'
 import {
   useCrmClient, fmtMoney, fmtDate, relTime, StatusChip,
@@ -22,7 +23,8 @@ const FILTERS = [
 ]
 
 export default function EcomOrders() {
-  const { client } = useCrmClient()
+  useCrmClient()
+  const client = mainDb
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -56,7 +58,7 @@ export default function EcomOrders() {
     try {
       const [items, addr] = await Promise.all([
         client.from('order_items')
-          .select('*, listing:listings(id,title,main_image_url,sku)')
+          .select('*, product:products(id,title,main_image_url,sku)')
           .eq('order_id', order.id),
         order.shipping_address_id
           ? client.from('shipping_addresses').select('*').eq('id', order.shipping_address_id).maybeSingle()
@@ -188,10 +190,10 @@ export default function EcomOrders() {
                 <div className="space-y-2">
                   {detail.items.map(it => (
                     <div key={it.id} className="flex items-center gap-3 bg-navy-800 border border-navy-700/50 rounded-lg p-2.5">
-                      <ListingThumb src={it.listing?.main_image_url} alt={it.listing?.title} className="w-12 h-12" />
+                      <ListingThumb src={it.product?.main_image_url} alt={it.product?.title} className="w-12 h-12" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-white truncate">{it.listing?.title || 'Listing removed'}</div>
-                        <div className="text-xs text-gray-500">{it.listing?.sku ? `${it.listing.sku} · ` : ''}Qty {it.quantity}</div>
+                        <div className="text-sm text-white truncate">{it.product?.title || 'Listing removed'}</div>
+                        <div className="text-xs text-gray-500">{it.product?.sku ? `${it.product.sku} · ` : ''}Qty {it.quantity}</div>
                       </div>
                       <div className="text-sm text-white font-semibold shrink-0">{fmtMoney(it.price)}</div>
                     </div>
