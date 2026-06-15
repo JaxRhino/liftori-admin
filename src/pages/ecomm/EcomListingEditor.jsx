@@ -339,9 +339,15 @@ export default function EcomListingEditor() {
         body: {
           image_urls: images.map(i => i.image_url),
           hints: [form.title, form.brand_maker, form.category_id ? categories.find(c => c.id === form.category_id)?.name : null].filter(Boolean).join(' | ') || undefined,
+          platform_id: platformId,
         },
       })
-      if (error) throw error
+      if (error) {
+        if (error.context) {
+          try { const b = await error.context.json(); if (b?.error === 'insufficient_credits') { toast.error('Out of credits - add more in Settings > Billing & Invoices.'); return } } catch (_) {}
+        }
+        throw error
+      }
       if (!data) throw new Error('Empty AI response')
 
       // The edge function returns { ok, draft }; unwrap so older flat-field
