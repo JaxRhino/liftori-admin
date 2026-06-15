@@ -7,8 +7,10 @@
 // ============================================================
 import { useEffect, useMemo, useState } from 'react'
 import { useCrm } from '../../contexts/CrmContext'
+import { supabase as mainDb } from '../../lib/supabase'
+import { toast } from 'sonner'
 import BugReportModal from '../../components/crm/BugReportModal'
-import { Users, UserCog, Building2, FileText, BarChart3, DollarSign, Zap, Info, FolderOpen, Sparkles, ArrowLeft, LifeBuoy } from 'lucide-react'
+import { Users, UserCog, Building2, FileText, BarChart3, DollarSign, Zap, Info, FolderOpen, Sparkles, ArrowLeft, LifeBuoy, CreditCard } from 'lucide-react'
 
 const SECTIONS = [
   { key:'company_settings', label:'Company Settings',    desc:'Business name, contact, address, license & tax', icon: Building2 },
@@ -21,6 +23,7 @@ const SECTIONS = [
   { key:'automations',      label:'Automations',         desc:'Triggers & workflows',                           icon: Zap },
   { key:'docs',             label:'Company Docs',        desc:'Shared company documents',                       icon: FolderOpen },
   { key:'liftori_services', label:'Liftori Services',    desc:'Products, services & support',                   icon: Sparkles },
+  { key:'billing',          label:'Billing & Invoices',   desc:'Plan, credits, payments & invoices',             icon: CreditCard },
 ]
 
 export default function CrmSettings() {
@@ -60,6 +63,7 @@ export default function CrmSettings() {
           {section === 'automations'      && <AutomationsTab client={client} />}
           {section === 'docs'             && <CompanyDocsSection client={client} />}
           {section === 'liftori_services' && <LiftoriServicesSection />}
+          {section === 'billing'          && <BillingSection />}
         </>
       )}
     </div>
@@ -1178,6 +1182,118 @@ function LiftoriServicesSection() {
         <button onClick={() => setShowSupport(true)} className="px-4 py-2 rounded bg-brand-blue text-white text-sm">Contact Support</button>
       </div>
       {showSupport && <BugReportModal onClose={() => setShowSupport(false)} />}
+    </div>
+  )
+}
+
+
+// ============ Billing & Invoices (reads the central credits engine on the main project) ============
+function reasonLabel(r) {
+  return ({ scan_item: 'Item scan', ai_listing_draft: 'AI listing draft', style_image: 'Studio background', monthly_grant: 'Monthly credits', purchase: 'Credit purchase', adjustment: 'Adjustment' })[r] || r
+}
+
+function BillingSection() {
+  const { platformId } = useCrm()
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      try {
+        const { data: res, error } = await mainDb.functions.invoke('credits', { body: { action: 'get', platform_id: platformId } })
+        if (!active) return
+        if (error) throw error
+        setData(res)
+      } catch (e) {
+        console.error('billing load error', e)
+      } finally {
+        if (active) setLoading(false)
+      }
+    })()
+    return () => { active = false }
+  }, [platformId])
+
+  if (loading) return <Panel>Loading billing...</Panel>
+  if (!data || !data.ok) return <Panel>Billing isn't set up for this account yet.</Panel>
+
+  const includedUsed = Math.max(0, Number(data.monthly_allotment) - Number(data.included_remaining))
+  const planLabel = data.is_comped ? 'Founder Discount' : (data.plan === 'combo' ? 'Combo' : 'Starter')
+  const planPrice = data.is_comped ? '$0 / mo' : (data.plan === 'combo' ? '$89 / mo' : '$59 / mo')
+
+  async function buy() {
+    setBusy(true)
+    try {
+      toast.message('Checkout is being wired up next - your packs and Founder discount are already configured.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Panel>
+          <div className="text-xs text-gray-400">Plan</div>
+          <div className="text-white font-semibold text-lg mt-1">{planLabel}</div>
+          <div className="text-sm text-brand-light">{planPrice}</div>
+          {data.is_comped && <div className="text-[11px] text-gray-500 mt-1">You only pay for overage credits.</div>}
+        </Panel>
+        <Panel>
+          <div className="text-xs text-gray-400">Credits available</div>
+          <div className="text-white font-bold text-3xl mt-1">{data.available}</div>
+          <div className="text-[11px] text-gray-500 mt-1">{data.included_remaining} included + {data.purchased_balance} purchased</div>
+        </Panel>
+        <Panel>
+          <div className="text-xs text-gray-400">This month</div>
+          <div className="text-white font-semibold text-lg mt-1">{includedUsed} / {data.monthly_allotment}</div>
+          <div className="text-[11px] text-gray-500 mt-1">included used - resets the 1st</div>
+        </Panel>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-white font-semibold text-sm">Add Credits</h3>
+          {data.founder_pack_discount_pct > 0 && <span className="text-[11px] text-emerald-300 font-medium">Founder {data.founder_pack_discount_pct}% off</span>}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(data.packs || []).map(p => {
+            const cents = data.founder_pack_discount_pct ? Math.round(p.price_cents * (1 - data.founder_pack_discount_pct / 100)) : p.price_cents
+            return (
+              <div key={p.id} className="rounded-xl border border-navy-700/50 bg-navy-800/60 p-4 flex flex-col">
+                <div className="text-white font-semibold">{p.credits} credits</div>
+                <div className="text-sm mt-0.5">
+                  <span className="text-brand-light font-semibold">${(cents / 100).toFixed(2)}</span>
+                  {cents !== p.price_cents && <span className="text-gray-500 line-through ml-2 text-xs">${(p.price_cents / 100).toFixed(2)}</span>}
+                </div>
+                <button type="button" disabled={busy} onClick={buy} className="mt-3 px-3 py-2 bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg text-sm font-medium disabled:opacity-50">Buy</button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-white font-semibold text-sm mb-2">Recent activity</h3>
+        <div className="rounded-xl border border-navy-700/50 overflow-hidden">
+          {(data.transactions || []).length === 0 ? (
+            <div className="p-4 text-sm text-gray-500">No activity yet.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <tbody>
+                {data.transactions.map((t, i) => (
+                  <tr key={i} className="border-b border-navy-700/40 last:border-0">
+                    <td className="px-3 py-2 text-gray-300">{reasonLabel(t.reason)}</td>
+                    <td className={`px-3 py-2 text-right font-medium ${Number(t.delta) >= 0 ? 'text-emerald-300' : 'text-gray-400'}`}>{Number(t.delta) >= 0 ? '+' : ''}{t.delta}</td>
+                    <td className="px-3 py-2 text-right text-gray-500 text-xs">{new Date(t.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
