@@ -1232,7 +1232,8 @@ function BillingSection() {
   if (!data || !data.ok) return <Panel>Billing isn't set up for this account yet.</Panel>
 
   const includedUsed = Math.max(0, Number(data.monthly_allotment) - Number(data.included_remaining))
-  const planLabel = data.is_comped ? 'Founder Discount' : (data.plan === 'combo' ? 'Combo' : 'Starter')
+  const hasMobile = data.is_comped || data.plan === 'combo'
+  const planLabel = data.is_comped ? 'Founder' : (data.plan === 'combo' ? 'Combo' : 'Web')
   const planPrice = data.is_comped ? '$0 / mo' : (data.plan === 'combo' ? '$89 / mo' : '$59 / mo')
 
   async function buy(pack) {
@@ -1255,10 +1256,16 @@ function BillingSection() {
     <div className="space-y-6 max-w-3xl">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Panel>
-          <div className="text-xs text-gray-400">Plan</div>
+          <div className="text-xs text-gray-400">Current plan</div>
           <div className="text-white font-semibold text-lg mt-1">{planLabel}</div>
           <div className="text-sm text-brand-light">{planPrice}</div>
-          {data.is_comped && <div className="text-[11px] text-gray-500 mt-1">You only pay for overage credits.</div>}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-navy-700/60 text-gray-200">Web CRM</span>
+            {hasMobile
+              ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">Mobile app</span>
+              : <span className="text-[11px] px-2 py-0.5 rounded-full bg-navy-700/40 text-gray-500">Mobile app not included</span>}
+          </div>
+          {data.is_comped && <div className="text-[11px] text-gray-500 mt-2">Founder &mdash; you only pay for overage credits.</div>}
         </Panel>
         <Panel>
           <div className="text-xs text-gray-400">Credits available</div>
@@ -1271,6 +1278,20 @@ function BillingSection() {
           <div className="text-[11px] text-gray-500 mt-1">included used - resets the 1st</div>
         </Panel>
       </div>
+
+      <Panel>
+        <h3 className="text-white font-semibold text-sm">How your credits work</h3>
+        <p className="text-sm text-gray-300 mt-2">Your {planLabel} plan includes <span className="text-white font-medium">{data.monthly_allotment} AI credits</span> every month, refreshing on the 1st. Each AI action uses credits:</p>
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+          {(data.action_costs || []).map(a => (
+            <div key={a.action} className="flex items-center justify-between text-sm border-b border-navy-700/30 py-1">
+              <span className="text-gray-300">{a.label}</span>
+              <span className="text-brand-light font-medium">{a.credits} credits</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-3">Unused monthly credits don&rsquo;t roll over. Credit packs you buy never expire and are used only after your monthly credits run out. Running low? Add a pack below.</p>
+      </Panel>
 
       <div>
         <div className="flex items-center justify-between mb-2">
