@@ -6,7 +6,7 @@
 
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useState } from 'react'
-import { Bug, ExternalLink, Globe, GraduationCap } from 'lucide-react'
+import { Bug, ExternalLink, Globe, GraduationCap, Sparkles } from 'lucide-react'
 import { CrmProvider, useCrm } from '../../contexts/CrmContext'
 import BugReportModal from './BugReportModal'
 
@@ -144,7 +144,7 @@ function LabosShell() {
   const hubs = platform?.industry === 'kec'
     ? [...baseHubs, ...CSC_HUB_DEFS]
     : platform?.industry === 'ecommerce'
-      ? [...ECOM_HUB_DEFS, ...baseHubs.filter(h => !ECOM_HIDDEN_BASE.includes(h.key))]
+      ? [...ECOM_HUB_DEFS, ...baseHubs.filter(h => !ECOM_HIDDEN_BASE.includes(h.key)), { key: 'assistant', label: 'AI Assistant', path: 'assistant', icon: Sparkles }]
       : baseHubs
 
   return (

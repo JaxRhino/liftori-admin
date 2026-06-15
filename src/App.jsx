@@ -243,6 +243,7 @@ import EcomListingEditor from './pages/ecomm/EcomListingEditor';
 import EcomOrders from './pages/ecomm/EcomOrders';
 import EcomCustomers from './pages/ecomm/EcomCustomers';
 import EcomSocial from './pages/ecomm/EcomSocial';
+import EcomAssistant from './pages/ecomm/EcomAssistant';
 import { useCrm } from './contexts/CrmContext';
 
 // Industry switch for shared /crm/:platformId route slots: ecommerce
@@ -645,6 +646,7 @@ export default function App() {
             <Route path="listings/new" element={<EcomListingEditor />} />
             <Route path="listings/:listingId" element={<EcomListingEditor />} />
             <Route path="orders" element={<EcomOrders />} />
+            <Route path="assistant" element={<EcomAssistant />} />
             <Route path="social" element={<EcomSocial />} />
             <Route path="estimates/:id" element={<CrmEstimateDetail />} />
             <Route path="invoices" element={<CscInvoices />} />
