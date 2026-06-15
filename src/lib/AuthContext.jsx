@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [token, setToken] = useState(null)
   const [isDevTeamMember, setIsDevTeamMember] = useState(false)
+  const [myPlatformId, setMyPlatformId] = useState(null)  // platform this non-admin user owns (for customer CRM login)
 
   // View-as-user (impersonation) state. When set, the UI renders as if the
   // impersonated user were logged in, but the underlying Supabase session
@@ -203,6 +204,20 @@ export function AuthProvider({ children }) {
   const isAdmin = ['admin', 'dev', 'super_admin', 'sales_director', 'call_agent', 'tester'].includes(effectiveProfile?.role)
   const isAffiliate = effectiveProfile?.role === 'affiliate'
 
+  // Resolve the platform a non-admin owns, so customers land in their own CRM.
+  useEffect(() => {
+    let active = true
+    const email = effectiveUser?.email
+    if (!email || isAdmin || isAffiliate) { setMyPlatformId(null); return }
+    ;(async () => {
+      try {
+        const { data } = await supabase.from('platforms').select('id').eq('owner_email', email).limit(1).maybeSingle()
+        if (active) setMyPlatformId(data?.id ?? null)
+      } catch { if (active) setMyPlatformId(null) }
+    })()
+    return () => { active = false }
+  }, [effectiveUser?.email, isAdmin, isAffiliate])
+
   return (
     <AuthContext.Provider value={{
       user: effectiveUser,
@@ -213,6 +228,7 @@ export function AuthProvider({ children }) {
       isAdmin,
       isAffiliate,
       isDevTeamMember,
+      myPlatformId,
       token,
       isImpersonating,
       canImpersonate,
