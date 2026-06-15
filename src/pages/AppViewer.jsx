@@ -74,7 +74,7 @@ const APPS = {
     tagline: 'Reseller / operator app — Android (iOS coming soon)',
     status: 'live',
     note: 'Android only — iOS coming soon.',
-    previewUrl: import.meta.env.VITE_BOLO_GO_PREVIEW_URL || '',
+    previewUrl: import.meta.env.VITE_BOLO_GO_PREVIEW_URL || 'https://bolo.liftori.ai',
     eas: {
       projectId: '308f99c6-f70f-4244-b910-276275fe46a8',
       account: 'rhinomarch',
