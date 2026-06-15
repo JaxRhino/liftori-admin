@@ -58,6 +58,7 @@ import CEODashboard from './pages/ceo/CEODashboard'
 import InHouseBuilds from './pages/InHouseBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import MobilePreview from './pages/MobilePreview'
+import AppViewer from './pages/AppViewer'
 import SalesPipeline from './pages/SalesPipeline'
 import Pipeline from './pages/Pipeline'
 import Investors from './pages/Investors'
@@ -542,7 +543,7 @@ export default function App() {
             <Route path="marketing/sequences" element={<EmailSequences />} />
             <Route path="marketing/performance" element={<MarketingPerformance />} />
             <Route path="wizard" element={<WizardBuilder />} />
-              <Route path="products/*" element={<ComingSoon />} />
+              <Route path="products/:slug" element={<AppViewer />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="notes" element={<Notes />} />
             <Route path="calendar" element={<Calendar />} />
