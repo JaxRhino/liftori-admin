@@ -29,6 +29,7 @@ const SECTIONS = [
 export default function CrmSettings() {
   const { client, orgSettings } = useCrm()
   const [section, setSection] = useState(null)
+  useEffect(() => { if (new URLSearchParams(window.location.search).get('credits')) setSection('billing') }, [])
   const active = SECTIONS.find(s => s.key === section)
 
   return (
@@ -1215,6 +1216,18 @@ function BillingSection() {
     return () => { active = false }
   }, [platformId])
 
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get('credits')
+    if (!c) return
+    if (c === 'success') toast.success('Payment received - your credits will appear shortly')
+    else if (c === 'cancelled') toast.message('Checkout cancelled')
+    window.history.replaceState({}, '', window.location.pathname)
+    const t = setTimeout(async () => {
+      try { const { data: res } = await mainDb.functions.invoke('credits', { body: { action: 'get', platform_id: platformId } }); if (res) setData(res) } catch (_) {}
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [platformId])
+
   if (loading) return <Panel>Loading billing...</Panel>
   if (!data || !data.ok) return <Panel>Billing isn't set up for this account yet.</Panel>
 
@@ -1222,10 +1235,17 @@ function BillingSection() {
   const planLabel = data.is_comped ? 'Founder Discount' : (data.plan === 'combo' ? 'Combo' : 'Starter')
   const planPrice = data.is_comped ? '$0 / mo' : (data.plan === 'combo' ? '$89 / mo' : '$59 / mo')
 
-  async function buy() {
+  async function buy(pack) {
+    if (busy || !pack) return
     setBusy(true)
     try {
-      toast.message('Checkout is being wired up next - your packs and Founder discount are already configured.')
+      const { data, error } = await mainDb.functions.invoke('buy-credits', { body: { platform_id: platformId, pack_id: pack.id } })
+      if (error) throw error
+      if (data?.url) { window.location.href = data.url; return }
+      throw new Error(data?.error || 'no checkout url')
+    } catch (e) {
+      console.error('buy credits', e)
+      toast.error('Could not start checkout - try again')
     } finally {
       setBusy(false)
     }
@@ -1267,7 +1287,7 @@ function BillingSection() {
                   <span className="text-brand-light font-semibold">${(cents / 100).toFixed(2)}</span>
                   {cents !== p.price_cents && <span className="text-gray-500 line-through ml-2 text-xs">${(p.price_cents / 100).toFixed(2)}</span>}
                 </div>
-                <button type="button" disabled={busy} onClick={buy} className="mt-3 px-3 py-2 bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg text-sm font-medium disabled:opacity-50">Buy</button>
+                <button type="button" disabled={busy} onClick={() => buy(p)} className="mt-3 px-3 py-2 bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg text-sm font-medium disabled:opacity-50">Buy</button>
               </div>
             )
           })}
