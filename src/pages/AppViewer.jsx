@@ -71,16 +71,21 @@ const APPS = {
   'bolo-go': {
     slug: 'bolo-go',
     name: 'BOLO Go',
-    tagline: 'Reseller sourcing platform — mobile',
-    status: 'planned',
+    tagline: 'Reseller / operator app — Android (iOS coming soon)',
+    status: 'live',
+    note: 'Android only — iOS coming soon.',
     previewUrl: import.meta.env.VITE_BOLO_GO_PREVIEW_URL || '',
-    eas: null,
-    repo: null,
-    channels: [],
-    plannedNote:
-      'BOLO Go is in marketing/waitlist stage — no mobile repo or EAS project provisioned yet. Once the Expo project ships, fill in its repo + EAS block in the APPS registry and this view lights up automatically.',
-    links: [
-      { label: 'BOLO Go waitlist (marketing)', to: '/admin/marketing/waitlist?product=bolo_go', internal: true },
+    eas: {
+      projectId: '308f99c6-f70f-4244-b910-276275fe46a8',
+      account: 'rhinomarch',
+      expoSlug: 'liftop',
+    },
+    // liftop repo is private — no public source-zip; link the signed APK from EAS instead
+    repo: { org: 'JaxRhino', name: 'liftop', branch: 'main', private: true },
+    channels: [
+      { key: 'preview', label: 'Preview', description: 'Sideloaded testers — Ryan + Mike + crew', tint: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20' },
+      { key: 'production', label: 'Production', description: 'Live resellers — Play Store build', tint: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+      { key: 'development', label: 'Development', description: 'Dev client w/ Metro bundler', tint: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
     ],
   },
 }
@@ -129,7 +134,7 @@ function CopyChip({ value, label, copy, copied }) {
   )
 }
 
-// ══════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════
 // Page
 // ═════════════════════════════════════════════════════════════════════
 
@@ -352,23 +357,28 @@ function AppView({ app }) {
           <OpsCard icon={<Download className="h-4 w-4 text-emerald-400" />} title="Download">
             {repo ? (
               <div className="space-y-2">
-                <a
-                  href={sourceZipUrl}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 text-sm text-white transition-colors hover:bg-emerald-500/10"
-                >
-                  <span className="flex items-center gap-2">
-                    <Download className="h-4 w-4 text-emerald-400" />
-                    <span>
-                      <span className="font-medium">Download source (.zip)</span>
-                      <span className="block text-[11px] text-gray-400">{repo.org}/{repo.name} · {repo.branch}</span>
+                {!repo.private && (
+                  <a
+                    href={sourceZipUrl}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 text-sm text-white transition-colors hover:bg-emerald-500/10"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Download className="h-4 w-4 text-emerald-400" />
+                      <span>
+                        <span className="font-medium">Download source (.zip)</span>
+                        <span className="block text-[11px] text-gray-400">{repo.org}/{repo.name} · {repo.branch}</span>
+                      </span>
                     </span>
-                  </span>
-                  <ExternalLink className="h-3 w-3 text-gray-500" />
-                </a>
+                    <ExternalLink className="h-3 w-3 text-gray-500" />
+                  </a>
+                )}
                 {buildsUrl && (
-                  <LinkRow icon={<Package className="h-3.5 w-3.5" />} href={buildsUrl} label="Download build (APK / IPA)" />
+                  <LinkRow icon={<Package className="h-3.5 w-3.5" />} href={buildsUrl} label={repo.private ? 'Download latest build (APK)' : 'Download build (APK / IPA)'} />
                 )}
                 <LinkRow icon={<GitBranch className="h-3.5 w-3.5" />} href={repoUrl} label="Open repo on GitHub" />
+                {repo.private && (
+                  <p className="text-[11px] leading-relaxed text-gray-500">Private repo — source zip unavailable. Grab the signed APK from EAS builds above.</p>
+                )}
               </div>
             ) : (
               <p className="text-xs leading-relaxed text-gray-400">
@@ -376,6 +386,12 @@ function AppView({ app }) {
               </p>
             )}
           </OpsCard>
+
+          {app.note && (
+            <OpsCard icon={<Info className="h-4 w-4 text-sky-400" />} title="Platforms">
+              <p className="text-xs leading-relaxed text-gray-300">{app.note}</p>
+            </OpsCard>
+          )}
 
           {app.status === 'planned' && (
             <OpsCard icon={<Rocket className="h-4 w-4 text-amber-400" />} title="Status — Planned">
@@ -401,10 +417,10 @@ function AppView({ app }) {
             <OpsCard icon={<Cpu className="h-4 w-4 text-brand-blue" />} title="EAS Project">
               <InfoRow label="Slug" value={eas.expoSlug} mono copy={copy} copied={copied} copyKey="slug" />
               <InfoRow label="Project ID" value={eas.projectId} mono copy={copy} copied={copied} copyKey="projectId" />
-              <InfoRow label="App version" value={eas.appVersion} mono />
-              <InfoRow label="Runtime policy" value={eas.runtimePolicy} />
-              <InfoRow label="iOS bundle" value={eas.iosBundle} mono />
-              <InfoRow label="Android package" value={eas.androidPackage} mono />
+              {eas.appVersion && <InfoRow label="App version" value={eas.appVersion} mono />}
+              {eas.runtimePolicy && <InfoRow label="Runtime policy" value={eas.runtimePolicy} />}
+              {eas.iosBundle && <InfoRow label="iOS bundle" value={eas.iosBundle} mono />}
+              {eas.androidPackage && <InfoRow label="Android package" value={eas.androidPackage} mono />}
             </OpsCard>
           )}
 
