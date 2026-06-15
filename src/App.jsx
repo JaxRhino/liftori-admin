@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { OrgProvider } from './lib/OrgContext'
@@ -222,7 +222,6 @@ import CrmMarketing from './pages/crm/CrmMarketing'
 import CrmFinance from './pages/crm/CrmFinance'
 import CrmCommunications from './pages/crm/CrmCommunications'
 import CrmChat from './pages/crm/CrmChat'
-import CrmChatHub from './pages/crm/CrmChatHub';
 import CrmCalendar from './pages/crm/CrmCalendar';
 import CrmNotes from './pages/crm/CrmNotes';
 import CrmTasks from './pages/crm/CrmTasks';
@@ -314,16 +313,6 @@ function AdminRoute({ children }) {
   return children
 }
 
-// CRM access: admins (impersonation/support) OR the customer who owns THIS platform.
-function CrmRoute({ children }) {
-  const { isAdmin, myPlatformId, loading } = useAuth()
-  const { platformId } = useParams()
-  if (loading) return null
-  if (isAdmin) return children
-  if (myPlatformId && myPlatformId === platformId) return children
-  return <Navigate to={myPlatformId ? `/crm/${myPlatformId}/dashboard` : '/portal'} replace />
-}
-
 function DevTeamRoute({ children }) {
   const { isDevTeamMember, loading } = useAuth()
   if (loading) return null
@@ -346,16 +335,14 @@ function ClientRoute({ children }) {
 }
 
 function RootRedirect() {
-  const { isAdmin, isAffiliate, myPlatformId, loading } = useAuth()
+  const { isAdmin, isAffiliate, loading } = useAuth()
   if (loading) return (
     <div className="min-h-screen bg-navy-950 flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
     </div>
   )
   if (isAffiliate) return <Navigate to="/affiliate" replace />
-  if (isAdmin) return <Navigate to="/admin" replace />
-  if (myPlatformId) return <Navigate to={`/crm/${myPlatformId}/dashboard`} replace />
-  return <Navigate to="/portal" replace />
+  return isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/portal" replace />
 }
 
 /** Renders TesterDashboard for enrolled testers, regular Dashboard otherwise.
@@ -616,9 +603,9 @@ export default function App() {
           {/* LABOS â€” per-client backend (admin impersonation enters here) */}
           <Route path="/crm/:platformId" element={
             <ProtectedRoute>
-              <CrmRoute>
+              <AdminRoute>
                 <CrmLayout />
-              </CrmRoute>
+              </AdminRoute>
             </ProtectedRoute>
           }>
             <Route index element={<Navigate to="dashboard" replace />} />
@@ -662,7 +649,7 @@ export default function App() {
             <Route path="marketing" element={<CrmMarketing />} />
             <Route path="finance" element={<CrmFinance />} />
             <Route path="communications" element={<CrmCommunications />} />
-            <Route path="chat" element={<CrmChatHub />} />
+            <Route path="chat" element={<CrmChat />} />
             <Route path="calendar" element={<CrmCalendar />} />
             <Route path="notes" element={<CrmNotes />} />
             <Route path="tasks" element={<CrmTasks />} />
