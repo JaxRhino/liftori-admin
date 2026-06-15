@@ -136,7 +136,7 @@ function LabosShell() {
   // Base hubs hidden for ecommerce: covered by ECOM_HUB_DEFS (dashboard,
   // marketing, finance) or service-only (sales pipeline, operations,
   // university - not seeded for ecomm yet).
-  const ECOM_HIDDEN_BASE = ['dashboard', 'sales', 'operations', 'university', 'marketing', 'finance']
+  const ECOM_HIDDEN_BASE = ['dashboard', 'sales', 'operations', 'university', 'marketing', 'finance', 'eos']
   const matchedHubs = HUB_DEFS.filter(h => enabledHubs.includes(h.key))
   const baseHubs = matchedHubs.length > 0 ? matchedHubs : HUB_DEFS
   // KEC (hood-cleaning) industry tenants get the industry hub layer appended.
