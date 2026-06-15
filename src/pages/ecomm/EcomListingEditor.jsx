@@ -157,6 +157,7 @@ export default function EcomListingEditor() {
   const [postResults, setPostResults] = useState(null)
   const [soldOpen, setSoldOpen] = useState(false)
   const [soldForm, setSoldForm] = useState({ sold_price: '', sold_channel: 'website' })
+  const [shareOpen, setShareOpen] = useState(false)
 
   // ---------- load ----------
   useEffect(() => {
@@ -207,6 +208,19 @@ export default function EcomListingEditor() {
   }, [socialAccounts])
 
   const set = (key, value) => setForm(f => ({ ...f, [key]: value }))
+
+  // ---------- share to facebook (manual) ----------
+  function shareCaption() {
+    const price = toNum(form.price) != null ? `$${Number(form.price).toFixed(2)}` : ''
+    const url = form.slug ? `https://www.vjthriftfinds.com/product.html?slug=${form.slug}` : 'https://www.vjthriftfinds.com'
+    const desc = (form.description || '').trim().replace(/\s+/g, ' ').slice(0, 220)
+    const tags = (form.tags || []).slice(0, 6).map(t => '#' + String(t).replace(/[^a-z0-9]/gi, '')).filter(x => x.length > 2).join(' ')
+    return [`${form.title}${price ? ` \u2014 ${price}` : ''}`, desc, `Shop it here: ${url}`, `#vjthriftfinds #thrifted #vintage ${tags}`.trim()].filter(Boolean).join('\n\n')
+  }
+  async function copyShareCaption() {
+    try { await navigator.clipboard.writeText(shareCaption()); toast.success('Caption copied') }
+    catch { toast.error('Could not copy - select the text and copy it manually') }
+  }
 
   // ---------- create-on-first-photo ----------
   async function ensureListing() {
@@ -508,6 +522,11 @@ export default function EcomListingEditor() {
             )}
           </div>
         </div>
+        {(id || listingId) && form.status === 'active' && (
+          <button onClick={() => setShareOpen(true)} className="px-3 py-2 bg-brand-blue/15 hover:bg-brand-blue/25 text-brand-light rounded-lg text-sm font-medium shrink-0">
+            Share
+          </button>
+        )}
         {!isSold && (id || listingId) && form.status === 'active' && (
           <button onClick={() => { setSoldForm({ sold_price: form.price || '', sold_channel: 'website' }); setSoldOpen(true) }} className="px-3 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 rounded-lg text-sm font-medium shrink-0">
             Mark Sold
@@ -809,6 +828,35 @@ export default function EcomListingEditor() {
             >
               {form.status === 'active' ? 'Update Listing' : 'Publish'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= SHARE MODAL ================= */}
+      {shareOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShareOpen(false)} />
+          <div className="relative w-full sm:max-w-md bg-navy-900 border border-navy-700/50 rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-white font-semibold mb-1">Share to Facebook</h2>
+            <p className="text-xs text-gray-500 mb-4">Post this listing to your Facebook Page in three quick steps.</p>
+            {form.main_image_url && (
+              <div className="mb-3">
+                <img src={form.main_image_url} alt="" className="w-full h-44 object-cover rounded-lg bg-navy-800" />
+                <a href={form.main_image_url} target="_blank" rel="noreferrer" className="inline-block mt-1.5 text-xs text-brand-light hover:text-white">Open photo to save it</a>
+              </div>
+            )}
+            <label className="block text-xs font-medium text-gray-400 mb-1">Caption</label>
+            <textarea readOnly value={shareCaption()} rows={7} onFocus={(e) => e.target.select()} className={inputCls + ' resize-none'} />
+            <div className="flex gap-2 mt-2">
+              <button type="button" onClick={copyShareCaption} className="flex-1 px-4 py-2.5 bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg text-sm font-medium">Copy caption</button>
+              <a href="https://www.facebook.com" target="_blank" rel="noreferrer" className="flex-1 px-4 py-2.5 bg-navy-800 border border-navy-700 text-gray-200 hover:text-white rounded-lg text-sm font-medium text-center">Open Facebook</a>
+            </div>
+            <ol className="mt-4 text-xs text-gray-400 space-y-1 list-decimal list-inside">
+              <li>Tap Copy caption and Open photo to save it.</li>
+              <li>On your Facebook Page, start a post and add the saved photo.</li>
+              <li>Paste the caption and post.</li>
+            </ol>
+            <button onClick={() => setShareOpen(false)} className="w-full mt-4 px-4 py-2.5 bg-navy-800 border border-navy-700 text-gray-300 rounded-lg text-sm">Close</button>
           </div>
         </div>
       )}
