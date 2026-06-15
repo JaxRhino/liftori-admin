@@ -9,13 +9,14 @@ import { toast } from 'sonner'
 import {
   useCrmClient, fmtMoney0, daysSince, StatusChip, LISTING_STATUS, ListingThumb,
 } from './_ecomShared'
+import { supabase as mainDb } from '../../lib/supabase'
 
 const STATUS_TABS = [
-  { key: 'all',      label: 'All' },
-  { key: 'draft',    label: 'Draft' },
-  { key: 'active',   label: 'Active' },
-  { key: 'sold',     label: 'Sold' },
-  { key: 'delisted', label: 'Delisted' },
+  { key: 'all',       label: 'All' },
+  { key: 'draft',     label: 'Draft' },
+  { key: 'published', label: 'Active' },
+  { key: 'sold',      label: 'Sold' },
+  { key: 'archived',  label: 'Archived' },
 ]
 
 const SORTS = [
@@ -43,10 +44,10 @@ export default function EcomListings() {
       try {
         setLoading(true)
         const [lst, cats] = await Promise.all([
-          client.from('listings')
+          mainDb.from('products')
             .select('id,title,price,sold_price,status,category_id,brand_maker,main_image_url,quantity,created_at,published_website_at,sold_at,is_featured,ai_generated')
             .order('created_at', { ascending: false }),
-          client.from('categories').select('id,name').eq('is_active', true).order('sort_order'),
+          mainDb.from('categories').select('id,name').eq('is_active', true).order('sort_order'),
         ])
         if (!active) return
         if (lst.error) throw lst.error
@@ -91,7 +92,7 @@ export default function EcomListings() {
       <div className="flex items-center justify-between mb-4 gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Listings</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{counts.active || 0} active · {counts.draft || 0} drafts</p>
+          <p className="text-gray-400 text-sm mt-0.5">{counts.published || 0} active · {counts.draft || 0} drafts</p>
         </div>
         <button
           onClick={() => navigate(`/crm/${platformId}/listings/new`)}
@@ -168,7 +169,7 @@ export default function EcomListings() {
                     <span className="text-sm font-semibold text-brand-cyan">
                       {l.status === 'sold' ? fmtMoney0(l.sold_price ?? l.price) : fmtMoney0(l.price)}
                     </span>
-                    <span className={`text-[11px] ${l.status === 'active' && days > 30 ? 'text-amber-300' : 'text-gray-500'}`}>
+                    <span className={`text-[11px] ${l.status === 'published' && days > 30 ? 'text-amber-300' : 'text-gray-500'}`}>
                       {l.status === 'sold' ? 'sold' : `${days}d listed`}
                     </span>
                   </div>

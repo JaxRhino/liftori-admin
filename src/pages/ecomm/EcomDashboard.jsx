@@ -10,6 +10,7 @@ import {
   useCrmClient, fmtMoney, fmtMoney0, fmtDate, daysSince, relTime,
   StatusChip, ORDER_STATUS, ListingThumb,
 } from './_ecomShared'
+import { supabase as mainDb } from '../../lib/supabase'
 
 function StatSkeleton() {
   return (
@@ -34,11 +35,11 @@ export default function EcomDashboard() {
       try {
         setLoading(true)
         const [lst, cats, ords] = await Promise.all([
-          client.from('listings')
+          mainDb.from('products')
             .select('id,title,price,cost,status,category_id,main_image_url,created_at,published_website_at,sold_at,sold_price,sold_channel')
             .order('created_at', { ascending: false }),
-          client.from('categories').select('id,name,slug').eq('is_active', true).order('sort_order'),
-          client.from('orders')
+          mainDb.from('categories').select('id,name,slug').eq('is_active', true).order('sort_order'),
+          mainDb.from('orders')
             .select('id,order_number,status,total,created_at,customer:customers(first_name,last_name,email)')
             .order('created_at', { ascending: false })
             .limit(8),
@@ -60,7 +61,7 @@ export default function EcomDashboard() {
 
   const stats = useMemo(() => {
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
-    const activeListings = listings.filter(l => l.status === 'active')
+    const activeListings = listings.filter(l => l.status === 'published')
     const drafts = listings.filter(l => l.status === 'draft')
     const soldThisMonth = listings.filter(l =>
       l.status === 'sold' && l.sold_at && new Date(l.sold_at) >= monthStart)

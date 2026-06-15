@@ -12,6 +12,7 @@ import {
   Loader2, Sparkles, Star, Trash2, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { supabase as mainDb } from '../../lib/supabase'
 import {
   useCrmClient, fmtMoney, StatusChip, LISTING_STATUS,
   PlatformIcon, PLATFORM_LABELS, SOCIAL_ACCOUNT_COLUMNS, logActivity,
@@ -135,7 +136,8 @@ function TagsInput({ tags, onChange }) {
 
 // =====================================================================
 export default function EcomListingEditor() {
-  const { client, platformId } = useCrmClient()
+  const { platformId } = useCrmClient()
+  const client = mainDb
   const { listingId } = useParams()
   const navigate = useNavigate()
   const fileRef = useRef(null)
@@ -174,8 +176,8 @@ export default function EcomListingEditor() {
         setSocialAccounts(socials.data || [])
         if (listingId) {
           const [{ data: row, error }, { data: imgs }] = await Promise.all([
-            client.from('listings').select('*').eq('id', listingId).single(),
-            client.from('listing_images').select('*').eq('listing_id', listingId).order('sort_order'),
+            client.from('products').select('*').eq('id', listingId).single(),
+            client.from('product_images').select('*').eq('product_id', listingId).order('sort_order'),
           ])
           if (!active) return
           if (error) throw error
@@ -189,7 +191,7 @@ export default function EcomListingEditor() {
             tags: Array.isArray(row.tags) ? row.tags : [],
           })
           setImages(withMainFallback(imgs, row.main_image_url, row.title))
-          if (row.status === 'active') setShowSocialPanel(true)
+          if (row.status === 'published') setShowSocialPanel(true)
         }
       } catch (e) {
         console.error('Error loading listing:', e)
@@ -226,7 +228,7 @@ export default function EcomListingEditor() {
   async function ensureListing() {
     if (id) return id
     const { data, error } = await client
-      .from('listings')
+      .from('products')
       .insert({ title: form.title || 'New listing', status: 'draft', quantity: form.quantity || 1 })
       .select('id')
       .single()
@@ -237,7 +239,7 @@ export default function EcomListingEditor() {
 
   // ---------- photos ----------
   async function refreshImages(lid) {
-    const { data } = await client.from('listing_images').select('*').eq('listing_id', lid).order('sort_order')
+    const { data } = await client.from('product_images').select('*').eq('product_id', lid).order('sort_order')
     setImages(data || [])
     return data || []
   }
@@ -262,17 +264,17 @@ export default function EcomListingEditor() {
       try {
         const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop().toLowerCase() : 'jpg'
         const path = `${lid}/${Date.now()}-${i}.${ext || 'jpg'}`
-        const { error: upErr } = await client.storage.from('listing-photos').upload(path, file)
+        const { error: upErr } = await client.storage.from('vj-products').upload(path, file)
         if (upErr) throw upErr
-        const { data: pub } = client.storage.from('listing-photos').getPublicUrl(path)
+        const { data: pub } = client.storage.from('vj-products').getPublicUrl(path)
         const url = pub?.publicUrl
-        const { error: insErr } = await client.from('listing_images').insert({
-          listing_id: lid, image_url: url, storage_path: path,
+        const { error: insErr } = await client.from('product_images').insert({
+          product_id: lid, image_url: url, storage_path: path,
           sort_order: baseOrder + i, alt_text: form.title || null,
         })
         if (insErr) throw insErr
         if (!form.main_image_url && i === 0 && baseOrder === 0) {
-          await client.from('listings').update({ main_image_url: url }).eq('id', lid)
+          await client.from('products').update({ main_image_url: url }).eq('id', lid)
           set('main_image_url', url)
         }
       } catch (e) {
@@ -288,7 +290,7 @@ export default function EcomListingEditor() {
 
   async function setCover(img) {
     try {
-      await client.from('listings').update({ main_image_url: img.image_url }).eq('id', id)
+      await client.from('products').update({ main_image_url: img.image_url }).eq('id', id)
       set('main_image_url', img.image_url)
       toast.success('Cover photo set')
     } catch (e) {
@@ -303,8 +305,8 @@ export default function EcomListingEditor() {
     const a = images[index], b = images[target]
     try {
       await Promise.all([
-        client.from('listing_images').update({ sort_order: target }).eq('id', a.id),
-        client.from('listing_images').update({ sort_order: index }).eq('id', b.id),
+        client.from('product_images').update({ sort_order: target }).eq('id', a.id),
+        client.from('product_images').update({ sort_order: index }).eq('id', b.id),
       ])
       await refreshImages(id)
     } catch (e) {
@@ -316,12 +318,12 @@ export default function EcomListingEditor() {
   async function deleteImage(img) {
     if (!window.confirm('Delete this photo?')) return
     try {
-      if (img.storage_path) await client.storage.from('listing-photos').remove([img.storage_path])
-      await client.from('listing_images').delete().eq('id', img.id)
+      if (img.storage_path) await client.storage.from('vj-products').remove([img.storage_path])
+      await client.from('product_images').delete().eq('id', img.id)
       const rest = await refreshImages(id)
       if (form.main_image_url === img.image_url) {
         const next = rest[0]?.image_url || null
-        await client.from('listings').update({ main_image_url: next }).eq('id', id)
+        await client.from('products').update({ main_image_url: next }).eq('id', id)
         set('main_image_url', next || '')
       }
     } catch (e) {
@@ -428,7 +430,7 @@ export default function EcomListingEditor() {
     setSaving(true)
     try {
       const lid = await ensureListing()
-      const { error } = await client.from('listings').update(buildPayload(extra)).eq('id', lid)
+      const { error } = await client.from('products').update(buildPayload(extra)).eq('id', lid)
       if (error) throw error
       if (extra.status) set('status', extra.status)
       Object.entries(extra).forEach(([k, v]) => { if (k in form) set(k, v) })
@@ -446,7 +448,7 @@ export default function EcomListingEditor() {
   async function publish() {
     if (!form.title.trim()) { toast.error('Add a title before publishing'); setOpen(o => ({ ...o, basics: true })); return }
     if (toNum(form.price) == null) { toast.error('Set a price before publishing'); setOpen(o => ({ ...o, pricing: true })); return }
-    const ok = await save({ status: 'active', published_website_at: new Date().toISOString() }, 'Published to website')
+    const ok = await save({ status: 'published', published_website_at: new Date().toISOString() }, 'Published to website')
     if (ok) {
       setShowSocialPanel(true)
       logActivity(client, 'listing_published', 'listing', id, { title: form.title })
@@ -476,7 +478,7 @@ export default function EcomListingEditor() {
     setPostResults(null)
     try {
       const { data, error } = await client.functions.invoke('social-publish', {
-        body: { listing_id: id, platforms: selectedPlatforms },
+        body: { product_id: id, platforms: selectedPlatforms },
       })
       if (error) throw error
       const results = data?.results || []
@@ -528,12 +530,12 @@ export default function EcomListingEditor() {
             )}
           </div>
         </div>
-        {(id || listingId) && form.status === 'active' && (
+        {(id || listingId) && form.status === 'published' && (
           <button onClick={() => setShareOpen(true)} className="px-3 py-2 bg-brand-blue/15 hover:bg-brand-blue/25 text-brand-light rounded-lg text-sm font-medium shrink-0">
             Share
           </button>
         )}
-        {!isSold && (id || listingId) && form.status === 'active' && (
+        {!isSold && (id || listingId) && form.status === 'published' && (
           <button onClick={() => { setSoldForm({ sold_price: form.price || '', sold_channel: 'website' }); setSoldOpen(true) }} className="px-3 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 rounded-lg text-sm font-medium shrink-0">
             Mark Sold
           </button>
@@ -766,7 +768,7 @@ export default function EcomListingEditor() {
       </div>
 
       {/* ================= POST TO SOCIALS ================= */}
-      {showSocialPanel && form.status === 'active' && (
+      {showSocialPanel && form.status === 'published' && (
         <div className="mt-4 bg-navy-800 border border-brand-blue/30 rounded-xl p-4">
           <h2 className="text-white font-semibold text-sm mb-1">Post to socials</h2>
           <p className="text-xs text-gray-500 mb-3">Share this listing on your connected pages.</p>
@@ -832,7 +834,7 @@ export default function EcomListingEditor() {
               disabled={saving}
               className="flex-[1.4] px-4 py-3 bg-brand-blue hover:bg-brand-blue/90 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
             >
-              {form.status === 'active' ? 'Update Listing' : 'Publish'}
+              {form.status === 'published' ? 'Update Listing' : 'Publish'}
             </button>
           </div>
         </div>

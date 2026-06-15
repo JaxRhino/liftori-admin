@@ -52,8 +52,9 @@ export function relTime(d) {
 
 // ---------- status maps ----------
 export const LISTING_STATUS = {
-  draft:    { label: 'Draft',    cls: 'bg-navy-700/60 text-gray-300' },
-  active:   { label: 'Active',   cls: 'bg-emerald-500/20 text-emerald-300' },
+  draft:     { label: 'Draft',    cls: 'bg-navy-700/60 text-gray-300' },
+  published: { label: 'Active',   cls: 'bg-emerald-500/20 text-emerald-300' },
+  active:    { label: 'Active',   cls: 'bg-emerald-500/20 text-emerald-300' },
   sold:     { label: 'Sold',     cls: 'bg-brand-cyan/20 text-brand-cyan' },
   delisted: { label: 'Delisted', cls: 'bg-amber-500/20 text-amber-300' },
   archived: { label: 'Archived', cls: 'bg-navy-700/40 text-gray-500' },
