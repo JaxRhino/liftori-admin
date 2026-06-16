@@ -1,8 +1,14 @@
 /**
  * BOLO Go — app + beta-tester metrics for the Super Admin dashboard.
  * Distinct from the Liftori platform "Tester Program": this is the BOLO Go
- * mobile reseller app (users, listings, orders, community) and its in-app
- * Beta Testers feedback program (tester_feedback / _messages).
+ * mobile reseller app (users, listings, community) and its in-app Beta Testers
+ * feedback program (tester_feedback / _messages).
+ *
+ * IMPORTANT — counts use REAL app signals, not the backfilled `account_type`
+ * flag (which was set to 'seller' on every pre-existing profile and badly
+ * over-counts). Sellers = users with a provisioned storefront; shoppers =
+ * account_type 'shopper'. Commerce is scoped to orders that actually carried a
+ * platform fee, so "fees collected" reflects money truly taken (not backfill).
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -45,22 +51,29 @@ export default function BoloGoMetrics() {
     const c = (q) => q.then((r) => r.count || 0);
     try {
       const [
-        appUsers, sellers, shoppers, newUsers,
+        storesRes, shoppers, newShoppers,
         listings, listings7d, posts, posts7d,
         ordersRes, fbRes, msgCount,
       ] = await Promise.all([
-        c(supabase.from('profiles').select('id', { count: 'exact', head: true }).in('account_type', ['seller', 'shopper'])),
-        c(supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'seller')),
+        supabase.from('storefronts').select('owner_user_id, created_at'),
         c(supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'shopper')),
-        c(supabase.from('profiles').select('id', { count: 'exact', head: true }).in('account_type', ['seller', 'shopper']).gte('created_at', wk)),
+        c(supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'shopper').gte('created_at', wk)),
         c(supabase.from('products').select('id', { count: 'exact', head: true })),
         c(supabase.from('products').select('id', { count: 'exact', head: true }).gte('created_at', wk)),
         c(supabase.from('posts').select('id', { count: 'exact', head: true })),
         c(supabase.from('posts').select('id', { count: 'exact', head: true }).gte('created_at', wk)),
-        supabase.from('orders').select('total, platform_fee'),
+        // Only orders that actually carried a platform fee = real marketplace cut.
+        supabase.from('orders').select('total, platform_fee').gt('platform_fee', 0),
         supabase.from('tester_feedback').select('id, title, status, category, reporter_user_id, last_activity_at').order('last_activity_at', { ascending: false }),
         c(supabase.from('tester_feedback_messages').select('id', { count: 'exact', head: true })),
       ]);
+
+      const stores = storesRes.data || [];
+      const sellerIds = new Set(stores.map((s) => s.owner_user_id));
+      const sellers = sellerIds.size;
+      const newSellers = new Set(stores.filter((s) => s.created_at >= wk).map((s) => s.owner_user_id)).size;
+      const appUsers = sellers + shoppers;
+      const newUsers = newSellers + newShoppers;
 
       const orders = ordersRes.data || [];
       const gmv = orders.reduce((s, o) => s + Number(o.total || 0), 0);
@@ -76,7 +89,7 @@ export default function BoloGoMetrics() {
       setM({
         appUsers, sellers, shoppers, newUsers,
         listings, listings7d, posts, posts7d,
-        orders: orders.length, gmv, fees,
+        sales: orders.length, gmv, fees,
         fbTotal: fb.length, fbOpen: open, reporters, msgs: msgCount,
         byStatus, byCat, recent: fb.slice(0, 5),
       });
@@ -110,8 +123,8 @@ export default function BoloGoMetrics() {
               sub={`${m.sellers} sellers · ${m.shoppers} shoppers`} delta={m.newUsers ? `+${m.newUsers} this week` : null} />
             <Kpi icon={Package} tint="text-violet-400" label="Listings" value={m.listings}
               delta={m.listings7d ? `+${m.listings7d} this week` : null} />
-            <Kpi icon={ShoppingBag} tint="text-emerald-400" label="Orders" value={m.orders} sub={`${money(m.gmv)} GMV`} />
-            <Kpi icon={DollarSign} tint="text-amber-400" label="Platform Fees" value={money(m.fees)} />
+            <Kpi icon={ShoppingBag} tint="text-emerald-400" label="Marketplace Sales" value={m.sales} sub={`${money(m.gmv)} GMV`} />
+            <Kpi icon={DollarSign} tint="text-amber-400" label="Fees Collected" value={money(m.fees)} />
             <Kpi icon={MessageSquare} tint="text-cyan-400" label="Community Posts" value={m.posts}
               delta={m.posts7d ? `+${m.posts7d} this week` : null} />
           </div>
