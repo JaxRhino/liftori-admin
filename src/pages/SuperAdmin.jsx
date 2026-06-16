@@ -378,6 +378,100 @@ export default function SuperAdmin() {
       </div>
 
       {/* ═════════════════════════════════════════════════════ */}
+      {/* TESTER PROGRAM — founder-only oversight + management   */}
+      {/* ═════════════════════════════════════════════════════ */}
+      <div className="border-t border-navy-800 pt-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-pink-400" />
+            <h2 className="text-lg font-bold text-white">Tester Program</h2>
+            <span className="text-xs text-gray-500">{testerEnrollments.length} active</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAssignModal(true)}
+              className="text-xs px-3 py-1.5 bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/40 text-pink-300 rounded-md font-medium flex items-center gap-1"
+            >
+              <Plus className="w-3 h-3" /> Assign work
+            </button>
+            <button onClick={() => navigate('/admin/testing')} className="text-xs px-3 py-1.5 bg-navy-800 border border-navy-700 text-gray-300 rounded-md font-medium">
+              Full dashboard →
+            </button>
+          </div>
+        </div>
+
+        {/* Tester KPIs */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+          <MetricCard icon={Users} label="Active Testers" value={testerEnrollments.length} sub="enrolled" color="purple" />
+          <MetricCard icon={Activity} label="Clocked In Now" value={activeTesterSessions.length} sub="live sessions" color={activeTesterSessions.length > 0 ? 'green' : 'default'} />
+          <MetricCard icon={Bug} label="Open Logs" value={testerLogs.filter(l => ['open', 'triaged', 'in_progress'].includes(l.status)).length} sub="awaiting fix" color="orange" />
+          <MetricCard icon={AlertTriangle} label="Critical Open" value={openCriticalLogs.length} sub="urgent" color={openCriticalLogs.length > 0 ? 'red' : 'green'} />
+          <MetricCard icon={ClipboardList} label="Open Assignments" value={testerAssignments.filter(a => ['assigned', 'in_progress'].includes(a.status)).length} sub={`${testerAssignments.filter(a => a.status === 'completed').length} done`} color="sky" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Live Tester Activity */}
+          <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
+            <SectionHeader icon={Activity} title="Live Activity" />
+            <div className="space-y-2 mt-3">
+              {testerEnrollments.length === 0 ? (
+                <p className="text-xs text-gray-500 text-center py-4">No enrolled testers yet</p>
+              ) : openAssignmentsByUser.map(({ user: u, enrollment: e, open, completed }) => {
+                const session = activeTesterSessions.find((s) => s.user_id === e.user_id);
+                return (
+                  <div key={e.id} className="bg-navy-900/40 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${session ? 'bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-500/30' : 'bg-navy-700 text-gray-400'}`}>
+                        {(u?.full_name || u?.email || '?')[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white truncate">{u?.full_name || u?.email || 'Tester'}</div>
+                        <div className="text-[10px] text-gray-500">
+                          {session
+                            ? <span className="text-emerald-400">● Active {formatDuration(liveDuration(session.clock_in_at))}</span>
+                            : <span>○ Off the clock</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] text-gray-500 ml-9">
+                      <span>{open} open</span>
+                      <span>·</span>
+                      <span>{completed} done</span>
+                      <span>·</span>
+                      <span>{(Number(e.commission_rate) * 100).toFixed(1)}% / {e.min_hours_per_week}hr</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recent Submissions */}
+          <div className="lg:col-span-2 bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <SectionHeader icon={Bug} title="Recent Submissions" />
+              <button onClick={() => navigate('/admin/testing')} className="text-xs text-purple-400 hover:text-purple-300">View all in Testing →</button>
+            </div>
+            <div className="mt-3 divide-y divide-navy-700/40">
+              {recentTesterLogs.length === 0 ? (
+                <p className="text-xs text-gray-500 text-center py-6">No submissions yet</p>
+              ) : recentTesterLogs.map((l) => (
+                <TesterLogRow
+                  key={l.id}
+                  log={l}
+                  user={profilesLookup[l.user_id]}
+                  onChangeStatus={async (s) => {
+                    await supabase.from('team_work_logs').update({ status: s, updated_at: new Date().toISOString() }).eq('id', l.id);
+                    loadTesterProgram();
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═════════════════════════════════════════════════════ */}
       {/* ANNOUNCEMENT CENTER — founder-posted, center-screen    */}
       {/* ═════════════════════════════════════════════════════ */}
       <div className="border-t border-navy-800 pt-6">
@@ -622,100 +716,6 @@ export default function SuperAdmin() {
               <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-emerald-300 flex-shrink-0" />
             </div>
           </button>
-        </div>
-      </div>
-
-      {/* ═════════════════════════════════════════════════════ */}
-      {/* TESTER PROGRAM — founder-only oversight + management   */}
-      {/* ═════════════════════════════════════════════════════ */}
-      <div className="border-t border-navy-800 pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-pink-400" />
-            <h2 className="text-lg font-bold text-white">Tester Program</h2>
-            <span className="text-xs text-gray-500">{testerEnrollments.length} active</span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowAssignModal(true)}
-              className="text-xs px-3 py-1.5 bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/40 text-pink-300 rounded-md font-medium flex items-center gap-1"
-            >
-              <Plus className="w-3 h-3" /> Assign work
-            </button>
-            <button onClick={() => navigate('/admin/testing')} className="text-xs px-3 py-1.5 bg-navy-800 border border-navy-700 text-gray-300 rounded-md font-medium">
-              Full dashboard →
-            </button>
-          </div>
-        </div>
-
-        {/* Tester KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-          <MetricCard icon={Users} label="Active Testers" value={testerEnrollments.length} sub="enrolled" color="purple" />
-          <MetricCard icon={Activity} label="Clocked In Now" value={activeTesterSessions.length} sub="live sessions" color={activeTesterSessions.length > 0 ? 'green' : 'default'} />
-          <MetricCard icon={Bug} label="Open Logs" value={testerLogs.filter(l => ['open', 'triaged', 'in_progress'].includes(l.status)).length} sub="awaiting fix" color="orange" />
-          <MetricCard icon={AlertTriangle} label="Critical Open" value={openCriticalLogs.length} sub="urgent" color={openCriticalLogs.length > 0 ? 'red' : 'green'} />
-          <MetricCard icon={ClipboardList} label="Open Assignments" value={testerAssignments.filter(a => ['assigned', 'in_progress'].includes(a.status)).length} sub={`${testerAssignments.filter(a => a.status === 'completed').length} done`} color="sky" />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Live Tester Activity */}
-          <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
-            <SectionHeader icon={Activity} title="Live Activity" />
-            <div className="space-y-2 mt-3">
-              {testerEnrollments.length === 0 ? (
-                <p className="text-xs text-gray-500 text-center py-4">No enrolled testers yet</p>
-              ) : openAssignmentsByUser.map(({ user: u, enrollment: e, open, completed }) => {
-                const session = activeTesterSessions.find((s) => s.user_id === e.user_id);
-                return (
-                  <div key={e.id} className="bg-navy-900/40 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${session ? 'bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-500/30' : 'bg-navy-700 text-gray-400'}`}>
-                        {(u?.full_name || u?.email || '?')[0].toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate">{u?.full_name || u?.email || 'Tester'}</div>
-                        <div className="text-[10px] text-gray-500">
-                          {session
-                            ? <span className="text-emerald-400">● Active {formatDuration(liveDuration(session.clock_in_at))}</span>
-                            : <span>○ Off the clock</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 text-[10px] text-gray-500 ml-9">
-                      <span>{open} open</span>
-                      <span>·</span>
-                      <span>{completed} done</span>
-                      <span>·</span>
-                      <span>{(Number(e.commission_rate) * 100).toFixed(1)}% / {e.min_hours_per_week}hr</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Recent Submissions */}
-          <div className="lg:col-span-2 bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <SectionHeader icon={Bug} title="Recent Submissions" />
-              <button onClick={() => navigate('/admin/testing')} className="text-xs text-purple-400 hover:text-purple-300">View all in Testing →</button>
-            </div>
-            <div className="mt-3 divide-y divide-navy-700/40">
-              {recentTesterLogs.length === 0 ? (
-                <p className="text-xs text-gray-500 text-center py-6">No submissions yet</p>
-              ) : recentTesterLogs.map((l) => (
-                <TesterLogRow
-                  key={l.id}
-                  log={l}
-                  user={profilesLookup[l.user_id]}
-                  onChangeStatus={async (s) => {
-                    await supabase.from('team_work_logs').update({ status: s, updated_at: new Date().toISOString() }).eq('id', l.id);
-                    loadTesterProgram();
-                  }}
-                />
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
