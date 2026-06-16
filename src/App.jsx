@@ -269,6 +269,7 @@ import DevTeamWhiteboard from './pages/dev-team/DevTeamWhiteboard'
 import DevTeamWhiteboardDetail from './pages/dev-team/DevTeamWhiteboardDetail'
 import DevTeamSkillsMemory from './pages/dev-team/DevTeamSkillsMemory'
 import DevTeamAgentChat from './pages/dev-team/DevTeamAgentChat'
+import DevTeamBetaFeedback from './pages/dev-team/DevTeamBetaFeedback'
 import DevTeamFeatureIdeas from './pages/dev-team/DevTeamFeatureIdeas'
 // CSC Services LABOS-KEC — Wave B operator admin shell
 import CscLayout from './pages/csc/CscLayout'
@@ -595,6 +596,7 @@ export default function App() {
               <Route path="whiteboard/:slug" element={<DevTeamWhiteboardDetail />} />
               <Route path="skills" element={<DevTeamSkillsMemory />} />
               <Route path="agent-chat" element={<DevTeamAgentChat />} />
+              <Route path="beta-feedback" element={<DevTeamBetaFeedback />} />
             </Route>
             {/* CSC Services LABOS-KEC — Wave B */}
             <Route path="csc/*" element={<Navigate to="/crm/88888888-0002-0000-0000-000000000001/dashboard" replace />} />

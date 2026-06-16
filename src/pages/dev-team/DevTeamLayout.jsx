@@ -9,6 +9,7 @@ const TABS = [
   { to: '/admin/dev-team/whiteboard', label: 'Whiteboard' },
   { to: '/admin/dev-team/skills',   label: 'Skills & Memory' },
   { to: '/admin/dev-team/agent-chat', label: 'Agent Chat' },
+  { to: '/admin/dev-team/beta-feedback', label: 'Beta Feedback' },
 ]
 
 export default function DevTeamLayout() {
