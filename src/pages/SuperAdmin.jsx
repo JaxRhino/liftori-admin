@@ -26,6 +26,7 @@ import {
   Megaphone
 } from 'lucide-react';
 import AnnouncementCenter from '../components/AnnouncementCenter';
+import BoloGoMetrics from '../components/BoloGoMetrics';
 
 export default function SuperAdmin() {
   const navigate = useNavigate();
@@ -375,6 +376,11 @@ export default function SuperAdmin() {
         <MetricCard icon={Calendar} label="Appointments" value={stats.totalAppointments} sub={`${stats.scheduledAppts} scheduled`} color="purple" />
         <MetricCard icon={Star} label="Avg Score" value={stats.avgScore} sub={`${stats.totalScorecards} reviewed`} color={parseFloat(stats.avgScore) >= 7 ? 'green' : 'orange'} />
         <MetricCard icon={AlertTriangle} label="Flagged" value={stats.flaggedCount} sub="calls under 5/10" color={stats.flaggedCount > 0 ? 'red' : 'green'} />
+      </div>
+
+      {/* BOLO GO - app + beta tester metrics */}
+      <div className="border-t border-slate-800 pt-6">
+        <BoloGoMetrics />
       </div>
 
       {/* ═════════════════════════════════════════════════════ */}
