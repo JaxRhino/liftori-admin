@@ -29,6 +29,7 @@ import Customers from './pages/Customers'
 import CustomerDetail from './pages/CustomerDetail'
 import ConvertSignup from './pages/ConvertSignup'
 import Platforms from './pages/Platforms'
+import PlatformFees from './pages/PlatformFees'
 import PlatformDetail from './pages/PlatformDetail'
 import RallyChat from './pages/RallyChat'
 import Rally from './pages/Rally'
@@ -456,6 +457,7 @@ export default function App() {
             <Route path="customers/convert/:signupId" element={<ConvertSignup />} />
             <Route path="platforms" element={<Platforms />} />
             <Route path="platforms/:id" element={<PlatformDetail />} />
+            <Route path="platform-fees" element={<PlatformFees />} />
             <Route path="lead-hunter" element={<LeadHunterDashboard />} />
             <Route path="lead-hunter/search" element={<LeadHunterSearch />} />
             <Route path="lead-hunter/company/:id" element={<LeadHunterCompany />} />
