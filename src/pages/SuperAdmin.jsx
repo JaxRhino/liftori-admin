@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import AnnouncementCenter from '../components/AnnouncementCenter';
 import BoloGoMetrics from '../components/BoloGoMetrics';
+import PlatformMetrics from '../components/PlatformMetrics';
 
 export default function SuperAdmin() {
   const navigate = useNavigate();
@@ -380,6 +381,8 @@ export default function SuperAdmin() {
 
       {/* BOLO GO - app + beta tester metrics */}
       <div className="border-t border-slate-800 pt-6">
+        <PlatformMetrics />
+
         <BoloGoMetrics />
       </div>
 
