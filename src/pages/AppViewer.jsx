@@ -88,6 +88,25 @@ const APPS = {
       { key: 'development', label: 'Development', description: 'Dev client w/ Metro bundler', tint: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
     ],
   },
+  'liftori-hood': {
+    slug: 'liftori-hood',
+    name: 'Liftori-Hood',
+    tagline: 'KEC field-technician app (CSC Field) — Expo + React Native',
+    status: 'live',
+    note: 'Wave 0 scaffold — web preview only; native build pending.',
+    previewUrl: import.meta.env.VITE_LIFTORI_HOOD_PREVIEW_URL || 'https://hood.liftori.ai',
+    eas: {
+      projectId: '',
+      account: 'rhinomarch',
+      expoSlug: 'liftori-hood',
+    },
+    repo: { org: 'JaxRhino', name: 'liftori-hood', branch: 'main' },
+    channels: [
+      { key: 'preview', label: 'Preview', description: 'Sideloaded testers — Ryan + Mike + crew', tint: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20' },
+      { key: 'production', label: 'Production', description: 'Live resellers — Play Store build', tint: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+      { key: 'development', label: 'Development', description: 'Dev client w/ Metro bundler', tint: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    ],
+  },
 }
 
 const DEVICES = [
