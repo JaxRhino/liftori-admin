@@ -230,7 +230,7 @@ export default function CrmPipeline() {
             )}
             <button onClick={() => setViewMode('kanban')} className={`p-2 rounded transition ${viewMode === 'kanban' ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400 hover:text-white'}`}><LayoutGrid size={20} /></button>
             <button onClick={() => setViewMode('table')} className={`p-2 rounded transition ${viewMode === 'table' ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400 hover:text-white'}`}><Table2 size={20} /></button>
-            <Button onClick={handleNewDeal} className="bg-brand-blue hover:bg-brand-blue/90 text-white flex items-center gap-2"><Plus size={18} /> New Project</Button>
+            <Button onClick={handleNewDeal} className="bg-brand-blue hover:bg-brand-blue/90 text-white flex items-center gap-2"><Plus size={18} /> New Deal</Button>
           </div>
         </div>
 

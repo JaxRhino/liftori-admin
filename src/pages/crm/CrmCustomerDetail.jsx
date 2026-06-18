@@ -380,7 +380,7 @@ export default function CrmCustomerDetail() {
 function RecordDetail({ detail, agForm, setAgForm, onSaveAgreement, onOpenDoc, onClose, saving }) {
   const { type, record } = detail;
   const r = record || {};
-  const titleMap = { project: 'Project', job: 'Work Order', invoice: 'Invoice', agreement: 'Agreement', document: 'Document', photo: 'Photo' };
+  const titleMap = { project: 'Project', job: 'Job', invoice: 'Invoice', agreement: 'Agreement', document: 'Document', photo: 'Photo' };
   const cityState = [r.job_city || r.city, r.job_state || r.state].filter(Boolean).join(', ');
   const pairsByType = {
     project: [['Title', r.title], ['Type', r.project_type], ['Status', r.status], ['Priority', r.priority], ['Location', cityState], ['Estimated Value', money(r.estimated_value)], ['Actual Cost', money(r.actual_cost)], ['Completion', (r.completion_percentage || 0) + '%'], ['Scheduled', date(r.scheduled_start) + ' - ' + date(r.scheduled_end)], ['Description', r.description], ['Notes', r.notes]],

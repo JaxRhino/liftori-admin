@@ -358,7 +358,7 @@ export default function CrmDashboard() {
   // ---- recent leads (top 5) ----
   const recentLeads = useMemo(() => leads.slice(0, 5), [leads])
 
-  // ---- top 5 work orders ----
+  // ---- top 5 jobs ----
   const topWO = useMemo(() => workOrders.slice(0, 5), [workOrders])
 
   // ---- top 8 schedule ----
@@ -394,7 +394,7 @@ export default function CrmDashboard() {
           <StatCard label="Jobs Today" value={stats.jobsToday} accent="text-brand-cyan" />
         )}
         {loading.workOrders ? <StatSkeleton /> : (
-          <StatCard label="Open Work Orders" value={stats.openWO} accent="text-brand-blue" />
+          <StatCard label="Open Jobs" value={stats.openWO} accent="text-brand-blue" />
         )}
         {loading.invoices ? <StatSkeleton /> : (
           <StatCard
@@ -506,7 +506,7 @@ export default function CrmDashboard() {
         </div>
       </div>
 
-      {/* ===== bottom: recent leads + work orders + AR aging ===== */}
+      {/* ===== bottom: recent leads + jobs + AR aging ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Recent Leads */}
         <Section
@@ -549,9 +549,9 @@ export default function CrmDashboard() {
           )}
         </Section>
 
-        {/* Open Work Orders */}
+        {/* Open Jobs */}
         <Section
-          title="Open Work Orders"
+          title="Open Jobs"
           right={
             <Link to={`${linkBase}/operations/work-orders`} className="text-xs text-brand-cyan hover:underline">
               View all
@@ -559,11 +559,11 @@ export default function CrmDashboard() {
           }
         >
           {loading.workOrders ? (
-            <div className="p-6 text-sm text-gray-500">Loading work orders...</div>
+            <div className="p-6 text-sm text-gray-500">Loading jobs...</div>
           ) : topWO.length === 0 ? (
             <EmptyState
-              title="No open work orders"
-              description="Open work orders show up here for quick triage."
+              title="No open jobs"
+              description="Open jobs show up here for quick triage."
             />
           ) : (
             <ul className="divide-y divide-navy-700/50">

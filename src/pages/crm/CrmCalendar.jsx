@@ -848,7 +848,7 @@ function NewEventModal({ open, onClose, client, prefill, onSaved }) {
             options={OPS_EVENT_TYPES.map((t) => ({ value: t, label: t }))}
           />
           <Input label="Address" value={form.address} onChange={(v) => setForm({ ...form, address: v })} placeholder="123 Main St" />
-          <Input label="Work Order ID (optional)" value={form.work_order_id} onChange={(v) => setForm({ ...form, work_order_id: v })} placeholder="uuid" />
+          <Input label="Job ID (optional)" value={form.work_order_id} onChange={(v) => setForm({ ...form, work_order_id: v })} placeholder="uuid" />
           <Input label="Notes" rows={3} value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} />
         </>
       )}
@@ -1023,7 +1023,7 @@ function EventDrawer({ ev, onClose, client, onChanged, onOpenWorkOrder }) {
               onClick={() => onOpenWorkOrder(form.work_order_id)}
               className="mt-3 w-full text-sm bg-navy-900/60 border border-navy-700/60 hover:border-brand-cyan/60 text-brand-cyan rounded-lg px-3 py-2"
             >
-              Open Work Order
+              Open Job
             </button>
           )}
         </>
