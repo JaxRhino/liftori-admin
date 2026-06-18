@@ -5,7 +5,7 @@ import { useAuth } from '../lib/AuthContext'
 import { useVideoCallContext } from '../contexts/VideoCallContext'
 import { toast } from 'sonner'
 
-export default function NotificationBell() {
+export default function NotificationBell({ placement = 'auto' }) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { triggerIncomingCall } = useVideoCallContext()
@@ -255,7 +255,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-navy-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div className={`absolute w-80 max-w-[calc(100vw-1.5rem)] bg-navy-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden ${placement === 'sidebar' ? 'bottom-full left-0 mb-2' : 'right-0 top-full mt-2'}`}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
             <h3 className="text-sm font-semibold text-white">Notifications</h3>
@@ -293,21 +293,21 @@ export default function NotificationBell() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className={`text-sm font-medium truncate ${!notif.read ? 'text-white' : 'text-gray-400'}`}>
-                          {notif.title}
-                        </p>
-                        {!notif.read && (
-                          <span className="w-2 h-2 bg-sky-500 rounded-full flex-shrink-0" />
-                        )}
-                      </div>
-                      {notif.body && (
-                        <p className="text-xs text-gray-500 mt-0.5 truncate">{notif.body}</p>
+                        {notif.title}
+                      </p>
+                      {!notif.read && (
+                        <span className="w-2 h-2 bg-sky-500 rounded-full flex-shrink-0" />
                       )}
-                      <p className="text-xs text-gray-600 mt-1">{timeAgo(notif.created_at)}</p>
                     </div>
+                    {notif.body && (
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">{notif.body}</p>
+                    )}
+                    <p className="text-xs text-gray-600 mt-1">{timeAgo(notif.created_at)}</p>
                   </div>
-                </button>
-              ))
-            )}
+                </div>
+              </button>
+            ))
+          )}
           </div>
         </div>
       )}
