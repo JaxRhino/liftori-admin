@@ -6,7 +6,9 @@ import { toast } from 'sonner'
 const LABS = [
   { value: 'ryan', label: "Ryan's Lab", blurb: 'Your active build bench' },
   { value: 'mike', label: "Mike's Lab", blurb: 'Mike + his agent' },
-  { value: 'night', label: 'Night Builder Lab', blurb: 'Queued for autonomous overnight builds' },
+  { value: 'bug_agent', label: 'Bug Agent', blurb: 'Auto - fixes bugs nightly' },
+  { value: 'update_agent', label: 'Update Agent', blurb: 'Auto - features & integrations' },
+  { value: 'build_agent', label: 'Build Agent', blurb: 'Auto - full builds (spec-gated)' },
 ]
 const LAB_LABEL = Object.fromEntries(LABS.map(l => [l.value, l.label]))
 
@@ -101,7 +103,8 @@ export default function WorkQueue() {
 
   // Lab counts (across all, ignoring the secondary filters)
   const labCounts = useMemo(() => {
-    const c = { all: items.length, ryan: 0, mike: 0, night: 0 }
+    const c = { all: items.length }
+    for (const l of LABS) c[l.value] = 0
     for (const it of items) c[it.lab || 'ryan'] = (c[it.lab || 'ryan'] || 0) + 1
     return c
   }, [items])
@@ -127,10 +130,36 @@ export default function WorkQueue() {
     }
   }, [items, lab])
 
+  function newDraft() {
+    return {
+      title: '', summary: '', build_type: '', lab: (lab !== 'all' ? lab : 'ryan'),
+      type: 'feature', priority: 'medium', status: 'open', page: '',
+      description: '', goals: '', scope_detail: '', steps_to_reproduce: '',
+      plan_waves: '', design_notes: '', references_links: '', tech_notes: '',
+      acceptance_criteria: '', build_notes: '', created_at: new Date().toISOString(),
+      _isNew: true,
+    }
+  }
+
   async function saveItem(updated, prev) {
     try {
       const patch = {}
       for (const f of SCOPE_FIELDS) patch[f] = updated[f] ?? null
+
+      // Create mode
+      if (!updated.id) {
+        if (!(updated.title || '').trim()) { toast.error('Give the Build Task a title first'); return }
+        patch.reported_by = user.id
+        patch.reporter_name = profile?.full_name || user?.email || 'Unknown'
+        patch.reporter_email = user?.email
+        const { data, error } = await supabase.from('work_queue').insert(patch).select().single()
+        if (error) throw error
+        setItems(list => [data, ...list])
+        toast.success('Build Task created')
+        setSelectedItem(null)
+        return
+      }
+
       patch.updated_at = new Date().toISOString()
       if ((updated.status === 'resolved' || updated.status === 'closed') && !prev.resolved_at) {
         patch.resolved_at = new Date().toISOString()
@@ -161,14 +190,37 @@ export default function WorkQueue() {
     }
   }
 
+  async function assignLab(e, item, newLab) {
+    e.stopPropagation()
+    if (newLab === (item.lab || 'ryan')) return
+    try {
+      const { error } = await supabase
+        .from('work_queue')
+        .update({ lab: newLab, updated_at: new Date().toISOString() })
+        .eq('id', item.id)
+      if (error) throw error
+      setItems(list => list.map(i => (i.id === item.id ? { ...i, lab: newLab } : i)))
+      toast.success(`Moved to ${LAB_LABEL[newLab]}`)
+    } catch (err) {
+      console.error('Error assigning lab:', err)
+      toast.error('Failed to move')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-navy-950 p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-white">Build Queue</h1>
-          <p className="text-gray-500 text-sm mt-1">Every Build Task across the labs — fixes, features, and full builds.</p>
+          <p className="text-gray-500 text-sm mt-1">Every Build Task across the labs - fixes, features, and full builds.</p>
         </div>
+        <button
+          onClick={() => setSelectedItem(newDraft())}
+          className="px-4 py-2 rounded-lg text-sm font-semibold bg-sky-500 text-white hover:bg-sky-400 transition-colors"
+        >
+          + New Build Task
+        </button>
       </div>
 
       {/* Lab Tabs */}
@@ -267,40 +319,51 @@ export default function WorkQueue() {
             <p className="text-gray-600 text-sm mt-1">Reports from the header land in Ryan's Lab. Move them to a lab to organize.</p>
           </div>
         ) : visible.map(item => (
-          <button
+          <div
             key={item.id}
+            role="button"
+            tabIndex={0}
             onClick={() => setSelectedItem(item)}
-            className="w-full text-left p-4 rounded-xl border bg-navy-800/50 border-navy-700/50 transition-all hover:border-navy-600"
+            onKeyDown={e => { if (e.key === 'Enter') setSelectedItem(item) }}
+            className="w-full text-left p-4 rounded-xl border bg-navy-800/50 border-navy-700/50 transition-all hover:border-navy-600 cursor-pointer flex items-center gap-4"
           >
-            <div className="flex items-start gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <h3 className="text-sm font-medium text-white truncate">{item.title}</h3>
-                  {item.build_type && (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-navy-700 text-gray-300 border border-navy-600 whitespace-nowrap">
-                      {BUILD_TYPE_LABEL[item.build_type] || item.build_type}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className={`px-2 py-0.5 rounded-full border ${CATEGORY_BADGE[item.type] || 'bg-gray-500/15 text-gray-400 border-gray-500/30'}`}>
-                    {CATEGORY_OPTIONS.find(c => c.value === item.type)?.label || item.type}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h3 className="text-sm font-medium text-white truncate">{item.title}</h3>
+                {item.build_type && (
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-navy-700 text-gray-300 border border-navy-600 whitespace-nowrap">
+                    {BUILD_TYPE_LABEL[item.build_type] || item.build_type}
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full border ${PRIORITY_CONFIG[item.priority]?.color || 'bg-gray-500/20 text-gray-400'}`}>
-                    {PRIORITY_CONFIG[item.priority]?.label || item.priority}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full ${STATUS_OPTIONS.find(s => s.value === item.status)?.color || 'bg-gray-500'} text-white`}>
-                    {STATUS_LABEL[item.status] || item.status}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-navy-700/60 text-gray-400 border border-navy-600">
-                    {LAB_LABEL[item.lab || 'ryan']}
-                  </span>
-                  {item.page && <span className="text-gray-500">{item.page}</span>}
-                  <span className="text-gray-600 ml-auto">{item.reporter_name} · {timeAgo(item.created_at)}</span>
-                </div>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className={`px-2 py-0.5 rounded-full border ${CATEGORY_BADGE[item.type] || 'bg-gray-500/15 text-gray-400 border-gray-500/30'}`}>
+                  {CATEGORY_OPTIONS.find(c => c.value === item.type)?.label || item.type}
+                </span>
+                <span className={`px-2 py-0.5 rounded-full border ${PRIORITY_CONFIG[item.priority]?.color || 'bg-gray-500/20 text-gray-400'}`}>
+                  {PRIORITY_CONFIG[item.priority]?.label || item.priority}
+                </span>
+                <span className={`px-2 py-0.5 rounded-full ${STATUS_OPTIONS.find(s => s.value === item.status)?.color || 'bg-gray-500'} text-white`}>
+                  {STATUS_LABEL[item.status] || item.status}
+                </span>
+                {item.page && <span className="text-gray-500">{item.page}</span>}
+                <span className="text-gray-600">{item.reporter_name} · {timeAgo(item.created_at)}</span>
               </div>
             </div>
-          </button>
+            {/* Inline lab assign */}
+            <div className="shrink-0 flex flex-col items-end gap-1" onClick={e => e.stopPropagation()}>
+              <span className="text-[10px] uppercase tracking-wider text-gray-600">Assign to</span>
+              <select
+                value={item.lab || 'ryan'}
+                onClick={e => e.stopPropagation()}
+                onChange={e => assignLab(e, item, e.target.value)}
+                title="Assign this Build Task to a lab"
+                className="bg-navy-900 border border-navy-600 rounded-lg px-2 py-1.5 text-xs text-gray-200 cursor-pointer focus:outline-none focus:border-sky-500/60 hover:border-navy-500"
+              >
+                {LABS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+              </select>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -346,6 +409,7 @@ function BuildTaskWindow({ item, onClose, onSave }) {
   const [tab, setTab] = useState('overview')
   const [form, setForm] = useState(() => ({ ...item }))
   const [dirty, setDirty] = useState(false)
+  const isNew = !item.id
   const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setDirty(true) }
 
   return (
@@ -357,7 +421,7 @@ function BuildTaskWindow({ item, onClose, onSave }) {
         <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-navy-700/60">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-400">Build Task</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-400">{isNew ? 'New Build Task' : 'Build Task'}</span>
               <span className="px-2 py-0.5 rounded-md text-[10px] bg-navy-700 text-gray-300 border border-navy-600">
                 {LAB_LABEL[form.lab || 'ryan']}
               </span>
@@ -377,12 +441,12 @@ function BuildTaskWindow({ item, onClose, onSave }) {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => onSave(form, item)}
-              disabled={!dirty}
+              disabled={!isNew && !dirty}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                dirty ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-navy-700 text-gray-500 cursor-not-allowed'
+                (isNew || dirty) ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-navy-700 text-gray-500 cursor-not-allowed'
               }`}
             >
-              {dirty ? 'Save' : 'Saved'}
+              {isNew ? 'Create' : (dirty ? 'Save' : 'Saved')}
             </button>
             <button onClick={onClose} className="p-2 text-gray-400 hover:text-white transition-colors">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
