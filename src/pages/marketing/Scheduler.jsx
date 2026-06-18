@@ -68,7 +68,7 @@ export default function Scheduler() {
           <h1 className="text-2xl font-bold text-white">Content Scheduler</h1>
           <p className="text-sm text-gray-400 mt-1">Calendar view of all scheduled content across channels.</p>
         </div>
-        <Link to="/marketing/content" className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm font-semibold">+ New Draft</Link>
+        <Link to="/admin/marketing/content" className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm font-semibold">+ New Draft</Link>
       </div>
 
       <div className="flex items-center gap-3">
