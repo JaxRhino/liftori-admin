@@ -408,10 +408,10 @@ export async function createScorecardSnapshot(snapshot) {
 export async function fetchTeamUsers() {
   const { data, error } = await supabase.from('profiles')
     .select('id, full_name, avatar_url, email, role')
-    .eq('role', 'admin')
+    .in('role', ['super_admin', 'admin', 'dev'])
     .order('full_name');
   if (error) handleError(error, 'fetchTeamUsers');
-  return data || [];
+  return (data || []).map((u) => ({ ...u, name: u.full_name || u.email || 'Unnamed' }));
 }
 
 // ─── LEADERSHIP DASHBOARD ───────────────────
