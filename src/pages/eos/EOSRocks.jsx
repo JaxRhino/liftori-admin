@@ -64,7 +64,7 @@ const STATUS_CONFIG = {
 function RockCard({ rock, onEdit, onDelete, compact = false }) {
   const statusConfig = STATUS_CONFIG[rock.status] || STATUS_CONFIG.not_started;
   const daysRemaining = Math.ceil(
-    (new Date(rock.quarter_end) - new Date()) / (1000 * 60 * 60 * 24)
+    (new Date(rock.quarter_end_date) - new Date()) / (1000 * 60 * 60 * 24)
   );
 
   return (
@@ -99,12 +99,12 @@ function RockCard({ rock, onEdit, onDelete, compact = false }) {
       <div className="mb-3">
         <div className="flex justify-between text-xs text-gray-400 mb-1">
           <span>Progress</span>
-          <span>{rock.progress || 0}%</span>
+          <span>{rock.progress_percentage || 0}%</span>
         </div>
         <div className="w-full bg-navy-700 rounded-full h-2">
           <div
             className="bg-brand-blue h-2 rounded-full transition-all"
-            style={{ width: `${rock.progress || 0}%` }}
+            style={{ width: `${rock.progress_percentage || 0}%` }}
           ></div>
         </div>
       </div>
@@ -358,16 +358,16 @@ function EditRockDialog({ rock, open, onOpenChange, onSubmit }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Progress: {formData.progress || 0}%
+              Progress: {formData.progress_percentage || 0}%
             </label>
             <input
               type="range"
               min="0"
               max="100"
               step="5"
-              value={formData.progress || 0}
+              value={formData.progress_percentage || 0}
               onChange={(e) =>
-                setFormData({ ...formData, progress: parseInt(e.target.value) })
+                setFormData({ ...formData, progress_percentage: parseInt(e.target.value) })
               }
               className="w-full h-2 bg-navy-700 rounded-lg appearance-none cursor-pointer"
             />
@@ -491,7 +491,9 @@ export default function EOSRocks() {
 
   const handleUpdateRock = async (rockId, formData) => {
     try {
-      const updated = await updateRock(rockId, formData);
+      // Strip joined/non-column fields (owner is a joined profile object; progress is a UI alias)
+      const { owner, progress, ...payload } = formData;
+      const updated = await updateRock(rockId, payload);
       setRocks(rocks.map((r) => (r.id === rockId ? updated : r)));
     } catch (error) {
       console.error('Failed to update rock:', error);
