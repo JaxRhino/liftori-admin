@@ -94,7 +94,7 @@ const APPS = {
     tagline: 'Roofing CRM field app — sales, jobs, estimates + sign',
     status: 'live',
     note: 'RoofX tenant on the Liftori CRM mobile shell.',
-    previewUrl: import.meta.env.VITE_ROOFX_PREVIEW_URL || 'https://roofx-app-git-main-rhino-1.vercel.app',
+    previewUrl: import.meta.env.VITE_ROOFX_PREVIEW_URL || 'https://roofx-app.liftori.ai',
     eas: {
       projectId: '',
       account: 'rhinomarch',
