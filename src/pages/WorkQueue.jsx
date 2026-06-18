@@ -421,30 +421,26 @@ const OWNER_TABS = [
 const OWNER_LABEL = { ryan: 'Ryan', mike: 'Mike' }
 
 function ScheduledCowork() {
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const [tasks, setTasks] = useState([])
   const [runs, setRuns] = useState([])
-  const [replies, setReplies] = useState([])
   const [owner, setOwner] = useState('all')
   const [loading, setLoading] = useState(true)
-  const [activeRun, setActiveRun] = useState(null)
+  const [expanded, setExpanded] = useState(null)
 
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true)
     try {
-      const [t, r, rep] = await Promise.all([
+      const [t, r] = await Promise.all([
         supabase.from('scheduled_cowork_tasks').select('*').order('owner', { ascending: true }).order('task_name', { ascending: true }),
         supabase.from('scheduled_cowork_runs').select('*').order('run_at', { ascending: false }).limit(200),
-        supabase.from('scheduled_cowork_replies').select('*').order('created_at', { ascending: true }).limit(500),
       ])
       if (t.error) throw t.error
       if (r.error) throw r.error
-      if (rep.error) throw rep.error
       setTasks(t.data || [])
       setRuns(r.data || [])
-      setReplies(rep.data || [])
     } catch (err) {
       console.error('Error loading scheduled cowork:', err)
       toast.error('Failed to load scheduled tasks')
@@ -469,28 +465,6 @@ function ScheduledCowork() {
     }
   }
 
-  async function sendReply(run, body) {
-    const text = (body || '').trim()
-    if (!text) return null
-    const row = {
-      owner: run.owner,
-      task_id: run.task_id,
-      run_id: run.id,
-      body: text,
-      author_id: user?.id || null,
-      author_name: profile?.full_name || user?.email || 'You',
-    }
-    const { data, error } = await supabase.from('scheduled_cowork_replies').insert(row).select().single()
-    if (error) {
-      console.error('Error sending reply:', error)
-      toast.error('Failed to send response')
-      return null
-    }
-    setReplies(list => [...list, data])
-    toast.success('Queued for the next run')
-    return data
-  }
-
   const fTasks = useMemo(() => tasks.filter(t => owner === 'all' || t.owner === owner), [tasks, owner])
   const fRuns = useMemo(() => runs.filter(r => owner === 'all' || r.owner === owner), [runs, owner])
 
@@ -509,11 +483,6 @@ function ScheduledCowork() {
     [fRuns]
   )
   const lastRunFor = (task) => runs.find(r => r.task_id === task.task_id && r.owner === task.owner)
-  const repliesForRun = (runId) => replies.filter(r => r.run_id === runId)
-  const pendingForTask = (ownerKey, taskId) =>
-    replies.filter(r => r.owner === ownerKey && r.task_id === taskId && !r.consumed_at).length
-
-  const activeReplies = activeRun ? repliesForRun(activeRun.id) : []
 
   return (
     <>
@@ -521,7 +490,7 @@ function ScheduledCowork() {
       <div className="flex items-start justify-between mb-5 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Scheduled Cowork Tasks</h1>
-          <p className="text-gray-500 text-sm mt-1">Every scheduled Cowork agent (yours and Mike's) and what each run reported back. Open an outcome to send a response for its next run.</p>
+          <p className="text-gray-500 text-sm mt-1">Every scheduled Cowork agent (yours and Mike's) and what each run reported back.</p>
         </div>
         <div className="flex items-center gap-3">
           {attentionCount > 0 && (
@@ -565,7 +534,6 @@ function ScheduledCowork() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
               {fTasks.map(t => {
                 const lr = lastRunFor(t)
-                const pending = pendingForTask(t.owner, t.task_id)
                 return (
                   <div key={`${t.owner}-${t.task_id}`} className="rounded-xl border border-navy-700/50 bg-navy-800/50 p-4">
                     <div className="flex items-center justify-between gap-2 mb-1">
@@ -576,7 +544,6 @@ function ScheduledCowork() {
                     <div className="flex items-center gap-3 text-[11px] text-gray-600">
                       {t.schedule && <span>⏱ {t.schedule}</span>}
                       <span className={t.enabled ? 'text-emerald-400' : 'text-gray-500'}>{t.enabled ? 'Enabled' : 'Off'}</span>
-                      {pending > 0 && <span className="text-sky-400">{pending} reply queued</span>}
                       <span className="ml-auto">{lr ? `last run ${timeAgo(lr.run_at)}` : 'no runs yet'}</span>
                     </div>
                   </div>
@@ -597,17 +564,12 @@ function ScheduledCowork() {
               {sortedRuns.map(r => {
                 const st = RUN_STATUS[r.status] || RUN_STATUS.done
                 const needsAttn = !r.acknowledged_at && (r.status === 'needs_attention' || r.status === 'blocked')
-                const rReplies = repliesForRun(r.id)
-                const pending = rReplies.filter(x => !x.consumed_at).length
+                const open = expanded === r.id
                 return (
                   <div
                     key={r.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setActiveRun(r)}
-                    onKeyDown={e => { if (e.key === 'Enter') setActiveRun(r) }}
-                    className={`w-full text-left rounded-xl border p-4 transition-all cursor-pointer ${
-                      needsAttn ? 'bg-amber-500/[0.06] border-amber-500/40 hover:border-amber-500/60' : 'bg-navy-800/50 border-navy-700/50 hover:border-navy-600'
+                    className={`rounded-xl border p-4 transition-all ${
+                      needsAttn ? 'bg-amber-500/[0.06] border-amber-500/40' : 'bg-navy-800/50 border-navy-700/50'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -620,19 +582,27 @@ function ScheduledCowork() {
                           {r.acknowledged_at && <span className="text-[10px] text-emerald-400">acknowledged</span>}
                           <span className="text-gray-600 text-[11px] ml-auto">{timeAgo(r.run_at)}</span>
                         </div>
-                        {r.summary && <p className="text-sm text-gray-300 whitespace-pre-wrap line-clamp-3">{r.summary}</p>}
+                        {r.summary && <p className="text-sm text-gray-300 whitespace-pre-wrap">{r.summary}</p>}
                         {r.needs && (
                           <div className="mt-2 rounded-lg bg-navy-900/70 border border-navy-700/60 p-2.5">
                             <p className="text-[10px] uppercase tracking-wider text-amber-400 mb-0.5">Needs you</p>
-                            <p className="text-sm text-amber-200/90 whitespace-pre-wrap line-clamp-2">{r.needs}</p>
+                            <p className="text-sm text-amber-200/90 whitespace-pre-wrap">{r.needs}</p>
                           </div>
                         )}
-                        <div className="flex items-center gap-3 mt-2 text-[11px]">
-                          <span className="text-sky-400 font-medium">Open & respond</span>
-                          {rReplies.length > 0 && (
-                            <span className="text-gray-500">{rReplies.length} response{rReplies.length === 1 ? '' : 's'}</span>
+                        {open && r.details && Object.keys(r.details).length > 0 && (
+                          <pre className="mt-2 text-[11px] text-gray-400 bg-navy-900 rounded-lg p-3 overflow-x-auto">{JSON.stringify(r.details, null, 2)}</pre>
+                        )}
+                        <div className="flex items-center gap-3 mt-2">
+                          {r.details && Object.keys(r.details).length > 0 && (
+                            <button onClick={() => setExpanded(open ? null : r.id)} className="text-[11px] text-sky-400 hover:text-sky-300">
+                              {open ? 'Hide details' : 'Details'}
+                            </button>
                           )}
-                          {pending > 0 && <span className="text-sky-400">{pending} queued for next run</span>}
+                          {!r.acknowledged_at && (
+                            <button onClick={() => acknowledge(r.id)} className="text-[11px] text-gray-400 hover:text-white">
+                              Acknowledge
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -643,134 +613,7 @@ function ScheduledCowork() {
           )}
         </>
       )}
-
-      {activeRun && (
-        <RunReplyModal
-          key={activeRun.id}
-          run={activeRun}
-          replies={activeReplies}
-          onClose={() => setActiveRun(null)}
-          onSend={sendReply}
-          onAcknowledge={acknowledge}
-        />
-      )}
     </>
-  )
-}
-
-function RunReplyModal({ run, replies, onClose, onSend, onAcknowledge }) {
-  const [body, setBody] = useState('')
-  const [sending, setSending] = useState(false)
-  const st = RUN_STATUS[run.status] || RUN_STATUS.done
-  const acked = !!run.acknowledged_at
-
-  async function handleSend() {
-    if (!body.trim() || sending) return
-    setSending(true)
-    const saved = await onSend(run, body)
-    setSending(false)
-    if (saved) setBody('')
-  }
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[88vh] bg-navy-800 border border-navy-700/60 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-
-        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-navy-700/60">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <span className={\`px-2 py-0.5 rounded-full border text-[10px] font-medium \${st.cls}\`}>{st.label}</span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] bg-navy-700 text-gray-300 border border-navy-600">{OWNER_LABEL[run.owner] || run.owner}</span>
-              <span className="text-gray-600 text-[11px]">{new Date(run.run_at).toLocaleString()}</span>
-            </div>
-            <h2 className="text-lg font-bold text-white truncate">{run.task_name || run.task_id}</h2>
-          </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-white transition-colors shrink-0">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5 bg-navy-900/40 space-y-5">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">What the run reported</p>
-            {run.summary
-              ? <p className="text-sm text-gray-200 whitespace-pre-wrap">{run.summary}</p>
-              : <p className="text-sm text-gray-600">No summary recorded.</p>}
-            {run.needs && (
-              <div className="mt-3 rounded-lg bg-navy-900/70 border border-amber-500/30 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-amber-400 mb-0.5">Needs you</p>
-                <p className="text-sm text-amber-200/90 whitespace-pre-wrap">{run.needs}</p>
-              </div>
-            )}
-            {run.details && Object.keys(run.details).length > 0 && (
-              <pre className="mt-3 text-[11px] text-gray-400 bg-navy-900 rounded-lg p-3 overflow-x-auto">{JSON.stringify(run.details, null, 2)}</pre>
-            )}
-          </div>
-
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Your responses</p>
-            {replies.length === 0 ? (
-              <p className="text-sm text-gray-600">No responses yet. Anything you send here is read at the start of this task's next scheduled run.</p>
-            ) : (
-              <div className="space-y-2">
-                {replies.map(rep => (
-                  <div key={rep.id} className="rounded-lg bg-navy-800/70 border border-navy-700/60 p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold text-gray-200">{rep.author_name || 'You'}</span>
-                      <span className="text-[10px] text-gray-600">{timeAgo(rep.created_at)}</span>
-                      <span className={\`ml-auto px-2 py-0.5 rounded-full text-[10px] font-medium border \${
-                        rep.consumed_at
-                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                          : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
-                      }\`}>
-                        {rep.consumed_at ? \`picked up \${timeAgo(rep.consumed_at)}\` : 'queued for next run'}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{rep.body}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="border-t border-navy-700/60 px-6 py-4 bg-navy-800">
-          <textarea
-            rows={3}
-            value={body}
-            onChange={e => setBody(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSend() }}
-            placeholder="Tell the agent what to do on its next run — direction, a correction, what to prioritize…"
-            className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-sky-500/60 resize-y leading-relaxed"
-          />
-          <div className="flex items-center justify-between gap-3 mt-3">
-            <p className="text-[11px] text-gray-600">Queued for the next scheduled run of this task. Cmd/Ctrl + Enter to send.</p>
-            <div className="flex items-center gap-2">
-              {!acked && (run.status === 'needs_attention' || run.status === 'blocked') && (
-                <button
-                  onClick={() => onAcknowledge(run.id)}
-                  className="px-3 py-2 rounded-lg text-sm font-medium bg-navy-700 text-gray-300 hover:text-white transition-colors"
-                >
-                  Acknowledge
-                </button>
-              )}
-              <button
-                onClick={handleSend}
-                disabled={!body.trim() || sending}
-                className={\`px-4 py-2 rounded-lg text-sm font-semibold transition-colors \${
-                  body.trim() && !sending ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-navy-700 text-gray-500 cursor-not-allowed'
-                }\`}
-              >
-                {sending ? 'Sending…' : 'Send to next run'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   )
 }
 
