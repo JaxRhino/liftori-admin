@@ -81,6 +81,7 @@ export default function WorkQueue() {
   const [lab, setLab] = useState('all')
   const [filter, setFilter] = useState({ status: '', type: '', priority: '' })
   const [selectedItem, setSelectedItem] = useState(null)
+  const [view, setView] = useState('queue')
 
   useEffect(() => { fetchItems() }, [])
 
@@ -103,15 +104,9 @@ export default function WorkQueue() {
 
   // Lab counts (across all, ignoring the secondary filters)
   const labCounts = useMemo(() => {
-    // Badges count ACTIVE work only (open + in_progress), not closed/resolved/wont_fix.
-    const c = { all: 0 }
+    const c = { all: items.length }
     for (const l of LABS) c[l.value] = 0
-    for (const it of items) {
-      if (it.status !== 'open' && it.status !== 'in_progress') continue
-      const k = it.lab || 'ryan'
-      c[k] = (c[k] || 0) + 1
-      c.all++
-    }
+    for (const it of items) c[it.lab || 'ryan'] = (c[it.lab || 'ryan'] || 0) + 1
     return c
   }, [items])
 
@@ -215,6 +210,28 @@ export default function WorkQueue() {
 
   return (
     <div className="min-h-screen bg-navy-950 p-6">
+      {/* View switcher */}
+      <div className="flex gap-1 bg-navy-800 rounded-lg p-1 mb-6 w-fit">
+        {[
+          { v: 'queue', l: 'Build Queue' },
+          { v: 'scheduled', l: 'Scheduled Cowork Tasks' },
+        ].map(t => (
+          <button
+            key={t.v}
+            onClick={() => setView(t.v)}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              view === t.v ? 'bg-sky-500 text-white' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {t.l}
+          </button>
+        ))}
+      </div>
+
+      {view === 'scheduled' && <ScheduledCowork />}
+
+      {view === 'queue' && (
+      <>
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
@@ -381,7 +398,222 @@ export default function WorkQueue() {
           onSave={saveItem}
         />
       )}
+      </>
+      )}
     </div>
+  )
+}
+
+// ============================================================
+// Scheduled Cowork Tasks — registry + funneled run outcomes
+// ============================================================
+const RUN_STATUS = {
+  needs_attention: { label: 'Needs attention', cls: 'bg-amber-500/20 text-amber-300 border-amber-500/40', dot: 'bg-amber-400' },
+  blocked: { label: 'Blocked', cls: 'bg-red-500/20 text-red-300 border-red-500/40', dot: 'bg-red-400' },
+  done: { label: 'Done', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', dot: 'bg-emerald-400' },
+  nothing_to_do: { label: 'Nothing to do', cls: 'bg-gray-500/15 text-gray-400 border-gray-500/30', dot: 'bg-gray-500' },
+}
+const OWNER_TABS = [
+  { v: 'all', l: 'All' },
+  { v: 'ryan', l: 'Ryan' },
+  { v: 'mike', l: 'Mike' },
+]
+const OWNER_LABEL = { ryan: 'Ryan', mike: 'Mike' }
+
+function ScheduledCowork() {
+  const { user } = useAuth()
+  const [tasks, setTasks] = useState([])
+  const [runs, setRuns] = useState([])
+  const [owner, setOwner] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(null)
+
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    setLoading(true)
+    try {
+      const [t, r] = await Promise.all([
+        supabase.from('scheduled_cowork_tasks').select('*').order('owner', { ascending: true }).order('task_name', { ascending: true }),
+        supabase.from('scheduled_cowork_runs').select('*').order('run_at', { ascending: false }).limit(200),
+      ])
+      if (t.error) throw t.error
+      if (r.error) throw r.error
+      setTasks(t.data || [])
+      setRuns(r.data || [])
+    } catch (err) {
+      console.error('Error loading scheduled cowork:', err)
+      toast.error('Failed to load scheduled tasks')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function acknowledge(id) {
+    try {
+      const stamp = new Date().toISOString()
+      const { error } = await supabase
+        .from('scheduled_cowork_runs')
+        .update({ acknowledged_at: stamp, acknowledged_by: user?.id || null })
+        .eq('id', id)
+      if (error) throw error
+      setRuns(list => list.map(r => (r.id === id ? { ...r, acknowledged_at: stamp } : r)))
+      toast.success('Acknowledged')
+    } catch (err) {
+      console.error('Error acknowledging run:', err)
+      toast.error('Failed to acknowledge')
+    }
+  }
+
+  const fTasks = useMemo(() => tasks.filter(t => owner === 'all' || t.owner === owner), [tasks, owner])
+  const fRuns = useMemo(() => runs.filter(r => owner === 'all' || r.owner === owner), [runs, owner])
+
+  const sortedRuns = useMemo(() => {
+    const needs = r => !r.acknowledged_at && (r.status === 'needs_attention' || r.status === 'blocked')
+    return [...fRuns].sort((a, b) => {
+      const an = needs(a) ? 0 : 1
+      const bn = needs(b) ? 0 : 1
+      if (an !== bn) return an - bn
+      return new Date(b.run_at).getTime() - new Date(a.run_at).getTime()
+    })
+  }, [fRuns])
+
+  const attentionCount = useMemo(
+    () => fRuns.filter(r => !r.acknowledged_at && (r.status === 'needs_attention' || r.status === 'blocked')).length,
+    [fRuns]
+  )
+  const lastRunFor = (task) => runs.find(r => r.task_id === task.task_id && r.owner === task.owner)
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-5 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Scheduled Cowork Tasks</h1>
+          <p className="text-gray-500 text-sm mt-1">Every scheduled Cowork agent (yours and Mike's) and what each run reported back.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {attentionCount > 0 && (
+            <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              {attentionCount} need{attentionCount === 1 ? 's' : ''} your attention
+            </span>
+          )}
+          <button onClick={load} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-800 text-gray-300 border border-navy-700 hover:border-navy-600 transition-colors">
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Owner filter */}
+      <div className="flex gap-1 bg-navy-800 rounded-lg p-1 mb-6 w-fit">
+        {OWNER_TABS.map(o => (
+          <button
+            key={o.v}
+            onClick={() => setOwner(o.v)}
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              owner === o.v ? 'bg-sky-500 text-white' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {o.l}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-gray-500">Loading…</div>
+      ) : (
+        <>
+          {/* Registry */}
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Scheduled tasks</h2>
+          {fTasks.length === 0 ? (
+            <div className="text-center py-8 bg-navy-800/40 border border-navy-700/50 rounded-xl mb-8">
+              <p className="text-gray-500 text-sm">No scheduled tasks registered{owner !== 'all' ? ` for ${OWNER_LABEL[owner]}` : ''}.</p>
+              <p className="text-gray-600 text-xs mt-1">Mike: have your agent register its scheduled tasks here.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
+              {fTasks.map(t => {
+                const lr = lastRunFor(t)
+                return (
+                  <div key={`${t.owner}-${t.task_id}`} className="rounded-xl border border-navy-700/50 bg-navy-800/50 p-4">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-sm font-semibold text-white truncate">{t.task_name || t.task_id}</span>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-navy-700 text-gray-300 border border-navy-600 whitespace-nowrap">{OWNER_LABEL[t.owner] || t.owner}</span>
+                    </div>
+                    {t.description && <p className="text-xs text-gray-500 mb-2 line-clamp-2">{t.description}</p>}
+                    <div className="flex items-center gap-3 text-[11px] text-gray-600">
+                      {t.schedule && <span>⏱ {t.schedule}</span>}
+                      <span className={t.enabled ? 'text-emerald-400' : 'text-gray-500'}>{t.enabled ? 'Enabled' : 'Off'}</span>
+                      <span className="ml-auto">{lr ? `last run ${timeAgo(lr.run_at)}` : 'no runs yet'}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Outcomes */}
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Scheduled outcomes</h2>
+          {sortedRuns.length === 0 ? (
+            <div className="text-center py-10 bg-navy-800/40 border border-navy-700/50 rounded-xl">
+              <p className="text-gray-500 text-sm">No outcomes reported yet.</p>
+              <p className="text-gray-600 text-xs mt-1">Each scheduled run funnels its summary and any needs here.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sortedRuns.map(r => {
+                const st = RUN_STATUS[r.status] || RUN_STATUS.done
+                const needsAttn = !r.acknowledged_at && (r.status === 'needs_attention' || r.status === 'blocked')
+                const open = expanded === r.id
+                return (
+                  <div
+                    key={r.id}
+                    className={`rounded-xl border p-4 transition-all ${
+                      needsAttn ? 'bg-amber-500/[0.06] border-amber-500/40' : 'bg-navy-800/50 border-navy-700/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${st.dot}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className="text-sm font-medium text-white">{r.task_name || r.task_id}</span>
+                          <span className={`px-2 py-0.5 rounded-full border text-[10px] font-medium ${st.cls}`}>{st.label}</span>
+                          <span className="px-2 py-0.5 rounded-md text-[10px] bg-navy-700 text-gray-300 border border-navy-600">{OWNER_LABEL[r.owner] || r.owner}</span>
+                          {r.acknowledged_at && <span className="text-[10px] text-emerald-400">acknowledged</span>}
+                          <span className="text-gray-600 text-[11px] ml-auto">{timeAgo(r.run_at)}</span>
+                        </div>
+                        {r.summary && <p className="text-sm text-gray-300 whitespace-pre-wrap">{r.summary}</p>}
+                        {r.needs && (
+                          <div className="mt-2 rounded-lg bg-navy-900/70 border border-navy-700/60 p-2.5">
+                            <p className="text-[10px] uppercase tracking-wider text-amber-400 mb-0.5">Needs you</p>
+                            <p className="text-sm text-amber-200/90 whitespace-pre-wrap">{r.needs}</p>
+                          </div>
+                        )}
+                        {open && r.details && Object.keys(r.details).length > 0 && (
+                          <pre className="mt-2 text-[11px] text-gray-400 bg-navy-900 rounded-lg p-3 overflow-x-auto">{JSON.stringify(r.details, null, 2)}</pre>
+                        )}
+                        <div className="flex items-center gap-3 mt-2">
+                          {r.details && Object.keys(r.details).length > 0 && (
+                            <button onClick={() => setExpanded(open ? null : r.id)} className="text-[11px] text-sky-400 hover:text-sky-300">
+                              {open ? 'Hide details' : 'Details'}
+                            </button>
+                          )}
+                          {!r.acknowledged_at && (
+                            <button onClick={() => acknowledge(r.id)} className="text-[11px] text-gray-400 hover:text-white">
+                              Acknowledge
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </>
   )
 }
 
