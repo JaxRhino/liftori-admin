@@ -88,6 +88,25 @@ const APPS = {
       { key: 'development', label: 'Development', description: 'Dev client w/ Metro bundler', tint: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
     ],
   },
+  'roofx': {
+    slug: 'roofx',
+    name: 'RoofX',
+    tagline: 'Roofing CRM field app — sales, jobs, estimates + sign',
+    status: 'live',
+    note: 'RoofX tenant on the Liftori CRM mobile shell.',
+    previewUrl: import.meta.env.VITE_ROOFX_PREVIEW_URL || 'https://roofx-app-git-main-rhino-1.vercel.app',
+    eas: {
+      projectId: '',
+      account: 'rhinomarch',
+      expoSlug: 'liftori-crm-mobile',
+    },
+    repo: { org: 'JaxRhino', name: 'liftori-crm-mobile', branch: 'main' },
+    channels: [
+      { key: 'preview', label: 'Preview', description: 'Sideloaded testers — Ryan + Mike + crew', tint: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20' },
+      { key: 'production', label: 'Production', description: 'Live roofing crews — Play Store build', tint: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+      { key: 'development', label: 'Development', description: 'Dev client w/ Metro bundler', tint: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    ],
+  },
   'liftori-hood': {
     slug: 'liftori-hood',
     name: 'Liftori-Hood',
