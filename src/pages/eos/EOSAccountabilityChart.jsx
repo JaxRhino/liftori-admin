@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -49,6 +49,8 @@ export default function EOSAccountabilityChart() {
   });
 
   const [newRoleInput, setNewRoleInput] = useState('');
+  const [draggedId, setDraggedId] = useState(null);
+  const [dropTargetId, setDropTargetId] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -168,6 +170,49 @@ export default function EOSAccountabilityChart() {
     }
   };
 
+  const persistSeats = async (newSeats) => {
+    const updatedChart = chartRecord
+      ? { ...chartRecord, seats: newSeats }
+      : { seats: newSeats, is_active: true, version: 1, org_id: currentOrg?.id };
+    const savedChart = await saveAccountabilityChart(updatedChart);
+    if (savedChart) setChartRecord(savedChart);
+    setSeats(newSeats);
+  };
+
+  // Is candidateId inside the subtree rooted at ancestorId? (prevents cycles)
+  const isDescendant = (ancestorId, candidateId) => {
+    let current = seats.find((s) => s.id === candidateId);
+    const guard = new Set();
+    while (current && current.reports_to) {
+      if (guard.has(current.id)) break;
+      guard.add(current.id);
+      if (current.reports_to === ancestorId) return true;
+      current = seats.find((s) => s.id === current.reports_to);
+    }
+    return false;
+  };
+
+  const handleReparent = async (dragId, newParentId) => {
+    if (!dragId || dragId === newParentId) return;
+    const dragged = seats.find((s) => s.id === dragId);
+    if (!dragged) return;
+    if ((dragged.reports_to || null) === (newParentId || null)) return;
+    if (newParentId && isDescendant(dragId, newParentId)) {
+      toast.error("Can't move a seat under one of its own reports");
+      return;
+    }
+    const newSeats = seats.map((s) =>
+      s.id === dragId ? { ...s, reports_to: newParentId || null } : s
+    );
+    try {
+      await persistSeats(newSeats);
+      toast.success('Seat moved');
+    } catch (error) {
+      console.error('Error moving seat:', error);
+      toast.error('Failed to move seat');
+    }
+  };
+
   const getPersonName = (personId) => {
     if (!personId) return 'Vacant';
     const user = teamUsers.find((u) => u.id === personId);
@@ -202,8 +247,46 @@ export default function EOSAccountabilityChart() {
 
     return (
       <div key={seat.id} style={{ marginLeft: `${level * 24}px` }} className="mb-4">
-        <Card className="bg-navy-900 border-navy-800 p-5">
+        <Card
+          onDragOver={(e) => {
+            if (!draggedId) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (dropTargetId !== seat.id) setDropTargetId(seat.id);
+          }}
+          onDragLeave={() => {
+            if (dropTargetId === seat.id) setDropTargetId(null);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const id = draggedId;
+            setDropTargetId(null);
+            setDraggedId(null);
+            handleReparent(id, seat.id);
+          }}
+          className={`bg-navy-900 border-navy-800 p-5 transition-all ${
+            dropTargetId === seat.id && draggedId && draggedId !== seat.id
+              ? 'ring-2 ring-blue-500'
+              : ''
+          } ${draggedId === seat.id ? 'opacity-50' : ''}`}
+        >
           <div className="flex items-start justify-between mb-4">
+            <div
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', seat.id);
+                setDraggedId(seat.id);
+              }}
+              onDragEnd={() => {
+                setDraggedId(null);
+                setDropTargetId(null);
+              }}
+              title="Drag to move this seat under another"
+              className="mr-3 mt-1 cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300"
+            >
+              <GripVertical className="w-4 h-4" />
+            </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-white">{seat.title}</h3>
               <Badge className={`${DEPARTMENT_COLORS[seat.department] || DEPARTMENT_COLORS.admin} text-white mt-2`}>
@@ -354,6 +437,30 @@ export default function EOSAccountabilityChart() {
           </Card>
         ) : (
           <div className="space-y-4">
+            <div
+              onDragOver={(e) => {
+                if (!draggedId) return;
+                e.preventDefault();
+                if (dropTargetId !== '__top__') setDropTargetId('__top__');
+              }}
+              onDragLeave={() => {
+                if (dropTargetId === '__top__') setDropTargetId(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const id = draggedId;
+                setDropTargetId(null);
+                setDraggedId(null);
+                handleReparent(id, null);
+              }}
+              className={`rounded-md border border-dashed px-4 py-2 text-center text-xs transition-all ${
+                dropTargetId === '__top__'
+                  ? 'border-blue-500 bg-blue-900/10 text-blue-300'
+                  : 'border-navy-700 text-gray-500'
+              }`}
+            >
+              Drag a seat here to make it top-level
+            </div>
             {topLevelSeats.map((seat) => (
               <SeatCard key={seat.id} seat={seat} level={0} />
             ))}
