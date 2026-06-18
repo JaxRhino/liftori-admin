@@ -492,8 +492,12 @@ function BuildTaskWindow({ item, onClose, onSave }) {
                     {BUILD_TYPES.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Category">
-                  <select value={form.type || ''} onChange={e => set('type', e.target.value)} className={inputCls}>
+                <Field label="Category" hint="Tagging a Build Task as Bug routes it to the Bug Agent lab.">
+                  <select
+                    value={form.type || ''}
+                    onChange={e => { const v = e.target.value; set('type', v); if (v === 'bug') set('lab', 'bug_agent') }}
+                    className={inputCls}
+                  >
                     {CATEGORY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </Field>
