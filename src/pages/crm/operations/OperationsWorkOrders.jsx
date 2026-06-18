@@ -289,20 +289,20 @@ export default function OperationsWorkOrders() {
 
   return (
     <HubPage
-      title="Work Orders"
+      title="Jobs"
       subtitle="Schedule, dispatch, and complete every job"
       actions={
         <button
           onClick={() => setNewOpen(true)}
           className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm font-medium px-4 py-2 rounded-lg"
         >
-          + New Work Order
+          + New Job
         </button>
       }
     >
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Open Work Orders" value={stats.open} accent="text-brand-cyan" />
+        <StatCard label="Open Jobs" value={stats.open} accent="text-brand-cyan" />
         <StatCard label="Scheduled Today" value={stats.scheduledToday} accent="text-sky-300" />
         <StatCard label="In Progress" value={stats.inProg} accent="text-amber-300" />
         <StatCard label="Completed This Week" value={`${stats.completedWeekCount} / ${fmtMoney(stats.completedRevenue)}`} accent="text-emerald-400" />
@@ -335,14 +335,14 @@ export default function OperationsWorkOrders() {
       </div>
 
       {loading ? (
-        <div className="p-12 text-center text-gray-500 text-sm">Loading work orders...</div>
+        <div className="p-12 text-center text-gray-500 text-sm">Loading jobs...</div>
       ) : workOrders.length === 0 ? (
         <EmptyState
-          title="No work orders yet"
+          title="No jobs yet"
           description="Create the first job, schedule a crew, and watch it move through the pipeline."
           cta={
             <button onClick={() => setNewOpen(true)} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm font-medium px-4 py-2 rounded-lg">
-              + New Work Order
+              + New Job
             </button>
           }
         />
@@ -399,7 +399,7 @@ function KanbanView({ byStatus, onCardClick, contactName, crewById }) {
               <KanbanCard key={w.id} wo={w} onClick={() => onCardClick(w)} contactName={contactName} crewById={crewById} />
             ))}
             {(byStatus[s.key] || []).length === 0 && (
-              <div className="text-xs text-gray-600 text-center py-6">No work orders</div>
+              <div className="text-xs text-gray-600 text-center py-6">No jobs</div>
             )}
           </div>
         </div>
@@ -492,7 +492,7 @@ function TableView({ list, sortKey, sortDir, onSort, onRowClick, contactName, cr
               )
             })}
             {list.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-500">No work orders match filters.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-500">No jobs match filters.</td></tr>
             )}
           </tbody>
         </table>
@@ -549,7 +549,7 @@ function NewWorkOrderModal({ open, onClose, client, contacts, crews, onSaved }) 
       onSaved()
     } catch (e) {
       console.error('[NewWorkOrder] save', e)
-      setErr(e.message || 'Failed to create work order')
+      setErr(e.message || 'Failed to create job')
     } finally {
       setSaving(false)
     }
@@ -559,20 +559,20 @@ function NewWorkOrderModal({ open, onClose, client, contacts, crews, onSaved }) 
     <Modal
       open={open}
       onClose={() => { reset(); onClose() }}
-      title="New Work Order"
+      title="New Job"
       wide
       footer={
         <div className="flex justify-end gap-2">
           <button onClick={() => { reset(); onClose() }} className="text-gray-400 hover:text-white text-sm px-4 py-2">Cancel</button>
           <button onClick={save} disabled={saving} className="bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg">
-            {saving ? 'Saving...' : 'Create Work Order'}
+            {saving ? 'Saving...' : 'Create Job'}
           </button>
         </div>
       }
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
         <Input label="Title *" value={form.title} onChange={(v) => setForm(f => ({ ...f, title: v }))} placeholder="e.g. AC condenser replacement" />
-        <Input label="Work Order # (optional)" value={form.work_order_number} onChange={(v) => setForm(f => ({ ...f, work_order_number: v }))} placeholder="auto-generated if blank" />
+        <Input label="Job # (optional)" value={form.work_order_number} onChange={(v) => setForm(f => ({ ...f, work_order_number: v }))} placeholder="auto-generated if blank" />
         <Select
           label="Contact"
           value={form.contact_id}

@@ -308,7 +308,7 @@ export default function OperationsCrews() {
       ) : filtered.length === 0 ? (
         <EmptyState
           title={crews.length === 0 ? 'No crews yet' : 'No crews match filters'}
-          description={crews.length === 0 ? 'Create your first crew to start assigning work orders.' : 'Try clearing search or status filter.'}
+          description={crews.length === 0 ? 'Create your first crew to start assigning jobs.' : 'Try clearing search or status filter.'}
           cta={crews.length === 0 ? (
             <button onClick={() => setShowNew(true)} className="px-4 py-2 rounded-lg bg-brand-cyan text-navy-900 text-sm font-semibold hover:bg-brand-cyan/90">+ New Crew</button>
           ) : null}
@@ -749,11 +749,11 @@ function CrewDrawer({ open, crew, onClose, onSaved, client, allMembers }) {
 
         {tab === 'jobs' && (
           <div>
-            <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Recent Work Orders</div>
+            <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Recent Jobs</div>
             {loadingWO ? (
               <div className="py-8 text-center text-sm text-gray-400">Loading...</div>
             ) : workOrders.length === 0 ? (
-              <div className="py-8 text-center text-sm text-gray-400">No work orders assigned to this crew yet.</div>
+              <div className="py-8 text-center text-sm text-gray-400">No jobs assigned to this crew yet.</div>
             ) : (
               <div className="space-y-2">
                 {workOrders.map(w => (

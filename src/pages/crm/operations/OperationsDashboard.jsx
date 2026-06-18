@@ -92,7 +92,7 @@ export default function OperationsDashboard() {
           </>
         ) : (
           <>
-            <BigStat icon={<Wrench className="w-5 h-5" />} label="Open Work Orders" value={opsStats.openCount} tone={opsStats.openCount > 0 ? 'blue' : 'gray'} link="../work-orders" />
+            <BigStat icon={<Wrench className="w-5 h-5" />} label="Open Jobs" value={opsStats.openCount} tone={opsStats.openCount > 0 ? 'blue' : 'gray'} link="../work-orders" />
             <BigStat icon={<CalendarDays className="w-5 h-5" />} label="Scheduled This Week" value={opsStats.scheduledThisWeek} tone={opsStats.scheduledThisWeek > 0 ? 'amber' : 'emerald'} link="../schedule" />
             <BigStat icon={<DollarSign className="w-5 h-5" />} label="Open Job Value" value={`$${opsStats.openValue.toFixed(0)}`} tone="emerald" hint={`${opsStats.openCount} open`} />
             <BigStat icon={<Users className="w-5 h-5" />} label="Active Crews" value={opsStats.activeCrews} tone="gray" link="../crews" />
@@ -117,7 +117,7 @@ export default function OperationsDashboard() {
               </>
             ) : (
               <>
-                <Link to="../work-orders" className="block w-full text-left px-4 py-3 bg-brand-blue text-white rounded-lg text-sm font-medium hover:bg-brand-blue/90 transition-colors"><Plus className="w-4 h-4 inline mr-2" />New Work Order</Link>
+                <Link to="../work-orders" className="block w-full text-left px-4 py-3 bg-brand-blue text-white rounded-lg text-sm font-medium hover:bg-brand-blue/90 transition-colors"><Plus className="w-4 h-4 inline mr-2" />New Job</Link>
                 <Link to="../schedule" className="block w-full text-left px-4 py-3 bg-navy-800 text-white rounded-lg text-sm hover:bg-navy-700 transition-colors"><CalendarDays className="w-4 h-4 inline mr-2" />View Schedule</Link>
                 <Link to="../crews" className="block w-full text-left px-4 py-3 bg-navy-800 text-white rounded-lg text-sm hover:bg-navy-700 transition-colors"><Users className="w-4 h-4 inline mr-2" />Manage Crews</Link>
                 <Link to="../inventory" className="block w-full text-left px-4 py-3 bg-navy-800 text-white rounded-lg text-sm hover:bg-navy-700 transition-colors"><Package className="w-4 h-4 inline mr-2" />Check Inventory</Link>
@@ -126,10 +126,10 @@ export default function OperationsDashboard() {
           </div>
         </div>
 
-        {/* Recent activity — orders (thrift) or work orders (field service) */}
+        {/* Recent activity — orders (thrift) or jobs (field service) */}
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl overflow-hidden lg:col-span-2">
           <div className="px-5 py-3 border-b border-navy-700/50 flex items-center justify-between">
-            <h3 className="text-white font-semibold">{isThrift ? 'Recent Orders' : 'Recent Work Orders'}</h3>
+            <h3 className="text-white font-semibold">{isThrift ? 'Recent Orders' : 'Recent Jobs'}</h3>
             <Link to={isThrift ? '../fulfillment' : '../work-orders'} className="text-xs text-brand-blue hover:text-brand-cyan">View all →</Link>
           </div>
           {loading ? (
@@ -163,8 +163,8 @@ export default function OperationsDashboard() {
             recentWorkOrders.length === 0 ? (
               <div className="p-8 text-center">
                 <Wrench className="w-10 h-10 mx-auto text-gray-600 mb-3" />
-                <p className="text-sm text-gray-400">No work orders yet.</p>
-                <p className="text-xs text-gray-500 mt-1">Create your first work order to start tracking jobs.</p>
+                <p className="text-sm text-gray-400">No jobs yet.</p>
+                <p className="text-xs text-gray-500 mt-1">Create your first job to start tracking jobs.</p>
               </div>
             ) : (
               <ul className="divide-y divide-navy-700/50">
