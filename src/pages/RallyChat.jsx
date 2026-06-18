@@ -1475,7 +1475,7 @@ export const Chat = () => {
                   item.type === 'date' ? (
                     <DateDivider key={`date-${index}`} date={item.date} />
                   ) : (
-                    <div key={item.message.id} className={`group flex gap-3 hover:bg-muted/50 rounded-lg p-2 -mx-2 ${item.grouped ? 'mt-1' : 'mt-4'}`}>
+                    <div key={item.message.id} className={`group relative flex gap-3 hover:bg-muted/50 rounded-lg p-2 -mx-2 ${item.grouped ? 'mt-1' : 'mt-4'}`}>
                       {!item.grouped && (
                         item.message.sender_role === 'system' || item.message.sender_name === 'Sage' ? (
                           <img src="/sage-avatar.png" alt="Sage" className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
@@ -1681,28 +1681,28 @@ export const Chat = () => {
                         )}
                       </div>
 
-                      {/* Message Actions Menu */}
-                      <div className={`transition-opacity ${emojiPickerOpenFor === item.message.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                        <div className="flex items-center gap-1">
+                      {/* Message Actions Bar */}
+                      <div className={'absolute -top-3 right-3 z-10 transition-opacity ' + (emojiPickerOpenFor === item.message.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
+                        <div className="flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-md px-1 py-0.5">
+                          {['👍', '❤️', '✅', '🎉', '👀'].map((em) => (
+                            <button key={em} type="button" onClick={() => handleReactToMessage(item.message, em)} title={'React ' + em} className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-accent text-base leading-none">
+                              {em}
+                            </button>
+                          ))}
+                          <div className="w-px h-5 bg-border mx-0.5" />
                           <EmojiPicker
                             onSelect={(emoji) => handleReactToMessage(item.message, emoji)}
                             onOpenChange={(isOpen) => setEmojiPickerOpenFor(isOpen ? item.message.id : null)}
                             trigger={
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <button type="button" title="Add reaction" className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground">
                                 <Smile className="h-4 w-4" />
-                              </Button>
+                              </button>
                             }
                           />
-                          <MessageActions
-                            message={item.message}
-                            currentUserId={user.id}
-                            onEdit={handleEditMessage}
-                            onDelete={handleDeleteMessage}
-                            onReply={handleReplyInThread}
-                            onReact={(msg) => setEmojiPickerOpenFor(msg.id)}
-                            onPin={handlePinMessage}
-                            onCopyLink={handleCopyLink}
-                          />
+                          <button type="button" onClick={() => handleReplyInThread(item.message)} title="Reply in thread" className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground">
+                            <MessageSquare className="h-4 w-4" />
+                          </button>
+                          <MessageActions message={item.message} currentUserId={user.id} onEdit={handleEditMessage} onDelete={handleDeleteMessage} onReply={handleReplyInThread} onReact={(msg) => setEmojiPickerOpenFor(msg.id)} onPin={handlePinMessage} onCopyLink={handleCopyLink} />
                         </div>
                       </div>
                     </div>
@@ -1903,7 +1903,7 @@ export const Chat = () => {
       </Dialog>
 
       {/* Thread Sidebar */}
-      {threadOpen && threadParentMessage && (
+      {false && threadParentMessage && (
         <div className="fixed right-0 top-12 bottom-0 w-96 bg-background border-l shadow-xl z-50 flex flex-col">
           {/* Thread Header */}
           <div className="border-b p-4 flex items-center justify-between">
