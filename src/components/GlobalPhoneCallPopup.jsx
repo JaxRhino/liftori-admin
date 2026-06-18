@@ -58,7 +58,7 @@ export default function GlobalPhoneCallPopup() {
         .from('cc_agents')
         .select('status')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       if (data) setAgentStatus(data.status);
     };
 
