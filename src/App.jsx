@@ -54,6 +54,7 @@ import InHouseBuilds from './pages/InHouseBuilds'
 import CustomBuilds from './pages/CustomBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import MobilePreview from './pages/MobilePreview'
+import AppViewer from './pages/AppViewer'
 import SalesPipeline from './pages/SalesPipeline'
 import Investors from './pages/Investors'
 import OpsDashboard from './pages/OpsDashboard'
@@ -420,6 +421,7 @@ export default function App() {
             <Route path="custom-builds" element={<CustomBuilds />} />
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
             <Route path="mobile-preview" element={<MobilePreview />} />
+            <Route path="products/:slug" element={<AppViewer />} />
             <Route path="pipeline" element={<SalesPipeline />} />
             <Route path="investors" element={<Investors />} />
             {/* Marketing Hub */}
