@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { OrgProvider } from './lib/OrgContext'
@@ -6,8 +6,6 @@ import AdminLayout from './components/AdminLayout'
 import ClientLayout from './components/ClientLayout'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
-import ForgotPassword from './pages/ForgotPassword'
-import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import LeadHunter from './pages/LeadHunter'
@@ -29,7 +27,6 @@ import Customers from './pages/Customers'
 import CustomerDetail from './pages/CustomerDetail'
 import ConvertSignup from './pages/ConvertSignup'
 import Platforms from './pages/Platforms'
-import PlatformFees from './pages/PlatformFees'
 import PlatformDetail from './pages/PlatformDetail'
 import RallyChat from './pages/RallyChat'
 import Rally from './pages/Rally'
@@ -42,9 +39,6 @@ import ChoosePlan from './pages/portal/ChoosePlan'
 import PortalProject from './pages/portal/PortalProject'
 import Settings from './pages/Settings'
 import ComingSoon from './pages/ComingSoon'
-import Notes from './pages/Notes'
-import Tasks from './pages/Tasks'
-import Calendar from './pages/Calendar'
 import CallCenter from './pages/CallCenter'
 import CallCenterTeam from './pages/CallCenterTeam'
 import CallCenterVoicemails from './pages/CallCenterVoicemails'
@@ -57,11 +51,10 @@ import WorkforceActivity from './pages/workforce/WorkforceActivity'
 import WorkforceOrgChart from './pages/workforce/WorkforceOrgChart'
 import CEODashboard from './pages/ceo/CEODashboard'
 import InHouseBuilds from './pages/InHouseBuilds'
+import CustomBuilds from './pages/CustomBuilds'
 import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import MobilePreview from './pages/MobilePreview'
-import AppViewer from './pages/AppViewer'
 import SalesPipeline from './pages/SalesPipeline'
-import Pipeline from './pages/Pipeline'
 import Investors from './pages/Investors'
 import OpsDashboard from './pages/OpsDashboard'
 import WizardBuilder from './pages/WizardBuilder'
@@ -102,17 +95,12 @@ import EOSVTO from './pages/eos/EOSVTO'
 // Finance Hub
 import FinanceDashboard from './pages/finance/FinanceDashboard'
 import InvoicesList from './pages/finance/InvoicesList'
-import InvoiceDetail from './pages/finance/InvoiceDetail'
 import PaymentsList from './pages/finance/PaymentsList'
-import PaymentDetail from './pages/finance/PaymentDetail'
 import ExpensesList from './pages/finance/ExpensesList'
 import JournalEntries from './pages/finance/JournalEntries'
 import FinancialReports from './pages/finance/FinancialReports'
 import CommissionBatches from './pages/finance/CommissionBatches'
 import ChartOfAccounts from './pages/finance/ChartOfAccounts'
-import AgingReport from './pages/finance/AgingReport'
-import BillsList from './pages/finance/BillsList'
-import BudgetManager from './pages/finance/BudgetManager'
 // Marketing Hub
 import MarketingDashboard from './pages/marketing/MarketingDashboard'
 import MarketingTracker from './pages/marketing/MarketingTracker'
@@ -150,20 +138,12 @@ import ConsultingOnboardingWizard from './pages/ConsultingOnboardingWizard'
 import EOSL10Hub from './pages/EOSL10Hub'
 import TeamAvailability from './pages/TeamAvailability'
 import SuperAdmin from './pages/SuperAdmin'
-import NewTenant from './pages/NewTenant'
-import Reports from './pages/Reports'
-import Automations from './pages/Automations'
-import EstimateTemplates from './pages/EstimateTemplates'
-import EstimateDocument from './pages/EstimateDocument'
-import EmailTemplates from './pages/EmailTemplates'
-import LiftoriSettings from './pages/LiftoriSettings'
 import Campaigns from './pages/communications/Campaigns'
 import CommsTemplates from './pages/communications/Templates'
 import OutboundLog from './pages/communications/OutboundLog'
 import Testing from './pages/Testing'
 import TesterOnboarding from './pages/TesterOnboarding'
 import TesterDashboard from './pages/TesterDashboard'
-import DevLabDashboard from './pages/DevLabDashboard'
 import AffiliateOnboarding from './pages/AffiliateOnboarding'
 import AffiliateLayout from './components/AffiliateLayout'
 import AffiliateDashboard from './pages/affiliate/AffiliateDashboard'
@@ -202,62 +182,18 @@ import OpsHRHub from './pages/customer/ops/OpsHRHub'
 import OpsDocs from './pages/customer/ops/OpsDocs'
 import OpsProjects from './pages/customer/ops/OpsProjects'
 // LABOS â€” Liftori AI Business Operating System (per-client backend)
-import CrmLayout from './components/crm/CrmLayout'
-import CrmDashboard from './pages/crm/CrmDashboard'
-import CrmPipeline from './pages/crm/CrmPipeline'
-import CrmSalesTraining from './pages/crm/CrmSalesTraining'
-import CrmOpsPipeline from './pages/crm/CrmOpsPipeline'
-import CrmCustomers from './pages/crm/CrmCustomers'
-import CrmCustomerDetail from './pages/crm/CrmCustomerDetail'
-import CrmEstimateDetail from './pages/crm/CrmEstimateDetail'
-import CrmCallCenter from './pages/crm/CrmCallCenter'
-import CrmOperations from './pages/crm/CrmOperations'
-import OperationsDashboard from './pages/crm/operations/OperationsDashboard'
-import OperationsInventory from './pages/crm/operations/OperationsInventory'
-import OperationsCrews from './pages/crm/operations/OperationsCrews'
-import OperationsMeasurements from './pages/crm/operations/OperationsMeasurements'
-import OperationsWorkOrders from './pages/crm/operations/OperationsWorkOrders'
-import OperationsSchedule from './pages/crm/operations/OperationsSchedule'
-import CrmCrewAvailability from './pages/crm/CrmCrewAvailability'
-import CrmJobMap from './pages/crm/CrmJobMap'
-import CrmMarketing from './pages/crm/CrmMarketing'
-import CrmFinance from './pages/crm/CrmFinance'
-import CrmCommunications from './pages/crm/CrmCommunications'
-import CrmChat from './pages/crm/CrmChat'
-import CrmCalendar from './pages/crm/CrmCalendar';
-import CrmNotes from './pages/crm/CrmNotes';
-import CrmTasks from './pages/crm/CrmTasks';
-import CrmNotifications from './pages/crm/CrmNotifications';
-import CrmSettings from './pages/crm/CrmSettings';
-import CrmEOS from './pages/crm/CrmEOS';
-import CrmEOSRocks from './pages/crm/eos/EOSRocks';
-import CrmEOSIssues from './pages/crm/eos/EOSIssues';
-import CrmEOSTodos from './pages/crm/eos/EOSTodos';
-import CrmEOSMeetings from './pages/crm/eos/EOSMeetings';
-import CrmEOSScorecard from './pages/crm/eos/EOSScorecard';
-import CrmEOSVTO from './pages/crm/eos/EOSVTO';
-import CrmEOSAccountability from './pages/crm/eos/EOSAccountability';
-import CrmEOSHeadlines from './pages/crm/eos/EOSHeadlines';
-import EcomDashboard from './pages/ecomm/EcomDashboard';
-import EcomListings from './pages/ecomm/EcomListings';
-import EcomListingEditor from './pages/ecomm/EcomListingEditor';
-import EcomOrders from './pages/ecomm/EcomOrders';
-import EcomCustomers from './pages/ecomm/EcomCustomers';
-import EcomSocial from './pages/ecomm/EcomSocial';
-import EcomAssistant from './pages/ecomm/EcomAssistant';
-import { useCrm } from './contexts/CrmContext';
-
-// Industry switch for shared /crm/:platformId route slots: ecommerce
-// tenants get the retail pages; every other industry renders the base
-// CRM exactly as before (strict no-op when industry !== 'ecommerce').
-function CrmDashboardByIndustry() {
-  const { platform } = useCrm()
-  return platform?.industry === 'ecommerce' ? <EcomDashboard /> : <CrmDashboard />
-}
-function CrmCustomersByIndustry() {
-  const { platform } = useCrm()
-  return platform?.industry === 'ecommerce' ? <EcomCustomers /> : <CrmCustomers />
-}
+import LabosLayout from './components/labos/LabosLayout'
+import LabosDashboard from './pages/labos/LabosDashboard'
+import LabosSales from './pages/labos/LabosSales'
+import LabosOperations from './pages/labos/LabosOperations'
+import OperationsDashboard from './pages/labos/operations/OperationsDashboard'
+import OperationsInventory from './pages/labos/operations/OperationsInventory'
+import OperationsFulfillment from './pages/labos/operations/OperationsFulfillment'
+import OperationsTeam from './pages/labos/operations/OperationsTeam'
+import LabosMarketing from './pages/labos/LabosMarketing'
+import LabosFinance from './pages/labos/LabosFinance'
+import LabosCommunications from './pages/labos/LabosCommunications'
+import LabosChat from './pages/labos/LabosChat'
 // Dev Team — Wave A foundation
 import DevTeamLayout from './pages/dev-team/DevTeamLayout'
 import DevTeamOverview from './pages/dev-team/DevTeamOverview'
@@ -265,16 +201,12 @@ import DevTeamTasks from './pages/dev-team/DevTeamTasks'
 import DevTeamActivity from './pages/dev-team/DevTeamActivity'
 import DevTeamCanvas from './pages/dev-team/DevTeamCanvas'
 import DevTeamCanvasDetail from './pages/dev-team/DevTeamCanvasDetail'
-import DevTeamWhiteboard from './pages/dev-team/DevTeamWhiteboard'
-import DevTeamWhiteboardDetail from './pages/dev-team/DevTeamWhiteboardDetail'
 import DevTeamSkillsMemory from './pages/dev-team/DevTeamSkillsMemory'
 import DevTeamAgentChat from './pages/dev-team/DevTeamAgentChat'
-import DevTeamBetaFeedback from './pages/dev-team/DevTeamBetaFeedback'
 import DevTeamFeatureIdeas from './pages/dev-team/DevTeamFeatureIdeas'
 // CSC Services LABOS-KEC — Wave B operator admin shell
 import CscLayout from './pages/csc/CscLayout'
 import CscOverview from './pages/csc/CscOverview'
-import CscOpsDashboard from './pages/csc/CscOpsDashboard'
 import CscCustomers from './pages/csc/CscCustomers'
 import CscJobs from './pages/csc/CscJobs'
 import CscJobDetail from './pages/csc/CscJobDetail'
@@ -283,7 +215,6 @@ import CscPublicLayout from './pages/csc-public/CscPublicLayout'
 import CscPortal from './pages/csc-public/CscPortal'
 import CscVerify from './pages/csc-public/CscVerify'
 import CscAhjLanding from './pages/csc-public/CscAhjLanding'
-import CscAhjDashboard from './pages/csc-public/CscAhjDashboard'
 // CSC tech mobile-web — Wave E
 import CscTechLayout from './pages/csc-tech/CscTechLayout'
 import CscTechHome from './pages/csc-tech/CscTechHome'
@@ -317,16 +248,6 @@ function AdminRoute({ children }) {
   return children
 }
 
-// CRM access: admins (impersonation/support) OR the customer who owns THIS platform.
-function CrmRoute({ children }) {
-  const { isAdmin, myPlatformId, loading } = useAuth()
-  const { platformId } = useParams()
-  if (loading) return null
-  if (isAdmin) return children
-  if (myPlatformId && myPlatformId === platformId) return children
-  return <Navigate to={myPlatformId ? `/crm/${myPlatformId}/dashboard` : '/portal'} replace />
-}
-
 function DevTeamRoute({ children }) {
   const { isDevTeamMember, loading } = useAuth()
   if (loading) return null
@@ -349,16 +270,14 @@ function ClientRoute({ children }) {
 }
 
 function RootRedirect() {
-  const { isAdmin, isAffiliate, myPlatformId, loading } = useAuth()
+  const { isAdmin, isAffiliate, loading } = useAuth()
   if (loading) return (
     <div className="min-h-screen bg-navy-950 flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
     </div>
   )
   if (isAffiliate) return <Navigate to="/affiliate" replace />
-  if (isAdmin) return <Navigate to="/admin" replace />
-  if (myPlatformId) return <Navigate to={`/crm/${myPlatformId}/dashboard`} replace />
-  return <Navigate to="/portal" replace />
+  return isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/portal" replace />
 }
 
 /** Renders TesterDashboard for enrolled testers, regular Dashboard otherwise.
@@ -397,8 +316,6 @@ export default function App() {
             <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
           {/* Public onboarding wizard â€” no auth required */}
           <Route path="/onboard" element={<OnboardingWizard />} />
           {/* Public Rally guest join â€” no auth required */}
@@ -427,14 +344,7 @@ export default function App() {
           }>
             <Route index element={<DashboardRouter />} />
             <Route path="super-admin" element={<SuperAdmin />} />
-            <Route path="/admin/new-tenant" element={<NewTenant />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="automations" element={<Automations />} />
-            <Route path="estimate-templates" element={<EstimateTemplates />} />
-            <Route path="email-templates" element={<EmailTemplates />} />
-            <Route path="liftori-settings" element={<LiftoriSettings />} />
             <Route path="tester-dashboard" element={<TesterDashboard />} />
-            <Route path="dev-lab" element={<DevLabDashboard />} />
             <Route path="outbound-mail" element={<OutboundLog />} />
             <Route path="call-center" element={<CallCenter />} />
             <Route path="cc-team" element={<CallCenterTeam />} />
@@ -454,11 +364,9 @@ export default function App() {
             <Route path="affiliates" element={<Affiliates />} />
             <Route path="customers" element={<Customers />} />
             <Route path="customers/:id" element={<CustomerDetail />} />
-            <Route path="estimate/:id" element={<EstimateDocument />} />
             <Route path="customers/convert/:signupId" element={<ConvertSignup />} />
             <Route path="platforms" element={<Platforms />} />
             <Route path="platforms/:id" element={<PlatformDetail />} />
-            <Route path="platform-fees" element={<PlatformFees />} />
             <Route path="lead-hunter" element={<LeadHunterDashboard />} />
             <Route path="lead-hunter/search" element={<LeadHunterSearch />} />
             <Route path="lead-hunter/company/:id" element={<LeadHunterCompany />} />
@@ -488,7 +396,6 @@ export default function App() {
             <Route path="eos/todos" element={<EOSTodos />} />
             <Route path="eos/headlines" element={<EOSHeadlines />} />
             <Route path="eos/meetings" element={<EOSL10Meetings />} />
-            <Route path="eos/meeting-room" element={<Navigate to="/admin/eos/meetings" replace />} />
             <Route path="eos/meetings/:meetingId" element={<EOSL10MeetingRoom />} />
             <Route path="eos/accountability" element={<EOSAccountabilityChart />} />
             <Route path="eos/vto" element={<EOSVTO />} />
@@ -522,10 +429,10 @@ export default function App() {
             <Route path="cost-tracker" element={<CostTracker />} />
             {/* In-House Builds */}
             <Route path="builds" element={<InHouseBuilds />} />
+            <Route path="custom-builds" element={<CustomBuilds />} />
             <Route path="builds/:id" element={<InHouseBuildDetail />} />
             <Route path="mobile-preview" element={<MobilePreview />} />
-            <Route path="pipeline" element={<Pipeline />} />
-            <Route path="sales/pipeline" element={<Navigate to="/admin/pipeline" replace />} />
+            <Route path="pipeline" element={<SalesPipeline />} />
             <Route path="investors" element={<Investors />} />
             {/* Marketing Hub */}
             <Route path="marketing" element={<MarketingDashboard />} />
@@ -547,25 +454,18 @@ export default function App() {
             <Route path="marketing/sequences" element={<EmailSequences />} />
             <Route path="marketing/performance" element={<MarketingPerformance />} />
             <Route path="wizard" element={<WizardBuilder />} />
-              <Route path="products/:slug" element={<AppViewer />} />
-            <Route path="tasks" element={<Tasks />} />
-            <Route path="notes" element={<Notes />} />
-            <Route path="calendar" element={<Calendar />} />
+            <Route path="tasks" element={<ComingSoon />} />
+            <Route path="notes" element={<ComingSoon />} />
+            <Route path="calendar" element={<ComingSoon />} />
             {/* Finance Hub */}
             <Route path="finance" element={<FinanceDashboard />} />
             <Route path="finance/invoices" element={<InvoicesList />} />
-            <Route path="finance/invoices/:id" element={<InvoiceDetail />} />
             <Route path="finance/payments" element={<PaymentsList />} />
-            <Route path="finance/payments/:id" element={<PaymentDetail />} />
             <Route path="finance/expenses" element={<ExpensesList />} />
             <Route path="finance/journal" element={<JournalEntries />} />
             <Route path="finance/reports" element={<FinancialReports />} />
             <Route path="finance/commissions" element={<CommissionBatches />} />
             <Route path="finance/accounts" element={<ChartOfAccounts />} />
-            <Route path="finance/chart-of-accounts" element={<Navigate to="/admin/finance/accounts" replace />} />
-            <Route path="finance/aging" element={<AgingReport />} />
-            <Route path="finance/bills" element={<BillsList />} />
-            <Route path="finance/budgets" element={<BudgetManager />} />
             {/* Communications Hub */}
             <Route path="comms" element={<InternalMail />} />
             <Route path="comms/hub" element={<CommunicationsHub />} />
@@ -592,14 +492,21 @@ export default function App() {
               <Route path="activity" element={<DevTeamActivity />} />
               <Route path="canvas" element={<DevTeamCanvas />} />
               <Route path="canvas/:slug" element={<DevTeamCanvasDetail />} />
-              <Route path="whiteboard" element={<DevTeamWhiteboard />} />
-              <Route path="whiteboard/:slug" element={<DevTeamWhiteboardDetail />} />
               <Route path="skills" element={<DevTeamSkillsMemory />} />
               <Route path="agent-chat" element={<DevTeamAgentChat />} />
-              <Route path="beta-feedback" element={<DevTeamBetaFeedback />} />
             </Route>
             {/* CSC Services LABOS-KEC — Wave B */}
-            <Route path="csc/*" element={<Navigate to="/crm/88888888-0002-0000-0000-000000000001/dashboard" replace />} />
+            <Route path="csc" element={<CscLayout />}>
+              <Route index element={<CscOverview />} />
+              <Route path="customers" element={<CscCustomers />} />
+              <Route path="jobs" element={<CscJobs />} />
+              <Route path="jobs/:id" element={<CscJobDetail />} />
+              <Route path="deficiencies" element={<CscDeficiencies />} />
+              <Route path="invoices" element={<CscInvoices />} />
+              <Route path="certificates" element={<CscCertificates />} />
+              <Route path="stickers" element={<CscStickers />} />
+              <Route path="ahj" element={<CscAhjMap />} />
+            </Route>
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
@@ -609,7 +516,6 @@ export default function App() {
             <Route path="portal/:token" element={<CscPortal />} />
             <Route path="verify/:qr" element={<CscVerify />} />
             <Route path="ahj" element={<CscAhjLanding />} />
-            <Route path="ahj/:slug" element={<CscAhjDashboard />} />
           </Route>
 
           {/* CSC mobile-web tech experience (no auth) */}
@@ -619,72 +525,27 @@ export default function App() {
           </Route>
 
           {/* LABOS â€” per-client backend (admin impersonation enters here) */}
-          <Route path="/crm/:platformId" element={
+          <Route path="/labos/:platformId" element={
             <ProtectedRoute>
-              <CrmRoute>
-                <CrmLayout />
-              </CrmRoute>
+              <AdminRoute>
+                <LabosLayout />
+              </AdminRoute>
             </ProtectedRoute>
           }>
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<CrmDashboardByIndustry />} />
-            <Route path="sales" element={<CrmPipeline />} />
-            <Route path="pipeline" element={<CrmPipeline />} />
-            <Route path="sales-training" element={<CrmSalesTraining />} />
-            <Route path="university" element={<CrmSalesTraining />} />
-            <Route path="university/:track" element={<CrmSalesTraining />} />
-            <Route path="ops-pipeline" element={<CrmOpsPipeline />} />
-            <Route path="call-center" element={<CrmCallCenter />} />
-            <Route path="overview" element={<CscOverview />} />
-            <Route path="operations-dashboard" element={<CscOpsDashboard />} />
-            <Route path="jobs" element={<CscJobs />} />
-            <Route path="jobs/:id" element={<CscJobDetail />} />
-            <Route path="deficiencies" element={<CscDeficiencies />} />
-            <Route path="certificates" element={<CscCertificates />} />
-            <Route path="stickers" element={<CscStickers />} />
-            <Route path="ahj" element={<CscAhjMap />} />
-            <Route path="customers" element={<CrmCustomersByIndustry />} />
-            <Route path="customers/:id" element={<CrmCustomerDetail />} />
-            {/* E-commerce industry routes (pages self-scope via useCrmClient) */}
-            <Route path="listings" element={<EcomListings />} />
-            <Route path="listings/new" element={<EcomListingEditor />} />
-            <Route path="listings/:listingId" element={<EcomListingEditor />} />
-            <Route path="orders" element={<EcomOrders />} />
-            <Route path="assistant" element={<EcomAssistant />} />
-            <Route path="social" element={<EcomSocial />} />
-            <Route path="estimates/:id" element={<CrmEstimateDetail />} />
-            <Route path="invoices" element={<CscInvoices />} />
-            <Route path="operations" element={<CrmOperations />}>
+            <Route path="dashboard" element={<LabosDashboard />} />
+            <Route path="sales" element={<LabosSales />} />
+            <Route path="operations" element={<LabosOperations />}>
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<OperationsDashboard />} />
-              <Route path="work-orders"  element={<OperationsWorkOrders />} />
-              <Route path="schedule"     element={<OperationsSchedule />} />
               <Route path="inventory" element={<OperationsInventory />} />
-              <Route path="crews"        element={<OperationsCrews />} />
-              <Route path="crew-availability" element={<CrmCrewAvailability />} />
-              <Route path="map"          element={<CrmJobMap />} />
-              <Route path="measurements" element={<OperationsMeasurements />} />
+              <Route path="fulfillment" element={<OperationsFulfillment />} />
+              <Route path="team" element={<OperationsTeam />} />
             </Route>
-            <Route path="marketing" element={<CrmMarketing />} />
-            <Route path="finance" element={<CrmFinance />} />
-            <Route path="communications" element={<CrmCommunications />} />
-            <Route path="chat" element={<CrmChat />} />
-            <Route path="calendar" element={<CrmCalendar />} />
-            <Route path="notes" element={<CrmNotes />} />
-            <Route path="tasks" element={<CrmTasks />} />
-            <Route path="notifications" element={<CrmNotifications />} />
-            <Route path="settings" element={<CrmSettings />} />
-            <Route path="eos" element={<CrmEOS />}>
-              <Route index element={<Navigate to="rocks" replace />} />
-              <Route path="rocks" element={<CrmEOSRocks />} />
-              <Route path="issues" element={<CrmEOSIssues />} />
-              <Route path="todos" element={<CrmEOSTodos />} />
-              <Route path="meetings" element={<CrmEOSMeetings />} />
-              <Route path="scorecard" element={<CrmEOSScorecard />} />
-              <Route path="vto" element={<CrmEOSVTO />} />
-              <Route path="accountability" element={<CrmEOSAccountability />} />
-              <Route path="headlines" element={<CrmEOSHeadlines />} />
-            </Route>
+            <Route path="marketing" element={<LabosMarketing />} />
+            <Route path="finance" element={<LabosFinance />} />
+            <Route path="communications" element={<LabosCommunications />} />
+            <Route path="chat" element={<LabosChat />} />
           </Route>
 
           {/* Affiliate / Creator Portal routes */}
