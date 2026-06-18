@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, Plus, Play, LogIn, Eye, Trash2 } from 'lucide-react';
+import { Calendar, Clock, Plus, Play, LogIn, Eye, Trash2, Video, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -10,10 +10,14 @@ import { Input } from '../../components/ui/input';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import { useOrg } from '../../lib/OrgContext';
 import { fetchMeetings, fetchTeamUsers, createMeeting, deleteMeeting } from '../../lib/eosService';
+import { useAuth } from '../../lib/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { createRallyLink } from '../../lib/videoService';
 
 export default function EOSL10Meetings() {
   const navigate = useNavigate();
   const { currentOrg } = useOrg();
+  const { user } = useAuth();
   const [meetings, setMeetings] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +28,7 @@ export default function EOSL10Meetings() {
     duration_minutes: 60,
     facilitator: '',
     attendees: [],
+    is_video: true,
   });
 
   useEffect(() => {
@@ -54,15 +59,66 @@ export default function EOSL10Meetings() {
     }
 
     try {
-      await createMeeting({
+      // Mint a reusable Liftori video room when this is a video meeting
+      let meetingUrl = null;
+      if (formData.is_video) {
+        try {
+          const link = await createRallyLink(
+            { label: formData.title, linkType: 'recurring', maxGuests: 25 },
+            user?.id
+          );
+          meetingUrl = `${window.location.origin}/rally/join/${link.code}`;
+        } catch (linkErr) {
+          console.error('Error creating video room:', linkErr);
+          toast.error('Could not create video link — meeting saved without one');
+        }
+      }
+
+      const meeting = await createMeeting({
         title: formData.title,
         scheduled_date: formData.scheduled_date,
         duration_minutes: parseInt(formData.duration_minutes),
         facilitator_id: formData.facilitator,
-        attendee_ids: formData.attendees,
+        attendees: formData.attendees,
+        team_ids: formData.attendees,
+        video_enabled: formData.is_video,
+        is_in_person: !formData.is_video,
+        meeting_url: meetingUrl,
+        org_id: currentOrg?.id || null,
+        created_by: user?.id || null,
         status: 'scheduled',
       });
-      toast.success('Meeting created successfully');
+
+      // Add to the in-app Liftori calendar so attendees can join from there
+      try {
+        const start = new Date(formData.scheduled_date);
+        const end = new Date(start.getTime() + parseInt(formData.duration_minutes) * 60000);
+        const pad = (n) => String(n).padStart(2, '0');
+        const dateStr = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+        const attendeeNames = formData.attendees
+          .map((id) => teamUsers.find((u) => u.id === id)?.name)
+          .filter(Boolean)
+          .join(', ');
+        await supabase.from('admin_calendar_events').insert([{
+          title: formData.title,
+          description: [
+            formData.is_video ? 'Video L10 meeting' : 'In-person L10 meeting',
+            attendeeNames ? `Attendees: ${attendeeNames}` : null,
+          ].filter(Boolean).join('\n'),
+          start_date: dateStr,
+          start_time: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+          end_time: `${pad(end.getHours())}:${pad(end.getMinutes())}`,
+          all_day: false,
+          color: 'blue',
+          meeting_url: meetingUrl,
+          eos_meeting_id: meeting?.id || null,
+          user_id: user?.id || null,
+        }]);
+      } catch (calErr) {
+        console.error('Error adding to calendar:', calErr);
+      }
+
+      toast.success('Meeting scheduled');
       setDialogOpen(false);
       setFormData({
         title: '',
@@ -70,6 +126,7 @@ export default function EOSL10Meetings() {
         duration_minutes: 60,
         facilitator: '',
         attendees: [],
+        is_video: true,
       });
       await loadData();
     } catch (error) {
@@ -81,6 +138,7 @@ export default function EOSL10Meetings() {
   const handleDeleteMeeting = async (meetingId) => {
     if (window.confirm('Are you sure you want to delete this meeting?')) {
       try {
+        await supabase.from('admin_calendar_events').delete().eq('eos_meeting_id', meetingId);
         await deleteMeeting(meetingId);
         toast.success('Meeting deleted');
         await loadData();
@@ -160,6 +218,10 @@ export default function EOSL10Meetings() {
                     <Clock className="w-4 h-4" />
                     {meeting.duration_minutes} minutes
                   </div>
+                  <div className="flex items-center gap-2 text-gray-400 text-sm mt-2">
+                    {meeting.is_in_person ? <MapPin className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                    {meeting.is_in_person ? 'In person' : 'Video'}
+                  </div>
                 </div>
                 <div className="ml-4">
                   {getStatusBadge(meeting.status)}
@@ -173,19 +235,19 @@ export default function EOSL10Meetings() {
               </div>
 
               {/* Attendee Avatars */}
-              {getAttendeeAvatars(meeting.attendee_ids).length > 0 && (
+              {getAttendeeAvatars(meeting.attendees).length > 0 && (
                 <div className="mb-4">
                   <p className="text-xs text-gray-400 mb-2">Attendees</p>
                   <div className="flex items-center gap-1">
-                    {getAttendeeAvatars(meeting.attendee_ids).map((attendee) => (
+                    {getAttendeeAvatars(meeting.attendees).map((attendee) => (
                       <Avatar key={attendee.id} className="w-8 h-8 bg-navy-800">
                         <AvatarFallback className="text-xs bg-blue-600 text-white">
                           {attendee.name.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                     ))}
-                    {meeting.attendee_ids && meeting.attendee_ids.length > 5 && (
-                      <span className="text-xs text-gray-400 ml-2">+{meeting.attendee_ids.length - 5}</span>
+                    {meeting.attendees && meeting.attendees.length > 5 && (
+                      <span className="text-xs text-gray-400 ml-2">+{meeting.attendees.length - 5}</span>
                     )}
                   </div>
                 </div>
@@ -193,6 +255,16 @@ export default function EOSL10Meetings() {
 
               {/* Action Buttons */}
               <div className="flex gap-2 pt-4 border-t border-navy-800">
+                {meeting.meeting_url && (
+                  <Button
+                    onClick={() => window.open(meeting.meeting_url, '_blank', 'noopener')}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                  >
+                    <Video className="w-3 h-3 mr-1" />
+                    Join Meeting
+                  </Button>
+                )}
                 {meeting.status === 'scheduled' && (
                   <Button
                     onClick={() => navigate(`/admin/eos/meetings/${meeting.id}`)}
@@ -288,6 +360,23 @@ export default function EOSL10Meetings() {
                 <option value="90">90 minutes</option>
                 <option value="120">120 minutes</option>
               </select>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_video}
+                  onChange={(e) => setFormData({ ...formData, is_video: e.target.checked })}
+                  className="w-4 h-4 rounded accent-blue-600"
+                />
+                <span className="text-sm font-medium">Video meeting (uncheck for in person)</span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.is_video
+                  ? 'A Liftori video link will be created and added to the calendar.'
+                  : 'No video link \u2014 this is an in-person meeting.'}
+              </p>
             </div>
 
             <div>
