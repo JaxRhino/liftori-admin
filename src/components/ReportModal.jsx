@@ -60,7 +60,7 @@ export default function ReportModal({ onClose }) {
   })
 
   function selectType(type) {
-    setForm({ ...form, type })
+    setForm({ ...form, type, lab: type === 'bug' ? 'bug_agent' : form.lab })
     setStep(1)
   }
 
