@@ -51,7 +51,7 @@ const APPS = {
     previewUrl:
       import.meta.env.VITE_LIFTORI_APP_PREVIEW_URL ||
       import.meta.env.VITE_MOBILE_PREVIEW_URL ||
-      '',
+      'https://app.liftori.ai',
     eas: {
       projectId: 'b6c52b3d-9864-4839-b480-49cb95d5e354',
       account: 'rhinomarch',
