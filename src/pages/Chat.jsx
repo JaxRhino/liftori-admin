@@ -70,6 +70,58 @@ function highlightText(text, query) {
   )
 }
 
+// Reactions
+const EMOJI_OPTIONS = ['👍', '❤️', '😂', '🎉', '🚀', '👀', '✅', '🙏', '🔥', '😮']
+
+function groupReactions(list, myId) {
+  const map = {}
+  for (const r of list) {
+    if (!map[r.emoji]) map[r.emoji] = { emoji: r.emoji, count: 0, mine: false, names: [] }
+    map[r.emoji].count++
+    map[r.emoji].names.push(r.user_name || 'Someone')
+    if (r.user_id === myId) map[r.emoji].mine = true
+  }
+  return Object.values(map)
+}
+
+function ReactionBar({ groups, onToggle, align }) {
+  if (!groups.length) return null
+  return (
+    <div className={`flex flex-wrap gap-1 mt-1 ${align === 'end' ? 'justify-end' : 'justify-start'}`}>
+      {groups.map(g => (
+        <button
+          key={g.emoji}
+          onClick={() => onToggle(g.emoji)}
+          title={g.names.join(', ')}
+          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] border transition-colors ${
+            g.mine
+              ? 'bg-brand-blue/20 border-brand-blue/50 text-white'
+              : 'bg-navy-700/50 border-navy-600/40 text-gray-300 hover:bg-navy-700'
+          }`}
+        >
+          <span className="leading-none">{g.emoji}</span>
+          <span className="font-semibold leading-none">{g.count}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ReactIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
+    </svg>
+  )
+}
+function ReplyIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+    </svg>
+  )
+}
+
 // ─────────────────────────────────────────────────────────────
 // Main
 // ─────────────────────────────────────────────────────────────
@@ -79,9 +131,19 @@ export default function Chat() {
   const [channels, setChannels] = useState([])
   const [activeChannel, setActiveChannel] = useState(null)
   const [messages, setMessages] = useState([])
+  const [reactions, setReactions] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // Threads
+  const [activeThreadId, setActiveThreadId] = useState(null)
+  const [threadInput, setThreadInput] = useState('')
+  const [sendingReply, setSendingReply] = useState(false)
+  const threadEndRef = useRef(null)
+
+  // Reaction picker (message id whose picker popover is open)
+  const [reactionPickerFor, setReactionPickerFor] = useState(null)
 
   // Modals
   const [showNewChannel, setShowNewChannel] = useState(false)
@@ -141,9 +203,22 @@ export default function Chat() {
   const dmChannels = channels.filter(c => c.type === 'direct')
   const starredChannels = channels.filter(c => starred.has(c.id))
 
+  // Top-level (non-reply) messages for the channel feed
+  const topLevel = messages.filter(m => !m.thread_id)
   const displayedMessages = searchQuery.trim()
-    ? messages.filter(m => m.content?.toLowerCase().includes(searchQuery.toLowerCase()))
-    : messages
+    ? topLevel.filter(m => m.content?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : topLevel
+
+  // Reply counts keyed by parent message id
+  const replyCountByParent = {}
+  for (const m of messages) {
+    if (m.thread_id) replyCountByParent[m.thread_id] = (replyCountByParent[m.thread_id] || 0) + 1
+  }
+
+  const threadParent = activeThreadId ? messages.find(m => m.id === activeThreadId) : null
+  const threadReplies = activeThreadId
+    ? messages.filter(m => m.thread_id === activeThreadId).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    : []
 
   const filteredPeople = dmSearch.trim()
     ? people.filter(p =>
@@ -183,6 +258,9 @@ export default function Chat() {
     setSearchQuery('')
     setShowSearch(false)
     setMessages([])
+    setReactions([])
+    setActiveThreadId(null)
+    setReactionPickerFor(null)
     fetchMessages(activeChannel.id)
 
     const channel = supabase
@@ -212,12 +290,24 @@ export default function Chat() {
       }, (payload) => {
         setMessages(prev => prev.filter(m => m.id !== payload.old.id))
       })
+      // Reactions realtime (chat_reactions has no channel column — filter by loaded messages at render)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'chat_reactions'
+      }, (payload) => {
+        setReactions(prev => prev.find(r => r.id === payload.new.id) ? prev : [...prev, payload.new])
+      })
+      .on('postgres_changes', {
+        event: 'DELETE', schema: 'public', table: 'chat_reactions'
+      }, (payload) => {
+        setReactions(prev => prev.filter(r => r.id !== payload.old.id))
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [activeChannel])
 
   useEffect(() => { if (!searchQuery) scrollToBottom() }, [messages])
+  useEffect(() => { threadEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [threadReplies.length, activeThreadId])
   useEffect(() => { if (showSearch) searchInputRef.current?.focus() }, [showSearch])
 
   // Keyboard shortcuts
@@ -229,13 +319,25 @@ export default function Chat() {
       } else if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
         e.preventDefault()
         setSidebarCollapsed(s => !s)
-      } else if (e.key === 'Escape' && showSearch) {
-        setShowSearch(false); setSearchQuery('')
+      } else if (e.key === 'Escape') {
+        if (reactionPickerFor) { setReactionPickerFor(null); return }
+        if (activeThreadId) { setActiveThreadId(null); return }
+        if (showSearch) { setShowSearch(false); setSearchQuery('') }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [activeChannel, showSearch])
+  }, [activeChannel, showSearch, activeThreadId, reactionPickerFor])
+
+  // Dismiss reaction picker on outside click
+  useEffect(() => {
+    if (!reactionPickerFor) return
+    function onClick(e) {
+      if (!e.target.closest?.('[data-reaction-ui]')) setReactionPickerFor(null)
+    }
+    window.addEventListener('mousedown', onClick)
+    return () => window.removeEventListener('mousedown', onClick)
+  }, [reactionPickerFor])
 
   function scrollToBottom() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -286,8 +388,38 @@ export default function Chat() {
       .select('*, profiles!chat_messages_sender_id_fkey(full_name, email, title)')
       .eq('channel_id', channelId)
       .order('created_at', { ascending: true })
-      .limit(200)
-    setMessages(data || [])
+      .limit(300)
+    const msgs = data || []
+    setMessages(msgs)
+    fetchReactions(msgs.map(m => m.id))
+  }
+
+  async function fetchReactions(messageIds) {
+    if (!messageIds.length) { setReactions([]); return }
+    const { data } = await supabase
+      .from('chat_reactions')
+      .select('*')
+      .in('message_id', messageIds)
+    setReactions(data || [])
+  }
+
+  async function toggleReaction(messageId, emoji) {
+    setReactionPickerFor(null)
+    if (!user) return
+    const mine = reactions.find(r => r.message_id === messageId && r.user_id === user.id && r.emoji === emoji)
+    if (mine) {
+      setReactions(prev => prev.filter(r => r.id !== mine.id))
+      await supabase.from('chat_reactions').delete().eq('id', mine.id)
+    } else {
+      const uname = profile?.full_name || user?.email || 'You'
+      const tmp = { id: `tmp-${Date.now()}`, message_id: messageId, user_id: user.id, user_name: uname, emoji, created_at: new Date().toISOString() }
+      setReactions(prev => [...prev, tmp])
+      const { data } = await supabase
+        .from('chat_reactions')
+        .insert({ message_id: messageId, user_id: user.id, user_name: uname, emoji })
+        .select().single()
+      if (data) setReactions(prev => prev.map(r => r.id === tmp.id ? data : r))
+    }
   }
 
   async function sendMessage() {
@@ -301,6 +433,18 @@ export default function Chat() {
       if (inputRef.current) { inputRef.current.style.height = 'auto'; inputRef.current.focus() }
     } catch (err) { console.error('Send error:', err) }
     finally { setSending(false) }
+  }
+
+  async function sendReply() {
+    if (!threadInput.trim() || !activeThreadId || !activeChannel) return
+    setSendingReply(true)
+    try {
+      await supabase.from('chat_messages').insert({
+        channel_id: activeChannel.id, sender_id: user.id, content: threadInput.trim(), thread_id: activeThreadId
+      })
+      setThreadInput('')
+    } catch (err) { console.error('Reply error:', err) }
+    finally { setSendingReply(false) }
   }
 
   async function createChannel() {
@@ -393,7 +537,10 @@ export default function Chat() {
     await supabase.from('chat_messages').update({ content: editText.trim(), edited_at: new Date().toISOString() }).eq('id', editingMessage)
     setEditingMessage(null); setEditText('')
   }
-  async function deleteMessage(msgId) { await supabase.from('chat_messages').delete().eq('id', msgId) }
+  async function deleteMessage(msgId) {
+    if (activeThreadId === msgId) setActiveThreadId(null)
+    await supabase.from('chat_messages').delete().eq('id', msgId)
+  }
 
   const isDm = activeChannel?.type === 'direct'
 
@@ -621,6 +768,8 @@ export default function Chat() {
                 const newDay = isNewDay(prev, msg)
                 const grouped = !newDay && shouldGroup(prev, msg)
                 const isOwn = msg.sender_id === user.id
+                const groups = groupReactions(reactions.filter(r => r.message_id === msg.id), user.id)
+                const replyCount = replyCountByParent[msg.id] || 0
                 return (
                   <div key={msg.id}>
                     {newDay && (
@@ -660,21 +809,16 @@ export default function Chat() {
                             <button onClick={() => setEditingMessage(null)} className="text-xs text-gray-500 hover:underline">Cancel</button>
                           </div>
                         ) : (
-                          <div className="relative flex items-end gap-1">
-                            {isOwn && (
-                              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
-                                <button onClick={() => startEdit(msg)} className="p-1 text-gray-500 hover:text-gray-300" title="Edit">
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                                  </svg>
-                                </button>
-                                <button onClick={() => deleteMessage(msg.id)} className="p-1 text-gray-500 hover:text-red-400" title="Delete">
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9" />
-                                  </svg>
-                                </button>
-                              </div>
-                            )}
+                          <div className={`relative flex items-end gap-1 ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}>
+                            <MessageActions
+                              isOwn={isOwn}
+                              pickerOpen={reactionPickerFor === msg.id}
+                              onOpenPicker={() => setReactionPickerFor(reactionPickerFor === msg.id ? null : msg.id)}
+                              onReact={(emoji) => toggleReaction(msg.id, emoji)}
+                              onReply={() => setActiveThreadId(msg.id)}
+                              onEdit={() => startEdit(msg)}
+                              onDelete={() => deleteMessage(msg.id)}
+                            />
                             <div className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm ${
                               isOwn
                                 ? `bg-brand-blue text-white ${grouped ? 'rounded-tr-md' : 'rounded-tr-md'}`
@@ -684,6 +828,16 @@ export default function Chat() {
                               {msg.edited_at && <span className="text-[10px] opacity-70 ml-1">(edited)</span>}
                             </div>
                           </div>
+                        )}
+                        <ReactionBar groups={groups} onToggle={(emoji) => toggleReaction(msg.id, emoji)} align={isOwn ? 'end' : 'start'} />
+                        {replyCount > 0 && (
+                          <button
+                            onClick={() => setActiveThreadId(msg.id)}
+                            className={`mt-1 flex items-center gap-1 text-[11px] font-medium text-brand-blue hover:underline ${isOwn ? 'self-end' : 'self-start'}`}
+                          >
+                            <ReplyIcon />
+                            {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+                          </button>
                         )}
                         <span className={`text-[10px] text-gray-500 mt-0.5 px-1 ${isOwn ? 'text-right' : 'text-left'}`}>
                           {formatTime(msg.created_at)}
@@ -745,6 +899,90 @@ export default function Chat() {
           </div>
         )}
       </div>
+
+      {/* Thread / Comments Panel */}
+      {activeThreadId && threadParent && (
+        <div className="w-[380px] border-l border-navy-700/50 flex flex-col bg-navy-900/40 flex-shrink-0">
+          <div className="h-14 border-b border-navy-700/50 flex items-center px-4 gap-2 flex-shrink-0">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-white">Thread</h3>
+              <p className="text-[11px] text-gray-500 truncate">
+                {threadReplies.length} {threadReplies.length === 1 ? 'reply' : 'replies'}
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveThreadId(null)}
+              className="p-1.5 text-gray-500 hover:text-white hover:bg-navy-700/50 rounded-lg transition-colors"
+              title="Close thread"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            {/* Parent post */}
+            <ThreadMessage
+              msg={threadParent}
+              me={user}
+              reactions={reactions.filter(r => r.message_id === threadParent.id)}
+              onToggleReaction={(emoji) => toggleReaction(threadParent.id, emoji)}
+              isParent
+            />
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-navy-700/60" />
+              <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                {threadReplies.length} {threadReplies.length === 1 ? 'reply' : 'replies'}
+              </span>
+              <div className="flex-1 h-px bg-navy-700/60" />
+            </div>
+            {/* Replies */}
+            {threadReplies.map(reply => (
+              <ThreadMessage
+                key={reply.id}
+                msg={reply}
+                me={user}
+                reactions={reactions.filter(r => r.message_id === reply.id)}
+                onToggleReaction={(emoji) => toggleReaction(reply.id, emoji)}
+                onDelete={reply.sender_id === user.id ? () => deleteMessage(reply.id) : null}
+              />
+            ))}
+            <div ref={threadEndRef} />
+          </div>
+
+          {/* Reply composer */}
+          <div className="px-4 pb-4 pt-1 flex-shrink-0">
+            <div className="flex items-end gap-2 bg-navy-800 border border-navy-700/50 rounded-2xl px-3 py-2 focus-within:border-brand-blue/40 transition-colors">
+              <textarea
+                rows={1}
+                className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none resize-none leading-relaxed py-0.5 max-h-32"
+                placeholder="Reply..."
+                value={threadInput}
+                onChange={e => {
+                  setThreadInput(e.target.value)
+                  const ta = e.target
+                  ta.style.height = 'auto'
+                  ta.style.height = Math.min(ta.scrollHeight, 128) + 'px'
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() }
+                }}
+                disabled={sendingReply}
+              />
+              <button
+                onClick={sendReply}
+                disabled={sendingReply || !threadInput.trim()}
+                className="p-1.5 bg-brand-blue hover:bg-brand-blue/80 disabled:bg-navy-700 disabled:text-gray-600 text-white rounded-lg transition-colors flex-shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* New Channel Modal */}
       {showNewChannel && (
@@ -844,6 +1082,101 @@ export default function Chat() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Message hover actions (react / reply / edit / delete) + picker
+// ─────────────────────────────────────────────────────────────
+function MessageActions({ isOwn, pickerOpen, onOpenPicker, onReact, onReply, onEdit, onDelete }) {
+  return (
+    <div data-reaction-ui className="relative opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity self-center">
+      <button onClick={onOpenPicker} className="p-1 text-gray-500 hover:text-brand-blue" title="Add reaction">
+        <ReactIcon />
+      </button>
+      <button onClick={onReply} className="p-1 text-gray-500 hover:text-brand-blue" title="Reply in thread">
+        <ReplyIcon />
+      </button>
+      {isOwn && (
+        <>
+          <button onClick={onEdit} className="p-1 text-gray-500 hover:text-gray-300" title="Edit">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+            </svg>
+          </button>
+          <button onClick={onDelete} className="p-1 text-gray-500 hover:text-red-400" title="Delete">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9" />
+            </svg>
+          </button>
+        </>
+      )}
+      {pickerOpen && (
+        <div className={`absolute bottom-full mb-1 z-30 flex items-center gap-0.5 bg-navy-800 border border-navy-700/70 rounded-full px-1.5 py-1 shadow-xl ${isOwn ? 'right-0' : 'left-0'}`}>
+          {EMOJI_OPTIONS.map(emoji => (
+            <button
+              key={emoji}
+              onClick={() => onReact(emoji)}
+              className="w-7 h-7 flex items-center justify-center rounded-full text-base hover:bg-navy-700 transition-colors"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Thread panel message
+// ─────────────────────────────────────────────────────────────
+function ThreadMessage({ msg, me, reactions, onToggleReaction, onDelete, isParent }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const groups = groupReactions(reactions, me?.id)
+  const name = msg.profiles?.full_name || msg.profiles?.email || msg.sender_name || 'Unknown'
+  return (
+    <div className="group flex gap-2.5">
+      <Avatar profile={msg.profiles} seed={msg.sender_id} size="sm" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2">
+          <span className="text-xs font-semibold text-white truncate">{name}</span>
+          <span className="text-[10px] text-gray-500 flex-shrink-0">{formatTime(msg.created_at)}</span>
+        </div>
+        <div className={`mt-1 inline-block px-3 py-2 rounded-xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
+          isParent ? 'bg-navy-800 border border-navy-700/50 text-gray-100' : 'bg-navy-700/60 text-gray-100'
+        }`}>
+          {msg.content}
+          {msg.edited_at && <span className="text-[10px] opacity-70 ml-1">(edited)</span>}
+        </div>
+        <ReactionBar groups={groups} onToggle={onToggleReaction} align="start" />
+        <div data-reaction-ui className="relative mt-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => setPickerOpen(o => !o)} className="p-0.5 text-gray-500 hover:text-brand-blue" title="Add reaction">
+            <ReactIcon />
+          </button>
+          {onDelete && (
+            <button onClick={onDelete} className="p-0.5 text-gray-500 hover:text-red-400" title="Delete">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9" />
+              </svg>
+            </button>
+          )}
+          {pickerOpen && (
+            <div className="absolute top-full mt-1 left-0 z-30 flex items-center gap-0.5 bg-navy-800 border border-navy-700/70 rounded-full px-1.5 py-1 shadow-xl">
+              {EMOJI_OPTIONS.map(emoji => (
+                <button
+                  key={emoji}
+                  onClick={() => { onToggleReaction(emoji); setPickerOpen(false) }}
+                  className="w-7 h-7 flex items-center justify-center rounded-full text-base hover:bg-navy-700 transition-colors"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
