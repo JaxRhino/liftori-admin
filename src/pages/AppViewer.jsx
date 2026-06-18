@@ -100,7 +100,7 @@ const APPS = {
       account: 'rhinomarch',
       expoSlug: 'liftori-hood',
     },
-    repo: { org: 'JaxRhino', name: 'liftori-hood', branch: 'main' },
+    repo: { org: 'JaxRhino', name: 'liftori-crm-mobile', branch: 'main' },
     channels: [
       { key: 'preview', label: 'Preview', description: 'Sideloaded testers — Ryan + Mike + crew', tint: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20' },
       { key: 'production', label: 'Production', description: 'Live resellers — Play Store build', tint: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
