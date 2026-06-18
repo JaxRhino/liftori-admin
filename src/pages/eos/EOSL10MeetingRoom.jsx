@@ -14,7 +14,7 @@ import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Textarea } from '../../components/ui/textarea';
-import { Avatar, AvatarFallback } from '../../components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
 import { useOrg } from '../../lib/OrgContext';
 import {
   fetchMeeting,
@@ -25,6 +25,8 @@ import {
   fetchIssues,
   fetchScorecardMetrics,
   fetchHeadlines,
+  fetchTeamUsers,
+  updateMeeting,
 } from '../../lib/eosService';
 
 const SECTIONS = [
@@ -57,6 +59,8 @@ export default function EOSL10MeetingRoom() {
   const [segueNotes, setSegueNotes] = useState('');
   const [concludeNotes, setConcludeNotes] = useState('');
   const [completedTodos, setCompletedTodos] = useState(new Set());
+  const [teamUsers, setTeamUsers] = useState([]);
+  const [segueCheckins, setSegueCheckins] = useState({});
 
   useEffect(() => {
     loadMeetingData();
@@ -72,6 +76,7 @@ export default function EOSL10MeetingRoom() {
         issuesData,
         scorecardData,
         headlinesData,
+        teamData,
       ] = await Promise.all([
         fetchMeeting(meetingId),
         fetchRocks(null, currentOrg?.id),
@@ -79,6 +84,7 @@ export default function EOSL10MeetingRoom() {
         fetchIssues(null, currentOrg?.id),
         fetchScorecardMetrics(currentOrg?.id),
         fetchHeadlines(null, currentOrg?.id),
+        fetchTeamUsers(),
       ]);
 
       setMeeting(meetingData);
@@ -87,6 +93,12 @@ export default function EOSL10MeetingRoom() {
       setIssues(issuesData || []);
       setScorecard(scorecardData || []);
       setHeadlines(headlinesData || []);
+      setTeamUsers(teamData || []);
+      const ck = {};
+      (meetingData?.segue_checkins || []).forEach((r) => {
+        ck[r.user_id] = { personal: r.personal || '', professional: r.professional || '' };
+      });
+      setSegueCheckins(ck);
     } catch (error) {
       console.error('Error loading meeting data:', error);
       toast.error('Failed to load meeting');
@@ -161,6 +173,39 @@ export default function EOSL10MeetingRoom() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const updateCheckin = (userId, field, value) => {
+    setSegueCheckins((prev) => ({
+      ...prev,
+      [userId]: { personal: '', professional: '', ...(prev[userId] || {}), [field]: value },
+    }));
+  };
+
+  const saveSegue = async () => {
+    try {
+      const arr = Object.entries(segueCheckins).map(([user_id, v]) => ({
+        user_id,
+        personal: v.personal || '',
+        professional: v.professional || '',
+      }));
+      await updateMeeting(meetingId, { segue_checkins: arr });
+    } catch (e) {
+      console.error('Error saving segue check-ins:', e);
+    }
+  };
+
+  const getInitials = (name) =>
+    (name || '?').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+
+  const segueAttendees = (() => {
+    const ids = Array.isArray(meeting?.attendees) ? meeting.attendees : [];
+    if (ids.length && teamUsers.length) {
+      const byId = Object.fromEntries(teamUsers.map((u) => [u.id, u]));
+      const list = ids.map((id) => byId[id]).filter(Boolean);
+      if (list.length) return list;
+    }
+    return teamUsers;
+  })();
+
   const renderSectionContent = () => {
     const section = SECTIONS[currentSection];
 
@@ -168,13 +213,52 @@ export default function EOSL10MeetingRoom() {
       case 0: // Segue
         return (
           <div className="space-y-4">
-            <p className="text-sm text-gray-400">Good news and personal wins from each attendee</p>
-            <Textarea
-              placeholder="Record positive updates and wins from the team..."
-              value={segueNotes}
-              onChange={(e) => setSegueNotes(e.target.value)}
-              className="bg-navy-800 border-navy-700 text-white min-h-48"
-            />
+            <p className="text-sm text-gray-400">Personal &amp; professional good news from each attendee (last week)</p>
+            {segueAttendees.length === 0 ? (
+              <p className="text-gray-400">No attendees on this meeting</p>
+            ) : (
+              <div className="space-y-4">
+                {segueAttendees.map((person) => {
+                  const c = segueCheckins[person.id] || { personal: '', professional: '' };
+                  const displayName = person.name || person.full_name || person.email || 'Unnamed';
+                  return (
+                    <Card key={person.id} className="bg-navy-800 border-navy-700 p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Avatar className="h-9 w-9">
+                          {person.avatar_url && <AvatarImage src={person.avatar_url} alt={displayName} />}
+                          <AvatarFallback className="bg-blue-600 text-white text-xs font-semibold">
+                            {getInitials(displayName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium text-white">{displayName}</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-400 mb-1">Personal</label>
+                          <Textarea
+                            placeholder="Personal good news from last week..."
+                            value={c.personal}
+                            onChange={(e) => updateCheckin(person.id, 'personal', e.target.value)}
+                            onBlur={saveSegue}
+                            className="bg-navy-900 border-navy-700 text-white min-h-24"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-400 mb-1">Professional</label>
+                          <Textarea
+                            placeholder="Professional good news from last week..."
+                            value={c.professional}
+                            onChange={(e) => updateCheckin(person.id, 'professional', e.target.value)}
+                            onBlur={saveSegue}
+                            className="bg-navy-900 border-navy-700 text-white min-h-24"
+                          />
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
 
@@ -219,7 +303,7 @@ export default function EOSL10MeetingRoom() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h4 className="font-medium text-white">{rock.title}</h4>
-                        <p className="text-sm text-gray-400 mt-1">{rock.owner}</p>
+                        <p className="text-sm text-gray-400 mt-1">{rock.owner?.full_name || 'Unassigned'}</p>
                       </div>
                       <Badge
                         className={
@@ -291,9 +375,9 @@ export default function EOSL10MeetingRoom() {
                     <span
                       className={`flex-1 ${completedTodos.has(todo.id) ? 'line-through text-gray-500' : 'text-white'}`}
                     >
-                      {todo.title}
+                      {todo.task}
                     </span>
-                    <span className="text-xs text-gray-400">{todo.owner}</span>
+                    <span className="text-xs text-gray-400">{todo.owner?.full_name || 'Unassigned'}</span>
                   </div>
                 ))}
               </div>
