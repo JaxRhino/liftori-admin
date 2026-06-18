@@ -103,9 +103,15 @@ export default function WorkQueue() {
 
   // Lab counts (across all, ignoring the secondary filters)
   const labCounts = useMemo(() => {
-    const c = { all: items.length }
+    // Badges count ACTIVE work only (open + in_progress), not closed/resolved/wont_fix.
+    const c = { all: 0 }
     for (const l of LABS) c[l.value] = 0
-    for (const it of items) c[it.lab || 'ryan'] = (c[it.lab || 'ryan'] || 0) + 1
+    for (const it of items) {
+      if (it.status !== 'open' && it.status !== 'in_progress') continue
+      const k = it.lab || 'ryan'
+      c[k] = (c[k] || 0) + 1
+      c.all++
+    }
     return c
   }, [items])
 
