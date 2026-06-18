@@ -83,6 +83,19 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
           </button>
         </div>
         <div className="p-5 space-y-3">
+          {event?.meeting_url && (
+            <a
+              href={event.meeting_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              Join Meeting
+            </a>
+          )}
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
             placeholder="Event title *" className={INPUT} autoFocus />
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
