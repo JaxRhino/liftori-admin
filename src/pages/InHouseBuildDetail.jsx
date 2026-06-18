@@ -117,6 +117,12 @@ export default function InHouseBuildDetail() {
         })
         .eq('id', ms.id)
       if (error) throw error
+      // Auto-recompute overall progress from milestone completion so the bar advances on its own
+      const updatedMs = milestones.map(m => m.id === ms.id ? { ...m, status: next } : m)
+      const completed = updatedMs.filter(m => m.status === 'completed').length
+      const total = updatedMs.length
+      const pct = total > 0 ? Math.round((completed / total) * 100) : (build.progress || 0)
+      await supabase.from('inhouse_builds').update({ progress: pct, updated_at: new Date().toISOString() }).eq('id', id)
       fetchBuild()
     } catch (err) {
       console.error('Error updating milestone:', err)
