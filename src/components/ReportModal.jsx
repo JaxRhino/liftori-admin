@@ -23,6 +23,25 @@ const PAGE_OPTIONS = [
   'Builds', 'Support Tickets', 'Other'
 ]
 
+const BUILD_TYPES = [
+  { value: '', label: 'Select build type...' },
+  { value: 'app', label: 'App' },
+  { value: 'web_app', label: 'Web App' },
+  { value: 'website', label: 'Website' },
+  { value: 'landing_page', label: 'Landing Page' },
+  { value: 'mobile_app', label: 'Mobile App' },
+  { value: 'feature', label: 'Feature' },
+  { value: 'bug_fix', label: 'Bug Fix' },
+  { value: 'integration', label: 'Integration' },
+  { value: 'other', label: 'Other' },
+]
+
+const LAB_OPTIONS = [
+  { value: 'ryan', label: "Ryan's Lab" },
+  { value: 'mike', label: "Mike's Lab" },
+  { value: 'night', label: 'Night Builder Lab' },
+]
+
 export default function ReportModal({ onClose }) {
   const { user, profile } = useAuth()
   const [step, setStep] = useState(0) // 0 = type selection, 1 = form
@@ -34,6 +53,8 @@ export default function ReportModal({ onClose }) {
     priority: 'medium',
     page: '',
     steps_to_reproduce: '',
+    build_type: '',
+    lab: 'ryan',
   })
 
   function selectType(type) {
@@ -52,6 +73,8 @@ export default function ReportModal({ onClose }) {
         title: form.title.trim(),
         description: form.description.trim(),
         priority: form.priority,
+        build_type: form.build_type || null,
+        lab: form.lab || 'ryan',
         page: form.page || null,
         steps_to_reproduce: form.steps_to_reproduce.trim() || null,
         status: 'open',
@@ -189,6 +212,34 @@ export default function ReportModal({ onClose }) {
                   <option value="">Select page...</option>
                   {PAGE_OPTIONS.map(p => (
                     <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Build type + Lab row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Build Type</label>
+                <select
+                  value={form.build_type}
+                  onChange={e => setForm({ ...form, build_type: e.target.value })}
+                  className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                >
+                  {BUILD_TYPES.map(b => (
+                    <option key={b.value} value={b.value}>{b.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Send to Lab</label>
+                <select
+                  value={form.lab}
+                  onChange={e => setForm({ ...form, lab: e.target.value })}
+                  className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-sky-500 transition-colors"
+                >
+                  {LAB_OPTIONS.map(l => (
+                    <option key={l.value} value={l.value}>{l.label}</option>
                   ))}
                 </select>
               </div>
