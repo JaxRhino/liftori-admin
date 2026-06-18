@@ -15,6 +15,25 @@ const STATUS_COLOR = { queued: '#94a3b8', in_progress: '#06b6d4', blocked: '#ef4
 const TYPE_DOT = { file: 'bg-cyan-400', task: 'bg-violet-400', deployment: 'bg-emerald-400', memory: 'bg-amber-400', skill: 'bg-blue-400', canvas: 'bg-rose-400', note: 'bg-slate-400', commit: 'bg-orange-400', session: 'bg-pink-400' }
 const OPEN_TICKET = ['open', 'pending', 'in_progress', 'new', 'waiting']
 
+// Scheduled Cowork tasks — mirrors the Cowork scheduler (update when cadences change).
+const BUG_QRF = [
+  { n: 'Bug 1', t: '9:00 PM' }, { n: 'Bug 2', t: '10:00 PM' }, { n: 'Bug 3', t: '11:00 PM' },
+  { n: 'Bug 4', t: '12:00 AM' }, { n: 'Bug 5', t: '1:00 AM' }, { n: 'Bug 6', t: '2:00 AM' },
+  { n: 'Bug 7', t: '3:00 AM' }, { n: 'Bug 8', t: '4:00 AM' }, { n: 'Bug 9', t: '5:00 AM' },
+]
+const SCHEDULE_GROUPS = [
+  { group: 'Build Lanes', accent: '#06b6d4', rows: [
+    { name: 'Build Agent', when: '10:00 PM', note: 'Full apps / sites — spec-gated' },
+    { name: 'Update Agent', when: '3:31 AM', note: 'Features & integrations (max 2)' },
+    { name: 'Dev-Task Nightly Build', when: '2:00 AM', note: 'Drains dev_team_tasks (max 3)' },
+  ]},
+  { group: 'System & Ops', accent: '#a855f7', rows: [
+    { name: 'Daily Pipeline Audit', when: '9:09 AM', note: 'CI status + queue hygiene' },
+    { name: 'Morning Brief / Inbox Janitor', when: '7:04 AM', note: 'Daily brief + inbox triage' },
+    { name: 'Weekly Skill Master Sync', when: 'Mon 7:04 AM', note: 'Regen the Skill Master Doc' },
+  ]},
+]
+
 function relTime(ts) {
   if (!ts) return ''
   const diff = (Date.now() - new Date(ts).getTime()) / 1000
@@ -116,6 +135,56 @@ export default function DevLabDashboard() {
           <StatCard label="Done (7d)" value={loading ? '—' : stats.doneWeek} accent="text-emerald-400" />
           <StatCard label="Open Tickets" value={loading ? '—' : stats.openTickets} accent="text-amber-400" />
           <StatCard label="Assigned to Me" value={loading ? '—' : stats.mine} accent="text-brand-cyan" />
+        </div>
+
+        {/* Scheduled Cowork Tasks */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Scheduled Cowork Tasks</h2>
+            <span className="text-[10px] text-white/40">autonomous runs · mirrors the Cowork scheduler</span>
+          </div>
+
+          {/* Bug QRF fleet */}
+          <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4 mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#ef4444' }}></span>
+                <span className="text-sm font-semibold text-white">Bug QRF Fleet</span>
+              </div>
+              <span className="text-[11px] text-white/40">9 workers · up to 5 bugs each · claim-first · up to 45/night · Bug Agent lab</span>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2">
+              {BUG_QRF.map(b => (
+                <div key={b.n} className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1.5 text-center">
+                  <div className="text-xs text-white/90 font-medium">{b.n}</div>
+                  <div className="text-[10px] text-white/40 font-mono">{b.t}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Other groups */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {SCHEDULE_GROUPS.map(g => (
+              <div key={g.group} className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: g.accent }}></span>
+                  <span className="text-sm font-semibold text-white">{g.group}</span>
+                </div>
+                <div className="space-y-2">
+                  {g.rows.map(r => (
+                    <div key={r.name} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm text-white/90 truncate">{r.name}</div>
+                        <div className="text-[10px] text-white/40">{r.note}</div>
+                      </div>
+                      <span className="text-xs text-white/70 font-mono whitespace-nowrap">{r.when}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
