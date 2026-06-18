@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOrg } from '../../../lib/OrgContext';
+import { useAuth } from '../../../lib/AuthContext';
 import { fetchOpsDocs } from '../../../lib/customerOpsService';
 import { supabase } from '../../../lib/supabase';
 import { Card } from '../../../components/ui/card';
@@ -74,6 +75,7 @@ const VISIBILITY_LEVELS = [
 
 export default function OpsDocs() {
   const { currentOrg } = useOrg();
+  const { user } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -184,7 +186,7 @@ export default function OpsDocs() {
         file_url: formData.file_url,
         file_size: parseInt(formData.file_size) || 0,
         visibility: formData.visibility,
-        uploaded_by: currentOrg.user_id || 'unknown'
+        uploaded_by: user?.id || null
       };
 
       if (isEditing && selectedDoc?.id) {
