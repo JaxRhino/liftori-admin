@@ -583,6 +583,8 @@ export async function createContentDraft(row) {
     character_count: (row.body || '').length,
     scheduled_at: row.scheduled_at || null,
     scheduled_platform: row.scheduled_platform || null,
+    author: row.author || null,
+    cta_url: row.cta_url || null,
     notes: row.notes || null,
   }
   const { data, error } = await supabase.from('creator_drafts').insert(payload).select().single()
