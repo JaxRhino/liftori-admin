@@ -146,7 +146,7 @@ export default function ClientLayout() {
                 <p className="text-sm font-medium text-white truncate">{displayName}</p>
                 <p className="text-xs text-white/40 truncate">{user?.email}</p>
               </div>
-              <NotificationBell />
+              <NotificationBell placement="sidebar" />
             </div>
             {isAdmin && (
               <button
