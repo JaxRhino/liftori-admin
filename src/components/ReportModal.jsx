@@ -39,7 +39,9 @@ const BUILD_TYPES = [
 const LAB_OPTIONS = [
   { value: 'ryan', label: "Ryan's Lab" },
   { value: 'mike', label: "Mike's Lab" },
-  { value: 'night', label: 'Night Builder Lab' },
+  { value: 'bug_agent', label: 'Bug Agent' },
+  { value: 'update_agent', label: 'Update Agent' },
+  { value: 'build_agent', label: 'Build Agent' },
 ]
 
 export default function ReportModal({ onClose }) {
