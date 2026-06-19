@@ -68,6 +68,34 @@ const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 
 const CATEGORY_ORDER = ['Website', 'CRM', 'Mobile App', 'Digital Tool']
 
+const CB_DETAIL_SECTIONS = [
+  { title: 'Ownership', fields: [['owner', 'Project Owner', 'text'], ['stage', 'Stage', 'text'], ['start_date', 'Start Date', 'date'], ['target_launch', 'Target Launch', 'date']] },
+  { title: 'Recurring Revenue', fields: [['mrr', 'MRR (monthly recurring)', 'money'], ['arr', 'ARR (annual recurring)', 'money'], ['pricing_model', 'Pricing Model', 'text'], ['active_customers', 'Active Customers', 'number']] },
+  { title: 'Projections', fields: [['revenue_projection', 'Revenue Projection (12mo)', 'money'], ['buyout_prediction', 'Sale Price / Exit Value', 'money'], ['profit_margin', 'Profit Margin', 'percent'], ['break_even', 'Break-even (note)', 'text']] },
+  { title: 'Budgets', fields: [['build_budget', 'Build Budget', 'money'], ['marketing_budget', 'Marketing Budget', 'money']] },
+]
+
+function CbField({ label, type, value, onCommit }) {
+  const isMoney = type === 'money'
+  const numeric = isMoney || type === 'percent' || type === 'number'
+  const [v, setV] = useState(value ?? '')
+  useEffect(() => { setV(value ?? '') }, [value])
+  return (
+    <div className="bg-navy-900 border border-navy-700/50 rounded-lg p-3">
+      <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{label}</label>
+      <div className="flex items-center gap-1">
+        {isMoney && <span className="text-slate-500 text-sm">$</span>}
+        {type === 'date' ? (
+          <input type="date" value={v} onChange={(e) => setV(e.target.value)} onBlur={() => onCommit(v)} className="w-full bg-transparent text-white text-sm focus:outline-none" />
+        ) : (
+          <input value={v} onChange={(e) => setV(numeric ? e.target.value.replace(/[^0-9.]/g, '') : e.target.value)} onBlur={() => onCommit(v)} placeholder="-" className="w-full bg-transparent text-white text-sm placeholder-slate-600 focus:outline-none" />
+        )}
+        {type === 'percent' && <span className="text-slate-500 text-sm">%</span>}
+      </div>
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -475,6 +503,7 @@ function DetailDrawer({ build, adminName, onClose, onPatch }) {
   const [assignedTo, setAssignedTo] = useState(build.assigned_to || '')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState(null)
+  const [details, setDetails] = useState(build.details || {})
 
   const [notes, setNotes] = useState([])
   const [notesLoading, setNotesLoading] = useState(true)
@@ -487,6 +516,7 @@ function DetailDrawer({ build, adminName, onClose, onPatch }) {
     setPriority(build.priority || 'normal')
     setProgress(build.progress ?? 0)
     setAssignedTo(build.assigned_to || '')
+    setDetails(build.details || {})
     setSaveMsg(null)
   }, [build.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -504,6 +534,13 @@ function DetailDrawer({ build, adminName, onClose, onPatch }) {
   useEffect(() => { loadNotes() }, [loadNotes])
 
   // Status select: update DB immediately
+  const commitDetail = async (key, val) => {
+    const next = { ...details, [key]: val }
+    setDetails(next)
+    const { error } = await supabase.from('custom_builds').update({ details: next }).eq('id', build.id)
+    if (!error) onPatch(build.id, { details: next })
+  }
+
   const onStatusChange = async (value) => {
     const prev = status
     setStatus(value)
@@ -640,6 +677,22 @@ function DetailDrawer({ build, adminName, onClose, onPatch }) {
               {saveMsg && <span className="text-xs text-slate-400">{saveMsg}</span>}
             </div>
           </div>
+
+          {/* Project Details (business / value) */}
+          <Card title="Project Details">
+            <div className="space-y-4">
+              {CB_DETAIL_SECTIONS.map((sec) => (
+                <div key={sec.title}>
+                  <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">{sec.title}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {sec.fields.map(([key, label, type]) => (
+                      <CbField key={key} label={label} type={type} value={details[key]} onCommit={(val) => commitDetail(key, val)} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
 
           {/* Customer */}
           <Card title="Customer">
