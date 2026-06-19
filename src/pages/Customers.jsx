@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
-import { customerValue, currentStage, STAGE_PIPELINE, WON_STAGES } from '../lib/customerValue';
+import { customerValue, currentStage, STAGE_PIPELINE, WON_STAGES, salesToOps, normalizeSalesStage } from '../lib/customerValue';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -48,18 +48,13 @@ const CRM_STAGE_TO_PIPELINE = {
 // Pipeline-bar segment colors, one per STAGE_PIPELINE stage.
 const STAGE_BAR_COLOR = {
   'New Lead': 'bg-sky-500',
-  'Waitlist': 'bg-cyan-500',
-  'Development': 'bg-blue-500',
+  'Qualified': 'bg-cyan-500',
+  'Demo / Mockup': 'bg-blue-500',
   'Demo Ready': 'bg-teal-500',
-  'Demo Scheduled': 'bg-lime-500',
-  'Estimating': 'bg-yellow-500',
   'Estimate Sent': 'bg-amber-500',
-  'Pending Payment': 'bg-orange-500',
-  'Onboarding Scheduled': 'bg-blue-500',
-  'Buildout': 'bg-cyan-500',
-  'Active': 'bg-emerald-500',
-  'Payment Hold': 'bg-rose-500',
-  'Lost': 'bg-red-500',
+  'Agreement Signed': 'bg-lime-500',
+  'Won': 'bg-emerald-500',
+  'Lost': 'bg-rose-500',
 };
 // A customer's unified stage: furthest product-line stage, else mapped crm_stage.
 function customerStage(c) {
@@ -587,9 +582,10 @@ export default function Customers() {
       else { patch.won_at = null; patch.lost_at = null; }
       const { error } = await supabase.from('customer_product_lines').update(patch).eq('id', target.id);
       if (error) throw error;
-      // Keep a linked Operations project in sync with the line stage.
+      // Hand off to a linked Operations project: only on Won (-> Onboarding) or Lost.
       if (target.project_id) {
-        await supabase.from('projects').update({ status: newStage, updated_at: new Date().toISOString() }).eq('id', target.project_id);
+        const opsStatus = salesToOps(newStage);
+        if (opsStatus) await supabase.from('projects').update({ status: opsStatus, updated_at: new Date().toISOString() }).eq('id', target.project_id);
       }
       await logActivity(customer.id, 'status_change', `Moved to ${newStage}`, `Pipeline stage changed to ${newStage}`);
       // Auto-archive when no active (non-lost) product lines remain; un-archive when one returns.
@@ -764,7 +760,7 @@ export default function Customers() {
     total: customers.length,
     active: customers.filter(c => WON_STAGES.includes(customerStage(c))).length,
     pipeline: customers.filter(c => { const st = customerStage(c); return !WON_STAGES.includes(st) && st !== 'Lost'; }).length,
-    atRisk: customers.filter(c => customerStage(c) === 'Payment Hold').length,
+    atRisk: customers.filter(c => customerStage(c) === 'Agreement Signed').length,
   };
 
   if (loading) return <div className="p-6 text-gray-400">Loading CRM...</div>;
@@ -1398,7 +1394,7 @@ export default function Customers() {
                           <Eye className="h-3.5 w-3.5 text-sky-400" />
                         </Button>
                         {customerStage(customer) === 'New Lead' && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => changeLineStage(customer, 'Development')} title="Advance to Development">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => changeLineStage(customer, 'Qualified')} title="Advance to Qualified">
                             <CheckCircle className="h-3.5 w-3.5 text-green-400" />
                           </Button>
                         )}

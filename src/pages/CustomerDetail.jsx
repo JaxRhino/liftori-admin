@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import TeamMemberSelect, { TeamMemberLabel } from '../components/TeamMemberSelect'
-import { STAGE_PIPELINE, customerValue, isWon, isLost } from '../lib/customerValue'
+import { STAGE_PIPELINE, customerValue, isWon, isLost, salesToOps } from '../lib/customerValue'
 
 const LIFTORI_ORG_ID = '18589b33-a730-4aed-b71b-2d55c1f15415'
 const DEFAULT_TIER = 'Growth'
@@ -1629,7 +1629,7 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
           const { data: proj } = await supabase.from('projects').insert({
             name: (customer.company_name || customer.full_name || 'Customer') + ' - ' + form.product_type,
             project_type: PL_PROJECT_TYPE[form.product_type],
-            status: form.stage,
+            status: 'New Project',
             tier: 'Starter',
             customer_id: customerId,
             client_display_name: customer.company_name || customer.full_name || null,
@@ -1668,12 +1668,12 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
       let projectId = line.project_id || null
       if (projectId) {
         // Already linked to an Operations project — just advance it (no duplicate).
-        await supabase.from('projects').update({ status: 'Onboarding Scheduled', updated_at: new Date().toISOString() }).eq('id', projectId)
+        await supabase.from('projects').update({ status: 'Onboarding', updated_at: new Date().toISOString() }).eq('id', projectId)
       } else if (line.product_type !== 'Consulting') {
         const { data: proj, error: pErr } = await supabase.from('projects').insert({
           name: (customer.company_name || customer.full_name || 'Customer') + ' - ' + line.product_type,
           project_type: PL_PROJECT_TYPE[line.product_type],
-          status: 'Onboarding Scheduled',
+          status: 'Onboarding',
           customer_id: customerId,
           client_display_name: customer.company_name || customer.full_name || null,
           mrr: Number(line.mrr) || 0,
@@ -1682,7 +1682,7 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
         projectId = proj.id
       }
       const { error } = await supabase.from('customer_product_lines').update({
-        stage: 'Onboarding Scheduled', won_at: new Date().toISOString(), project_id: projectId, updated_at: new Date().toISOString(),
+        stage: 'Won', won_at: new Date().toISOString(), project_id: projectId, updated_at: new Date().toISOString(),
       }).eq('id', line.id)
       if (error) throw error
       onChange()
@@ -1712,7 +1712,8 @@ function ProductLinesTab({ customerId, customer, lines, onChange }) {
   // Keep a linked Operations project's status in sync with the product line stage (shared pipeline).
   async function syncProjectStage(line, stage) {
     if (!line || !line.project_id) return
-    await supabase.from('projects').update({ status: stage, updated_at: new Date().toISOString() }).eq('id', line.project_id)
+    const opsStatus = salesToOps(stage)
+    if (opsStatus) await supabase.from('projects').update({ status: opsStatus, updated_at: new Date().toISOString() }).eq('id', line.project_id)
   }
 
   return (

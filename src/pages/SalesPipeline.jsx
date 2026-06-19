@@ -1,644 +1,356 @@
 /**
- * SalesPipeline — Liftori's own sales pipeline at /admin/pipeline.
+ * SalesPipeline — Liftori's sales pipeline at /admin/pipeline.
  *
- * Three products with per-product stages:
- *   LABOS        — SaaS subscription (MRR-heavy)
- *   Consulting   — Business consulting (hybrid MRR + one-time)
- *   Custom Build — Project builds (one-time, milestone-based)
+ * Account-centric: every deal is a customer_product_lines row on the shared
+ * SALES_STAGES vocabulary. A product selector switches the flow:
+ *   - "Products & Builds": CRM / Website / Custom Build lines (shared board).
+ *   - "Consulting": the separate EOS engagement flow (consulting_engagements).
  *
- * UI:
- *   - Product tabs at top (All / LABOS / Consulting / Custom Builds)
- *   - Summary stats row (open count, weighted pipeline, won revenue, win rate)
- *   - Kanban view by stage (per-product; "All" stacks three kanban rails)
- *   - Click-to-advance or dropdown-move (no drag/drop in v1)
- *   - Add / edit lead dialog with product-aware fields
- *
- * Not to be confused with customer/CustomerPipeline.jsx which powers multi-
- * tenant LABOS customers' own sales orgs.
+ * Sales -> Operations handoff lives in moveLine(): a line flagged "build" spawns
+ * an Operations project at "New Project"; a "Won" line advances its project to
+ * "Onboarding". The reverse (Demo Ready / Won back to sales) is handled by the
+ * Operations board (Projects.jsx) via opsToSales().
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import {
-  PRODUCTS,
-  PRODUCT_KEYS,
-  SOURCES,
-  STAGES,
-  stagesFor,
-  stageMetaFor,
-  isClosedStage,
-  listLeads,
-  createLead,
-  updateLead,
-  deleteLead,
-  moveLeadStage,
-  weightedValueCents,
-  formatMoney,
-  summarize,
-} from '../lib/salesLeadsService'
-import { fetchUsers } from '../lib/chatService'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog'
-import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Textarea } from '../components/ui/textarea'
-import { Badge } from '../components/ui/badge'
-import { Plus, Trash2, Edit2, ChevronRight, DollarSign, Clock, User } from 'lucide-react'
-import { toast } from 'sonner'
+  SALES_OPEN,
+  SALES_STAGE_COLORS,
+  SALES_STAGE_PROBABILITY,
+  normalizeSalesStage,
+  salesToOps,
+  lineTcv,
+} from '../lib/customerValue'
 
-const STAGE_COLOR_CLASSES = {
-  slate:   'bg-slate-700/40 text-slate-300 border-slate-600',
-  blue:    'bg-blue-900/40 text-blue-300 border-blue-700',
-  indigo:  'bg-indigo-900/40 text-indigo-300 border-indigo-700',
-  amber:   'bg-amber-900/40 text-amber-300 border-amber-700',
-  emerald: 'bg-emerald-900/40 text-emerald-300 border-emerald-700',
-  rose:    'bg-rose-900/40 text-rose-300 border-rose-700',
+const PRODUCT_TYPES = ['CRM', 'Website', 'Custom Build']
+// product_type (singular) -> projects.project_type (plural)
+const PL_PROJECT_TYPE = { 'CRM': 'CRM', 'Website': 'Websites', 'Custom Build': 'Custom Builds' }
+const TYPE_COLOR = {
+  'CRM': 'bg-brand-blue/20 text-brand-blue',
+  'Website': 'bg-emerald-500/20 text-emerald-400',
+  'Custom Build': 'bg-amber-500/20 text-amber-400',
+}
+const money = n => '$' + Math.round(Number(n) || 0).toLocaleString()
+
+// Default fulfillment path when a line hasn't been flagged: Custom Build => needs a build.
+function pathOf(line) {
+  if (line.fulfillment_path === 'build' || line.fulfillment_path === 'demo') return line.fulfillment_path
+  return line.product_type === 'Custom Build' ? 'build' : 'demo'
 }
 
-const PRODUCT_PILL_CLASSES = {
-  sky:    'bg-sky-500/15 text-sky-400 border-sky-500/30',
-  amber:  'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  violet: 'bg-violet-500/15 text-violet-400 border-violet-500/30',
+// Consulting flow columns (separate flow). Tolerates id-style and title-style stage values.
+const CONSULTING_STAGES = [
+  { id: 'lead', label: 'Lead', match: ['lead', 'new lead'] },
+  { id: 'discovery', label: 'Discovery', match: ['discovery', 'discovery call'] },
+  { id: 'audit', label: 'Business Audit', match: ['audit', 'company audit', 'company onboarding'] },
+  { id: 'plan', label: 'Plan', match: ['plan_presentation', 'plan_adjustments', 'building plan', 'estimating', 'estimate sent'] },
+  { id: 'implementation', label: 'Implementation', match: ['implementation', 'payment received', 'onboarding'] },
+  { id: 'ongoing', label: 'Ongoing / L10', match: ['ongoing', 'active client'] },
+  { id: 'completed', label: 'Completed', match: ['completed', 'archive', 'archive/lost', 'lost', 'payment hold'] },
+]
+function consultingBucket(stage) {
+  const s = (stage || '').toString().toLowerCase()
+  const col = CONSULTING_STAGES.find(c => c.match.includes(s))
+  return col ? col.id : 'lead'
 }
 
-function centsToDollars(cents) {
-  return cents ? String((cents / 100).toFixed(0)) : ''
+function Stat({ label, value, accent }) {
+  return (
+    <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
+      <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">{label}</p>
+      <p className={`text-2xl font-bold mt-1 ${accent || 'text-white'}`}>{value}</p>
+    </div>
+  )
 }
 
 export default function SalesPipeline() {
-  const { user } = useAuth()
-  const [leads, setLeads] = useState([])
+  const { profile, user } = useAuth()
+  const myId = profile?.id || user?.id
+  const [view, setView] = useState('products') // 'products' | 'consulting'
+  const [lines, setLines] = useState([])
+  const [engagements, setEngagements] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeProduct, setActiveProduct] = useState('all') // all | labos | consulting | custom_build
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingLead, setEditingLead] = useState(null)
-  const [teamMembers, setTeamMembers] = useState([])
+  const [ownerFilter, setOwnerFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [showLost, setShowLost] = useState(false)
+  const [busyId, setBusyId] = useState(null)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { fetchAll() }, [])
 
-  async function load() {
+  async function fetchAll() {
     setLoading(true)
+    const [lr, er] = await Promise.all([
+      supabase
+        .from('customer_product_lines')
+        .select('*, customer:profiles!customer_product_lines_profile_id_fkey(id, full_name, company_name), owner:profiles!customer_product_lines_owner_id_fkey(full_name), project:projects!customer_product_lines_project_id_fkey(id, status)')
+        .order('updated_at', { ascending: false }),
+      supabase
+        .from('consulting_engagements')
+        .select('id, company_name, client_name, contract_value, engagement_stage, updated_at')
+        .order('updated_at', { ascending: false }),
+    ])
+    if (lr.error) console.error('lines', lr.error)
+    if (er.error) console.error('engagements', er.error)
+    setLines((lr.data || []).filter(l => l.product_type !== 'Consulting'))
+    setEngagements(er.data || [])
+    setLoading(false)
+  }
+
+  async function assignToMe(line) {
+    if (!myId) return
+    setBusyId(line.id)
     try {
-      const rows = await listLeads()
-      setLeads(rows)
-    } catch (e) {
-      toast.error('Failed to load pipeline: ' + (e.message || 'unknown'))
-    } finally {
-      setLoading(false)
-    }
+      await supabase.from('customer_product_lines').update({ owner_id: myId, updated_at: new Date().toISOString() }).eq('id', line.id)
+      await fetchAll()
+    } catch (e) { console.error(e); alert('Failed to assign') } finally { setBusyId(null) }
   }
 
-  // Team roster for the "Assigned to" picker — loaded lazily the first time
-  // the add-lead dialog opens.
-  useEffect(() => {
-    if (!dialogOpen || teamMembers.length > 0) return
-    fetchUsers()
-      .then(({ users }) => setTeamMembers(users || []))
-      .catch((e) => console.error('fetchUsers for pipeline dialog', e))
-  }, [dialogOpen, teamMembers.length])
-
-  const filteredLeads = useMemo(() => {
-    if (activeProduct === 'all') return leads
-    return leads.filter((l) => l.product_type === activeProduct)
-  }, [leads, activeProduct])
-
-  const stats = useMemo(() => summarize(filteredLeads), [filteredLeads])
-
-  const openNew = (productType = null) => {
-    setEditingLead({
-      product_type: productType || (activeProduct !== 'all' ? activeProduct : 'custom_build'),
-      stage: '',
-      title: '',
-      company_name: '',
-      contact_name: '',
-      contact_email: '',
-      contact_phone: '',
-      deal_value: '',
-      mrr: '',
-      probability: 50,
-      expected_close_date: '',
-      source: 'inbound',
-      assigned_to: '',
-      next_action: '',
-      next_action_date: '',
-      description: '',
-      notes: '',
-    })
-    setDialogOpen(true)
-  }
-
-  const openEdit = (lead) => {
-    setEditingLead({
-      ...lead,
-      deal_value: centsToDollars(lead.deal_value_cents),
-      mrr: centsToDollars(lead.mrr_cents),
-      assigned_to: lead.assigned_to || '',
-      source: lead.source || 'inbound',
-      expected_close_date: lead.expected_close_date || '',
-      next_action_date: lead.next_action_date || '',
-    })
-    setDialogOpen(true)
-  }
-
-  const handleSave = async () => {
+  async function setPath(line, path) {
+    setBusyId(line.id)
     try {
-      if (!editingLead.title?.trim()) { toast.error('Title is required'); return }
-      if (!editingLead.product_type) { toast.error('Product is required'); return }
-      if (editingLead.id) {
-        await updateLead(editingLead.id, editingLead)
-        toast.success('Lead updated')
-      } else {
-        await createLead(editingLead, user?.id)
-        toast.success('Lead created')
+      await supabase.from('customer_product_lines').update({ fulfillment_path: path, updated_at: new Date().toISOString() }).eq('id', line.id)
+      await fetchAll()
+    } catch (e) { console.error(e); alert('Failed to set path') } finally { setBusyId(null) }
+  }
+
+  // Move a sales line and run the Operations handoff.
+  async function moveLine(line, newStage) {
+    if (newStage === normalizeSalesStage(line.stage)) return
+    setBusyId(line.id)
+    try {
+      const patch = { stage: newStage, updated_at: new Date().toISOString() }
+      if (newStage === 'Won') { patch.won_at = line.won_at || new Date().toISOString(); patch.lost_at = null }
+      else if (newStage === 'Lost') { patch.lost_at = line.lost_at || new Date().toISOString() }
+      else { patch.won_at = null; patch.lost_at = null }
+
+      let projectId = line.project_id || null
+      const path = pathOf(line)
+      const isProduct = line.product_type !== 'Consulting' && PL_PROJECT_TYPE[line.product_type]
+
+      // Need a project? (a) build path entering Demo / Mockup, or (b) Won with no project yet.
+      const needsBuildProject = isProduct && !projectId && path === 'build' && newStage === 'Demo / Mockup'
+      const needsDeliveryProject = isProduct && !projectId && newStage === 'Won'
+      if (needsBuildProject || needsDeliveryProject) {
+        const cname = line.customer?.company_name || line.customer?.full_name || 'Customer'
+        const { data: proj, error: pErr } = await supabase.from('projects').insert({
+          name: cname + ' - ' + line.product_type,
+          project_type: PL_PROJECT_TYPE[line.product_type],
+          status: needsDeliveryProject ? 'Onboarding' : 'New Project',
+          tier: 'Starter',
+          customer_id: line.profile_id,
+          client_display_name: cname,
+          mrr: Number(line.mrr) || 0,
+          brief: 'New ' + line.product_type + ' for ' + cname + '.',
+        }).select().single()
+        if (pErr) throw pErr
+        projectId = proj.id
+        patch.project_id = projectId
+      } else if (projectId) {
+        // Existing linked project: only move it on Won/Lost (build phase owns its own status).
+        const opsStatus = salesToOps(newStage)
+        if (opsStatus) await supabase.from('projects').update({ status: opsStatus, updated_at: new Date().toISOString() }).eq('id', projectId)
       }
-      setDialogOpen(false)
-      setEditingLead(null)
-      load()
-    } catch (e) {
-      toast.error('Save failed: ' + (e.message || 'unknown'))
-    }
+
+      const { error } = await supabase.from('customer_product_lines').update(patch).eq('id', line.id)
+      if (error) throw error
+      await fetchAll()
+    } catch (e) { console.error(e); alert('Failed to move: ' + (e.message || '')) } finally { setBusyId(null) }
   }
 
-  const handleDelete = async () => {
-    if (!editingLead?.id) return
-    if (!window.confirm('Delete this lead? This cannot be undone.')) return
-    try {
-      await deleteLead(editingLead.id)
-      toast.success('Lead deleted')
-      setDialogOpen(false)
-      setEditingLead(null)
-      load()
-    } catch (e) {
-      toast.error('Delete failed: ' + (e.message || 'unknown'))
-    }
-  }
+  const columns = showLost ? [...SALES_OPEN, 'Won', 'Lost'] : [...SALES_OPEN, 'Won']
 
-  const handleMove = async (lead, newStage) => {
-    try {
-      await moveLeadStage(lead.id, newStage)
-      setLeads((prev) => prev.map((l) => l.id === lead.id ? { ...l, stage: newStage } : l))
-      toast.success(`Moved to ${stageMetaFor(lead.product_type, newStage).label}`)
-    } catch (e) {
-      toast.error('Move failed: ' + (e.message || 'unknown'))
-    }
-  }
+  const filteredLines = useMemo(() => lines.filter(l =>
+    (typeFilter === 'all' || l.product_type === typeFilter) &&
+    (ownerFilter === 'all' || (ownerFilter === 'mine' ? l.owner_id === myId : !l.owner_id))
+  ), [lines, typeFilter, ownerFilter, myId])
 
-  const productsToShow = activeProduct === 'all' ? PRODUCT_KEYS : [activeProduct]
+  const stats = useMemo(() => {
+    const open = filteredLines.filter(l => { const s = normalizeSalesStage(l.stage); return s !== 'Won' && s !== 'Lost' })
+    const openValue = open.reduce((s, l) => s + lineTcv(l), 0)
+    const weighted = open.reduce((s, l) => s + lineTcv(l) * ((l.probability ?? SALES_STAGE_PROBABILITY[normalizeSalesStage(l.stage)] ?? 0) / 100), 0)
+    const won = filteredLines.filter(l => normalizeSalesStage(l.stage) === 'Won')
+    const wonValue = won.reduce((s, l) => s + lineTcv(l), 0)
+    return { openCount: open.length, openValue, weighted, wonCount: won.length, wonValue }
+  }, [filteredLines])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Sales Pipeline</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Track deals across LABOS, Consulting, and Custom Builds
+          <h1 className="text-2xl font-bold text-white">Sales Pipeline</h1>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {view === 'products'
+              ? 'Products & custom builds. A line is sold via a product demo or by building a mockup; a won line hands off to Operations.'
+              : 'Business consulting engagements — a separate EOS-driven flow.'}
           </p>
         </div>
-        <Button
-          onClick={() => openNew()}
-          className="bg-sky-500 hover:bg-sky-600 text-white"
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          New Lead
-        </Button>
-      </div>
-
-      {/* Product tabs */}
-      <div className="flex items-center gap-2 flex-wrap border-b border-navy-700/50 pb-0 -mb-px">
-        {['all', ...PRODUCT_KEYS].map((key) => {
-          const isActive = activeProduct === key
-          const product = PRODUCTS[key]
-          const label = key === 'all' ? 'All Products' : product?.label
-          const count = key === 'all' ? leads.length : leads.filter((l) => l.product_type === key).length
-          return (
-            <button
-              key={key}
-              onClick={() => setActiveProduct(key)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                isActive
-                  ? 'border-sky-500 text-sky-400'
-                  : 'border-transparent text-gray-400 hover:text-gray-200'
-              }`}
-            >
+        {/* Product selector */}
+        <div className="flex bg-navy-800 rounded-lg p-0.5 border border-navy-600/50">
+          {[['products', 'Products & Builds'], ['consulting', 'Consulting']].map(([k, label]) => (
+            <button key={k} onClick={() => setView(k)} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${view === k ? 'bg-brand-blue text-white' : 'text-gray-400 hover:text-white'}`}>
               {label}
-              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${isActive ? 'bg-sky-500/20' : 'bg-navy-800'}`}>
-                {count}
-              </span>
             </button>
-          )
-        })}
+          ))}
+        </div>
       </div>
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Open Deals" value={stats.openCount} sublabel={`${stats.total} total`} />
-        <StatCard label="Open Pipeline" value={formatMoney(stats.openPipelineCents)} sublabel={`Annualized`} />
-        <StatCard label="Weighted" value={formatMoney(stats.openWeightedCents)} sublabel={`× probability`} />
-        <StatCard label="Win Rate" value={`${stats.winRate}%`} sublabel={`${stats.wonCount}W / ${stats.lostCount}L`} />
-      </div>
-
-      {/* Loading state */}
-      {loading && (
-        <div className="text-center py-12 text-gray-400">Loading pipeline…</div>
-      )}
-
-      {/* Kanban(s) */}
-      {!loading && productsToShow.map((productKey) => {
-        const product = PRODUCTS[productKey]
-        const productLeads = filteredLeads.filter((l) => l.product_type === productKey)
-        const stages = stagesFor(productKey)
-        return (
-          <div key={productKey} className="space-y-2">
-            {activeProduct === 'all' && (
-              <div className="flex items-center gap-3 pt-2">
-                <span className={`inline-flex items-center px-2.5 py-1 rounded border text-xs font-semibold ${PRODUCT_PILL_CLASSES[product.color]}`}>
-                  {product.label}
-                </span>
-                <span className="text-xs text-gray-500">{product.description}</span>
-                <button
-                  onClick={() => openNew(productKey)}
-                  className="text-xs text-sky-400 hover:text-sky-300 ml-auto"
-                >
-                  + Add {product.label} lead
+      {view === 'products' ? (
+        <>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex gap-2 flex-wrap">
+              {['all', ...PRODUCT_TYPES].map(t => (
+                <button key={t} onClick={() => setTypeFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${typeFilter === t ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400 hover:text-white'}`}>
+                  {t === 'all' ? 'All Types' : t}
                 </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex bg-navy-800 rounded-lg p-0.5 border border-navy-600/50">
+                {['all', 'mine', 'unassigned'].map(o => (
+                  <button key={o} onClick={() => setOwnerFilter(o)} className={`px-2.5 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${ownerFilter === o ? 'bg-brand-blue/20 text-brand-blue' : 'text-gray-400 hover:text-white'}`}>
+                    {o === 'mine' ? 'My Pipeline' : o}
+                  </button>
+                ))}
               </div>
-            )}
-            <div className="grid grid-flow-col auto-cols-[minmax(240px,1fr)] gap-3 overflow-x-auto pb-2">
-              {stages.map((stage) => {
-                const stageLeads = productLeads.filter((l) => l.stage === stage.key)
-                const colorClasses = STAGE_COLOR_CLASSES[stage.color] || STAGE_COLOR_CLASSES.slate
+              <button onClick={() => setShowLost(v => !v)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${showLost ? 'bg-rose-500/15 text-rose-300 border-rose-500/30' : 'bg-navy-800 text-gray-400 border-navy-600/50 hover:text-white'}`}>
+                {showLost ? 'Hide Lost' : 'Show Lost'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Stat label="Open Lines" value={stats.openCount} />
+            <Stat label="Open Pipeline (TCV)" value={money(stats.openValue)} accent="text-brand-blue" />
+            <Stat label="Weighted Forecast" value={money(stats.weighted)} accent="text-amber-400" />
+            <Stat label="Won (TCV)" value={money(stats.wonValue)} accent="text-emerald-400" />
+          </div>
+
+          {filteredLines.length === 0 ? (
+            <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-10 text-center">
+              <p className="text-sm text-gray-400">No product lines yet.</p>
+              <p className="text-xs text-gray-600 mt-1">Add CRM / Website / Custom Build lines from a customer's Product Lines tab and they appear here.</p>
+            </div>
+          ) : (
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {columns.map(stage => {
+                const items = filteredLines.filter(l => normalizeSalesStage(l.stage) === stage)
+                const val = items.reduce((s, l) => s + lineTcv(l), 0)
+                const c = SALES_STAGE_COLORS[stage] || {}
                 return (
-                  <div key={stage.key} className="bg-navy-900/40 rounded-lg border border-navy-700/50 flex flex-col min-h-[200px]">
-                    <div className={`px-3 py-2 border-b border-navy-700/50 flex items-center justify-between ${colorClasses} rounded-t-lg`}>
-                      <span className="text-xs font-semibold uppercase tracking-wide">{stage.label}</span>
-                      <span className="text-xs opacity-70">{stageLeads.length}</span>
+                  <div key={stage} className="flex-shrink-0 w-72">
+                    <div className="flex items-center justify-between mb-2 px-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${c.dot || 'bg-gray-400'}`} />
+                        <span className="text-sm font-semibold text-white">{stage}</span>
+                        <span className="text-xs text-gray-500">{items.length}</span>
+                      </div>
+                      {val > 0 && <span className="text-xs text-gray-500">{money(val)}</span>}
                     </div>
-                    <div className="p-2 space-y-2 flex-1">
-                      {stageLeads.length === 0 && (
-                        <div className="text-[11px] text-gray-600 text-center py-4">No deals</div>
-                      )}
-                      {stageLeads.map((lead) => (
-                        <LeadCard
-                          key={lead.id}
-                          lead={lead}
-                          stages={stages}
-                          onEdit={() => openEdit(lead)}
-                          onMove={(newStage) => handleMove(lead, newStage)}
-                        />
-                      ))}
+                    <div className="space-y-2 min-h-[40px]">
+                      {items.map(l => {
+                        const path = pathOf(l)
+                        const opsStatus = l.project?.status
+                        return (
+                          <div key={l.id} className="bg-navy-800 border border-navy-700/50 rounded-xl p-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TYPE_COLOR[l.product_type] || 'bg-gray-500/20 text-gray-400'}`}>{l.product_type}</span>
+                              <button onClick={() => setPath(l, path === 'build' ? 'demo' : 'build')} disabled={busyId === l.id} title="Toggle fulfillment path" className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${path === 'build' ? 'bg-blue-500/20 text-blue-300' : 'bg-teal-500/20 text-teal-300'}`}>
+                                {path === 'build' ? 'Needs Build' : 'Product Demo'}
+                              </button>
+                              {lineTcv(l) > 0 && <span className="text-[11px] text-emerald-400 font-semibold">{money(lineTcv(l))}</span>}
+                            </div>
+                            <Link to={`/admin/customers/${l.customer?.id || l.profile_id}`} className="block text-sm font-semibold text-white hover:text-brand-blue mt-1 truncate">
+                              {l.customer?.company_name || l.customer?.full_name || 'Customer'}
+                            </Link>
+                            {l.customer?.company_name && l.customer?.full_name && <p className="text-[11px] text-gray-500 truncate">{l.customer.full_name}</p>}
+                            {path === 'build' && opsStatus && <p className="text-[11px] text-teal-400 mt-1">In Operations: {opsStatus}</p>}
+                            {l.expected_close_date && <p className="text-[11px] text-gray-500 mt-1">Close {new Date(l.expected_close_date).toLocaleDateString()}</p>}
+                            <div className="flex items-center justify-between mt-2 gap-2">
+                              <span className="text-[11px] text-gray-500 truncate">{l.owner?.full_name || (l.owner_id ? 'Assigned' : 'Unassigned')}</span>
+                              {!l.owner_id && myId && (
+                                <button onClick={() => assignToMe(l)} disabled={busyId === l.id} className="text-[11px] text-brand-blue hover:underline disabled:opacity-50 flex-shrink-0">Assign to me</button>
+                              )}
+                            </div>
+                            <select
+                              value={stage}
+                              onChange={e => moveLine(l, e.target.value)}
+                              disabled={busyId === l.id}
+                              className="mt-2 w-full bg-navy-900 border border-navy-700/50 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 disabled:opacity-50"
+                            >
+                              {[...SALES_OPEN, 'Won', 'Lost'].map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
               })}
             </div>
-          </div>
-        )
-      })}
-
-      {/* Add/Edit dialog */}
-      {dialogOpen && editingLead && (
-        <LeadDialog
-          open={dialogOpen}
-          onClose={() => { setDialogOpen(false); setEditingLead(null) }}
-          lead={editingLead}
-          onChange={(patch) => setEditingLead((l) => ({ ...l, ...patch }))}
-          onSave={handleSave}
-          onDelete={editingLead.id ? handleDelete : null}
-          teamMembers={teamMembers}
-        />
-      )}
-    </div>
-  )
-}
-
-// ─── Sub-components ────────────────────────────────────────────────
-
-function StatCard({ label, value, sublabel }) {
-  return (
-    <div className="bg-navy-800/60 border border-navy-700/50 rounded-lg p-3">
-      <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold">{label}</div>
-      <div className="text-2xl font-bold text-white mt-1">{value}</div>
-      {sublabel && <div className="text-[11px] text-gray-500 mt-0.5">{sublabel}</div>}
-    </div>
-  )
-}
-
-function LeadCard({ lead, stages, onEdit, onMove }) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const meta = stageMetaFor(lead.product_type, lead.stage)
-  const product = PRODUCTS[lead.product_type]
-  const value = weightedValueCents(lead)
-
-  return (
-    <div className="bg-navy-800 border border-navy-700/50 rounded-md p-2.5 hover:border-navy-600 transition-colors group">
-      <div className="flex items-start justify-between gap-2">
-        <button
-          onClick={onEdit}
-          className="text-left text-sm font-medium text-white hover:text-sky-300 transition-colors line-clamp-2"
-        >
-          {lead.title}
-        </button>
-        <button
-          onClick={onEdit}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-sky-400 flex-shrink-0"
-          title="Edit"
-        >
-          <Edit2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-      {lead.company_name && (
-        <div className="text-xs text-gray-400 mt-0.5 truncate">{lead.company_name}</div>
-      )}
-      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-        {(lead.deal_value_cents > 0 || lead.mrr_cents > 0) && (
-          <span className="inline-flex items-center gap-0.5 text-[11px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-            <DollarSign className="w-3 h-3" />
-            {formatMoney(lead.deal_value_cents)}
-            {lead.mrr_cents > 0 && <span className="opacity-70">+{formatMoney(lead.mrr_cents)}/mo</span>}
-          </span>
-        )}
-        {!isClosedStage(lead.stage) && lead.probability != null && (
-          <span className="text-[11px] text-gray-400">{lead.probability}%</span>
-        )}
-        {lead.expected_close_date && (
-          <span className="inline-flex items-center gap-0.5 text-[11px] text-gray-500">
-            <Clock className="w-3 h-3" />
-            {new Date(lead.expected_close_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-          </span>
-        )}
-      </div>
-      {lead.assignee && (
-        <div className="flex items-center gap-1 mt-1.5 text-[11px] text-gray-500">
-          <User className="w-3 h-3" />
-          <span className="truncate">{lead.assignee.full_name || lead.assignee.email}</span>
-        </div>
-      )}
-
-      {/* Move menu */}
-      <div className="relative mt-2 pt-2 border-t border-navy-700/30">
-        <button
-          onClick={() => setMenuOpen((v) => !v)}
-          className="w-full flex items-center justify-between text-[11px] text-gray-500 hover:text-sky-400 transition-colors"
-        >
-          Move stage…
-          <ChevronRight className={`w-3 h-3 transition-transform ${menuOpen ? 'rotate-90' : ''}`} />
-        </button>
-        {menuOpen && (
-          <div className="mt-1 space-y-0.5">
-            {stages.filter((s) => s.key !== lead.stage).map((s) => (
-              <button
-                key={s.key}
-                onClick={() => { setMenuOpen(false); onMove(s.key) }}
-                className="w-full text-left px-2 py-1 text-[11px] text-gray-300 hover:bg-navy-700/50 rounded transition-colors"
-              >
-                → {s.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function LeadDialog({ open, onClose, lead, onChange, onSave, onDelete, teamMembers }) {
-  const product = PRODUCTS[lead.product_type]
-  const stages = stagesFor(lead.product_type)
-  const isEdit = !!lead.id
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-navy-900 border-navy-700 text-white">
-        <DialogHeader>
-          <DialogTitle className="text-white">{isEdit ? 'Edit Lead' : 'New Lead'}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {/* Product + stage */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Product">
-              <select
-                value={lead.product_type}
-                onChange={(e) => onChange({ product_type: e.target.value, stage: stagesFor(e.target.value)[0]?.key })}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-              >
-                {PRODUCT_KEYS.map((k) => (
-                  <option key={k} value={k}>{PRODUCTS[k].label}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Stage">
-              <select
-                value={lead.stage || stages[0]?.key || ''}
-                onChange={(e) => onChange({ stage: e.target.value })}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-              >
-                {stages.map((s) => (
-                  <option key={s.key} value={s.key}>{s.label}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          {/* Title */}
-          <Field label="Deal Title *">
-            <Input
-              value={lead.title || ''}
-              onChange={(e) => onChange({ title: e.target.value })}
-              placeholder="e.g. Acme Corp — Custom e-commerce build"
-              className="bg-navy-800 border-navy-700 text-white"
-            />
-          </Field>
-
-          {/* Company + contact */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Company">
-              <Input
-                value={lead.company_name || ''}
-                onChange={(e) => onChange({ company_name: e.target.value })}
-                className="bg-navy-800 border-navy-700 text-white"
-              />
-            </Field>
-            <Field label="Contact Name">
-              <Input
-                value={lead.contact_name || ''}
-                onChange={(e) => onChange({ contact_name: e.target.value })}
-                className="bg-navy-800 border-navy-700 text-white"
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Contact Email">
-              <Input
-                type="email"
-                value={lead.contact_email || ''}
-                onChange={(e) => onChange({ contact_email: e.target.value })}
-                className="bg-navy-800 border-navy-700 text-white"
-              />
-            </Field>
-            <Field label="Contact Phone">
-              <Input
-                value={lead.contact_phone || ''}
-                onChange={(e) => onChange({ contact_phone: e.target.value })}
-                className="bg-navy-800 border-navy-700 text-white"
-              />
-            </Field>
-          </div>
-
-          {/* Commercial */}
-          <div className="grid grid-cols-2 gap-3">
-            {product?.hasOneTime && (
-              <Field label="Deal Value ($)">
-                <Input
-                  type="number"
-                  min="0"
-                  step="100"
-                  value={lead.deal_value || ''}
-                  onChange={(e) => onChange({ deal_value: e.target.value })}
-                  placeholder="0"
-                  className="bg-navy-800 border-navy-700 text-white"
-                />
-              </Field>
-            )}
-            {product?.hasMRR && (
-              <Field label="MRR ($/mo)">
-                <Input
-                  type="number"
-                  min="0"
-                  step="50"
-                  value={lead.mrr || ''}
-                  onChange={(e) => onChange({ mrr: e.target.value })}
-                  placeholder="0"
-                  className="bg-navy-800 border-navy-700 text-white"
-                />
-              </Field>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Probability (%)">
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                step="5"
-                value={lead.probability ?? 50}
-                onChange={(e) => onChange({ probability: Number(e.target.value) })}
-                className="bg-navy-800 border-navy-700 text-white"
-              />
-            </Field>
-            <Field label="Expected Close">
-              <Input
-                type="date"
-                value={lead.expected_close_date || ''}
-                onChange={(e) => onChange({ expected_close_date: e.target.value })}
-                className="bg-navy-800 border-navy-700 text-white"
-              />
-            </Field>
-          </div>
-
-          {/* Assignment + source */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Assigned To">
-              <select
-                value={lead.assigned_to || ''}
-                onChange={(e) => onChange({ assigned_to: e.target.value || null })}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-              >
-                <option value="">— Unassigned —</option>
-                {teamMembers.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Source">
-              <select
-                value={lead.source || 'inbound'}
-                onChange={(e) => onChange({ source: e.target.value })}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-              >
-                {SOURCES.map((s) => (
-                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          {/* Next action */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Next Action">
-              <Input
-                value={lead.next_action || ''}
-                onChange={(e) => onChange({ next_action: e.target.value })}
-                placeholder="e.g. Follow up on quote"
-                className="bg-navy-800 border-navy-700 text-white"
-              />
-            </Field>
-            <Field label="Next Action Date">
-              <Input
-                type="date"
-                value={lead.next_action_date || ''}
-                onChange={(e) => onChange({ next_action_date: e.target.value })}
-                className="bg-navy-800 border-navy-700 text-white"
-              />
-            </Field>
-          </div>
-
-          {/* Notes */}
-          <Field label="Notes">
-            <Textarea
-              rows={3}
-              value={lead.notes || ''}
-              onChange={(e) => onChange({ notes: e.target.value })}
-              placeholder="Context, meeting notes, objections, etc."
-              className="bg-navy-800 border-navy-700 text-white"
-            />
-          </Field>
-
-          {lead.stage === 'lost' && (
-            <Field label="Lost Reason">
-              <Input
-                value={lead.lost_reason || ''}
-                onChange={(e) => onChange({ lost_reason: e.target.value })}
-                placeholder="Budget / Competitor / Timing / ..."
-                className="bg-navy-800 border-navy-700 text-white"
-              />
-            </Field>
           )}
-        </div>
-
-        <DialogFooter className="flex items-center justify-between gap-2 flex-wrap">
-          <div>
-            {onDelete && (
-              <Button
-                variant="outline"
-                onClick={onDelete}
-                className="text-rose-400 border-rose-900 hover:bg-rose-900/30"
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Delete
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="border-navy-700 text-gray-300 hover:bg-navy-800">
-              Cancel
-            </Button>
-            <Button onClick={onSave} className="bg-sky-500 hover:bg-sky-600 text-white">
-              {isEdit ? 'Save Changes' : 'Create Lead'}
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      ) : (
+        <ConsultingBoard engagements={engagements} />
+      )}
+    </div>
   )
 }
 
-function Field({ label, children }) {
+function ConsultingBoard({ engagements }) {
+  const money2 = n => '$' + Math.round(Number(n) || 0).toLocaleString()
+  const open = engagements.filter(e => !['completed', 'archive', 'archive/lost', 'lost'].includes((e.engagement_stage || '').toLowerCase()))
+  const pipelineValue = open.reduce((s, e) => s + (Number(e.contract_value) || 0), 0)
+  const ongoing = engagements.filter(e => ['ongoing', 'active client'].includes((e.engagement_stage || '').toLowerCase())).length
   return (
-    <div>
-      <label className="block text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-1">
-        {label}
-      </label>
-      {children}
-    </div>
+    <>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="grid grid-cols-3 gap-4 flex-1 min-w-[280px]">
+          <Stat label="Open Engagements" value={open.length} />
+          <Stat label="Active Clients" value={ongoing} accent="text-emerald-400" />
+          <Stat label="Pipeline Value" value={money2(pipelineValue)} accent="text-brand-blue" />
+        </div>
+        <Link to="/admin/consulting/clients" className="px-3 py-2 rounded-lg text-xs font-semibold bg-brand-blue text-white hover:bg-brand-blue/90">Open Consulting Hub</Link>
+      </div>
+
+      {engagements.length === 0 ? (
+        <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-10 text-center">
+          <p className="text-sm text-gray-400">No consulting engagements yet.</p>
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {CONSULTING_STAGES.map(col => {
+            const items = engagements.filter(e => consultingBucket(e.engagement_stage) === col.id)
+            const val = items.reduce((s, e) => s + (Number(e.contract_value) || 0), 0)
+            return (
+              <div key={col.id} className="flex-shrink-0 w-72">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <span className="text-sm font-semibold text-white">{col.label}</span>
+                  <span className="text-xs text-gray-500">{items.length}{val > 0 ? ` · ${money2(val)}` : ''}</span>
+                </div>
+                <div className="space-y-2 min-h-[40px]">
+                  {items.map(e => (
+                    <Link key={e.id} to={`/admin/consulting/client/${e.id}`} className="block bg-navy-800 border border-navy-700/50 rounded-xl p-3 hover:border-brand-blue/40">
+                      <p className="text-sm font-semibold text-white truncate">{e.company_name || e.client_name || 'Engagement'}</p>
+                      {e.client_name && e.company_name && <p className="text-[11px] text-gray-500 truncate">{e.client_name}</p>}
+                      {e.contract_value > 0 && <p className="text-[11px] text-emerald-400 font-semibold mt-1">{money2(e.contract_value)}</p>}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
   )
 }

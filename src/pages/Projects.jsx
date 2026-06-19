@@ -2,63 +2,22 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { OPS_STAGES, OPS_STAGE_COLORS, OPS_NEXT, opsToSales } from '../lib/customerValue'
 
-const STATUS_PIPELINE = [
-  'New Lead',
-  'Waitlist',
-  'Development',
-  'Demo Ready',
-  'Demo Scheduled',
-  'Estimating',
-  'Estimate Sent',
-  'Pending Payment',
-  'Onboarding Scheduled',
-  'Buildout',
-  'Active',
-  'Payment Hold',
-  'Lost',
-]
+const STATUS_PIPELINE = OPS_STAGES
 
-const STATUS_ALL = [...STATUS_PIPELINE]
+const STATUS_ALL = [...OPS_STAGES, 'On Hold', 'Cancelled']
 
 const STATUS_COLORS = {
-  'Development': { bg: 'bg-blue-500/20', text: 'text-blue-400', dot: 'bg-blue-400', ring: 'ring-blue-500/40' },
-  'Demo Ready': { bg: 'bg-teal-500/20', text: 'text-teal-400', dot: 'bg-teal-400', ring: 'ring-teal-500/40' },
-  'Demo Scheduled': { bg: 'bg-lime-500/20', text: 'text-lime-400', dot: 'bg-lime-400', ring: 'ring-lime-500/40' },
-  'Estimating': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', dot: 'bg-yellow-400', ring: 'ring-yellow-500/40' },
-  'Onboarding Scheduled': { bg: 'bg-blue-500/20', text: 'text-blue-400', dot: 'bg-blue-400', ring: 'ring-blue-500/40' },
-  'Pending Payment': { bg: 'bg-orange-500/20', text: 'text-orange-400', dot: 'bg-orange-400', ring: 'ring-orange-500/40' },
-  'Onboarding': { bg: 'bg-blue-500/20', text: 'text-blue-400', dot: 'bg-blue-400', ring: 'ring-blue-500/40' },
-  'Buildout': { bg: 'bg-brand-blue/20', text: 'text-brand-blue', dot: 'bg-brand-blue', ring: 'ring-brand-blue/40' },
-  'Active': { bg: 'bg-emerald-500/20', text: 'text-emerald-400', dot: 'bg-emerald-400', ring: 'ring-emerald-500/40' },
-  'Lost': { bg: 'bg-red-500/20', text: 'text-red-400', dot: 'bg-red-400', ring: 'ring-red-500/40' },
-  'New Lead': { bg: 'bg-sky-500/20', text: 'text-sky-400', dot: 'bg-sky-400', ring: 'ring-sky-500/40' },
-  'Waitlist': { bg: 'bg-cyan-500/20', text: 'text-cyan-400', dot: 'bg-cyan-400', ring: 'ring-cyan-500/40' },
-  'Acct Created': { bg: 'bg-blue-500/20', text: 'text-blue-400', dot: 'bg-blue-400', ring: 'ring-blue-500/40' },
-  'Wizard Started': { bg: 'bg-cyan-500/20', text: 'text-cyan-400', dot: 'bg-cyan-400', ring: 'ring-cyan-500/40' },
-  'Wizard Complete': { bg: 'bg-gray-500/20', text: 'text-gray-400', dot: 'bg-gray-400', ring: 'ring-gray-500/40' },
-  'Brief Review': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', dot: 'bg-yellow-400', ring: 'ring-yellow-500/40' },
-  'Estimate Sent': { bg: 'bg-amber-500/20', text: 'text-amber-400', dot: 'bg-amber-400', ring: 'ring-amber-500/40' },
-  'Under Contract': { bg: 'bg-sky-500/20', text: 'text-sky-400', dot: 'bg-sky-400', ring: 'ring-sky-500/40' },
-  'In Build': { bg: 'bg-brand-blue/20', text: 'text-brand-blue', dot: 'bg-brand-blue', ring: 'ring-brand-blue/40' },
-  'Payment Hold': { bg: 'bg-rose-500/20', text: 'text-rose-400', dot: 'bg-rose-400', ring: 'ring-rose-500/40' },
-  'Launched': { bg: 'bg-emerald-500/20', text: 'text-emerald-400', dot: 'bg-emerald-400', ring: 'ring-emerald-500/40' },
-  'On Hold': { bg: 'bg-gray-500/20', text: 'text-gray-500', dot: 'bg-gray-500', ring: 'ring-gray-600/40' },
-  'Cancelled': { bg: 'bg-red-500/20', text: 'text-red-400', dot: 'bg-red-400', ring: 'ring-red-500/40' },
+  ...OPS_STAGE_COLORS,
+  'Cancelled': OPS_STAGE_COLORS['Lost'],
+  // legacy keys still referenced as fallbacks in this file:
+  'In Build': OPS_STAGE_COLORS['Development'],
+  'Wizard Complete': OPS_STAGE_COLORS['In Review'],
+  'Buildout': OPS_STAGE_COLORS['Onboarding'],
 }
 
-const NEXT_STATUS = {
-  'New Lead': 'Waitlist',
-  'Waitlist': 'Development',
-  'Development': 'Demo Ready',
-  'Demo Ready': 'Demo Scheduled',
-  'Demo Scheduled': 'Estimating',
-  'Estimating': 'Estimate Sent',
-  'Estimate Sent': 'Pending Payment',
-  'Pending Payment': 'Onboarding Scheduled',
-  'Onboarding Scheduled': 'Buildout',
-  'Buildout': 'Active',
-}
+const NEXT_STATUS = OPS_NEXT
 
 const PROJECT_TYPES = [
   'CRM',
@@ -101,7 +60,7 @@ function NewProjectModal({ onClose, onCreated, currentUserId }) {
           project_type: form.project_type,
           tier: form.tier,
           brief: form.brief.trim() || null,
-          status: 'New Lead',
+          status: 'New Project',
           customer_id: customerId || null,
           progress: 0,
         })
@@ -583,15 +542,19 @@ export default function Projects() {
         .eq('id', projectId)
 
       if (error) throw error
-      // Bidirectional sync: keep a linked CRM product line's stage in step with the project status.
+      // Bidirectional handoff: a project hitting "Demo Ready" hands back to Sales;
+      // delivery (Onboarding/Active) closes the line as Won; "Lost" mirrors. Build-phase
+      // statuses leave the sales line untouched (it sits at "Demo / Mockup").
       {
-        const WON = ['Onboarding Scheduled', 'Buildout', 'Active', 'Payment Hold']
-        await supabase.from('customer_product_lines').update({
-          stage: newStatus,
-          won_at: WON.includes(newStatus) ? new Date().toISOString() : null,
-          lost_at: newStatus === 'Lost' ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString(),
-        }).eq('project_id', projectId)
+        const saleStage = opsToSales(newStatus)
+        if (saleStage) {
+          await supabase.from('customer_product_lines').update({
+            stage: saleStage,
+            won_at: saleStage === 'Won' ? new Date().toISOString() : null,
+            lost_at: saleStage === 'Lost' ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString(),
+          }).eq('project_id', projectId)
+        }
       }
       showToast(`${prev.name} → ${newStatus}`)
     } catch (err) {
@@ -611,7 +574,7 @@ export default function Projects() {
 
   // Stats
   const totalMRR = projects.reduce((s, p) => s + (p.mrr || 0), 0)
-  const inBuildCount = projects.filter(p => p.status === 'Buildout').length
+  const inBuildCount = projects.filter(p => ['Planning','Development','Testing'].includes(p.status)).length
   const launchedCount = projects.filter(p => p.status === 'Active').length
   const pinnedCount = projects.filter(p => p.portfolio_pinned).length
 
