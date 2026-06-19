@@ -99,6 +99,10 @@ function fmtDateTime(value) {
   })
 }
 
+function slugify(s) {
+  return String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
 function money(n) {
   const num = Number(n)
   if (Number.isNaN(num)) return ''
@@ -138,6 +142,7 @@ export default function CustomBuilds() {
 
   const [selectedId, setSelectedId] = useState(null)
   const [showNewModal, setShowNewModal] = useState(false)
+  const [editProduct, setEditProduct] = useState(null)
 
   const loadData = useCallback(async () => {
     setError(null)
@@ -188,7 +193,7 @@ export default function CustomBuilds() {
   const productsByCategory = useMemo(() => {
     const map = {}
     CATEGORY_ORDER.forEach((c) => { map[c] = [] })
-    products.filter((p) => p.is_active !== false).forEach((p) => {
+    products.forEach((p) => {
       if (!map[p.category]) map[p.category] = []
       map[p.category].push(p)
     })
@@ -275,6 +280,7 @@ export default function CustomBuilds() {
 
         {catalogOpen && (
           <div className="px-4 pb-5 space-y-6">
+            <div className="mb-2 flex justify-end"><button onClick={() => setEditProduct({ __new: true })} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-navy-700/50 text-slate-300 hover:text-white hover:border-sky-500/50 transition-colors"><Icon path={ICONS.plus} className="w-4 h-4" /> Add product</button></div>
             {CATEGORY_ORDER.map((cat) => {
               const items = productsByCategory[cat] || []
               return (
@@ -292,9 +298,9 @@ export default function CustomBuilds() {
                       {items.map((p) => (
                         <div
                           key={p.id}
-                          className="rounded-lg p-4 bg-navy-900 border border-navy-700/50 hover:border-sky-500/40 transition-colors"
+                          onClick={() => setEditProduct(p)} className={"rounded-lg p-4 bg-navy-900 border transition-colors cursor-pointer " + (p.is_active === false ? "opacity-50 hover:opacity-100 border-navy-700/50 hover:border-sky-500/40" : "border-navy-700/50 hover:border-sky-500/40")}
                         >
-                          <div className="font-medium text-white">{p.name}</div>
+                          <div className="flex items-center justify-between gap-2"><div className="font-medium text-white">{p.name}</div><div className="flex items-center gap-2">{p.is_active === false && (<span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-slate-500/20 text-slate-400">Inactive</span>)}<span className="text-xs text-sky-400">Edit</span></div></div>
                           {p.tagline && (
                             <div className="text-sm text-slate-400 mt-1">{p.tagline}</div>
                           )}
@@ -384,6 +390,14 @@ export default function CustomBuilds() {
           adminName={adminName}
           onClose={() => setSelectedId(null)}
           onPatch={patchBuild}
+        />
+      )}
+
+      {editProduct && (
+        <ProductModal
+          product={editProduct}
+          onClose={() => setEditProduct(null)}
+          onSaved={async () => { await loadData(); setEditProduct(null) }}
         />
       )}
 
@@ -958,6 +972,130 @@ function EmptyText({ children }) {
 // ---------------------------------------------------------------------------
 // New internal build modal
 // ---------------------------------------------------------------------------
+function ProductModal({ product, onClose, onSaved }) {
+  const isNew = !product || !product.id
+  const [category, setCategory] = useState((product && product.category) || 'Website')
+  const [name, setName] = useState((product && product.name) || '')
+  const [tagline, setTagline] = useState((product && product.tagline) || '')
+  const [description, setDescription] = useState((product && product.description) || '')
+  const [price, setPrice] = useState(product && product.starting_price != null ? String(product.starting_price) : '')
+  const [timeline, setTimeline] = useState((product && product.est_timeline) || '')
+  const [features, setFeatures] = useState(
+    product && Array.isArray(product.default_features) ? product.default_features.join('\n') : ''
+  )
+  const [sortOrder, setSortOrder] = useState(product && product.sort_order != null ? String(product.sort_order) : '0')
+  const [isActive, setIsActive] = useState(!product || product.is_active !== false)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState(null)
+
+  const onSave = async () => {
+    if (!name.trim()) { setErr('Name is required'); return }
+    setSaving(true)
+    setErr(null)
+    const cleaned = String(price).replace(/[^0-9.]/g, '')
+    const priceNum = cleaned === '' ? null : Number(cleaned)
+    if (priceNum != null && Number.isNaN(priceNum)) { setSaving(false); setErr('Price must be a number'); return }
+    const featuresArr = features.split('\n').map((f) => f.trim()).filter(Boolean)
+    const payload = {
+      category,
+      name: name.trim(),
+      slug: (product && product.slug) || slugify(name),
+      tagline: tagline.trim() || null,
+      description: description.trim() || null,
+      starting_price: priceNum,
+      est_timeline: timeline.trim() || null,
+      default_features: featuresArr,
+      is_active: isActive,
+      sort_order: Number(sortOrder) || 0,
+    }
+    const resp = isNew
+      ? await supabase.from('custom_build_products').insert(payload)
+      : await supabase.from('custom_build_products').update(payload).eq('id', product.id)
+    setSaving(false)
+    if (resp.error) { setErr(resp.error.message); return }
+    await onSaved()
+  }
+
+  const INPUT = "w-full bg-navy-800 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-sky-500"
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-lg bg-navy-900 border border-navy-700/50 rounded-lg max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-5 border-b border-navy-700/50">
+          <h2 className="text-lg font-semibold text-white">{isNew ? 'Add product' : 'Edit product'}</h2>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-navy-800 transition-colors"
+            aria-label="Close"
+          >
+            <Icon path={ICONS.close} className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {err && (
+            <div className="rounded-lg p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm">{err}</div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Name *">
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Marketing / Brand Website" className={INPUT} />
+            </Field>
+            <Field label="Category">
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className={INPUT}>
+                {CATEGORY_ORDER.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <Field label="Tagline">
+            <input type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="Short one-liner" className={INPUT} />
+          </Field>
+
+          <Field label="Description">
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="What this product is" className={INPUT} />
+          </Field>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Starting price (USD)">
+              <input type="text" inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="e.g. 2500" className={INPUT} />
+            </Field>
+            <Field label="Est. timeline">
+              <input type="text" value={timeline} onChange={(e) => setTimeline(e.target.value)} placeholder="e.g. 1-2 weeks" className={INPUT} />
+            </Field>
+          </div>
+
+          <Field label="Default features (one per line)">
+            <textarea value={features} onChange={(e) => setFeatures(e.target.value)} rows={5} placeholder="Lead capture" className={INPUT} />
+          </Field>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Sort order">
+              <input type="text" inputMode="numeric" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className={INPUT} />
+            </Field>
+            <Field label="Status">
+              <label className="flex items-center gap-2 mt-2 text-sm text-slate-300 cursor-pointer">
+                <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="accent-sky-500" />
+                Active (shown to customers)
+              </label>
+            </Field>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 p-5 border-t border-navy-700/50">
+          <button onClick={onClose} className="text-sm px-4 py-2 rounded-lg border border-navy-700/50 text-slate-300 hover:text-white transition-colors">Cancel</button>
+          <button onClick={onSave} disabled={saving} className="text-sm px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-medium transition-colors disabled:opacity-50">{saving ? 'Saving...' : (isNew ? 'Add product' : 'Save changes')}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function NewBuildModal({ products, onClose, onCreated }) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('')
