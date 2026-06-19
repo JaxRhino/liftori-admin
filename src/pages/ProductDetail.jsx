@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Smartphone, ExternalLink, Globe, LayoutDashboard, Check, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Smartphone, ExternalLink, Globe, LayoutDashboard, Check, AlertTriangle, Wrench } from 'lucide-react'
 import { getProduct, CATEGORY_TINT, paletteTint } from '../lib/products'
 import { useStages } from '../lib/useStages'
 import AppPreviewPane from '../components/AppPreviewPane'
+import FeatureLibraryPicker from '../components/FeatureLibraryPicker'
 import { supabase } from '../lib/supabase'
 import { WorkspaceTabBody, wsTabBadge, WORKSPACE_TABS, WORKSPACE_TAB_KEYS, PRODUCT_TYPES } from '../components/BuildWorkspace'
 
@@ -73,11 +74,16 @@ export default function ProductDetail() {
     onChange: (v) => saveWs({ ...ws, details: { ...(ws.details || {}), product_type: v } }),
   }
 
-  const baseTabs = [
+  // Order: Overview, Project Details, App, App Builder, then the rest of the spec tabs.
+  const detailsTab = WORKSPACE_TABS.find((t) => t.key === 'details')
+  const restTabs = WORKSPACE_TABS.filter((t) => t.key !== 'details')
+  const allTabs = [
     { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+    ...(detailsTab ? [detailsTab] : []),
     { key: 'app', label: 'App', icon: Smartphone },
+    { key: 'app_builder', label: 'App Builder', icon: Wrench },
+    ...restTabs,
   ]
-  const allTabs = [...baseTabs, ...WORKSPACE_TABS]
 
   return (
     <div className="p-6 space-y-6">
@@ -149,6 +155,14 @@ export default function ProductDetail() {
       {/* Tab body */}
       {tab === 'overview' && <Overview product={product} />}
       {tab === 'app' && <AppPreviewPane app={product.app} productName={product.name} />}
+      {tab === 'app_builder' && (
+        loading
+          ? <div className="rounded-xl border border-white/10 bg-navy-900/60 p-8 text-center text-sm text-gray-500">Loading build data…</div>
+          : <div className="space-y-4">
+              <p className="text-sm text-gray-400">Check the pre-built app features this product needs — each drops into the build with its scope, tasks, timeline and estimated cost (shared with the spec tabs).</p>
+              <FeatureLibraryPicker ws={ws} onSave={saveWs} mode="app" />
+            </div>
+      )}
       {WORKSPACE_TAB_KEYS.includes(tab) && (
         loading
           ? <div className="rounded-xl border border-white/10 bg-navy-900/60 p-8 text-center text-sm text-gray-500">Loading build data…</div>
