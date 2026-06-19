@@ -16,7 +16,7 @@ const PLATFORMS = [
 const CONTENT_TYPES = ['Announcement', 'Product Launch', 'Tip / How-To', 'Behind the Scenes', 'Promotion', 'Event', 'Testimonial', 'Question / Poll', 'Custom']
 
 // Wave A: Facebook is the only platform actually wired to publish. Others are
-// kept selectable so the queue/UI is forward-compatible â€” they'll just stay in
+// kept selectable so the queue/UI is forward-compatible — they'll just stay in
 // pending_approval until their respective edge functions ship.
 const PUBLISHABLE_PLATFORMS = ['facebook']
 
@@ -218,7 +218,7 @@ export default function SocialComposer() {
       setCardHeadline('')
       setCardBody('')
       setCardEditedManually(false)
-      setSaveSuccess('Added to queue â€” pending your approval before it publishes.')
+      setSaveSuccess('Added to queue — pending your approval before it publishes.')
       await fetchPosts()
       setTimeout(() => setSaveSuccess(''), 4000)
     } catch (err) {
@@ -417,7 +417,7 @@ export default function SocialComposer() {
             onClick={() => setAiGenOpen(true)}
             className="bg-violet-500 hover:bg-violet-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
           >
-            <span>âœ¨</span> Generate with AI
+            Generate with AI
           </button>
           <button
             onClick={() => setWeekPlannerOpen(true)}
@@ -447,7 +447,7 @@ export default function SocialComposer() {
             <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
               <label className="block text-sm font-medium text-slate-300 mb-2">Post Content</label>
               <textarea value={postContent} onChange={e => setPostContent(e.target.value)}
-                placeholder={`Write your ${contentType.toLowerCase()} post here...\n\nTip: Use emojis to increase engagement ðŸš€`}
+                placeholder={`Write your ${contentType.toLowerCase()} post here...\n\nTip: Use emojis to increase engagement`}
                 rows={8}
                 className="w-full bg-slate-900/50 border border-slate-600 rounded-lg p-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none" />
               <div className="flex justify-between items-center mt-2">
@@ -482,7 +482,7 @@ export default function SocialComposer() {
                   ? 'bg-red-500/10 border-red-500/30 text-red-400'
                   : 'bg-green-500/10 border-green-500/30 text-green-400'
               }`}>
-                {saveSuccess.startsWith('Error') ? 'âœ— ' : 'âœ“ '}{saveSuccess}
+                {saveSuccess.startsWith('Error') ? '✗ ' : '✓ '}{saveSuccess}
               </div>
             )}
           </div>
@@ -577,7 +577,7 @@ export default function SocialComposer() {
               />
               {mediaUrl ? (
                 <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2.5 text-xs text-emerald-400 flex items-center justify-between">
-                  <span>âœ“ Image attached â€” will publish with the post</span>
+                  <span>✓ Image attached — will publish with the post</span>
                   <button onClick={clearMedia} className="text-slate-400 hover:text-red-400 ml-2">remove</button>
                 </div>
               ) : (
@@ -586,7 +586,7 @@ export default function SocialComposer() {
                   disabled={uploadingImage || !cardHeadline}
                   className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-xs font-medium py-2 rounded-lg transition-colors"
                 >
-                  {uploadingImage ? 'Uploadingâ€¦' : 'Generate & attach image'}
+                  {uploadingImage ? 'Uploading…' : 'Generate & attach image'}
                 </button>
               )}
             </div>
@@ -615,15 +615,14 @@ export default function SocialComposer() {
         <div className="space-y-6">
           {actionError && (
             <div className="rounded-lg p-3 text-sm border bg-red-500/10 border-red-500/30 text-red-400">
-              âœ— {actionError}
+              ✗ {actionError}
             </div>
           )}
 
           {postsLoading ? (
-            <div className="text-slate-400 text-sm">Loading queueâ€¦</div>
+            <div className="text-slate-400 text-sm">Loading queue…</div>
           ) : posts.length === 0 ? (
             <div className="text-center py-16 text-slate-400">
-              <div className="text-4xl mb-3">ðŸ“¬</div>
               <div className="font-medium">No posts in queue</div>
               <div className="text-sm mt-1">Compose a post to get started</div>
             </div>
@@ -645,7 +644,7 @@ export default function SocialComposer() {
                       onClick={() => approveAndPublish(post)}
                       disabled={actioningId === post.id || !post.platforms?.includes('facebook')}
                       className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium transition-colors">
-                      {actioningId === post.id ? 'Publishingâ€¦' : 'Approve & Publish'}
+                      {actioningId === post.id ? 'Publishing…' : 'Approve & Publish'}
                     </button>
                     <button
                       onClick={() => rejectPost(post)}
@@ -699,7 +698,7 @@ export default function SocialComposer() {
                   return url ? (
                     <a href={url} target="_blank" rel="noreferrer"
                       className="text-xs px-3 py-1.5 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors">
-                      View on Facebook â†—
+                      View on Facebook ↗
                     </a>
                   ) : null
                 }}
@@ -772,7 +771,7 @@ export default function SocialComposer() {
                   { label: 'Total Page Views', value: totalViews.toLocaleString(), sub: 'All time (last 500)' },
                   { label: 'Views Today', value: todayViews.toLocaleString(), sub: `${yesterdayViews} yesterday` },
                   { label: 'Unique Pages', value: topPages.length.toString(), sub: 'Distinct routes tracked' },
-                  { label: 'Most Visited', value: topPages[0]?.page || 'â€”', sub: topPages[0] ? `${topPages[0].count} views` : 'No data', mono: true },
+                  { label: 'Most Visited', value: topPages[0]?.page || '—', sub: topPages[0] ? `${topPages[0].count} views` : 'No data', mono: true },
                 ].map((card, i) => (
                   <div key={i} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                     <div className="text-xs text-slate-400 mb-1">{card.label}</div>
@@ -918,7 +917,7 @@ export default function SocialComposer() {
                 <div className="text-center py-12 text-slate-400">Loading posts...</div>
               ) : blogPosts.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
-                  No posts yet â€” click <strong className="text-white">+ New Post</strong> to get started.
+                  No posts yet — click <strong className="text-white">+ New Post</strong> to get started.
                 </div>
               ) : (
                 blogPosts.map(post => (
