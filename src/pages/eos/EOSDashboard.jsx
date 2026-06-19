@@ -40,7 +40,10 @@ export default function EOSDashboard() {
     {
       id: 'l10-meeting',
       title: 'Next L10 Meeting',
-      value: stats?.nextL10Meeting || 'None scheduled',
+      value: stats?.next_meeting?.title || 'None scheduled',
+      subtext: stats?.next_meeting
+        ? new Date(stats.next_meeting.scheduled_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+        : undefined,
       icon: Calendar,
       color: 'text-blue-400',
       onClick: () => navigate('/admin/eos/meetings')
@@ -48,8 +51,8 @@ export default function EOSDashboard() {
     {
       id: 'scorecard',
       title: 'Scorecard',
-      value: `${stats?.scorecard?.onTrack || 0}/${stats?.scorecard?.total || 0}`,
-      subtext: 'metrics on track',
+      value: `${stats?.scorecard?.green_count || 0}/${stats?.scorecard?.total_metrics || 0}`,
+      subtext: 'metrics green',
       icon: BarChart3,
       color: 'text-green-400',
       onClick: () => navigate('/admin/eos/scorecard')
@@ -57,7 +60,7 @@ export default function EOSDashboard() {
     {
       id: 'rocks',
       title: 'My Rocks',
-      value: `${stats?.rocks?.onTrack || 0}/${stats?.rocks?.total || 0}`,
+      value: `${stats?.rocks?.on_track || 0}/${stats?.rocks?.total || 0}`,
       subtext: 'on track',
       icon: Target,
       color: 'text-purple-400',
@@ -66,7 +69,7 @@ export default function EOSDashboard() {
     {
       id: 'issues',
       title: 'Open Issues',
-      value: stats?.openIssues || 0,
+      value: stats?.issues?.open_count || 0,
       icon: AlertCircle,
       color: 'text-orange-400',
       onClick: () => navigate('/admin/eos/issues')
@@ -190,9 +193,9 @@ export default function EOSDashboard() {
               <ListTodo className="text-brand-blue w-5 h-5" />
             </div>
             <div className="space-y-2">
-              <p className="text-3xl font-bold text-white">{stats?.todoCount || 0}</p>
+              <p className="text-3xl font-bold text-white">{stats?.todos?.count || 0}</p>
               <p className="text-sm text-gray-400">
-                {stats?.todoDueThisWeek || 0} due this week
+                {stats?.todos?.due_this_week || 0} due this week
               </p>
               <Button
                 variant="outline"
@@ -212,11 +215,11 @@ export default function EOSDashboard() {
               <FileText className="text-brand-blue w-5 h-5" />
             </div>
             <div className="space-y-3">
-              {stats?.recentHeadlines && stats.recentHeadlines.length > 0 ? (
-                stats.recentHeadlines.slice(0, 5).map((headline, idx) => (
+              {stats?.headlines && stats.headlines.length > 0 ? (
+                stats.headlines.slice(0, 5).map((headline, idx) => (
                   <div key={idx} className="pb-3 border-b border-navy-700 last:border-b-0">
-                    <p className="text-sm text-gray-300">{headline.title}</p>
-                    <p className="text-xs text-gray-500 mt-1">{headline.date}</p>
+                    <p className="text-sm text-gray-300">{headline.message}</p>
+                    <p className="text-xs text-gray-500 mt-1">{headline.created_at ? new Date(headline.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</p>
                   </div>
                 ))
               ) : (
