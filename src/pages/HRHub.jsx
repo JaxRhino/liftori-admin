@@ -590,6 +590,14 @@ export default function HRHub() {
     return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
   }
 
+  // Upcoming = scheduled AND the slot's end datetime has not already passed
+  const upcomingInterviews = scheduledInterviews.filter(si => {
+    if (si.status !== 'scheduled') return false;
+    if (!si.slot?.date) return true;
+    const slotEnd = new Date(`${si.slot.date}T${si.slot.end_time || si.slot.start_time || '23:59'}`);
+    return !isNaN(slotEnd.getTime()) && slotEnd >= new Date();
+  });
+
   if (loading) return <div className="p-6 text-gray-400">Loading HR Hub...</div>;
 
   return (
@@ -789,9 +797,9 @@ export default function HRHub() {
                 Upcoming Interviews
               </h3>
             </div>
-            {scheduledInterviews.filter(si => si.status === 'scheduled').length > 0 ? (
+            {upcomingInterviews.length > 0 ? (
               <div className="space-y-3">
-                {scheduledInterviews.filter(si => si.status === 'scheduled').map(si => (
+                {upcomingInterviews.map(si => (
                   <div key={si.id} className="flex items-center justify-between bg-navy-900/50 rounded-lg p-4 border border-white/5">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
