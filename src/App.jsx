@@ -58,6 +58,7 @@ import CEODashboard from './pages/ceo/CEODashboard'
 import CustomBuilds from './pages/CustomBuilds'
 import AppViewer from './pages/AppViewer'
 import Products from './pages/Products'
+import CustomBuildDetail from './pages/CustomBuildDetail'
 import ProductDetail from './pages/ProductDetail'
 import SalesPipeline from './pages/SalesPipeline'
 import Investors from './pages/Investors'
@@ -427,6 +428,7 @@ export default function App() {
             <Route path="leadership-qc" element={<LeadershipQC />} />
             <Route path="cost-tracker" element={<CostTracker />} />
             <Route path="custom-builds" element={<CustomBuilds />} />
+            <Route path="custom-builds/:id" element={<CustomBuildDetail />} />
             <Route path="products" element={<Products />} />
             <Route path="products/:slug" element={<ProductDetail />} />
             <Route path="pipeline" element={<SalesPipeline />} />
