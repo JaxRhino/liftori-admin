@@ -95,7 +95,10 @@ export default function RallyGuestJoin() {
 
     async function startPreview() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 20, max: 24 } },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
         if (cancelled) {
           stream.getTracks().forEach(t => t.stop());
           return;
@@ -324,6 +327,18 @@ export default function RallyGuestJoin() {
         pc.addTrack(track, streamRef.current);
       });
     }
+
+    // Cap outbound video bitrate so up-to-10-way mesh survives on mobile/cellular
+    try {
+      const vSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+      if (vSender) {
+        const params = vSender.getParameters();
+        if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+        params.encodings[0].maxBitrate = 350000;
+        params.encodings[0].maxFramerate = 24;
+        vSender.setParameters(params).catch(() => {});
+      }
+    } catch (e) { /* setParameters unsupported - non-fatal */ }
 
     // Handle remote tracks
     pc.ontrack = (event) => {
@@ -603,7 +618,8 @@ export default function RallyGuestJoin() {
       allParticipants.length <= 1 ? 'grid-cols-1' :
       allParticipants.length <= 2 ? 'grid-cols-2' :
       allParticipants.length <= 4 ? 'grid-cols-2' :
-      'grid-cols-3';
+      allParticipants.length <= 6 ? 'grid-cols-3' :
+      'grid-cols-3 sm:grid-cols-4';
 
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col">
