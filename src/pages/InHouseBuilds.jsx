@@ -43,6 +43,15 @@ export default function InHouseBuilds() {
     }
   }
 
+  // Enter the live build system. Internal route (starts with "/") navigates in-app;
+  // an external URL opens in a new tab.
+  function handleEnter(build, e) {
+    if (e) e.stopPropagation()
+    if (!build.live_url) return
+    if (build.live_url.startsWith('/')) navigate(build.live_url)
+    else window.open(build.live_url, '_blank', 'noopener')
+  }
+
   async function handleCreate() {
     if (!newBuild.name.trim()) return
     setSaving(true)
@@ -109,7 +118,7 @@ export default function InHouseBuilds() {
           <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Active Builds</h2>
           <div className="space-y-3">
             {activeBuilds.map(build => (
-              <BuildCard key={build.id} build={build} onClick={() => navigate(`/admin/builds/${build.id}`)} />
+              <BuildCard key={build.id} build={build} onClick={() => navigate(`/admin/builds/${build.id}`)} onEnter={(e) => handleEnter(build, e)} />
             ))}
           </div>
         </div>
@@ -123,7 +132,7 @@ export default function InHouseBuilds() {
           </h2>
           <div className="space-y-3">
             {otherBuilds.map(build => (
-              <BuildCard key={build.id} build={build} onClick={() => navigate(`/admin/builds/${build.id}`)} />
+              <BuildCard key={build.id} build={build} onClick={() => navigate(`/admin/builds/${build.id}`)} onEnter={(e) => handleEnter(build, e)} />
             ))}
           </div>
         </div>
@@ -198,7 +207,7 @@ export default function InHouseBuilds() {
   )
 }
 
-function BuildCard({ build, onClick }) {
+function BuildCard({ build, onClick, onEnter }) {
   return (
     <div
       onClick={onClick}
@@ -250,6 +259,26 @@ function BuildCard({ build, onClick }) {
           )}
         </div>
       )}
+      {/* Enter System + open detail */}
+      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-navy-700/50">
+        {build.live_url && (
+          <button
+            onClick={onEnter}
+            className="flex-1 px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
+          >
+            Enter System
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); onClick() }}
+          className={`px-3 py-2 bg-navy-900 hover:bg-navy-700 text-slate-300 rounded-lg text-sm font-medium transition-colors ${build.live_url ? '' : 'flex-1'}`}
+        >
+          View Scope
+        </button>
+      </div>
     </div>
   )
 }
