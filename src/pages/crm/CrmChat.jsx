@@ -13,8 +13,11 @@
 // =====================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Hash, MessageCircle, X, Users, Search, Send } from 'lucide-react'
+import { Plus, Hash, MessageCircle, X, Users, Search, Send, Smile, MessageSquare, CornerDownRight } from 'lucide-react'
 import { HubPage, useCrmClient } from './_shared'
+
+const QUICK_EMOJIS = ['\u{1F44D}','\u{2764}\u{FE0F}','\u{1F602}','\u{1F389}','\u{2705}']
+const EMOJI_SET = ['\u{1F44D}','\u{2764}\u{FE0F}','\u{1F602}','\u{1F389}','\u{2705}','\u{1F440}','\u{1F64F}','\u{1F525}','\u{1F4AF}','\u{1F605}','\u{1F60D}','\u{1F914}','\u{1F44F}','\u{1F64C}','\u{1F60E}','\u{1F622}','\u{1F680}','\u{1F4AA}']
 
 export default function CrmChat() {
   const { client } = useCrmClient()
@@ -29,6 +32,10 @@ export default function CrmChat() {
   const [showNewDm, setShowNewDm] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const scrollRef = useRef(null)
+  const [reactions, setReactions] = useState({})
+  const [pickerFor, setPickerFor] = useState(null)
+  const [threadFor, setThreadFor] = useState(null)
+  const [threadDraft, setThreadDraft] = useState('')
 
   // -------- Initial load: who am I + profiles + channels + members --------
   useEffect(() => {
@@ -140,6 +147,62 @@ export default function CrmChat() {
   const hasTeam = teammates.length > 0
 
   // -------- Send message --------
+  // -------- Reactions + threads (admin chat parity) --------
+  useEffect(() => {
+    if (!client || !activeId) { setReactions({}); return }
+    let cancelled = false
+    async function loadReactions() {
+      const ids = messages.map(m => m.id)
+      if (!ids.length) { if (!cancelled) setReactions({}); return }
+      const { data } = await client.from('chat_reactions').select('*').in('message_id', ids)
+      if (cancelled) return
+      const map = {}
+      ;(data || []).forEach(r => { (map[r.message_id] = map[r.message_id] || []).push(r) })
+      setReactions(map)
+    }
+    loadReactions()
+    const sub = client
+      .channel('labos-reactions-' + activeId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_reactions' }, loadReactions)
+      .subscribe()
+    return () => { cancelled = true; client.removeChannel(sub) }
+  }, [client, activeId, messages])
+
+  async function toggleReaction(message, emoji) {
+    if (!me) return
+    const mine = (reactions[message.id] || []).find(r => r.emoji === emoji && r.user_id === me.id)
+    if (mine) {
+      await client.from('chat_reactions').delete().eq('id', mine.id)
+    } else {
+      await client.from('chat_reactions').insert({
+        message_id: message.id,
+        user_id: me.id,
+        user_name: me.full_name || me.email || 'You',
+        emoji,
+      })
+    }
+    setPickerFor(null)
+    const ids = messages.map(m => m.id)
+    const { data } = await client.from('chat_reactions').select('*').in('message_id', ids)
+    const map = {}
+    ;(data || []).forEach(r => { (map[r.message_id] = map[r.message_id] || []).push(r) })
+    setReactions(map)
+  }
+
+  async function sendThreadReply(e) {
+    e.preventDefault()
+    if (!threadDraft.trim() || !threadFor || !me) return
+    const body = threadDraft.trim()
+    setThreadDraft('')
+    await client.from('chat_messages').insert({
+      channel_id: activeId,
+      sender_id: me.id,
+      sender_name: me.full_name || me.email || 'You',
+      content: body,
+      thread_id: threadFor.id,
+    })
+  }
+
   async function send(e) {
     e.preventDefault()
     if (!draft.trim() || !activeId) return
@@ -150,7 +213,7 @@ export default function CrmChat() {
       channel_id: activeId,
       sender_id: me.id,
       sender_name: me.full_name || me.email || 'You',
-      body,
+      content: body,
     })
   }
 
@@ -306,7 +369,7 @@ export default function CrmChat() {
         </aside>
 
         {/* MESSAGE PANE */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col relative">
           {!activeChannel ? (
             <div className="flex-1 flex items-center justify-center text-sm text-gray-500">
               Pick a channel or start a new one.
@@ -332,12 +395,29 @@ export default function CrmChat() {
               <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                 {messages.length === 0 ? (
                   <div className="text-sm text-gray-500 text-center pt-8">No messages yet — say hi.</div>
-                ) : messages.map(m => {
+                ) : messages.filter(tm => !tm.thread_id).map(m => {
                   const sender = profilesById.get(m.sender_id)
                   const name = sender?.full_name || m.sender_name || 'Teammate'
                   const initial = (name || 'T').charAt(0).toUpperCase()
                   return (
-                    <div key={m.id} className="flex gap-3">
+                    <div key={m.id} className="group relative flex gap-3 -mx-2 px-2 py-1 rounded-lg hover:bg-navy-800/40">
+                      {me && (
+                        <div className={"absolute -top-3 right-2 items-center gap-0.5 bg-navy-800 border border-navy-700 rounded-lg shadow-lg px-1 py-0.5 z-10 " + (pickerFor === m.id ? "flex" : "hidden group-hover:flex")}>
+                          {QUICK_EMOJIS.map(em => (
+                            <button key={em} type="button" onClick={() => toggleReaction(m, em)} className="px-1 text-sm leading-none hover:scale-125 transition-transform" title={"React " + em}>{em}</button>
+                          ))}
+                          <div className="w-px h-4 bg-navy-700 mx-0.5" />
+                          <button type="button" onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)} className="p-1 text-gray-400 hover:text-white" title="More reactions"><Smile className="w-4 h-4" /></button>
+                          <button type="button" onClick={() => setThreadFor(m)} className="p-1 text-gray-400 hover:text-white" title="Reply in thread"><MessageSquare className="w-4 h-4" /></button>
+                          {pickerFor === m.id && (
+                            <div className="absolute top-7 right-0 bg-navy-800 border border-navy-700 rounded-lg shadow-xl p-2 grid grid-cols-6 gap-1 z-20 w-56">
+                              {EMOJI_SET.map(em => (
+                                <button key={em} type="button" onClick={() => toggleReaction(m, em)} className="text-lg leading-none hover:bg-navy-700 rounded p-1">{em}</button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {sender?.avatar_url ? (
                         <img src={sender.avatar_url} alt={name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
                       ) : (
@@ -350,7 +430,24 @@ export default function CrmChat() {
                           <span className="text-sm text-white font-medium">{name}</span>
                           <span className="text-xs text-gray-500">{new Date(m.created_at).toLocaleString()}</span>
                         </div>
-                        <div className="text-sm text-gray-200 mt-0.5 whitespace-pre-wrap break-words">{m.body}</div>
+                        <div className="text-sm text-gray-200 mt-0.5 whitespace-pre-wrap break-words">{m.content}</div>
+                        {((reactions[m.id] && reactions[m.id].length > 0) || messages.some(x => x.thread_id === m.id)) && (
+                          <div className="flex flex-wrap items-center gap-1 mt-1">
+                            {Object.entries((reactions[m.id] || []).reduce((a, r) => { (a[r.emoji] = a[r.emoji] || []).push(r); return a }, {})).map(([em, rs]) => {
+                              const mine = me && rs.some(r => r.user_id === me.id)
+                              return (
+                                <button key={em} type="button" onClick={() => toggleReaction(m, em)} title={rs.map(r => r.user_name).join(", ")} className={"inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border " + (mine ? "bg-brand-blue/20 border-brand-blue/50 text-white" : "bg-navy-800 border-navy-700 text-gray-300 hover:border-navy-600")}>
+                                  <span>{em}</span><span className="text-gray-400">{rs.length}</span>
+                                </button>
+                              )
+                            })}
+                            {messages.some(x => x.thread_id === m.id) && (
+                              <button type="button" onClick={() => setThreadFor(m)} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs text-brand-blue hover:underline">
+                                <CornerDownRight className="w-3 h-3" />{messages.filter(x => x.thread_id === m.id).length}{messages.filter(x => x.thread_id === m.id).length === 1 ? " reply" : " replies"}
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -375,6 +472,39 @@ export default function CrmChat() {
                 </button>
               </form>
             </>
+          )}
+          {threadFor && (
+            <div className="absolute inset-y-0 right-0 w-full sm:w-96 bg-navy-900 border-l border-navy-700/50 flex flex-col shadow-2xl z-30">
+              <div className="px-4 py-3 border-b border-navy-700/50 flex items-center justify-between">
+                <div className="text-sm font-semibold text-white">Thread</div>
+                <button type="button" onClick={() => setThreadFor(null)} className="text-gray-400 hover:text-white"><X className="w-4 h-4" /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                <div className="pb-3 border-b border-navy-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-white font-medium">{(profilesById.get(threadFor.sender_id) || {}).full_name || threadFor.sender_name || "Teammate"}</span>
+                    <span className="text-xs text-gray-500">{new Date(threadFor.created_at).toLocaleString()}</span>
+                  </div>
+                  <div className="text-sm text-gray-200 mt-0.5 whitespace-pre-wrap break-words">{threadFor.content}</div>
+                </div>
+                {messages.filter(x => x.thread_id === threadFor.id).map(r => (
+                  <div key={r.id} className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-white font-medium">{(profilesById.get(r.sender_id) || {}).full_name || r.sender_name || "Teammate"}</span>
+                      <span className="text-xs text-gray-500">{new Date(r.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="text-sm text-gray-200 mt-0.5 whitespace-pre-wrap break-words">{r.content}</div>
+                  </div>
+                ))}
+                {messages.filter(x => x.thread_id === threadFor.id).length === 0 && (
+                  <div className="text-xs text-gray-500">No replies yet.</div>
+                )}
+              </div>
+              <form onSubmit={sendThreadReply} className="px-4 py-3 border-t border-navy-700/50 flex gap-2">
+                <input value={threadDraft} onChange={e => setThreadDraft(e.target.value)} placeholder={me ? "Reply..." : "Sign in to reply"} disabled={!me} className="flex-1 bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue/50 disabled:opacity-50" />
+                <button type="submit" disabled={!me || !threadDraft.trim()} className="px-3 py-2 bg-brand-blue hover:bg-brand-blue/80 disabled:opacity-40 text-white text-sm rounded-lg inline-flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /></button>
+              </form>
+            </div>
           )}
         </div>
       </div>
