@@ -27,6 +27,7 @@ export const PRODUCTS = [
     tagline: 'Roofing CRM + field app — sales, jobs, estimates & sign',
     category: 'CRM + App',
     status: 'live',
+    stage: 'developing',
     systemLabel: 'Open CRM',
     systemUrl: '/crm/6be83acc-d777-439c-becf-a41fb77614aa/dashboard',
     liveSite: 'https://roofx.liftori.ai',
@@ -57,6 +58,7 @@ export const PRODUCTS = [
     tagline: 'KEC hood & duct CRM + Liftori-Hood field app',
     category: 'CRM + App',
     status: 'live',
+    stage: 'developing',
     systemLabel: 'Open CRM',
     systemUrl: '/crm/88888888-0002-0000-0000-000000000001/dashboard',
     liveSite: 'https://www.cleanmyducts.com',
@@ -86,6 +88,7 @@ export const PRODUCTS = [
     tagline: 'HVAC / mechanical services CRM (demo tenant)',
     category: 'CRM',
     status: 'demo',
+    stage: 'developing',
     systemLabel: 'Open CRM',
     systemUrl: '/crm/e3286192-580d-4478-8b88-7d44fd9f4de0/dashboard',
     liveSite: null,
@@ -108,6 +111,7 @@ export const PRODUCTS = [
     tagline: 'Vintage / thrift e-commerce storefront + admin',
     category: 'E-Commerce',
     status: 'live',
+    stage: 'developing',
     systemLabel: 'Open Admin',
     systemUrl: '/crm/bfd355a4-17f4-4c7a-8450-b91063b6292b/dashboard',
     liveSite: 'https://www.vjthriftfinds.com',
@@ -131,6 +135,7 @@ export const PRODUCTS = [
     tagline: 'Reseller / operator mobile app — Android (iOS soon)',
     category: 'Mobile App',
     status: 'live',
+    stage: 'developing',
     systemLabel: null,
     systemUrl: null,
     liveSite: 'https://bolo.liftori.ai',
@@ -161,6 +166,7 @@ export const PRODUCTS = [
     tagline: 'Internal Liftori mobile companion — Expo + RN',
     category: 'Mobile App',
     status: 'live',
+    stage: 'developing',
     systemLabel: null,
     systemUrl: null,
     liveSite: 'https://app.liftori.ai',
@@ -201,6 +207,7 @@ export const PRODUCTS = [
     tagline: 'Freight OS — broker cockpit + carrier / fleet',
     category: 'System',
     status: 'live',
+    stage: 'developing',
     systemLabel: 'Open System',
     systemUrl: '/admin/freight',
     liveSite: null,
@@ -223,6 +230,7 @@ export const PRODUCTS = [
     tagline: 'Lawncare / landscaping vertical — not provisioned yet',
     category: 'CRM',
     status: 'planned',
+    stage: 'planned',
     systemLabel: 'Provision Tenant',
     systemUrl: '/admin/new-tenant',
     liveSite: null,
@@ -240,6 +248,7 @@ export const PRODUCTS = [
     tagline: 'Tree services vertical — not provisioned yet',
     category: 'CRM',
     status: 'planned',
+    stage: 'planned',
     systemLabel: 'Provision Tenant',
     systemUrl: '/admin/new-tenant',
     liveSite: null,
@@ -257,6 +266,7 @@ export const PRODUCTS = [
     tagline: 'Junk removal vertical — not provisioned yet',
     category: 'CRM',
     status: 'planned',
+    stage: 'planned',
     systemLabel: 'Provision Tenant',
     systemUrl: '/admin/new-tenant',
     liveSite: null,
@@ -274,6 +284,7 @@ export const PRODUCTS = [
     tagline: 'Home improvement vertical — not provisioned yet',
     category: 'CRM',
     status: 'planned',
+    stage: 'planned',
     systemLabel: 'Provision Tenant',
     systemUrl: '/admin/new-tenant',
     liveSite: null,
@@ -286,6 +297,26 @@ export const PRODUCTS = [
     app: null,
   },
 ]
+
+export const STAGES = [
+  { key: 'planned', label: 'Planned' },
+  { key: 'dev_prep', label: 'Dev Prep' },
+  { key: 'developing', label: 'Developing' },
+  { key: 'testing', label: 'Testing' },
+  { key: 'production_ready', label: 'Production Ready' },
+  { key: 'launched', label: 'Launched' },
+]
+
+export const STAGE_LABEL = STAGES.reduce((a, s) => ((a[s.key] = s.label), a), {})
+
+export const STAGE_TINT = {
+  planned: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+  dev_prep: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  developing: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
+  testing: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+  production_ready: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  launched: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+}
 
 export function getProduct(slug) {
   return PRODUCTS.find((p) => p.slug === slug) || null
