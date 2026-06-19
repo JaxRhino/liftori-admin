@@ -26,20 +26,20 @@ const STATUS_COLORS = {
   'Demo Ready': { bg: 'bg-teal-500/20', text: 'text-teal-400', dot: 'bg-teal-400', ring: 'ring-teal-500/40' },
   'Demo Scheduled': { bg: 'bg-lime-500/20', text: 'text-lime-400', dot: 'bg-lime-400', ring: 'ring-lime-500/40' },
   'Estimating': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', dot: 'bg-yellow-400', ring: 'ring-yellow-500/40' },
-  'Onboarding Scheduled': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', dot: 'bg-indigo-400', ring: 'ring-indigo-500/40' },
+  'Onboarding Scheduled': { bg: 'bg-blue-500/20', text: 'text-blue-400', dot: 'bg-blue-400', ring: 'ring-blue-500/40' },
   'Pending Payment': { bg: 'bg-orange-500/20', text: 'text-orange-400', dot: 'bg-orange-400', ring: 'ring-orange-500/40' },
-  'Onboarding': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', dot: 'bg-indigo-400', ring: 'ring-indigo-500/40' },
+  'Onboarding': { bg: 'bg-blue-500/20', text: 'text-blue-400', dot: 'bg-blue-400', ring: 'ring-blue-500/40' },
   'Buildout': { bg: 'bg-brand-blue/20', text: 'text-brand-blue', dot: 'bg-brand-blue', ring: 'ring-brand-blue/40' },
   'Active': { bg: 'bg-emerald-500/20', text: 'text-emerald-400', dot: 'bg-emerald-400', ring: 'ring-emerald-500/40' },
   'Lost': { bg: 'bg-red-500/20', text: 'text-red-400', dot: 'bg-red-400', ring: 'ring-red-500/40' },
   'New Lead': { bg: 'bg-sky-500/20', text: 'text-sky-400', dot: 'bg-sky-400', ring: 'ring-sky-500/40' },
   'Waitlist': { bg: 'bg-cyan-500/20', text: 'text-cyan-400', dot: 'bg-cyan-400', ring: 'ring-cyan-500/40' },
-  'Acct Created': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', dot: 'bg-indigo-400', ring: 'ring-indigo-500/40' },
-  'Wizard Started': { bg: 'bg-violet-500/20', text: 'text-violet-400', dot: 'bg-violet-400', ring: 'ring-violet-500/40' },
+  'Acct Created': { bg: 'bg-blue-500/20', text: 'text-blue-400', dot: 'bg-blue-400', ring: 'ring-blue-500/40' },
+  'Wizard Started': { bg: 'bg-cyan-500/20', text: 'text-cyan-400', dot: 'bg-cyan-400', ring: 'ring-cyan-500/40' },
   'Wizard Complete': { bg: 'bg-gray-500/20', text: 'text-gray-400', dot: 'bg-gray-400', ring: 'ring-gray-500/40' },
   'Brief Review': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', dot: 'bg-yellow-400', ring: 'ring-yellow-500/40' },
   'Estimate Sent': { bg: 'bg-amber-500/20', text: 'text-amber-400', dot: 'bg-amber-400', ring: 'ring-amber-500/40' },
-  'Under Contract': { bg: 'bg-purple-500/20', text: 'text-purple-400', dot: 'bg-purple-400', ring: 'ring-purple-500/40' },
+  'Under Contract': { bg: 'bg-sky-500/20', text: 'text-sky-400', dot: 'bg-sky-400', ring: 'ring-sky-500/40' },
   'In Build': { bg: 'bg-brand-blue/20', text: 'text-brand-blue', dot: 'bg-brand-blue', ring: 'ring-brand-blue/40' },
   'Payment Hold': { bg: 'bg-rose-500/20', text: 'text-rose-400', dot: 'bg-rose-400', ring: 'ring-rose-500/40' },
   'Launched': { bg: 'bg-emerald-500/20', text: 'text-emerald-400', dot: 'bg-emerald-400', ring: 'ring-emerald-500/40' },
@@ -127,7 +127,7 @@ function NewProjectModal({ onClose, onCreated, currentUserId }) {
   const tierColors = {
     Starter: 'border-brand-blue bg-brand-blue/10 text-brand-blue',
     Growth: 'border-blue-400 bg-blue-500/10 text-blue-400',
-    Scale: 'border-purple-400 bg-purple-500/10 text-purple-400',
+    Scale: 'border-sky-400 bg-sky-500/10 text-sky-400',
   }
 
   return (
@@ -698,7 +698,7 @@ export default function Projects() {
       return ['CRM', 'Custom Builds', 'Websites'].map(t => ({
         key: t, label: t,
         colors: t === 'CRM' ? { dot: 'bg-brand-blue', text: 'text-brand-blue' } :
-                t === 'Custom Builds' ? { dot: 'bg-violet-400', text: 'text-violet-400' } :
+                t === 'Custom Builds' ? { dot: 'bg-cyan-400', text: 'text-cyan-400' } :
                                         { dot: 'bg-emerald-400', text: 'text-emerald-400' },
         projects: searchFiltered.filter(p => p.project_type === t),
         droppable: false,
@@ -718,7 +718,7 @@ export default function Projects() {
     if (groupBy === 'tier') {
       return ['Starter', 'Growth', 'Scale'].map(tier => ({
         key: tier, label: tier,
-        colors: tier === 'Scale' ? { dot: 'bg-purple-400', text: 'text-purple-400' } :
+        colors: tier === 'Scale' ? { dot: 'bg-sky-400', text: 'text-sky-400' } :
                 tier === 'Growth' ? { dot: 'bg-blue-400', text: 'text-blue-400' } :
                                     { dot: 'bg-gray-400', text: 'text-gray-400' },
         projects: searchFiltered.filter(p => p.tier === tier),
@@ -1040,7 +1040,7 @@ export default function Projects() {
                         {project.tier && (
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                             project.tier === 'Growth' ? 'bg-blue-500/20 text-blue-400' :
-                            project.tier === 'Scale' ? 'bg-purple-500/20 text-purple-400' :
+                            project.tier === 'Scale' ? 'bg-sky-500/20 text-sky-400' :
                             'bg-gray-500/20 text-gray-400'
                           }`}>
                             {project.tier}
@@ -1161,7 +1161,7 @@ export default function Projects() {
                 {sorted.map(project => {
                   const tColor =
                     project.tier === 'Growth' ? 'bg-blue-500/20 text-blue-400' :
-                    project.tier === 'Scale' ? 'bg-purple-500/20 text-purple-400' :
+                    project.tier === 'Scale' ? 'bg-sky-500/20 text-sky-400' :
                     'bg-gray-500/20 text-gray-400'
 
                   return (
@@ -1473,7 +1473,7 @@ export default function Projects() {
                         onClick={() => setEditForm(f => ({ ...f, tier: t }))}
                         className={`py-1.5 rounded-lg border text-xs font-medium transition-colors ${
                           editForm.tier === t
-                            ? (t === 'Scale' ? 'border-purple-500 bg-purple-500/10 text-purple-400'
+                            ? (t === 'Scale' ? 'border-sky-500 bg-sky-500/10 text-sky-400'
                               : t === 'Growth' ? 'border-blue-500 bg-blue-500/10 text-blue-400'
                               : 'border-brand-blue bg-brand-blue/10 text-brand-blue')
                             : 'border-navy-700 text-gray-400 hover:border-navy-600'

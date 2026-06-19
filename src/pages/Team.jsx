@@ -14,7 +14,7 @@ import InviteTesterModal from '../components/testing/InviteTesterModal';
 
 // ─── Default Roles & Permissions ─────────────────────────────────────────────
 const DEFAULT_ROLES = [
-  { name: 'CEO', description: 'Executive leadership — full platform access, strategic oversight, final approvals', color: 'bg-purple-500', is_system: true },
+  { name: 'CEO', description: 'Executive leadership — full platform access, strategic oversight, final approvals', color: 'bg-sky-500', is_system: true },
   { name: 'Chief Developer', description: 'Technical leadership — full platform access, codebase authority, infrastructure management', color: 'bg-red-500', is_system: true },
   { name: 'Director of Sales', description: 'Sales leadership — manage sales team, pipeline oversight, commission structures, client strategy', color: 'bg-amber-500', is_system: true },
   { name: 'Sales Rep', description: 'Sales execution — Lead Hunter, pipeline, estimates, agreements, commissions', color: 'bg-sky-500', is_system: true },
@@ -1310,7 +1310,7 @@ export default function Team() {
                             {record.source === 'tester' && (
                               <span
                                 title="Auto-onboarded via the Tester Program. Checklist reflects signed agreements on file."
-                                className="text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30"
+                                className="text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30"
                               >
                                 Tester Program
                               </span>
@@ -1595,7 +1595,7 @@ export default function Team() {
                           <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${
                             inv.status === 'pending' ? 'bg-amber-500/15 text-amber-300' :
                             inv.status === 'opened' ? 'bg-sky-500/15 text-sky-300' :
-                            'bg-purple-500/15 text-purple-300'
+                            'bg-sky-500/15 text-sky-300'
                           }`}>{inv.status}</span>
                           {inv.email_send_error && <div className="text-[10px] text-rose-400 mt-1">Send error: {inv.email_send_error.slice(0, 60)}</div>}
                         </td>
@@ -1717,7 +1717,7 @@ export default function Team() {
                     log.action === 'role_changed' ? 'bg-amber-500/20 text-amber-400' :
                     log.action === 'deactivated' ? 'bg-red-500/20 text-red-400' :
                     log.action === 'reactivated' ? 'bg-emerald-500/20 text-emerald-400' :
-                    log.action === 'permissions_updated' ? 'bg-purple-500/20 text-purple-400' :
+                    log.action === 'permissions_updated' ? 'bg-sky-500/20 text-sky-400' :
                     'bg-gray-500/20 text-gray-400'
                   }`}>
                     {log.action === 'invited' ? <Mail size={14} /> :
@@ -1848,7 +1848,7 @@ export default function Team() {
               <div>
                 <label className="block text-gray-300 text-sm font-medium mb-1">Color</label>
                 <div className="flex gap-2">
-                  {['bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-purple-500', 'bg-pink-500'].map(c => (
+                  {['bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-sky-500', 'bg-pink-500'].map(c => (
                     <button
                       key={c}
                       type="button"
@@ -2026,7 +2026,7 @@ export default function Team() {
               <div>
                 <label className="block text-gray-300 text-sm font-medium mb-1">Color</label>
                 <div className="flex gap-2">
-                  {['bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'].map(c => (
+                  {['bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-sky-500', 'bg-pink-500', 'bg-blue-500', 'bg-teal-500'].map(c => (
                     <button
                       key={c}
                       type="button"
@@ -2086,7 +2086,7 @@ export default function Team() {
               <div>
                 <label className="block text-gray-300 text-sm font-medium mb-1">Color</label>
                 <div className="flex gap-2">
-                  {['bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'].map(c => (
+                  {['bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-sky-500', 'bg-pink-500', 'bg-blue-500', 'bg-teal-500'].map(c => (
                     <button
                       key={c}
                       type="button"

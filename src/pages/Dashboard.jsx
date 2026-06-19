@@ -26,9 +26,9 @@ const PIPELINE_COLORS = {
   'New Lead':             { bg: 'bg-sky-500/20', text: 'text-sky-400' },
   'Waitlist':             { bg: 'bg-cyan-500/20', text: 'text-cyan-400' },
   'Development':          { bg: 'bg-blue-500/20', text: 'text-blue-400' },
-  'Demo Ready':           { bg: 'bg-indigo-500/20', text: 'text-indigo-400' },
-  'Demo Scheduled':       { bg: 'bg-violet-500/20', text: 'text-violet-400' },
-  'Estimating':           { bg: 'bg-purple-500/20', text: 'text-purple-400' },
+  'Demo Ready':           { bg: 'bg-blue-500/20', text: 'text-blue-400' },
+  'Demo Scheduled':       { bg: 'bg-cyan-500/20', text: 'text-cyan-400' },
+  'Estimating':           { bg: 'bg-sky-500/20', text: 'text-sky-400' },
   'Estimate Sent':        { bg: 'bg-amber-500/20', text: 'text-amber-400' },
   'Pending Payment':      { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
   'Onboarding Scheduled': { bg: 'bg-teal-500/20', text: 'text-teal-400' },
@@ -38,7 +38,7 @@ const PIPELINE_COLORS = {
 
 const ACTIVITY_DOT = {
   blue:   'bg-sky-400',
-  purple: 'bg-purple-400',
+  purple: 'bg-sky-400',
   green:  'bg-emerald-400',
   orange: 'bg-orange-400',
 }
@@ -56,11 +56,11 @@ const TASK_STATUS_DOTS = {
 const TASK_STATUS_NEXT = { todo: 'in_progress', in_progress: 'done', done: 'todo' }
 const NOTE_COLOR_DOTS = {
   default: 'bg-slate-400', blue: 'bg-blue-400', green: 'bg-emerald-400',
-  amber: 'bg-amber-400', red: 'bg-red-400', violet: 'bg-violet-400',
+  amber: 'bg-amber-400', red: 'bg-red-400', violet: 'bg-cyan-400',
 }
 const CAL_COLOR_DOTS = {
   blue: 'bg-blue-500', green: 'bg-emerald-500', amber: 'bg-amber-500',
-  red: 'bg-red-500', violet: 'bg-violet-500', slate: 'bg-slate-400',
+  red: 'bg-red-500', violet: 'bg-cyan-500', slate: 'bg-slate-400',
 }
 const WIDGET_INPUT = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500'
 
@@ -362,7 +362,7 @@ function AdminDashboard() {
         </Link>
         <Link to="/admin/agreements" className="stat-card hover:border-brand-blue/40 transition-colors">
           <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">Agreements</p>
-          <p className="text-2xl font-bold text-purple-400">{stats.agreementsCount}</p>
+          <p className="text-2xl font-bold text-sky-400">{stats.agreementsCount}</p>
           <p className="text-[11px] text-gray-600 mt-0.5">total</p>
         </Link>
         <Link to="/admin/comms/hub" className="stat-card hover:border-brand-blue/40 transition-colors">
@@ -660,7 +660,7 @@ function StatCard({ label, value, color }) {
   const colorMap = {
     blue:   'text-brand-blue',
     cyan:   'text-brand-cyan',
-    purple: 'text-purple-400',
+    purple: 'text-sky-400',
     green:  'text-emerald-400',
     orange: 'text-orange-400',
     pink:   'text-pink-400',
@@ -678,9 +678,9 @@ function StatusBadge({ status }) {
     'New Lead':             'bg-sky-500/20 text-sky-400',
     'Waitlist':             'bg-cyan-500/20 text-cyan-400',
     'Development':          'bg-blue-500/20 text-blue-400',
-    'Demo Ready':           'bg-indigo-500/20 text-indigo-400',
-    'Demo Scheduled':       'bg-violet-500/20 text-violet-400',
-    'Estimating':           'bg-purple-500/20 text-purple-400',
+    'Demo Ready':           'bg-blue-500/20 text-blue-400',
+    'Demo Scheduled':       'bg-cyan-500/20 text-cyan-400',
+    'Estimating':           'bg-sky-500/20 text-sky-400',
     'Estimate Sent':        'bg-amber-500/20 text-amber-400',
     'Pending Payment':      'bg-yellow-500/20 text-yellow-400',
     'Onboarding Scheduled': 'bg-teal-500/20 text-teal-400',

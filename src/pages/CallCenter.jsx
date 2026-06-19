@@ -388,7 +388,7 @@ function ActiveCallPanel({ call, onEnd, onUpdateCall }) {
       {call?.department && (
         <div>
           <p className="text-gray-400 text-sm">Department</p>
-          <Badge className="mt-1 bg-purple-500/20 text-purple-400 border-purple-500/30">
+          <Badge className="mt-1 bg-sky-500/20 text-sky-400 border-sky-500/30">
             {call.department}
           </Badge>
         </div>
@@ -523,7 +523,7 @@ function IncomingCallsList({ calls, onAccept, onReject, onVideoCall, creatingVid
           </div>
           <div className="flex items-center gap-3">
             {call.department && (
-              <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
+              <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30">
                 {call.department}
               </Badge>
             )}
@@ -539,7 +539,7 @@ function IncomingCallsList({ calls, onAccept, onReject, onVideoCall, creatingVid
               disabled={creatingVideoCall === call.id}
               size="sm"
               variant="outline"
-              className="text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+              className="text-sky-400 border-sky-500/30 hover:bg-sky-500/10"
             >
               {creatingVideoCall === call.id ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} />}
             </Button>
@@ -647,7 +647,7 @@ function SpeedToLeadSection({ leads, onCallNow, onVideoCall, onMarkContacted, on
                         disabled={creatingVideoCall === lead.id}
                         size="sm"
                         variant="outline"
-                        className="text-xs text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+                        className="text-xs text-sky-400 border-sky-500/30 hover:bg-sky-500/10"
                       >
                         {creatingVideoCall === lead.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <Video size={12} className="mr-1" />}
                         Video
@@ -864,7 +864,7 @@ function CallQueueSection({ queueItems, onCallNow, onVideoCall, onComplete, onRe
                           disabled={creatingVideoCall === item.id}
                           size="sm"
                           variant="outline"
-                          className="text-xs text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+                          className="text-xs text-sky-400 border-sky-500/30 hover:bg-sky-500/10"
                         >
                           {creatingVideoCall === item.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <Video size={12} className="mr-1" />}
                           Video
@@ -1411,7 +1411,7 @@ function VoicemailInbox({ userId }) {
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-3">
-          <Voicemail className="text-purple-400" size={20} />
+          <Voicemail className="text-sky-400" size={20} />
           <div>
             <h2 className="text-white text-lg font-bold">Voicemail</h2>
             <p className="text-gray-400 text-sm">Messages from callers</p>
@@ -1423,7 +1423,7 @@ function VoicemailInbox({ userId }) {
               {unreadCount} New
             </Badge>
           )}
-          <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
+          <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30">
             {voicemails.length} Total
           </Badge>
           {expanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
@@ -1439,7 +1439,7 @@ function VoicemailInbox({ userId }) {
                 onClick={(e) => { e.stopPropagation(); setFilter(f); }}
                 className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                   filter === f
-                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                    ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
                     : 'text-gray-400 hover:text-gray-300 border border-transparent'
                 }`}
               >
@@ -1458,7 +1458,7 @@ function VoicemailInbox({ userId }) {
                 key={vm.id}
                 className={`border rounded-lg p-4 transition-colors ${
                   vm.status === 'new'
-                    ? 'bg-purple-900/20 border-purple-500/30'
+                    ? 'bg-sky-900/20 border-sky-500/30'
                     : 'bg-navy-800/40 border-navy-700'
                 }`}
               >
@@ -1474,7 +1474,7 @@ function VoicemailInbox({ userId }) {
                       }`}>
                         {vm.target_type === 'department' ? (vm.target_department || 'Dept') : vm.target_type}
                       </Badge>
-                      {vm.status === 'new' && <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />}
+                      {vm.status === 'new' && <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />}
                     </div>
                     {vm.transcription && (
                       <p className="text-gray-400 text-sm line-clamp-2 mb-2">{vm.transcription}</p>
@@ -1498,7 +1498,7 @@ function VoicemailInbox({ userId }) {
                         }}
                         size="sm"
                         variant="outline"
-                        className="text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+                        className="text-sky-400 border-sky-500/30 hover:bg-sky-500/10"
                       >
                         <Play size={14} />
                       </Button>
@@ -2061,7 +2061,7 @@ function VideoCallLinkDialog({ open, onOpenChange, rallyLink, leadName, leadEmai
       <DialogContent className="bg-navy-900 border-navy-700 max-w-md">
         <DialogHeader>
           <DialogTitle className="text-white flex items-center gap-2">
-            <Video size={18} className="text-purple-400" />
+            <Video size={18} className="text-sky-400" />
             Video Call — {leadName || 'Lead'}
           </DialogTitle>
         </DialogHeader>
@@ -2669,7 +2669,7 @@ export default function CallCenter() {
 
             <Button
               onClick={() => setShowTestCall(true)}
-              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+              className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700"
             >
               Test Call
             </Button>
@@ -2858,7 +2858,7 @@ export default function CallCenter() {
             </Button>
             <Button
               onClick={handleTestCall}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-sky-600 hover:bg-sky-700"
             >
               Start Test Call
             </Button>

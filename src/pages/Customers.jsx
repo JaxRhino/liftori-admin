@@ -23,8 +23,8 @@ import { useNavigate } from 'react-router-dom';
 // ─── CRM Stage Configuration ────────────────────────────────────
 const CRM_STAGES = [
   { key: 'prospect', label: 'Prospect', color: 'bg-blue-500', badge: 'bg-blue-100 text-blue-800', icon: Target },
-  { key: 'qualified', label: 'Qualified', color: 'bg-indigo-500', badge: 'bg-indigo-100 text-indigo-800', icon: CheckCircle },
-  { key: 'proposal', label: 'Proposal', color: 'bg-purple-500', badge: 'bg-purple-100 text-purple-800', icon: Send },
+  { key: 'qualified', label: 'Qualified', color: 'bg-blue-500', badge: 'bg-blue-100 text-blue-800', icon: CheckCircle },
+  { key: 'proposal', label: 'Proposal', color: 'bg-sky-500', badge: 'bg-sky-100 text-sky-800', icon: Send },
   { key: 'negotiation', label: 'Negotiation', color: 'bg-amber-500', badge: 'bg-amber-100 text-amber-800', icon: MessageSquare },
   { key: 'won', label: 'Won', color: 'bg-green-500', badge: 'bg-green-100 text-green-800', icon: CheckCircle },
   { key: 'active', label: 'Active', color: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-800', icon: Zap },
@@ -55,8 +55,8 @@ const STAGE_BAR_COLOR = {
   'Estimating': 'bg-yellow-500',
   'Estimate Sent': 'bg-amber-500',
   'Pending Payment': 'bg-orange-500',
-  'Onboarding Scheduled': 'bg-indigo-500',
-  'Buildout': 'bg-violet-500',
+  'Onboarding Scheduled': 'bg-blue-500',
+  'Buildout': 'bg-cyan-500',
   'Active': 'bg-emerald-500',
   'Payment Hold': 'bg-rose-500',
   'Lost': 'bg-red-500',
@@ -83,10 +83,10 @@ const CONSULTING_STAGE_COLOR = {
 const ACTIVITY_TYPES = [
   { key: 'call', label: 'Call', icon: PhoneCall, color: 'text-green-400' },
   { key: 'email', label: 'Email', icon: Mail, color: 'text-sky-400' },
-  { key: 'meeting', label: 'Meeting', icon: Video, color: 'text-purple-400' },
+  { key: 'meeting', label: 'Meeting', icon: Video, color: 'text-sky-400' },
   { key: 'note', label: 'Note', icon: FileText, color: 'text-yellow-400' },
   { key: 'follow_up', label: 'Follow-Up', icon: Clock, color: 'text-orange-400' },
-  { key: 'status_change', label: 'Stage Change', icon: ArrowRight, color: 'text-indigo-400' },
+  { key: 'status_change', label: 'Stage Change', icon: ArrowRight, color: 'text-blue-400' },
   { key: 'system', label: 'System', icon: Zap, color: 'text-gray-400' },
 ];
 const ACTIVITY_MAP = Object.fromEntries(ACTIVITY_TYPES.map(a => [a.key, a]));
@@ -804,13 +804,13 @@ export default function Customers() {
         <button
           onClick={() => setActiveTab('consulting')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'consulting' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'
+            activeTab === 'consulting' ? 'bg-sky-500 text-white' : 'text-gray-400 hover:text-white'
           }`}
         >
           <Phone className="h-4 w-4" /> Consulting Leads
           <span className="ml-1 text-xs opacity-70">({consultingLeads.length})</span>
           {consultingLeads.filter(l => l.status === 'scheduled' && !l.imported_to_crm).length > 0 && (
-            <span className="bg-purple-400 text-purple-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
+            <span className="bg-sky-400 text-sky-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
               {consultingLeads.filter(l => l.status === 'scheduled' && !l.imported_to_crm).length}
             </span>
           )}
@@ -837,7 +837,7 @@ export default function Customers() {
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Engagements', value: consultingEngagements.length, color: 'text-purple-400', icon: Phone },
+              { label: 'Engagements', value: consultingEngagements.length, color: 'text-sky-400', icon: Phone },
               { label: 'In Pipeline', value: consultingEngagements.filter(e => !CONSULTING_ACTIVE.includes(e.engagement_stage) && e.engagement_stage !== 'Archive/Lost').length, color: 'text-blue-400', icon: Target },
               { label: 'Active Clients', value: consultingEngagements.filter(e => CONSULTING_ACTIVE.includes(e.engagement_stage)).length, color: 'text-green-400', icon: CheckCircle },
               { label: 'Pipeline Value', value: `$${Math.round(consultingEngagements.filter(e => e.engagement_stage !== 'Archive/Lost').reduce((s, e) => s + (parseFloat(e.contract_value) || 0), 0)).toLocaleString()}`, color: 'text-emerald-400', icon: DollarSign },
@@ -943,7 +943,7 @@ export default function Customers() {
           {consultingEngagements.filter(e => e.pain_points).length > 0 && (
             <Card className="bg-navy-800/50 border-white/10 p-5">
               <h3 className="text-white font-semibold text-sm flex items-center gap-2 mb-3">
-                <AlertCircle className="h-4 w-4 text-purple-400" /> Common Challenges
+                <AlertCircle className="h-4 w-4 text-sky-400" /> Common Challenges
               </h3>
               <div className="space-y-2">
                 {consultingEngagements.filter(e => e.pain_points).slice(0, 5).map(e => (
@@ -1022,7 +1022,7 @@ export default function Customers() {
                     {filteredDigitalLeads.map(lead => {
                       const productLabels = { website_builder: 'Website', saas_template: 'SaaS Template', online_course: 'Online Course', digital_storefront: 'Digital Store', custom_app: 'Custom App', ecommerce: 'E-Commerce', portfolio: 'Portfolio', booking_site: 'Booking Site' };
                       const budgetLabels = { under_1k: 'Under $1K', '1k_5k': '$1K-$5K', '5k_15k': '$5K-$15K', '15k_plus': '$15K+' };
-                      const statusColors = { new: 'bg-sky-100 text-sky-800', contacted: 'bg-amber-100 text-amber-800', demo_scheduled: 'bg-purple-100 text-purple-800', imported_to_crm: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
+                      const statusColors = { new: 'bg-sky-100 text-sky-800', contacted: 'bg-amber-100 text-amber-800', demo_scheduled: 'bg-sky-100 text-sky-800', imported_to_crm: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
                       return (
                         <tr key={lead.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                           <td className="px-4 py-3">
@@ -1097,7 +1097,7 @@ export default function Customers() {
               { label: 'Total Signups', value: labosLeads.length, color: 'text-emerald-400', icon: Cpu },
               { label: 'New (Unreviewed)', value: labosLeads.filter(l => l.status === 'new').length, color: 'text-sky-400', icon: Bell },
               { label: 'Imported to CRM', value: labosLeads.filter(l => l.status === 'imported_to_crm').length, color: 'text-green-400', icon: CheckCircle },
-              { label: 'Enterprise Interest', value: labosLeads.filter(l => l.interest_tier === 'enterprise').length, color: 'text-purple-400', icon: Star },
+              { label: 'Enterprise Interest', value: labosLeads.filter(l => l.interest_tier === 'enterprise').length, color: 'text-sky-400', icon: Star },
             ].map(stat => (
               <Card key={stat.label} className="bg-navy-800/50 border-white/10 p-4">
                 <div className="flex items-center justify-between">
@@ -1152,7 +1152,7 @@ export default function Customers() {
                   </thead>
                   <tbody>
                     {filteredLabosLeads.map(lead => {
-                      const tierColors = { starter: 'bg-blue-100 text-blue-800', growth: 'bg-purple-100 text-purple-800', business: 'bg-emerald-100 text-emerald-800', enterprise: 'bg-amber-100 text-amber-800' };
+                      const tierColors = { starter: 'bg-blue-100 text-blue-800', growth: 'bg-sky-100 text-sky-800', business: 'bg-emerald-100 text-emerald-800', enterprise: 'bg-amber-100 text-amber-800' };
                       const statusColors = { new: 'bg-sky-100 text-sky-800', contacted: 'bg-amber-100 text-amber-800', imported_to_crm: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
                       return (
                         <tr key={lead.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
@@ -1255,7 +1255,7 @@ export default function Customers() {
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {[
           { label: 'Total Customers', value: stats.total, icon: Users, color: 'text-sky-400' },
-          { label: 'In Pipeline', value: stats.pipeline, icon: Target, color: 'text-purple-400' },
+          { label: 'In Pipeline', value: stats.pipeline, icon: Target, color: 'text-sky-400' },
           { label: 'Active / Won', value: stats.active, icon: CheckCircle, color: 'text-green-400' },
           { label: 'Active MRR', value: `$${Math.round(totalActiveMrr).toLocaleString()}/mo`, icon: Zap, color: 'text-emerald-400' },
           { label: 'Pipeline MRR', value: `$${Math.round(totalPipelineMrr).toLocaleString()}/mo`, icon: TrendingUp, color: 'text-amber-400' },
@@ -1754,7 +1754,7 @@ export default function Customers() {
                       {[
                         { label: 'Call', icon: PhoneCall, color: 'text-green-400 hover:bg-green-500/10', action: () => { setActivityForm({ type: 'call', title: '', description: '' }); setAddActivityOpen(true); } },
                         { label: 'Email', icon: Mail, color: 'text-sky-400 hover:bg-sky-500/10', action: () => { setActivityForm({ type: 'email', title: '', description: '' }); setAddActivityOpen(true); } },
-                        { label: 'Meeting', icon: Video, color: 'text-purple-400 hover:bg-purple-500/10', action: () => { setActivityForm({ type: 'meeting', title: '', description: '' }); setAddActivityOpen(true); } },
+                        { label: 'Meeting', icon: Video, color: 'text-sky-400 hover:bg-sky-500/10', action: () => { setActivityForm({ type: 'meeting', title: '', description: '' }); setAddActivityOpen(true); } },
                       ].map(a => (
                         <button key={a.label} onClick={a.action} className={`flex flex-col items-center gap-1 p-3 rounded-lg border border-white/5 ${a.color} transition-colors`}>
                           <a.icon className="h-5 w-5" />

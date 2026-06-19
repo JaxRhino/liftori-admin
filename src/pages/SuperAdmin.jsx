@@ -235,7 +235,7 @@ export default function SuperAdmin() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-sky-400" />
       </div>
     );
   }
@@ -261,8 +261,8 @@ export default function SuperAdmin() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-br from-purple-500/20 to-violet-500/20 border border-purple-500/30 rounded-2xl">
-            <Shield className="w-8 h-8 text-purple-400" />
+          <div className="p-3 bg-gradient-to-br from-sky-500/20 to-cyan-500/20 border border-sky-500/30 rounded-2xl">
+            <Shield className="w-8 h-8 text-sky-400" />
           </div>
           <div>
             <h1 className="text-2xl font-bold">Command Center</h1>
@@ -271,7 +271,7 @@ export default function SuperAdmin() {
         </div>
         <button
           onClick={loadDashboard}
-          className="flex items-center gap-2 px-4 py-2 bg-navy-800 border border-navy-700 rounded-xl text-sm text-gray-300 hover:text-white hover:border-purple-500/30 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-navy-800 border border-navy-700 rounded-xl text-sm text-gray-300 hover:text-white hover:border-sky-500/30 transition"
         >
           <RefreshCw className="w-4 h-4" />
           Refresh
@@ -338,7 +338,7 @@ export default function SuperAdmin() {
               <p className="text-xs text-gray-600">No agent activity yet</p>
             ) : agentFeed.slice(0, 3).map((m, i) => (
               <div key={i} className="text-[11px] leading-snug">
-                <span className={`font-semibold ${m.sender_role === 'agent_ryan' ? 'text-sky-300' : m.sender_role === 'agent_mike' ? 'text-purple-300' : 'text-gray-300'}`}>
+                <span className={`font-semibold ${m.sender_role === 'agent_ryan' ? 'text-sky-300' : m.sender_role === 'agent_mike' ? 'text-sky-300' : 'text-gray-300'}`}>
                   {m.sender_role === 'agent_ryan' ? 'Sage' : m.sender_role === 'agent_mike' ? 'Socrates' : (m.sender_display || 'Agent')}
                 </span>
                 <span className="text-gray-400"> {(m.body || '').replace(/\s+/g, ' ').slice(0, 64)}…</span>
@@ -348,13 +348,13 @@ export default function SuperAdmin() {
         </div>
 
         {/* Client & Project Health */}
-        <div className="bg-gradient-to-br from-purple-500/10 to-navy-900/40 border border-purple-500/20 rounded-2xl p-4">
+        <div className="bg-gradient-to-br from-sky-500/10 to-navy-900/40 border border-sky-500/20 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-purple-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-purple-300">Project Health</h3>
+              <Briefcase className="w-4 h-4 text-sky-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-sky-300">Project Health</h3>
             </div>
-            <button onClick={() => navigate('/admin/projects')} className="text-[10px] text-purple-400 hover:text-purple-300">All →</button>
+            <button onClick={() => navigate('/admin/projects')} className="text-[10px] text-sky-400 hover:text-sky-300">All →</button>
           </div>
           <p className="text-[11px] text-gray-500 mb-2">{stats.activeProjects} active builds · {stats.totalProjects} total</p>
           <div className="flex flex-wrap gap-1.5">
@@ -459,7 +459,7 @@ export default function SuperAdmin() {
           <div className="lg:col-span-2 bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <div className="flex items-center justify-between">
               <SectionHeader icon={Bug} title="Recent Submissions" />
-              <button onClick={() => navigate('/admin/testing')} className="text-xs text-purple-400 hover:text-purple-300">View all in Testing →</button>
+              <button onClick={() => navigate('/admin/testing')} className="text-xs text-sky-400 hover:text-sky-300">View all in Testing →</button>
             </div>
             <div className="mt-3 divide-y divide-navy-700/40">
               {recentTesterLogs.length === 0 ? (
@@ -505,7 +505,7 @@ export default function SuperAdmin() {
           <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Recent Appointments</h4>
-              <button onClick={() => navigate('/admin/consulting')} className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-0.5">
+              <button onClick={() => navigate('/admin/consulting')} className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-0.5">
                 View All <ChevronRight className="w-3 h-3" />
               </button>
             </div>
@@ -540,7 +540,7 @@ export default function SuperAdmin() {
           <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Latest Scorecards</h4>
-              <button onClick={() => navigate('/admin/leadership-qc')} className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-0.5">
+              <button onClick={() => navigate('/admin/leadership-qc')} className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-0.5">
                 QC Dashboard <ChevronRight className="w-3 h-3" />
               </button>
             </div>
@@ -641,14 +641,14 @@ export default function SuperAdmin() {
           <div className="bg-navy-800/30 border border-navy-700/50 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">User Breakdown</h4>
-              <button onClick={() => navigate('/admin/team')} className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-0.5">
+              <button onClick={() => navigate('/admin/team')} className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-0.5">
                 Team <ChevronRight className="w-3 h-3" />
               </button>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400 flex items-center gap-1.5"><Shield className="w-3 h-3 text-purple-400" /> Super Admin</span>
-                <span className="text-xs font-bold text-purple-400">1</span>
+                <span className="text-xs text-gray-400 flex items-center gap-1.5"><Shield className="w-3 h-3 text-sky-400" /> Super Admin</span>
+                <span className="text-xs font-bold text-sky-400">1</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-400 flex items-center gap-1.5"><UserCheck className="w-3 h-3 text-sky-400" /> Admins</span>
@@ -814,7 +814,7 @@ export default function SuperAdmin() {
                   <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
                     i.status === 'pending' ? 'bg-amber-500/15 text-amber-300' :
                     i.status === 'opened' ? 'bg-sky-500/15 text-sky-300' :
-                    'bg-purple-500/15 text-purple-300'
+                    'bg-sky-500/15 text-sky-300'
                   }`}>{i.status}</span>
                 </div>
               ))}
@@ -1015,14 +1015,14 @@ function ActionRow({ label, value, onClick, tone = 'default' }) {
 function MetricCard({ icon: Icon, label, value, sub, color = 'default' }) {
   const colors = {
     default: 'border-navy-700/50 bg-navy-800/30',
-    purple: 'border-purple-500/20 bg-purple-500/5',
+    purple: 'border-sky-500/20 bg-sky-500/5',
     green: 'border-green-500/20 bg-green-500/5',
     sky: 'border-sky-500/20 bg-sky-500/5',
     orange: 'border-orange-500/20 bg-orange-500/5',
     red: 'border-red-500/20 bg-red-500/5',
   };
   const iconColors = {
-    default: 'text-gray-400', purple: 'text-purple-400', green: 'text-green-400',
+    default: 'text-gray-400', purple: 'text-sky-400', green: 'text-green-400',
     sky: 'text-sky-400', orange: 'text-orange-400', red: 'text-red-400',
   };
   return (
@@ -1043,7 +1043,7 @@ function MiniStat({ label, value, icon: Icon, badge }) {
       <Icon className="w-4 h-4 text-gray-500 shrink-0" />
       <div>
         <p className="text-lg font-bold text-gray-300">{value}</p>
-        <p className="text-[10px] text-gray-500">{label} {badge && <span className="text-purple-400">{badge}</span>}</p>
+        <p className="text-[10px] text-gray-500">{label} {badge && <span className="text-sky-400">{badge}</span>}</p>
       </div>
     </div>
   );
@@ -1052,7 +1052,7 @@ function MiniStat({ label, value, icon: Icon, badge }) {
 function SectionHeader({ icon: Icon, title }) {
   return (
     <div className="flex items-center gap-2">
-      <Icon className="w-4 h-4 text-purple-400" />
+      <Icon className="w-4 h-4 text-sky-400" />
       <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">{title}</h3>
     </div>
   );
@@ -1062,7 +1062,7 @@ function StatusBadge({ status }) {
   const styles = {
     scheduled: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
     completed: 'bg-green-500/10 text-green-400 border-green-500/20',
-    in_progress: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    in_progress: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
     cancelled: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
     no_show: 'bg-red-500/10 text-red-400 border-red-500/20',
   };
@@ -1077,9 +1077,9 @@ function QuickLink({ label, path, icon: Icon, onClick }) {
   return (
     <button
       onClick={() => onClick(path)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 bg-navy-800/20 border border-navy-700/30 rounded-xl text-sm text-gray-400 hover:text-white hover:border-purple-500/30 hover:bg-navy-800/50 transition group"
+      className="w-full flex items-center gap-3 px-3 py-2.5 bg-navy-800/20 border border-navy-700/30 rounded-xl text-sm text-gray-400 hover:text-white hover:border-sky-500/30 hover:bg-navy-800/50 transition group"
     >
-      <Icon className="w-4 h-4 text-gray-600 group-hover:text-purple-400 transition" />
+      <Icon className="w-4 h-4 text-gray-600 group-hover:text-sky-400 transition" />
       <span className="flex-1 text-left">{label}</span>
       <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
     </button>

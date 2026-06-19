@@ -6,7 +6,7 @@ const money = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFract
 const STATUS_COLORS = {
   paid: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   packaging: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
-  shipped: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  shipped: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
   delivered: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   pending: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
@@ -58,7 +58,7 @@ export default function PlatformFees() {
     { label: 'Fees This Month', value: money(feesThisMonth), color: 'text-brand-cyan' },
     { label: 'Total Sales', value: numSales.toLocaleString(), color: 'text-white' },
     { label: 'Avg Fee / Sale', value: money(avgFee), color: 'text-brand-blue' },
-    { label: 'Total GMV', value: money(totalGmv), color: 'text-purple-400' },
+    { label: 'Total GMV', value: money(totalGmv), color: 'text-sky-400' },
   ]
 
   if (loading) {
