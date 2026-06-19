@@ -50,6 +50,15 @@ DialogTrigger.displayName = 'DialogTrigger';
 const DialogContent = React.forwardRef(({ className = '', children, ...props }, ref) => {
   const { isOpen, onOpenChange } = useContext(DialogContext);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onOpenChange(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onOpenChange]);
+
   if (!isOpen) return null;
 
   return (
