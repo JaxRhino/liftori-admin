@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import FeatureLibraryPicker from './FeatureLibraryPicker'
+import { supabase } from '../lib/supabase'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Shared, workspace-jsonb-backed spec tabs.
@@ -101,6 +102,14 @@ const DETAIL_SECTIONS = [
 export function DetailsFields({ ws, onSave, productType }) {
   const d = ws.details || {}
   const commit = (k, v) => onSave({ ...ws, details: { ...d, [k]: v } })
+  const [buildProducts, setBuildProducts] = useState([])
+  useEffect(() => {
+    if (!productType || productType.value !== 'Custom Builds') return
+    let alive = true
+    supabase.from('custom_build_products').select('id,name,category,is_active,sort_order').order('sort_order', { ascending: true })
+      .then(({ data }) => { if (alive) setBuildProducts((data || []).filter((x) => x.is_active !== false)) })
+    return () => { alive = false }
+  }, [productType && productType.value])
   const mrr = Number(d.mrr || 0)
   const effectiveArr = Number(d.arr) > 0 ? Number(d.arr) : mrr * 12
   const totalBudget = Number(d.build_budget || 0) + Number(d.marketing_budget || 0)
@@ -123,6 +132,18 @@ export function DetailsFields({ ws, onSave, productType }) {
                 {(productType.options || PRODUCT_TYPES).map(o => <option key={o} value={o} className="bg-navy-900">{o}</option>)}
               </select>
             </div>
+            {productType.value === 'Custom Builds' && (
+              <div className="bg-navy-900 border border-navy-700/50 rounded-lg p-3">
+                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Build</label>
+                <select value={d.build_type || ''} onChange={e => commit('build_type', e.target.value)} className="w-full bg-transparent text-white text-sm focus:outline-none">
+                  <option value="" className="bg-navy-900">- Select -</option>
+                  {d.build_type && !buildProducts.some((x) => x.name === d.build_type) && (
+                    <option value={d.build_type} className="bg-navy-900">{d.build_type}</option>
+                  )}
+                  {buildProducts.map((x) => <option key={x.id} value={x.name} className="bg-navy-900">{x.name}</option>)}
+                </select>
+              </div>
+            )}
           </div>
         </div>
       )}
