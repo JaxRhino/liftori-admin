@@ -20,6 +20,7 @@ const TL_STATUS = { planned: 'bg-slate-500/15 text-slate-300', active: 'bg-sky-5
 // Workspace-backed spec tabs shared across detail pages.
 export const WORKSPACE_TABS = [
   { key: 'details', label: 'Project Details' },
+  { key: 'design', label: 'Design' },
   { key: 'features', label: 'Features' },
   { key: 'scope', label: 'Scope' },
   { key: 'timeline', label: 'Timeline' },
@@ -62,6 +63,8 @@ export function WorkspaceTabBody({ tab, ws, onSave, productType }) {
           <Narrative title="Project Overview" value={w.project_details} onSave={v => patchWs('project_details', v)} placeholder="What is this project, who is it for, the problem it solves, key decisions..." />
         </div>
       )
+    case 'design':
+      return <DesignFields ws={w} onSave={onSave} />
     case 'scope':
       return <Narrative title="Scope of All Features" value={w.scope} onSave={v => patchWs('scope', v)} placeholder="Everything in scope - and explicitly what is out of scope..." />
     case 'plan':
@@ -71,8 +74,8 @@ export function WorkspaceTabBody({ tab, ws, onSave, productType }) {
     case 'features':
       return (
         <div className="space-y-4">
-          <FeatureLibraryPicker ws={w} onSave={onSave} />
-          <ListEditor title="Features" items={w.features || []} columns={[['name', 'Feature', 'e.g. Dispatch Board'], ['detail', 'Detail', 'What it does']]} onChange={v => patchWs('features', v)} empty="No features documented yet." />
+          <FeatureLibraryPicker ws={w} onSave={onSave} mode="web" />
+          <FeaturesSectioned items={w.features || []} onChange={v => patchWs('features', v)} />
         </div>
       )
     case 'documents':
@@ -200,6 +203,82 @@ function ListEditor({ title, items, columns, onChange, empty }) {
         </div>
       ))}
       <button onClick={add} className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors">+ Add {title.replace(/s$/, '')}</button>
+    </div>
+  )
+}
+
+// Features grouped into sections by their library category (manual adds -> Custom).
+function FeaturesSectioned({ items, onChange }) {
+  const list = items || []
+  const upd = (id, key, val) => onChange(list.map((x) => (x.id === id ? { ...x, [key]: val } : x)))
+  const del = (id) => onChange(list.filter((x) => x.id !== id))
+  const addCustom = () => onChange([...list, { id: uid(), name: '', detail: '' }])
+  const order = []
+  const byCat = {}
+  list.forEach((it) => { const c = it.category || 'Custom'; if (!byCat[c]) { byCat[c] = []; order.push(c) } byCat[c].push(it) })
+  return (
+    <div className="space-y-5">
+      {list.length === 0 && <p className="text-sm text-slate-500">No features documented yet. Add from the library above, or add one manually.</p>}
+      {order.map((cat) => (
+        <div key={cat}>
+          <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-2">{cat}<span className="ml-2 text-slate-600">{byCat[cat].length}</span></p>
+          <div className="space-y-2">
+            {byCat[cat].map((it) => (
+              <div key={it.id} className="bg-navy-800 border border-navy-700/50 rounded-lg p-3 flex flex-wrap items-start gap-3">
+                <div className="w-48">
+                  <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Feature</label>
+                  <input value={it.name || ''} onChange={(e) => upd(it.id, 'name', e.target.value)} placeholder="e.g. Dispatch Board" className="w-full bg-navy-900 border border-navy-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-sky-500" />
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Detail</label>
+                  <input value={it.detail || ''} onChange={(e) => upd(it.id, 'detail', e.target.value)} placeholder="What it does" className="w-full bg-navy-900 border border-navy-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-sky-500" />
+                </div>
+                <button onClick={() => del(it.id)} className="text-xs text-slate-500 hover:text-red-400 mt-5">Remove</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <button onClick={addCustom} className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors">+ Add Feature</button>
+    </div>
+  )
+}
+
+// Design tab: color theme, typography/style, layout notes, reference links.
+function DesignFields({ ws, onSave }) {
+  const w = ws || {}
+  const d = w.design || {}
+  const colors = d.colors || {}
+  const setD = (patch) => onSave({ ...w, design: { ...d, ...patch } })
+  const setColor = (k, v) => setD({ colors: { ...colors, [k]: v } })
+  const patchWs = (key, value) => onSave({ ...w, [key]: value })
+  const COLORS = [['primary', 'Primary'], ['secondary', 'Secondary'], ['accent', 'Accent'], ['neutral', 'Neutral'], ['background', 'Background']]
+  return (
+    <div className="space-y-6">
+      <div className="bg-navy-800 border border-navy-700/50 rounded-lg p-5">
+        <p className="text-xs uppercase tracking-wider text-slate-500 mb-3">Color Theme</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {COLORS.map(([k, label]) => (
+            <div key={k} className="bg-navy-900 border border-navy-700/50 rounded-lg p-3">
+              <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{label}</label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={colors[k] || '#0ea5e9'} onChange={(e) => setColor(k, e.target.value)} className="h-7 w-7 shrink-0 rounded border border-navy-700 bg-transparent cursor-pointer p-0" />
+                <input value={colors[k] || ''} onChange={(e) => setColor(k, e.target.value)} placeholder="#000000" className="w-full min-w-0 bg-transparent text-white text-sm focus:outline-none placeholder:text-slate-600" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-navy-800 border border-navy-700/50 rounded-lg p-5">
+        <p className="text-xs uppercase tracking-wider text-slate-500 mb-3">Typography & Style</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <FieldCell label="Heading Font" type="text" value={d.heading_font} placeholder="e.g. Bebas Neue" onCommit={(v) => setD({ heading_font: v })} />
+          <FieldCell label="Body Font" type="text" value={d.body_font} placeholder="e.g. DM Sans" onCommit={(v) => setD({ body_font: v })} />
+          <FieldCell label="Style / Vibe" type="text" value={d.style} placeholder="e.g. Modern, minimal, bold" onCommit={(v) => setD({ style: v })} />
+        </div>
+      </div>
+      <Narrative title="Layout & Screens" value={d.layout} onSave={(v) => setD({ layout: v })} placeholder="Page/screen layouts, navigation structure, key components, responsive behavior..." />
+      <ListEditor title="Design References" items={d.references || []} columns={[['label', 'Reference', 'e.g. Figma mockups'], ['url', 'Link / URL', 'https://...', 'link']]} onChange={(v) => setD({ references: v })} empty="No design references linked yet." />
     </div>
   )
 }

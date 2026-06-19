@@ -37,7 +37,7 @@ export function applyLibraryFeature(ws, feat) {
 
   const nextFeatures = features.some(f => f.libKey === feat.key)
     ? features
-    : [...features, { id: uid(), name: feat.name, detail: feat.detail || feat.scope || '', libKey: feat.key }]
+    : [...features, { id: uid(), name: feat.name, detail: feat.detail || feat.scope || '', libKey: feat.key, category: feat.category }]
 
   const existingTitles = new Set(tasks.filter(t => t.libKey === feat.key).map(t => t.title))
   const newTasks = dt
