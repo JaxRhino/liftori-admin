@@ -52,6 +52,7 @@ function generateQuarters() {
   return quarters;
 }
 const QUARTERS = generateQuarters();
+const ALL_QUARTERS = 'all';
 
 const STATUS_CONFIG = {
   not_started: { color: 'bg-gray-500', label: 'Not Started', icon: Clock },
@@ -63,9 +64,10 @@ const STATUS_CONFIG = {
 
 function RockCard({ rock, onEdit, onDelete, compact = false }) {
   const statusConfig = STATUS_CONFIG[rock.status] || STATUS_CONFIG.not_started;
-  const daysRemaining = Math.ceil(
-    (new Date(rock.quarter_end_date) - new Date()) / (1000 * 60 * 60 * 24)
-  );
+  const endRaw = rock.quarter_end_date || rock.quarter_end;
+  const daysRemaining = endRaw
+    ? Math.ceil((new Date(endRaw) - new Date()) / (1000 * 60 * 60 * 24))
+    : null;
 
   return (
     <Card className="bg-navy-800 border-navy-700 p-4 min-w-80 hover:bg-navy-750 transition-colors">
@@ -99,19 +101,25 @@ function RockCard({ rock, onEdit, onDelete, compact = false }) {
       <div className="mb-3">
         <div className="flex justify-between text-xs text-gray-400 mb-1">
           <span>Progress</span>
-          <span>{rock.progress_percentage || 0}%</span>
+          <span>{rock.progress || 0}%</span>
         </div>
         <div className="w-full bg-navy-700 rounded-full h-2">
           <div
             className="bg-brand-blue h-2 rounded-full transition-all"
-            style={{ width: `${rock.progress_percentage || 0}%` }}
+            style={{ width: `${rock.progress || 0}%` }}
           ></div>
         </div>
       </div>
 
       <div className="flex justify-between items-center text-xs text-gray-400">
         <span>{rock.quarter}</span>
-        <span>{daysRemaining > 0 ? `${daysRemaining}d left` : 'Expired'}</span>
+        <span>
+          {daysRemaining === null
+            ? ''
+            : daysRemaining > 0
+              ? `${daysRemaining}d left`
+              : 'Expired'}
+        </span>
       </div>
     </Card>
   );
@@ -358,16 +366,16 @@ function EditRockDialog({ rock, open, onOpenChange, onSubmit }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Progress: {formData.progress_percentage || 0}%
+              Progress: {formData.progress || 0}%
             </label>
             <input
               type="range"
               min="0"
               max="100"
               step="5"
-              value={formData.progress_percentage || 0}
+              value={formData.progress || 0}
               onChange={(e) =>
-                setFormData({ ...formData, progress_percentage: parseInt(e.target.value) })
+                setFormData({ ...formData, progress: parseInt(e.target.value) })
               }
               className="w-full h-2 bg-navy-700 rounded-lg appearance-none cursor-pointer"
             />
@@ -465,7 +473,7 @@ export default function EOSRocks() {
     try {
       setLoading(true);
       const [rocksData, usersData] = await Promise.all([
-        fetchRocks(selectedQuarter, currentOrg?.id),
+        fetchRocks(selectedQuarter === ALL_QUARTERS ? null : selectedQuarter, currentOrg?.id),
         fetchTeamUsers(),
       ]);
       setRocks(rocksData || []);
@@ -491,9 +499,7 @@ export default function EOSRocks() {
 
   const handleUpdateRock = async (rockId, formData) => {
     try {
-      // Strip joined/non-column fields (owner is a joined profile object; progress is a UI alias)
-      const { owner, progress, ...payload } = formData;
-      const updated = await updateRock(rockId, payload);
+      const updated = await updateRock(rockId, formData);
       setRocks(rocks.map((r) => (r.id === rockId ? updated : r)));
     } catch (error) {
       console.error('Failed to update rock:', error);
@@ -544,6 +550,7 @@ export default function EOSRocks() {
               onChange={(e) => setSelectedQuarter(e.target.value)}
               className="bg-navy-800 border border-navy-700 rounded text-white px-4 py-2 text-sm"
             >
+              <option value={ALL_QUARTERS}>All Quarters</option>
               {QUARTERS.map((q) => (
                 <option key={q} value={q}>
                   {q}
@@ -615,7 +622,11 @@ export default function EOSRocks() {
           </div>
         ) : displayRocks.length === 0 ? (
           <Card className="bg-navy-800 border-navy-700 p-12 text-center">
-            <p className="text-gray-400">No rocks found for this quarter</p>
+            <p className="text-gray-400">
+              {selectedQuarter === ALL_QUARTERS
+                ? 'No rocks yet'
+                : 'No rocks found for this quarter'}
+            </p>
           </Card>
         ) : (
           <div className="overflow-x-auto pb-4">
