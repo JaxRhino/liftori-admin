@@ -992,7 +992,7 @@ export default function Projects() {
                       key={project.id}
                       draggable={groupBy === 'status'}
                       onDragStart={(e) => onCardDragStart(e, project.id)}
-                      onClick={() => openProject(project)}
+                      onClick={() => navigate(`/admin/projects/${project.id}`)}
                       style={{cursor:"pointer"}}
                       className={`bg-navy-800 border rounded-xl p-4 hover:border-navy-500 transition-colors group ${project.portfolio_pinned ? 'border-amber-500/40' : 'border-navy-600'} ${groupBy === 'status' ? 'active:cursor-grabbing' : ''}`}
                     >

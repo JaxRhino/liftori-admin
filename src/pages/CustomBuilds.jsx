@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { usePipelineStages } from '../lib/usePipelineStages'
@@ -161,6 +162,7 @@ const ICONS = {
 export default function CustomBuilds() {
   const { user, profile } = useAuth()
   const adminName = profile?.full_name || user?.email || 'Admin'
+  const navigate = useNavigate()
 
   const [builds, setBuilds] = useState([])
   const [products, setProducts] = useState([])
@@ -170,7 +172,6 @@ export default function CustomBuilds() {
   const [sourceFilter, setSourceFilter] = useState('all') // all | customer | internal
   const [catalogOpen, setCatalogOpen] = useState(true)
 
-  const [selectedId, setSelectedId] = useState(null)
   const [showNewModal, setShowNewModal] = useState(false)
   const [editProduct, setEditProduct] = useState(null)
   const { stages: pipeStages, byKey: stageByKey, reload: reloadStages } = usePipelineStages('custom_build')
@@ -246,11 +247,6 @@ export default function CustomBuilds() {
     })
     return map
   }, [products])
-
-  const selectedBuild = useMemo(
-    () => builds.find((b) => b.id === selectedId) || null,
-    [builds, selectedId]
-  )
 
   // -------------------------------------------------------------------------
   if (loading) {
@@ -370,7 +366,7 @@ export default function CustomBuilds() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-8">
           {(buildsByStage[activeStage] || []).map((b) => (
-            <BuildCard key={b.id} build={b} onClick={() => setSelectedId(b.id)} />
+            <BuildCard key={b.id} build={b} onClick={() => navigate(`/admin/custom-builds/${b.id}`)} />
           ))}
         </div>
       )}
@@ -437,17 +433,6 @@ export default function CustomBuilds() {
           </div>
         )}
       </div>
-
-      {/* Detail drawer */}
-      {selectedBuild && (
-        <DetailDrawer
-          build={selectedBuild}
-          adminName={adminName}
-          stages={pipeStages}
-          onClose={() => setSelectedId(null)}
-          onPatch={patchBuild}
-        />
-      )}
 
       {editProduct && (
         <ProductModal
