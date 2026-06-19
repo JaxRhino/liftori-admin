@@ -335,3 +335,37 @@ export const STATUS_TINT = {
   demo: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   planned: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
 }
+
+// ── Build-stage palette (static class strings so Tailwind compiles them) ──────
+export const STAGE_PALETTE = {
+  slate: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+  sky: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+  cyan: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+  blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  amber: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  teal: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
+  orange: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+  lime: 'bg-lime-500/10 text-lime-400 border-lime-500/20',
+  emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  rose: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+  green: 'bg-green-500/10 text-green-400 border-green-500/20',
+  red: 'bg-red-500/10 text-red-400 border-red-500/20',
+}
+export const STAGE_COLORS = Object.keys(STAGE_PALETTE)
+export const paletteTint = (color) => STAGE_PALETTE[color] || STAGE_PALETTE.slate
+
+// Fallback if the product_stages table can't be read.
+export const DEFAULT_STAGES = [
+  { stage_key: 'planned', label: 'Planned', sort_order: 10, color: 'slate' },
+  { stage_key: 'design', label: 'Design', sort_order: 20, color: 'sky' },
+  { stage_key: 'dev_prep', label: 'Dev Prep', sort_order: 30, color: 'cyan' },
+  { stage_key: 'developing', label: 'Developing', sort_order: 40, color: 'blue' },
+  { stage_key: 'security_audit', label: 'Security Audit', sort_order: 50, color: 'amber' },
+  { stage_key: 'internal_testing', label: 'Internal Testing', sort_order: 60, color: 'teal' },
+  { stage_key: 'beta_testing', label: 'Beta Testing', sort_order: 70, color: 'orange' },
+  { stage_key: 'production_ready', label: 'Production Ready', sort_order: 80, color: 'lime' },
+  { stage_key: 'app_store_prep', label: 'App Store Prep', sort_order: 90, color: 'emerald' },
+  { stage_key: 'app_store_hold', label: 'App Store Hold', sort_order: 100, color: 'rose' },
+  { stage_key: 'launched', label: 'Launched', sort_order: 110, color: 'green' },
+  { stage_key: 'cancelled', label: 'Cancelled', sort_order: 120, color: 'red' },
+]
