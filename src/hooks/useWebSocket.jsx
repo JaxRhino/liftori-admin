@@ -32,7 +32,10 @@ export const useWebSocket = (token) => {
   const reconnectDelay = 3000;
 
   const connect = useCallback(() => {
-    if (!token || wsRef.current?.readyState === WebSocket.OPEN) {
+    if (!WS_URL || !token || wsRef.current?.readyState === WebSocket.OPEN) {
+      // No realtime backend is configured (VITE_BACKEND_URL unset). Chat, typing and
+      // presence run on Supabase Realtime, so skip the legacy backend socket entirely
+      // to avoid an endless connect/error/reconnect loop spamming the console.
       return;
     }
 
@@ -146,7 +149,7 @@ export const useWebSocket = (token) => {
   }, [send]);
 
   useEffect(() => {
-    if (token) {
+    if (token && WS_URL) {
       connect();
     }
 
