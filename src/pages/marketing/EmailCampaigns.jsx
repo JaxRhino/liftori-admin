@@ -229,7 +229,7 @@ function ComposerModal({ segments, onClose, onSaved }) {
               </Field>
               <Field label="Audience">
                 <select className={inputCls} value={form.audience_type} onChange={e => { setForm({...form, audience_type: e.target.value}); setAudCount(null) }}>
-                  {AUDIENCE_TYPES.map(t => <option key={t} value={t}>{t.replaceAll('_', ' ')}</option>)}
+                  {AUDIENCE_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
                 </select>
               </Field>
               {form.audience_type === 'segment' && (
