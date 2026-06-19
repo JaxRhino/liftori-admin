@@ -53,13 +53,51 @@ export default function MarketingWaitlist() {
   async function load() {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('waitlist_signups')
-        .select('id, full_name, email, build_idea, app_type, product_interest, referral_code, created_at')
-        .order('created_at', { ascending: false })
-        .limit(2000)
-      if (error) throw error
-      setRows(data || [])
+      const [w, b, c] = await Promise.all([
+        supabase
+          .from('waitlist_signups')
+          .select('id, full_name, email, build_idea, app_type, product_interest, referral_code, created_at')
+          .order('created_at', { ascending: false })
+          .limit(2000),
+        supabase
+          .from('bolo_beta_signups')
+          .select('id, full_name, email, platform, role_interest, ref_code, created_at')
+          .order('created_at', { ascending: false })
+          .limit(2000),
+        supabase
+          .from('crm_signups')
+          .select('id, business_name, contact_name, email, industry, tier, notes, ref_code, created_at')
+          .order('created_at', { ascending: false })
+          .limit(2000),
+      ])
+      if (w.error) throw w.error
+      // BOLO Go and CRM signups live in their own tables; normalize them into the
+      // waitlist_signups row shape so the per-product counts, filter tabs, search and
+      // CSV export all stay coherent with the generic waitlist rows.
+      const bolo = (b.error ? [] : (b.data || [])).map((r) => ({
+        id: r.id,
+        full_name: r.full_name,
+        email: r.email,
+        build_idea: r.role_interest || null,
+        app_type: r.platform || null,
+        product_interest: 'bolo_go',
+        referral_code: r.ref_code || null,
+        created_at: r.created_at,
+      }))
+      const crm = (c.error ? [] : (c.data || [])).map((r) => ({
+        id: r.id,
+        full_name: r.contact_name || r.business_name || null,
+        email: r.email,
+        build_idea: [r.business_name, r.industry, r.notes].filter(Boolean).join(' \u00b7 ') || null,
+        app_type: r.tier || null,
+        product_interest: 'crm',
+        referral_code: r.ref_code || null,
+        created_at: r.created_at,
+      }))
+      const merged = [...(w.data || []), ...bolo, ...crm].sort(
+        (a, z) => new Date(z.created_at) - new Date(a.created_at),
+      )
+      setRows(merged)
     } catch (err) {
       console.error('waitlist load:', err)
     } finally {

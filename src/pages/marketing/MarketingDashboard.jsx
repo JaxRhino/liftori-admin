@@ -44,14 +44,24 @@ export default function MarketingDashboard() {
   async function load() {
     setLoading(true)
     try {
-      const [{ data: p }, { data: s }, { data: e }, { data: st }] = await Promise.all([
+      const [{ data: p }, { data: s }, { data: e }, { data: st }, { data: bb }, { data: cs }] = await Promise.all([
         supabase.from('marketing_posts').select('id, status, published_at, created_at, scheduled_for').order('created_at', { ascending: false }).limit(500),
         supabase.from('waitlist_signups').select('id, product_interest, created_at').order('created_at', { ascending: false }).limit(2000),
         supabase.from('email_sends').select('id, status, sent_at').order('sent_at', { ascending: false }).limit(2000),
         supabase.from('email_sequence_steps').select('id, active').eq('active', true),
+        supabase.from('bolo_beta_signups').select('id, created_at').order('created_at', { ascending: false }).limit(2000),
+        supabase.from('crm_signups').select('id, created_at').order('created_at', { ascending: false }).limit(2000),
       ])
+      // Product signups live in dedicated tables (bolo_beta_signups / crm_signups), while
+      // the generic landing page writes waitlist_signups (mostly product_interest='general').
+      // Merge all three so per-product counts and totals reflect real signups.
+      const mergedSignups = [
+        ...(s || []).map((r) => ({ created_at: r.created_at, product_interest: r.product_interest || 'general' })),
+        ...(bb || []).map((r) => ({ created_at: r.created_at, product_interest: 'bolo_go' })),
+        ...(cs || []).map((r) => ({ created_at: r.created_at, product_interest: 'crm' })),
+      ]
       setPosts(p || [])
-      setSignups(s || [])
+      setSignups(mergedSignups)
       setSends(e || [])
       setSteps(st || [])
     } catch (err) {
