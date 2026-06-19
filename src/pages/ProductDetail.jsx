@@ -1,35 +1,69 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import {
-  ArrowLeft, Smartphone, ExternalLink, Globe, FileText, StickyNote,
-  LayoutDashboard, Check, AlertTriangle,
-} from 'lucide-react'
+import { ArrowLeft, Smartphone, ExternalLink, Globe, LayoutDashboard, Check, AlertTriangle } from 'lucide-react'
 import { getProduct, CATEGORY_TINT, STAGE_TINT, STAGE_LABEL } from '../lib/products'
 import AppPreviewPane from '../components/AppPreviewPane'
+import { supabase } from '../lib/supabase'
+import { WorkspaceTabBody, wsTabBadge, WORKSPACE_TABS, WORKSPACE_TAB_KEYS, PRODUCT_TYPES } from '../components/BuildWorkspace'
 
 /**
  * ProductDetail (/admin/products/:slug)
  *
- * Unified per-product workspace. Tabs: Overview, App (embedded App Viewer),
- * Scope, Notes. Header carries an "Open CRM / Open System" button + live-site
- * link. Every product gets the full tab set even when it has no DB or app yet.
+ * Unified per-product workspace. SAME build-out template as In-House Builds:
+ * the shared workspace-jsonb spec tabs (Project Details, Features, Scope,
+ * Timeline, Implementation Plan, Security, Costs, Documents, Tasks) — plus an
+ * Overview and the embedded App Viewer. Build data persists per product slug in
+ * the product_workspaces table, so every build/project is documented the same way.
  */
 
 export default function ProductDetail() {
   const { slug } = useParams()
   const product = getProduct(slug)
   const [tab, setTab] = useState('overview')
+  const [ws, setWs] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [wsSaving, setWsSaving] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    supabase
+      .from('product_workspaces')
+      .select('workspace')
+      .eq('slug', slug)
+      .maybeSingle()
+      .then(({ data }) => { if (alive) { setWs(data?.workspace || {}); setLoading(false) } })
+    return () => { alive = false }
+  }, [slug])
+
+  async function saveWs(next) {
+    setWs(next)            // optimistic
+    setWsSaving(true)
+    try {
+      const { error } = await supabase
+        .from('product_workspaces')
+        .upsert({ slug, workspace: next, updated_at: new Date().toISOString() }, { onConflict: 'slug' })
+      if (error) console.error('Error saving product workspace:', error)
+    } finally {
+      setWsSaving(false)
+    }
+  }
 
   if (!product) return <NotFound slug={slug} />
 
   const internalSystem = product.systemUrl && product.systemUrl.startsWith('/')
 
-  const TABS = [
+  const productType = {
+    value: ws.details?.product_type || product.category,
+    options: PRODUCT_TYPES,
+    onChange: (v) => saveWs({ ...ws, details: { ...(ws.details || {}), product_type: v } }),
+  }
+
+  const baseTabs = [
     { key: 'overview', label: 'Overview', icon: LayoutDashboard },
     { key: 'app', label: 'App', icon: Smartphone },
-    { key: 'scope', label: 'Scope', icon: FileText },
-    { key: 'notes', label: 'Notes', icon: StickyNote },
   ]
+  const allTabs = [...baseTabs, ...WORKSPACE_TABS]
 
   return (
     <div className="p-6 space-y-6">
@@ -44,6 +78,7 @@ export default function ProductDetail() {
             <h1 className="text-3xl font-bold text-white">{product.name}</h1>
             <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STAGE_TINT[product.stage]}`}>{STAGE_LABEL[product.stage]}</span>
             <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${CATEGORY_TINT[product.category] || 'border-white/10 bg-white/5 text-gray-300'}`}>{product.category}</span>
+            {wsSaving && <span className="text-[11px] text-gray-500">Saving…</span>}
           </div>
           <p className="mt-1 text-sm text-gray-400">{product.tagline}</p>
         </div>
@@ -69,18 +104,20 @@ export default function ProductDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-white/10">
-        {TABS.map((t) => {
+      <div className="flex flex-wrap gap-1 border-b border-white/10">
+        {allTabs.map((t) => {
           const Icon = t.icon
           const active = tab === t.key
+          const badge = WORKSPACE_TAB_KEYS.includes(t.key) ? wsTabBadge(ws, t.key) : null
           return (
             <button key={t.key} onClick={() => setTab(t.key)}
-              className={`inline-flex items-center gap-2 rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+              className={`inline-flex items-center gap-2 rounded-t-lg border-b-2 px-3.5 py-2 text-sm font-medium transition-colors ${
                 active ? 'border-brand-blue text-brand-blue' : 'border-transparent text-gray-400 hover:text-white'
               }`}>
-              <Icon className="h-4 w-4" />
+              {Icon && <Icon className="h-4 w-4" />}
               {t.label}
-              {t.key === 'app' && product.app && <span className="ml-1 h-1.5 w-1.5 rounded-full bg-emerald-400" />}
+              {t.key === 'app' && product.app && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400" />}
+              {badge != null && <span className="ml-0.5 rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">{badge}</span>}
             </button>
           )
         })}
@@ -89,8 +126,11 @@ export default function ProductDetail() {
       {/* Tab body */}
       {tab === 'overview' && <Overview product={product} />}
       {tab === 'app' && <AppPreviewPane app={product.app} productName={product.name} />}
-      {tab === 'scope' && <Prose title="Scope" body={product.scope} />}
-      {tab === 'notes' && <Prose title="Notes" body={product.notes} />}
+      {WORKSPACE_TAB_KEYS.includes(tab) && (
+        loading
+          ? <div className="rounded-xl border border-white/10 bg-navy-900/60 p-8 text-center text-sm text-gray-500">Loading build data…</div>
+          : <WorkspaceTabBody tab={tab} ws={ws} onSave={saveWs} productType={productType} />
+      )}
     </div>
   )
 }
@@ -118,7 +158,7 @@ function Overview({ product }) {
           ) : (
             <div className="flex items-start gap-2 rounded-lg border border-dashed border-white/10 bg-navy-800/40 p-3 text-sm text-gray-400">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-              <span>Not provisioned yet — this product page is built and ready. Use the {product.systemLabel || 'action'} button to spin it up.</span>
+              <span>Not provisioned yet — this product page is built and ready. Use the {product.systemLabel || 'action'} button to spin it up, and document the build in the spec tabs.</span>
             </div>
           )}
         </section>
@@ -151,15 +191,6 @@ function Row({ label, value }) {
       <span className="text-xs text-gray-500">{label}</span>
       <span className="text-xs font-medium text-white">{value}</span>
     </div>
-  )
-}
-
-function Prose({ title, body }) {
-  return (
-    <section className="max-w-3xl rounded-xl border border-white/10 bg-navy-900/60 p-5">
-      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-300">{title}</h3>
-      <p className="text-sm leading-relaxed text-gray-300 whitespace-pre-line">{body || 'Nothing recorded yet.'}</p>
-    </section>
   )
 }
 
