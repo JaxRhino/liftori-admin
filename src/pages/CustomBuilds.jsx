@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { usePipelineStages } from '../lib/usePipelineStages'
+import PipelineStagesEditor from '../components/PipelineStagesEditor'
 
 // ---------------------------------------------------------------------------
 // Pipeline stages (exact order + labels) and their status pill colors
@@ -171,6 +173,9 @@ export default function CustomBuilds() {
   const [selectedId, setSelectedId] = useState(null)
   const [showNewModal, setShowNewModal] = useState(false)
   const [editProduct, setEditProduct] = useState(null)
+  const { stages: pipeStages, byKey: stageByKey, reload: reloadStages } = usePipelineStages('custom_build')
+  const [activeStage, setActiveStage] = useState(null)
+  const [stageEditorOpen, setStageEditorOpen] = useState(false)
 
   const loadData = useCallback(async () => {
     setError(null)
@@ -208,15 +213,29 @@ export default function CustomBuilds() {
     return builds.filter((b) => b.source === sourceFilter)
   }, [builds, sourceFilter])
 
+  const stageList = pipeStages.length ? pipeStages : STAGES.map((s, i) => ({ stage_key: s, label: s, color: 'slate', sort_order: i }))
+
   const buildsByStage = useMemo(() => {
     const map = {}
-    STAGES.forEach((s) => { map[s] = [] })
+    stageList.forEach((s) => { map[s.stage_key] = [] })
     filteredBuilds.forEach((b) => {
-      const key = STAGES.includes(b.status) ? b.status : 'Submitted'
-      map[key].push(b)
+      if (!map[b.status]) map[b.status] = []
+      map[b.status].push(b)
     })
     return map
-  }, [filteredBuilds])
+  }, [filteredBuilds, pipeStages])
+
+  // keep the active stage tab valid / populated as stages and data load
+  useEffect(() => {
+    if (!stageList.length) return
+    const count = (k) => (buildsByStage[k] || []).length
+    const exists = stageList.some((s) => s.stage_key === activeStage)
+    if (!exists || count(activeStage) === 0) {
+      const firstPop = stageList.find((s) => count(s.stage_key) > 0)
+      setActiveStage(firstPop ? firstPop.stage_key : stageList[0].stage_key)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pipeStages, filteredBuilds.length])
 
   const productsByCategory = useMemo(() => {
     const map = {}
@@ -288,6 +307,74 @@ export default function CustomBuilds() {
         <StatCard label="Lost" value={stats.lost} accent="text-red-400" />
       </div>
 
+      {/* Pipeline (stage tabs) */}
+      <div className="mb-3 flex items-center justify-between gap-4 flex-wrap">
+        <h2 className="text-lg font-semibold text-white">Pipeline</h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 rounded-lg bg-navy-800 border border-navy-700/50 p-1">
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'customer', label: 'Customer' },
+              { id: 'internal', label: 'Internal' },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => setSourceFilter(opt.id)}
+                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+                  sourceFilter === opt.id ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setStageEditorOpen(true)}
+            className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-navy-700/50 text-slate-300 hover:text-white hover:border-navy-700 transition-colors"
+          >
+            Manage stages
+          </button>
+        </div>
+      </div>
+
+      {/* Stage tabs */}
+      <div className="flex flex-wrap gap-2 border-b border-navy-700/50 mb-4">
+        {stageList.map((stg) => {
+          const count = (buildsByStage[stg.stage_key] || []).length
+          const active = activeStage === stg.stage_key
+          return (
+            <button
+              key={stg.stage_key}
+              onClick={() => setActiveStage(stg.stage_key)}
+              className={`inline-flex items-center gap-2 rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                active ? 'border-sky-500 text-sky-400' : 'border-transparent text-slate-400 hover:text-white'
+              }`}
+            >
+              {stg.label}
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-sky-500/15 text-sky-400' : 'bg-white/5 text-slate-500'}`}>{count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Active stage cards */}
+      {filteredBuilds.length === 0 ? (
+        <div className="rounded-lg p-10 bg-navy-800 border border-navy-700/50 text-center mb-8">
+          <p className="text-slate-400">No builds yet.</p>
+          <p className="text-sm text-slate-500 mt-1">Customer requests from liftori.ai/build land here automatically, or start a New internal build from the top.</p>
+        </div>
+      ) : (buildsByStage[activeStage] || []).length === 0 ? (
+        <div className="rounded-lg p-10 bg-navy-800 border border-navy-700/50 text-center mb-8">
+          <p className="text-slate-400">Nothing in <span className="text-slate-200 font-medium">{stageByKey[activeStage]?.label || activeStage}</span> yet.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-8">
+          {(buildsByStage[activeStage] || []).map((b) => (
+            <BuildCard key={b.id} build={b} onClick={() => setSelectedId(b.id)} />
+          ))}
+        </div>
+      )}
+
       {/* What we build */}
       <div className="mb-8 rounded-lg bg-navy-800 border border-navy-700/50">
         <button
@@ -351,71 +438,12 @@ export default function CustomBuilds() {
         )}
       </div>
 
-      {/* Pipeline board */}
-      <div className="mb-3 flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="text-lg font-semibold text-white">Pipeline</h2>
-        <div className="flex items-center gap-1 rounded-lg bg-navy-800 border border-navy-700/50 p-1">
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'customer', label: 'Customer' },
-            { id: 'internal', label: 'Internal' },
-          ].map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => setSourceFilter(opt.id)}
-              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
-                sourceFilter === opt.id
-                  ? 'bg-sky-500 text-white'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {filteredBuilds.length === 0 ? (
-        <div className="rounded-lg p-10 bg-navy-800 border border-navy-700/50 text-center">
-          <p className="text-slate-400">No builds yet.</p>
-          <p className="text-sm text-slate-500 mt-1">
-            Customer requests from liftori.ai/build land here automatically, or start an internal build above.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-4">
-            {STAGES.map((stage) => {
-              const items = buildsByStage[stage] || []
-              return (
-                <div
-                  key={stage}
-                  className="min-w-[260px] w-[260px] flex-shrink-0 rounded-lg bg-navy-800 border border-navy-700/50 overflow-hidden flex flex-col"
-                >
-                  <div className={`h-1 ${STAGE_ACCENT[stage] || 'bg-slate-500'}`} />
-                  <div className="flex items-center justify-between px-3 py-2.5 border-b border-navy-700/50">
-                    <span className="text-sm font-medium text-white">{stage}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STAGE_PILL[stage] || 'bg-slate-500/20 text-slate-400'}`}>
-                      {items.length}
-                    </span>
-                  </div>
-                  <div className="p-2 space-y-2 flex-1 min-h-[80px]">
-                    {items.map((b) => (
-                      <BuildCard key={b.id} build={b} onClick={() => setSelectedId(b.id)} />
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Detail drawer */}
       {selectedBuild && (
         <DetailDrawer
           build={selectedBuild}
           adminName={adminName}
+          stages={pipeStages}
           onClose={() => setSelectedId(null)}
           onPatch={patchBuild}
         />
@@ -435,6 +463,17 @@ export default function CustomBuilds() {
           products={products}
           onClose={() => setShowNewModal(false)}
           onCreated={async () => { await loadData(); setShowNewModal(false) }}
+        />
+      )}
+
+      {stageEditorOpen && (
+        <PipelineStagesEditor
+          surface="custom_build"
+          statusTable="custom_builds"
+          statusColumn="status"
+          title="Manage Custom Build stages"
+          onClose={() => setStageEditorOpen(false)}
+          onSaved={async () => { reloadStages(); await loadData() }}
         />
       )}
     </div>
@@ -496,7 +535,7 @@ function BuildCard({ build, onClick }) {
 // ---------------------------------------------------------------------------
 // Detail drawer
 // ---------------------------------------------------------------------------
-function DetailDrawer({ build, adminName, onClose, onPatch }) {
+function DetailDrawer({ build, adminName, stages, onClose, onPatch }) {
   const [status, setStatus] = useState(build.status || 'Submitted')
   const [priority, setPriority] = useState(build.priority || 'normal')
   const [progress, setProgress] = useState(build.progress ?? 0)
@@ -634,7 +673,7 @@ function DetailDrawer({ build, adminName, onClose, onPatch }) {
                   onChange={(e) => onStatusChange(e.target.value)}
                   className="w-full bg-navy-900 border border-navy-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
                 >
-                  {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {(stages && stages.length ? stages.map((o) => ({ k: o.stage_key, l: o.label })) : STAGES.map((o) => ({ k: o, l: o }))).map((o) => <option key={o.k} value={o.k}>{o.l}</option>)}
                 </select>
               </Field>
               <Field label="Priority">

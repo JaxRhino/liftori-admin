@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { OPS_STAGES, OPS_STAGE_COLORS, OPS_NEXT, opsToSales } from '../lib/customerValue'
+import { usePipelineStages } from '../lib/usePipelineStages'
+import PipelineStagesEditor from '../components/PipelineStagesEditor'
 
 const STATUS_PIPELINE = OPS_STAGES
 
@@ -343,6 +345,9 @@ export default function Projects() {
   const [toast, setToast] = useState(null)
   const [newProjectOpen, setNewProjectOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState(null)
+  const { stages: projStages, reload: reloadProjStages } = usePipelineStages('project')
+  const [activeStageTab, setActiveStageTab] = useState(null)
+  const [stageEditorOpen, setStageEditorOpen] = useState(false)
   const [adminNotes, setAdminNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
   const [emailOpen, setEmailOpen] = useState(false)
@@ -640,22 +645,14 @@ export default function Projects() {
   // Derive Kanban lanes from the active groupBy selection
   const lanes = useMemo(() => {
     if (groupBy === 'status') {
-      const list = STATUS_PIPELINE.map(s => ({
-        key: s,
-        label: s,
-        colors: STATUS_COLORS[s],
-        projects: searchFiltered.filter(p => p.status === s),
+      const src = projStages.length ? projStages : STATUS_PIPELINE.map((s, i) => ({ stage_key: s, label: s, sort_order: i }))
+      return src.map(st => ({
+        key: st.stage_key,
+        label: st.label,
+        colors: STATUS_COLORS[st.stage_key] || STATUS_COLORS['In Build'],
+        projects: searchFiltered.filter(p => p.status === st.stage_key),
         droppable: true,
       }))
-      // Append On Hold/Cancelled if populated (faded)
-      ;['On Hold', 'Cancelled'].forEach(s => {
-        if (statusCounts[s]) list.push({
-          key: s, label: s, colors: STATUS_COLORS[s],
-          projects: searchFiltered.filter(p => p.status === s),
-          droppable: true, faded: true,
-        })
-      })
-      return list
     }
     if (groupBy === 'type') {
       return ['CRM', 'Custom Builds', 'Websites'].map(t => ({
@@ -700,7 +697,21 @@ export default function Projects() {
       }))
     }
     return []
-  }, [searchFiltered, groupBy, statusCounts])
+  }, [searchFiltered, groupBy, statusCounts, projStages])
+
+  // keep the active stage tab valid / populated (status grouping)
+  useEffect(() => {
+    if (groupBy !== 'status') return
+    const src = projStages.length ? projStages : STATUS_PIPELINE.map((s) => ({ stage_key: s }))
+    if (!src.length) return
+    const count = (k) => searchFiltered.filter((p) => p.status === k).length
+    const exists = src.some((s) => s.stage_key === activeStageTab)
+    if (!exists || count(activeStageTab) === 0) {
+      const firstPop = src.find((s) => count(s.stage_key) > 0)
+      setActiveStageTab(firstPop ? firstPop.stage_key : src[0].stage_key)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projStages, groupBy, searchFiltered.length])
 
   // HTML5 drag-and-drop handlers (Pipeline view, status grouping only)
   function onCardDragStart(e, projectId) {
@@ -747,6 +758,17 @@ export default function Projects() {
           onClose={() => setNewProjectOpen(false)}
           onCreated={handleProjectCreated}
           currentUserId={user?.id}
+        />
+      )}
+
+      {stageEditorOpen && (
+        <PipelineStagesEditor
+          surface="project"
+          statusTable="projects"
+          statusColumn="status"
+          title="Manage Project stages"
+          onClose={() => setStageEditorOpen(false)}
+          onSaved={async () => { reloadProjStages(); await fetchProjects() }}
         />
       )}
 
@@ -914,8 +936,35 @@ export default function Projects() {
       ) : view === 'pipeline' ? (
 
         /* ── Pipeline View (Kanban, groupBy-aware) ── */
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {lanes.map(lane => {
+        <div>
+          {groupBy === 'status' && (
+            <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
+              <div className="flex flex-1 flex-wrap gap-2 border-b border-navy-700/50">
+                {(projStages.length ? projStages : STATUS_PIPELINE.map((s) => ({ stage_key: s, label: s }))).map((st) => {
+                  const count = searchFiltered.filter((p) => p.status === st.stage_key).length
+                  const active = activeStageTab === st.stage_key
+                  return (
+                    <button
+                      key={st.stage_key}
+                      onClick={() => setActiveStageTab(st.stage_key)}
+                      className={`inline-flex items-center gap-2 rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-colors ${active ? 'border-brand-blue text-brand-blue' : 'border-transparent text-gray-400 hover:text-white'}`}
+                    >
+                      {st.label}
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-brand-blue/15 text-brand-blue' : 'bg-white/5 text-gray-500'}`}>{count}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <button
+                onClick={() => setStageEditorOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-gray-200 hover:bg-navy-700 whitespace-nowrap"
+              >
+                Manage stages
+              </button>
+            </div>
+          )}
+          <div className={groupBy === 'status' ? '' : 'flex gap-4 overflow-x-auto pb-4'}>
+          {lanes.filter((lane) => groupBy !== 'status' || lane.key === activeStageTab).map(lane => {
             const colors = lane.colors || STATUS_COLORS['In Build']
             const colProjects = lane.projects
             const status = lane.key
@@ -928,14 +977,16 @@ export default function Projects() {
                 onDragOver={(e) => onLaneDragOver(e, lane.key, lane.droppable)}
                 onDragLeave={onLaneDragLeave}
                 onDrop={(e) => onLaneDrop(e, lane.key, lane.droppable)}
-                className={`flex-shrink-0 w-72 rounded-lg transition-colors ${isDropActive ? 'bg-brand-blue/5 ring-2 ring-brand-blue/40 ring-inset' : ''} ${lane.faded ? 'opacity-60' : ''}`}
+                className={`${groupBy === 'status' ? 'w-full' : 'flex-shrink-0 w-72'} rounded-lg transition-colors ${isDropActive ? 'bg-brand-blue/5 ring-2 ring-brand-blue/40 ring-inset' : ''} ${lane.faded ? 'opacity-60' : ''}`}
               >
-                <div className="flex items-center gap-2 mb-3 px-1">
-                  <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                  <h3 className={`text-sm font-semibold ${colors.text}`}>{status}</h3>
-                  <span className="text-xs text-gray-500 ml-auto">{colProjects.length}</span>
-                </div>
-                <div className="space-y-2">
+                {groupBy !== 'status' && (
+                  <div className="flex items-center gap-2 mb-3 px-1">
+                    <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                    <h3 className={`text-sm font-semibold ${colors.text}`}>{status}</h3>
+                    <span className="text-xs text-gray-500 ml-auto">{colProjects.length}</span>
+                  </div>
+                )}
+                <div className={groupBy === 'status' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3' : 'space-y-2'}>
                   {colProjects.map(project => (
                     <div
                       key={project.id}
@@ -1037,6 +1088,7 @@ export default function Projects() {
               </div>
             )
           })}
+          </div>
 
         </div>
 
