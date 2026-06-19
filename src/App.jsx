@@ -39,6 +39,9 @@ import ChoosePlan from './pages/portal/ChoosePlan'
 import PortalProject from './pages/portal/PortalProject'
 import Settings from './pages/Settings'
 import ComingSoon from './pages/ComingSoon'
+import Tasks from './pages/Tasks'
+import Notes from './pages/Notes'
+import Calendar from './pages/Calendar'
 import CallCenter from './pages/CallCenter'
 import CallCenterTeam from './pages/CallCenterTeam'
 import CallCenterVoicemails from './pages/CallCenterVoicemails'
@@ -448,9 +451,9 @@ export default function App() {
             <Route path="marketing/sequences" element={<EmailSequences />} />
             <Route path="marketing/performance" element={<MarketingPerformance />} />
             <Route path="wizard" element={<WizardBuilder />} />
-            <Route path="tasks" element={<ComingSoon />} />
-            <Route path="notes" element={<ComingSoon />} />
-            <Route path="calendar" element={<ComingSoon />} />
+            <Route path="tasks" element={<Tasks />} />
+            <Route path="notes" element={<Notes />} />
+            <Route path="calendar" element={<Calendar />} />
             {/* Finance Hub */}
             <Route path="finance" element={<FinanceDashboard />} />
             <Route path="finance/invoices" element={<InvoicesList />} />
