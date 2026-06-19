@@ -192,6 +192,35 @@ export default function InHouseBuildDetail() {
             )}
             {build.phase && <p className="text-xs text-slate-500 mt-2">Current Phase: {build.phase}</p>}
           </div>
+          {(() => {
+            const d = ws.details || {}
+            const mrr = Number(d.mrr || 0)
+            const arr = Number(d.arr) > 0 ? Number(d.arr) : mrr * 12
+            const tb = Number(d.build_budget || 0) + Number(d.marketing_budget || 0)
+            const show = d.owner || d.assigned_to || mrr || arr || tb || d.stage
+            if (!show) return null
+            return (
+              <div className="bg-navy-800 border border-navy-700/50 rounded-lg p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm text-slate-400">Business Snapshot</p>
+                  <button onClick={() => setActiveTab('details')} className="text-xs text-sky-400 hover:underline">Edit in Project Details</button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Stat label="MRR" value={money(mrr)} accent="text-sky-300" />
+                  <Stat label="ARR" value={money(arr)} accent="text-green-400" />
+                  <Stat label="Total Budget" value={money(tb)} />
+                  <Stat label="Owner" value={d.owner || '-'} />
+                </div>
+                {(d.assigned_to || d.stage || d.pricing_model) && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {d.assigned_to && <span className="text-xs px-2.5 py-1 bg-navy-900 text-slate-300 rounded-lg border border-navy-700/50">Assigned: {d.assigned_to}</span>}
+                    {d.stage && <span className="text-xs px-2.5 py-1 bg-navy-900 text-slate-300 rounded-lg border border-navy-700/50">Stage: {d.stage}</span>}
+                    {d.pricing_model && <span className="text-xs px-2.5 py-1 bg-navy-900 text-slate-300 rounded-lg border border-navy-700/50">{d.pricing_model}</span>}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
           <div className="grid grid-cols-2 gap-4">
             <Field label="Description" editing={editing} value={editing ? form.description : build.description} onChange={v => setForm({ ...form, description: v })} multiline />
             <div className="space-y-4">
@@ -213,7 +242,12 @@ export default function InHouseBuildDetail() {
         </div>
       )}
 
-      {activeTab === 'details' && <Narrative title="Project Details" value={ws.project_details} onSave={v => patchWs('project_details', v)} placeholder="What is this project, who is it for, the problem it solves, key decisions…" />}
+      {activeTab === 'details' && (
+        <div className="space-y-6">
+          <DetailsFields ws={ws} onSave={saveWs} />
+          <Narrative title="Project Overview" value={ws.project_details} onSave={v => patchWs('project_details', v)} placeholder="What is this project, who is it for, the problem it solves, key decisions..." />
+        </div>
+      )}
       {activeTab === 'scope' && <Narrative title="Scope of All Features" value={ws.scope} onSave={v => patchWs('scope', v)} placeholder="Everything in scope — and explicitly what is out of scope…" />}
       {activeTab === 'plan' && <Narrative title="Implementation Plan" value={ws.implementation_plan} onSave={v => patchWs('implementation_plan', v)} placeholder="Build sequence, waves, architecture approach, dependencies…" />}
       {activeTab === 'security' && <Narrative title="Security" value={ws.security} onSave={v => patchWs('security', v)} placeholder="Auth model, RLS, secrets handling, data protection, threat notes…" />}
@@ -362,6 +396,66 @@ export default function InHouseBuildDetail() {
   function updEntry(eid, key, val) {
     saveWs({ ...ws, costs: { ...costs, time_entries: timeEntries.map(x => x.id === eid ? { ...x, [key]: val } : x) } })
   }
+}
+
+const DETAIL_SECTIONS = [
+  { title: 'Ownership', fields: [['owner', 'Project Owner', 'text'], ['assigned_to', 'Assigned To', 'text'], ['stage', 'Stage', 'text'], ['start_date', 'Start Date', 'date'], ['target_launch', 'Target Launch', 'date']] },
+  { title: 'Recurring Revenue', fields: [['mrr', 'MRR (monthly recurring)', 'money'], ['arr', 'ARR (annual recurring)', 'money'], ['pricing_model', 'Pricing Model', 'text'], ['active_customers', 'Active Customers', 'number']] },
+  { title: 'Projections', fields: [['revenue_projection', 'Revenue Projection (12mo)', 'money'], ['buyout_prediction', 'Buyout / Exit Prediction', 'money'], ['profit_margin', 'Profit Margin', 'percent'], ['break_even', 'Break-even (note)', 'text']] },
+  { title: 'Budgets', fields: [['build_budget', 'Build Budget', 'money'], ['marketing_budget', 'Marketing Budget', 'money']] },
+]
+
+function DetailsFields({ ws, onSave }) {
+  const d = ws.details || {}
+  const commit = (k, v) => onSave({ ...ws, details: { ...d, [k]: v } })
+  const mrr = Number(d.mrr || 0)
+  const effectiveArr = Number(d.arr) > 0 ? Number(d.arr) : mrr * 12
+  const totalBudget = Number(d.build_budget || 0) + Number(d.marketing_budget || 0)
+  const margin = Number(d.profit_margin || 0)
+  const monthlyProfit = mrr * (margin / 100)
+  const breakEvenMo = totalBudget > 0 && monthlyProfit > 0 ? Math.ceil(totalBudget / monthlyProfit) : null
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat label="MRR" value={money(mrr)} accent="text-sky-300" />
+        <Stat label="ARR (effective)" value={money(effectiveArr)} accent="text-green-400" />
+        <Stat label="Total Budget" value={money(totalBudget)} />
+        <Stat label="Est. Break-even" value={breakEvenMo ? `${breakEvenMo} mo` : '—'} />
+      </div>
+      {DETAIL_SECTIONS.map(sec => (
+        <div key={sec.title} className="bg-navy-800 border border-navy-700/50 rounded-lg p-5">
+          <p className="text-xs uppercase tracking-wider text-slate-500 mb-3">{sec.title}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {sec.fields.map(([key, label, type]) => (
+              <FieldCell key={key} label={label} type={type} value={d[key]} placeholder={key === 'arr' && mrr > 0 ? String(mrr * 12) : undefined} onCommit={v => commit(key, v)} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function FieldCell({ label, type, value, placeholder, onCommit }) {
+  const isMoney = type === 'money'
+  const isPct = type === 'percent'
+  const numeric = isMoney || isPct || type === 'number'
+  const [v, setV] = useState(value ?? '')
+  useEffect(() => { setV(value ?? '') }, [value])
+  return (
+    <div className="bg-navy-900 border border-navy-700/50 rounded-lg p-3">
+      <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{label}</label>
+      <div className="flex items-center gap-1">
+        {isMoney && <span className="text-slate-500 text-sm">$</span>}
+        {type === 'date' ? (
+          <input type="date" value={v} onChange={e => setV(e.target.value)} onBlur={() => onCommit(v)} className="w-full bg-transparent text-white text-sm focus:outline-none" />
+        ) : (
+          <input value={v} onChange={e => setV(numeric ? e.target.value.replace(/[^0-9.]/g, '') : e.target.value)} onBlur={() => onCommit(numeric ? (v === '' ? '' : Number(v)) : v)} inputMode={numeric ? 'decimal' : undefined} placeholder={placeholder || (numeric ? '0' : '—')} className="w-full bg-transparent text-white text-sm focus:outline-none placeholder:text-slate-600" />
+        )}
+        {isPct && <span className="text-slate-500 text-sm">%</span>}
+      </div>
+    </div>
+  )
 }
 
 function Narrative({ title, value, onSave, placeholder }) {
