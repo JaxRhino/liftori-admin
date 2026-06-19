@@ -19,6 +19,12 @@ const TYPE_META = {
   invoice:             { label: 'Invoice',             color: 'bg-cyan-500/15 text-cyan-300'       },
   receipt:             { label: 'Receipt',             color: 'bg-emerald-500/15 text-emerald-300' },
   onboarding_complete: { label: 'Onboarding complete', color: 'bg-emerald-500/15 text-emerald-300' },
+  custom_build:        { label: 'Custom build',        color: 'bg-sky-500/15 text-sky-300'         },
+  bolo_signup:         { label: 'BOLO Go signup',      color: 'bg-emerald-500/15 text-emerald-300' },
+  order_confirmation:  { label: 'Order confirmation',  color: 'bg-emerald-500/15 text-emerald-300' },
+  booking:             { label: 'Booking',             color: 'bg-cyan-500/15 text-cyan-300'       },
+  lead_alert:          { label: 'Lead alert',          color: 'bg-amber-500/15 text-amber-300'     },
+  drip:                { label: 'Drip / nurture',      color: 'bg-slate-500/15 text-slate-300'     },
   custom:              { label: 'Custom',              color: 'bg-zinc-500/15 text-zinc-300'       },
 }
 
