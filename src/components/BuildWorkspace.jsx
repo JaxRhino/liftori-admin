@@ -12,7 +12,7 @@ export const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.
 export const money = (v) => '$' + Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })
 
 // Product type options for the Project Details dropdown (reuses existing project_type values).
-export const PRODUCT_TYPES = ['Website', 'CRM', 'Web App', 'Mobile App', 'Business Platform', 'E-Commerce', 'Dashboard', 'Marketplace', 'Book Writing App', 'CRM Builder', 'Website Builder', 'Other']
+export const PRODUCT_TYPES = ['Website', 'Websites', 'CRM', 'Custom Builds', 'Web App', 'Mobile App', 'Business Platform', 'E-Commerce', 'Dashboard', 'Marketplace', 'Book Writing App', 'CRM Builder', 'Website Builder', 'Other']
 
 const TL_STATUS = { planned: 'bg-slate-500/15 text-slate-300', active: 'bg-sky-500/15 text-sky-300', done: 'bg-green-500/15 text-green-300' }
 
@@ -108,6 +108,9 @@ export function DetailsFields({ ws, onSave, productType }) {
               <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Product Type</label>
               <select value={productType.value || ''} onChange={e => productType.onChange(e.target.value)} className="w-full bg-transparent text-white text-sm focus:outline-none">
                 <option value="" className="bg-navy-900">- Select -</option>
+                {productType.value && !(productType.options || PRODUCT_TYPES).includes(productType.value) && (
+                  <option value={productType.value} className="bg-navy-900">{productType.value}</option>
+                )}
                 {(productType.options || PRODUCT_TYPES).map(o => <option key={o} value={o} className="bg-navy-900">{o}</option>)}
               </select>
             </div>
