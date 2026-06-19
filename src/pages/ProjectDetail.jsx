@@ -437,6 +437,7 @@ Return ONLY a comma-separated list. No numbering, no bullets, no explanation. Ex
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'details', label: 'Project Details' },
+    { key: 'design', label: 'Design' },
     { key: 'sales', label: 'Sales & Customer', count: estimates.length },
     { key: 'features', label: 'Features', count: (ws.features || []).length },
     { key: 'scope', label: 'Scope' },

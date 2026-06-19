@@ -19,6 +19,7 @@ const MS_STATUS_ICONS = { pending: 'o', in_progress: '*', completed: '#', blocke
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'details', label: 'Project Details' },
+  { key: 'design', label: 'Design' },
   { key: 'features', label: 'Features' },
   { key: 'scope', label: 'Scope' },
   { key: 'timeline', label: 'Timeline' },

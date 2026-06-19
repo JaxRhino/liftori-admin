@@ -76,12 +76,14 @@ export default function ProductDetail() {
 
   // Order: Overview, Project Details, App, App Builder, then the rest of the spec tabs.
   const detailsTab = WORKSPACE_TABS.find((t) => t.key === 'details')
-  const restTabs = WORKSPACE_TABS.filter((t) => t.key !== 'details')
+  const designTab = WORKSPACE_TABS.find((t) => t.key === 'design')
+  const restTabs = WORKSPACE_TABS.filter((t) => t.key !== 'details' && t.key !== 'design')
   const allTabs = [
     { key: 'overview', label: 'Overview', icon: LayoutDashboard },
     ...(detailsTab ? [detailsTab] : []),
+    ...(designTab ? [designTab] : []),
     { key: 'app', label: 'App', icon: Smartphone },
-    { key: 'app_builder', label: 'App Builder', icon: Wrench },
+    { key: 'app_builder', label: 'App Features', icon: Wrench },
     ...restTabs,
   ]
 
