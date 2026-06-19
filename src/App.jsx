@@ -22,6 +22,8 @@ import Agreements from './pages/Agreements'
 import Commissions from './pages/Commissions'
 import ProjectDetail from './pages/ProjectDetail'
 import Waitlist from './pages/Waitlist'
+import NewTenant from './pages/NewTenant'
+import PlatformFees from './pages/PlatformFees'
 import Affiliates from './pages/Affiliates'
 import Customers from './pages/Customers'
 import CustomerDetail from './pages/CustomerDetail'
@@ -355,6 +357,8 @@ export default function App() {
             <Route path="projects" element={<Projects />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="waitlist" element={<Waitlist />} />
+            <Route path="new-tenant" element={<NewTenant />} />
+            <Route path="platform-fees" element={<PlatformFees />} />
             <Route path="affiliates" element={<Affiliates />} />
             <Route path="customers" element={<Customers />} />
             <Route path="customers/:id" element={<CustomerDetail />} />
