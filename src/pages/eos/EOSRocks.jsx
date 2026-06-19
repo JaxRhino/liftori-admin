@@ -457,7 +457,7 @@ export default function EOSRocks() {
   const { currentOrg } = useOrg();
   const [rocks, setRocks] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
-  const [selectedQuarter, setSelectedQuarter] = useState(QUARTERS[3]); // Current quarter
+  const [selectedQuarter, setSelectedQuarter] = useState(ALL_QUARTERS); // Default to All Quarters view
   const [viewMode, setViewMode] = useState('all'); // 'my' or 'all'
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
