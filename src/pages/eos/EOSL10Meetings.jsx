@@ -30,6 +30,7 @@ export default function EOSL10Meetings() {
     attendees: [],
     is_video: true,
   });
+  const [startingNow, setStartingNow] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -49,6 +50,50 @@ export default function EOSL10Meetings() {
       toast.error('Failed to load meetings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartNow = async () => {
+    setStartingNow(true);
+    try {
+      const now = new Date();
+      const title = `Instant L10 - ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      let meetingUrl = null;
+      try {
+        const link = await createRallyLink(
+          { label: title, linkType: 'recurring', maxGuests: 25 },
+          user?.id
+        );
+        meetingUrl = `${window.location.origin}/rally/join/${link.code}`;
+      } catch (linkErr) {
+        console.error('Error creating video room:', linkErr);
+      }
+      const meeting = await createMeeting({
+        title,
+        scheduled_date: now.toISOString(),
+        duration_minutes: 90,
+        facilitator_id: user?.id || null,
+        attendees: [],
+        team_ids: [],
+        video_enabled: true,
+        is_in_person: false,
+        meeting_url: meetingUrl,
+        org_id: currentOrg?.id || null,
+        created_by: user?.id || null,
+        status: 'in_progress',
+      });
+      await loadData();
+      if (meetingUrl) {
+        toast.success('L10 started - opening video room');
+        window.open(meetingUrl, '_blank', 'noopener');
+      } else {
+        toast.error('Meeting created but video link failed');
+      }
+    } catch (error) {
+      console.error('Error starting instant L10:', error);
+      toast.error('Could not start the meeting');
+    } finally {
+      setStartingNow(false);
     }
   };
 
@@ -194,13 +239,23 @@ export default function EOSL10Meetings() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-white">L10 Meetings</h1>
-          <Button
-            onClick={() => setDialogOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Schedule Meeting
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleStartNow}
+              disabled={startingNow}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Video className="w-4 h-4 mr-2" />
+              {startingNow ? 'Starting...' : 'Start L10 Now'}
+            </Button>
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Schedule Meeting
+            </Button>
+          </div>
         </div>
 
         {/* Meetings Grid */}
