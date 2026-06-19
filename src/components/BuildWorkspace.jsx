@@ -245,10 +245,16 @@ function FeaturesSectioned({ items, onChange }) {
 }
 
 // Design tab: color theme, typography/style, layout notes, reference links.
+const DESIGN_DEFAULTS = {
+  colors: { primary: '#0ea5e9', secondary: '#060b18', accent: '#7dd3fc', neutral: '#e0f7ff', background: '#060b18' },
+  heading_font: 'Bebas Neue',
+  body_font: 'DM Sans',
+}
+
 function DesignFields({ ws, onSave }) {
   const w = ws || {}
   const d = w.design || {}
-  const colors = d.colors || {}
+  const colors = (d.colors && Object.keys(d.colors).length) ? d.colors : DESIGN_DEFAULTS.colors
   const setD = (patch) => onSave({ ...w, design: { ...d, ...patch } })
   const setColor = (k, v) => setD({ colors: { ...colors, [k]: v } })
   const patchWs = (key, value) => onSave({ ...w, [key]: value })
@@ -272,8 +278,8 @@ function DesignFields({ ws, onSave }) {
       <div className="bg-navy-800 border border-navy-700/50 rounded-lg p-5">
         <p className="text-xs uppercase tracking-wider text-slate-500 mb-3">Typography & Style</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <FieldCell label="Heading Font" type="text" value={d.heading_font} placeholder="e.g. Bebas Neue" onCommit={(v) => setD({ heading_font: v })} />
-          <FieldCell label="Body Font" type="text" value={d.body_font} placeholder="e.g. DM Sans" onCommit={(v) => setD({ body_font: v })} />
+          <FieldCell label="Heading Font" type="text" value={d.heading_font || DESIGN_DEFAULTS.heading_font} placeholder="e.g. Bebas Neue" onCommit={(v) => setD({ heading_font: v })} />
+          <FieldCell label="Body Font" type="text" value={d.body_font || DESIGN_DEFAULTS.body_font} placeholder="e.g. DM Sans" onCommit={(v) => setD({ body_font: v })} />
           <FieldCell label="Style / Vibe" type="text" value={d.style} placeholder="e.g. Modern, minimal, bold" onCommit={(v) => setD({ style: v })} />
         </div>
       </div>
