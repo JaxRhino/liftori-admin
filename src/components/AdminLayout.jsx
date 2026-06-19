@@ -22,6 +22,13 @@ const freightNavItems = [
     )
   },
   {
+    label: 'Dispatch', path: '/admin/freight/dispatch', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+      </svg>
+    )
+  },
+  {
     label: 'Fleet', path: '/admin/freight/fleet', icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
@@ -792,6 +799,21 @@ export default function AdminLayout() {
             DO NOT unpin â€” if the user explicitly pinned the sidebar, it stays pinned
             until they click the pin toggle again. */}
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto" onClick={(e) => { if (e.target.closest('a')) { setMobileMenuOpen(false); setSidebarHovered(false); } }}>
+          {isFreightRoute && (
+            <div className="space-y-1">
+              <button onClick={() => navigate('/admin')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
+                {sidebarOpen && <span>Back to Admin</span>}
+              </button>
+              {freightNavItems.map(fi => (
+                <NavLink key={fi.path} to={fi.path} end={fi.path === '/admin/freight'} className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}>
+                  {fi.icon}
+                  {sidebarOpen && <span>{fi.label}</span>}
+                </NavLink>
+              ))}
+            </div>
+          )}
+          {!isFreightRoute && (<>
           {visibleNavItems.map((item, idx) => (
             <React.Fragment key={item.path}>
               {['Call Center', 'Marketing', 'Finance', 'Communications', 'EOS'].includes(item.label) ? (
@@ -1416,6 +1438,7 @@ export default function AdminLayout() {
               </div>
             )}
           </div>}
+          </>)}
 
         </nav>
 
