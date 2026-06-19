@@ -845,7 +845,7 @@ export default function Projects() {
           <p className="text-3xl font-bold text-amber-400 mt-2">{pinnedCount}</p>
         </button>
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Buildout</p>
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">In Build</p>
           <p className="text-3xl font-bold text-brand-blue mt-2">{inBuildCount}</p>
         </div>
         <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-4">
