@@ -80,6 +80,15 @@ function isOverdue(dueDate) {
   return due < today;
 }
 
+// Normalize a stored timestamptz (e.g. "2026-06-26 00:00:00+00") to the
+// "YYYY-MM-DD" string an <input type="date"> expects.
+function toDateInputValue(value) {
+  if (!value) return '';
+  if (typeof value === 'string' && value.length >= 10) return value.slice(0, 10);
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+}
+
 function TodoCard({ todo, onEdit, onDelete, onToggleComplete }) {
   const priorityConfig = PRIORITY_CONFIG[todo.priority] || PRIORITY_CONFIG.medium;
   const isCompleted = todo.status === 'complete';
@@ -324,7 +333,7 @@ function CreateTodoDialog({ open, onOpenChange, onSubmit, teamUsers }) {
   );
 }
 
-function EditTodoDialog({ todo, open, onOpenChange, onSubmit }) {
+function EditTodoDialog({ todo, open, onOpenChange, onSubmit, teamUsers = [] }) {
   const [formData, setFormData] = useState(todo || {});
 
   useEffect(() => {
@@ -334,8 +343,21 @@ function EditTodoDialog({ todo, open, onOpenChange, onSubmit }) {
   }, [todo, open]);
 
   const handleSubmit = async () => {
+    if (!formData.task || !formData.owner_id) {
+      toast.error('Please fill in required fields');
+      return;
+    }
     try {
-      await onSubmit(todo.id, formData);
+      // Only send real columns — never the joined `owner` object or other
+      // read-only fields, which Supabase would reject on update.
+      const payload = {
+        task: formData.task,
+        description: formData.description ?? '',
+        owner_id: formData.owner_id,
+        priority: formData.priority || 'medium',
+      };
+      if (formData.due_date) payload.due_date = formData.due_date;
+      await onSubmit(todo.id, payload);
       onOpenChange(false);
       toast.success('Todo updated successfully');
     } catch (error) {
@@ -381,6 +403,26 @@ function EditTodoDialog({ todo, open, onOpenChange, onSubmit }) {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Assign To *
+            </label>
+            <select
+              value={formData.owner_id || ''}
+              onChange={(e) =>
+                setFormData({ ...formData, owner_id: e.target.value })
+              }
+              className="w-full bg-navy-800 border border-navy-700 rounded text-white text-sm px-3 py-2"
+            >
+              <option value="">Select owner</option>
+              {teamUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -405,7 +447,7 @@ function EditTodoDialog({ todo, open, onOpenChange, onSubmit }) {
               </label>
               <Input
                 type="date"
-                value={formData.due_date || ''}
+                value={toDateInputValue(formData.due_date)}
                 onChange={(e) =>
                   setFormData({ ...formData, due_date: e.target.value })
                 }
@@ -662,6 +704,7 @@ export default function EOSTodos() {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         onSubmit={handleUpdateTodo}
+        teamUsers={teamUsers}
       />
 
       {/* Delete Confirmation Dialog */}
