@@ -56,7 +56,6 @@ import WorkforceActivity from './pages/workforce/WorkforceActivity'
 import WorkforceOrgChart from './pages/workforce/WorkforceOrgChart'
 import CEODashboard from './pages/ceo/CEODashboard'
 import CustomBuilds from './pages/CustomBuilds'
-import MobilePreview from './pages/MobilePreview'
 import AppViewer from './pages/AppViewer'
 import Products from './pages/Products'
 import ProductDetail from './pages/ProductDetail'
@@ -428,7 +427,6 @@ export default function App() {
             <Route path="leadership-qc" element={<LeadershipQC />} />
             <Route path="cost-tracker" element={<CostTracker />} />
             <Route path="custom-builds" element={<CustomBuilds />} />
-            <Route path="mobile-preview" element={<MobilePreview />} />
             <Route path="products" element={<Products />} />
             <Route path="products/:slug" element={<ProductDetail />} />
             <Route path="pipeline" element={<SalesPipeline />} />
