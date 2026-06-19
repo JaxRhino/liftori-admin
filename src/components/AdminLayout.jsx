@@ -1341,19 +1341,6 @@ export default function AdminLayout() {
               <p className="text-xs text-slate-600 uppercase tracking-widest px-3 mb-1 mt-2">Internal</p>
             )}
             <NavLink
-              to="/admin/builds"
-              className={({ isActive }) =>
-                `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive || isBuildsRoute ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
-                }`
-              }
-              title="In-House Builds">
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17l-5.384 3.024c-.604.34-1.287-.198-1.049-.855l1.583-4.375a1.125 1.125 0 00-.312-1.237L2.77 8.975a.75.75 0 01.428-1.32l4.625-.28a1.125 1.125 0 001.007-.686l1.794-4.327a.75.75 0 011.352 0l1.794 4.327c.157.378.51.644.92.686l4.625.28a.75.75 0 01.428 1.32l-3.488 2.752a1.125 1.125 0 00-.312 1.237l1.583 4.375c.238.657-.445 1.195-1.049.855L12.58 15.17a1.125 1.125 0 00-1.16 0z" />
-              </svg>
-              {sidebarOpen && <span className="flex-1 text-left">In-House Builds</span>}
-            </NavLink>
-            <NavLink
               to="/admin/custom-builds"
               className={({ isActive }) =>
                 `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
