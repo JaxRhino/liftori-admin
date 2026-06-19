@@ -5,18 +5,20 @@ import { useFeatureLibrary } from '../lib/useFeatureLibrary'
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2))
 const money = (v) => '$' + Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 
-// ── Pure ws transforms ─────────────────────────────────────────────────────
-function appendScopeSection(scope, feat) {
-  const s = scope || ''
-  if (s.includes(`## ${feat.name}`)) return s
-  const block = `## ${feat.name}\n${feat.scope || feat.detail || ''}`
+// ── Pure ws transforms ───────────────────────────────────────
+// Append a "## Name" section to a narrative field (deduped by heading).
+function appendSection(text, name, body) {
+  const s = text || ''
+  if (s.includes(`## ${name}`)) return s
+  const block = `## ${name}\n${body || ''}`
   return (s.trim() ? s.trim() + '\n\n' : '') + block
 }
-function stripScopeSection(scope, name) {
-  if (!scope) return scope
+// Remove the "## Name" section (heading + body up to the next "## " or end).
+function stripSection(text, name) {
+  if (!text) return text
   const out = []
   let skip = false
-  for (const line of scope.split('\n')) {
+  for (const line of text.split('\n')) {
     if (line.trim() === `## ${name}`) { skip = true; continue }
     if (skip && /^##\s+/.test(line.trim())) skip = false
     if (!skip) out.push(line)
@@ -30,12 +32,13 @@ export function applyLibraryFeature(ws, feat) {
   const tasks = w.tasks || []
   const costs = w.costs || {}
   const lineItems = costs.line_items || []
+  const timeline = w.timeline || []
+  const dt = Array.isArray(feat.default_tasks) ? feat.default_tasks : []
 
   const nextFeatures = features.some(f => f.libKey === feat.key)
     ? features
     : [...features, { id: uid(), name: feat.name, detail: feat.detail || feat.scope || '', libKey: feat.key }]
 
-  const dt = Array.isArray(feat.default_tasks) ? feat.default_tasks : []
   const existingTitles = new Set(tasks.filter(t => t.libKey === feat.key).map(t => t.title))
   const newTasks = dt
     .filter(t => t && !existingTitles.has(t))
@@ -45,12 +48,20 @@ export function applyLibraryFeature(ws, feat) {
     ? costs
     : { ...costs, line_items: [...lineItems, { id: uid(), label: `${feat.name} — est. build`, amount: Number(feat.est_cost || 0), libKey: feat.key }] }
 
+  const nextTimeline = timeline.some(t => t.libKey === feat.key)
+    ? timeline
+    : [...timeline, { id: uid(), phase: feat.name, target: '', status: 'planned', libKey: feat.key }]
+
+  const planBody = dt.length ? dt.map((t, i) => `${i + 1}. ${t}`).join('\n') : (feat.scope || feat.detail || '')
+
   return {
     ...w,
     features: nextFeatures,
-    scope: appendScopeSection(w.scope, feat),
+    scope: appendSection(w.scope, feat.name, feat.scope || feat.detail || ''),
+    implementation_plan: appendSection(w.implementation_plan, feat.name, planBody),
     tasks: [...tasks, ...newTasks],
     costs: nextCosts,
+    timeline: nextTimeline,
   }
 }
 
@@ -62,7 +73,9 @@ export function removeLibraryFeature(ws, key, name) {
     features: (w.features || []).filter(f => f.libKey !== key),
     tasks: (w.tasks || []).filter(t => !(t.libKey === key && !t.done)),
     costs: { ...costs, line_items: (costs.line_items || []).filter(l => l.libKey !== key) },
-    scope: stripScopeSection(w.scope, name),
+    timeline: (w.timeline || []).filter(t => t.libKey !== key),
+    scope: stripSection(w.scope, name),
+    implementation_plan: stripSection(w.implementation_plan, name),
   }
 }
 
