@@ -81,6 +81,7 @@ import FreightSalesProfiles from './pages/freight/FreightSalesProfiles'
 import FreightShippers from './pages/freight/FreightShippers'
 import FreightLoads from './pages/freight/FreightLoads'
 import FreightCommissions from './pages/freight/FreightCommissions'
+import FreightFleet from './pages/freight/FreightFleet'
 // EOS â€” Entrepreneurial Operating System
 import EOSDashboard from './pages/eos/EOSDashboard'
 import EOSLeadershipDashboard from './pages/eos/EOSLeadershipDashboard'
@@ -376,6 +377,7 @@ export default function App() {
             <Route path="freight/shippers" element={<FreightShippers />} />
             <Route path="freight/loads" element={<FreightLoads />} />
             <Route path="freight/commissions" element={<FreightCommissions />} />
+            <Route path="freight/fleet" element={<FreightFleet />} />
             {/* EOS â€” Entrepreneurial Operating System */}
             <Route path="eos" element={<EOSDashboard />} />
             <Route path="eos/leadership" element={<EOSLeadershipDashboard />} />
