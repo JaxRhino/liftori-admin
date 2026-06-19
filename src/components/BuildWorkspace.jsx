@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import FeatureLibraryPicker from './FeatureLibraryPicker'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Shared, workspace-jsonb-backed spec tabs.
@@ -68,7 +69,12 @@ export function WorkspaceTabBody({ tab, ws, onSave, productType }) {
     case 'security':
       return <Narrative title="Security" value={w.security} onSave={v => patchWs('security', v)} placeholder="Auth model, RLS, secrets handling, data protection, threat notes..." />
     case 'features':
-      return <ListEditor title="Features" items={w.features || []} columns={[['name', 'Feature', 'e.g. Dispatch Board'], ['detail', 'Detail', 'What it does']]} onChange={v => patchWs('features', v)} empty="No features documented yet." />
+      return (
+        <div className="space-y-4">
+          <FeatureLibraryPicker ws={w} onSave={onSave} />
+          <ListEditor title="Features" items={w.features || []} columns={[['name', 'Feature', 'e.g. Dispatch Board'], ['detail', 'Detail', 'What it does']]} onChange={v => patchWs('features', v)} empty="No features documented yet." />
+        </div>
+      )
     case 'documents':
       return <ListEditor title="Documents" items={w.documents || []} columns={[['name', 'Name', 'Document name'], ['url', 'Link / URL', 'https://...', 'link']]} onChange={v => patchWs('documents', v)} empty="No documents linked yet." />
     case 'timeline':
