@@ -4,7 +4,7 @@ import {
   ArrowLeft, Smartphone, ExternalLink, Globe, FileText, StickyNote,
   LayoutDashboard, Check, AlertTriangle,
 } from 'lucide-react'
-import { getProduct, CATEGORY_TINT, STATUS_TINT } from '../lib/products'
+import { getProduct, CATEGORY_TINT, STAGE_TINT, STAGE_LABEL } from '../lib/products'
 import AppPreviewPane from '../components/AppPreviewPane'
 
 /**
@@ -14,8 +14,6 @@ import AppPreviewPane from '../components/AppPreviewPane'
  * Scope, Notes. Header carries an "Open CRM / Open System" button + live-site
  * link. Every product gets the full tab set even when it has no DB or app yet.
  */
-
-const STATUS_LABEL = { live: 'Live', demo: 'Demo', planned: 'Planned' }
 
 export default function ProductDetail() {
   const { slug } = useParams()
@@ -44,7 +42,7 @@ export default function ProductDetail() {
         <div className="min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-3xl font-bold text-white">{product.name}</h1>
-            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_TINT[product.status]}`}>{STATUS_LABEL[product.status]}</span>
+            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STAGE_TINT[product.stage]}`}>{STAGE_LABEL[product.stage]}</span>
             <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${CATEGORY_TINT[product.category] || 'border-white/10 bg-white/5 text-gray-300'}`}>{product.category}</span>
           </div>
           <p className="mt-1 text-sm text-gray-400">{product.tagline}</p>
