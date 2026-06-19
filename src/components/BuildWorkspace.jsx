@@ -267,9 +267,41 @@ function FeaturesSectioned({ items, onChange }) {
 
 // Design tab: color theme, typography/style, layout notes, reference links.
 const DESIGN_DEFAULTS = {
+  theme: 'Liftori',
   colors: { primary: '#0ea5e9', secondary: '#060b18', accent: '#7dd3fc', neutral: '#e0f7ff', background: '#060b18' },
   heading_font: 'Bebas Neue',
   body_font: 'DM Sans',
+}
+
+const THEME_PRESETS = [
+  { name: 'Liftori', colors: { primary: '#0ea5e9', secondary: '#060b18', accent: '#7dd3fc', neutral: '#e0f7ff', background: '#060b18' } },
+  { name: 'Ocean', colors: { primary: '#0891b2', secondary: '#0b1f2a', accent: '#22d3ee', neutral: '#cffafe', background: '#08141b' } },
+  { name: 'Forest', colors: { primary: '#16a34a', secondary: '#0f1a12', accent: '#86efac', neutral: '#dcfce7', background: '#0c140e' } },
+  { name: 'Sunset', colors: { primary: '#f97316', secondary: '#1c1310', accent: '#fdba74', neutral: '#ffedd5', background: '#17100c' } },
+  { name: 'Crimson', colors: { primary: '#e11d48', secondary: '#1a0f12', accent: '#fb7185', neutral: '#ffe4e6', background: '#150b0d' } },
+  { name: 'Gold Luxe', colors: { primary: '#d4af37', secondary: '#0a0a0a', accent: '#f5e1a4', neutral: '#f5f5f4', background: '#0a0a0a' } },
+  { name: 'Slate Mono', colors: { primary: '#64748b', secondary: '#0f172a', accent: '#cbd5e1', neutral: '#e2e8f0', background: '#0f172a' } },
+  { name: 'Clean Light', colors: { primary: '#2563eb', secondary: '#111827', accent: '#60a5fa', neutral: '#f3f4f6', background: '#ffffff' } },
+]
+
+const HEADING_FONTS = ['Bebas Neue', 'Anton', 'Oswald', 'Montserrat', 'Poppins', 'Inter', 'Space Grotesk', 'Playfair Display', 'Archivo', 'DM Serif Display']
+const BODY_FONTS = ['DM Sans', 'Inter', 'Roboto', 'Open Sans', 'Lato', 'Source Sans 3', 'Work Sans', 'Nunito Sans', 'System UI']
+const STYLE_OPTIONS = ['Modern & minimal', 'Bold & energetic', 'Elegant & premium', 'Playful & friendly', 'Corporate & trustworthy', 'Tech & futuristic', 'Warm & organic', 'Editorial & clean']
+const NAV_OPTIONS = ['Top navbar', 'Sidebar (left)', 'Bottom tab bar (mobile)', 'Hamburger / drawer', 'Top + sidebar', 'Single page / scroll', 'None']
+const LAYOUT_PRESETS = ['Landing page (hero + sections)', 'Marketing site (multi-page)', 'Dashboard (sidebar + cards)', 'Catalog / product grid', 'Feed / list', 'Kanban board', 'Master-detail (split)', 'Multi-step wizard', 'Profile / account', 'Map-centric']
+const LAYOUT_ADDONS = ['Dark mode', 'Hero section', 'Testimonials', 'Pricing table', 'FAQ', 'Contact form', 'Global search', 'Filters & facets', 'Map view', 'Charts / analytics', 'Onboarding flow', 'In-app notifications', 'Settings page', 'User profiles', 'Image gallery', 'Blog / articles']
+
+function SelectCell({ label, value, options, placeholder, onChange }) {
+  return (
+    <div className="bg-navy-900 border border-navy-700/50 rounded-lg p-3">
+      <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{label}</label>
+      <select value={value || ''} onChange={(e) => onChange(e.target.value)} className="w-full bg-transparent text-white text-sm focus:outline-none">
+        <option value="" className="bg-navy-900">{placeholder || '- Select -'}</option>
+        {value && !options.includes(value) && <option value={value} className="bg-navy-900">{value}</option>}
+        {options.map((o) => <option key={o} value={o} className="bg-navy-900">{o}</option>)}
+      </select>
+    </div>
+  )
 }
 
 function DesignFields({ ws, onSave }) {
@@ -277,13 +309,25 @@ function DesignFields({ ws, onSave }) {
   const d = w.design || {}
   const colors = (d.colors && Object.keys(d.colors).length) ? d.colors : DESIGN_DEFAULTS.colors
   const setD = (patch) => onSave({ ...w, design: { ...d, ...patch } })
-  const setColor = (k, v) => setD({ colors: { ...colors, [k]: v } })
-  const patchWs = (key, value) => onSave({ ...w, [key]: value })
+  const setColor = (k, v) => setD({ colors: { ...colors, [k]: v }, theme: 'Custom' })
+  const applyTheme = (name) => {
+    const preset = THEME_PRESETS.find((t) => t.name === name)
+    if (preset) setD({ theme: name, colors: preset.colors })
+    else setD({ theme: name })
+  }
+  const layoutOpts = d.layout_options || []
+  const toggleAddon = (a) => setD({ layout_options: layoutOpts.includes(a) ? layoutOpts.filter((x) => x !== a) : [...layoutOpts, a] })
   const COLORS = [['primary', 'Primary'], ['secondary', 'Secondary'], ['accent', 'Accent'], ['neutral', 'Neutral'], ['background', 'Background']]
   return (
     <div className="space-y-6">
       <div className="bg-navy-800 border border-navy-700/50 rounded-lg p-5">
-        <p className="text-xs uppercase tracking-wider text-slate-500 mb-3">Color Theme</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <p className="text-xs uppercase tracking-wider text-slate-500">Color Theme</p>
+          <select value={d.theme || 'Liftori'} onChange={(e) => applyTheme(e.target.value)} className="bg-navy-900 border border-navy-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-sky-500">
+            {THEME_PRESETS.map((t) => <option key={t.name} value={t.name} className="bg-navy-900">{t.name}</option>)}
+            <option value="Custom" className="bg-navy-900">Custom</option>
+          </select>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {COLORS.map(([k, label]) => (
             <div key={k} className="bg-navy-900 border border-navy-700/50 rounded-lg p-3">
@@ -297,14 +341,33 @@ function DesignFields({ ws, onSave }) {
         </div>
       </div>
       <div className="bg-navy-800 border border-navy-700/50 rounded-lg p-5">
-        <p className="text-xs uppercase tracking-wider text-slate-500 mb-3">Typography & Style</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <FieldCell label="Heading Font" type="text" value={d.heading_font || DESIGN_DEFAULTS.heading_font} placeholder="e.g. Bebas Neue" onCommit={(v) => setD({ heading_font: v })} />
-          <FieldCell label="Body Font" type="text" value={d.body_font || DESIGN_DEFAULTS.body_font} placeholder="e.g. DM Sans" onCommit={(v) => setD({ body_font: v })} />
-          <FieldCell label="Style / Vibe" type="text" value={d.style} placeholder="e.g. Modern, minimal, bold" onCommit={(v) => setD({ style: v })} />
+        <p className="text-xs uppercase tracking-wider text-slate-500 mb-3">Typography, Style & Navigation</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <SelectCell label="Heading Font" value={d.heading_font || DESIGN_DEFAULTS.heading_font} options={HEADING_FONTS} onChange={(v) => setD({ heading_font: v })} />
+          <SelectCell label="Body Font" value={d.body_font || DESIGN_DEFAULTS.body_font} options={BODY_FONTS} onChange={(v) => setD({ body_font: v })} />
+          <SelectCell label="Style / Vibe" value={d.style} options={STYLE_OPTIONS} onChange={(v) => setD({ style: v })} />
+          <SelectCell label="Navigation" value={d.navigation} options={NAV_OPTIONS} placeholder="- Choose nav -" onChange={(v) => setD({ navigation: v })} />
         </div>
       </div>
-      <Narrative title="Layout & Screens" value={d.layout} onSave={(v) => setD({ layout: v })} placeholder="Page/screen layouts, navigation structure, key components, responsive behavior..." />
+      <div className="bg-navy-800 border border-navy-700/50 rounded-lg p-5">
+        <p className="text-xs uppercase tracking-wider text-slate-500 mb-3">Layout & Screens</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <SelectCell label="Base Layout" value={d.layout} options={LAYOUT_PRESETS} placeholder="- Choose a layout -" onChange={(v) => setD({ layout: v })} />
+        </div>
+        <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Additional Options</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {LAYOUT_ADDONS.map((a) => {
+            const on = layoutOpts.includes(a)
+            return (
+              <button key={a} onClick={() => toggleAddon(a)} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${on ? 'bg-sky-500/10 border-sky-500/40 text-white' : 'bg-navy-900 border-navy-700/50 text-slate-300 hover:border-navy-600'}`}>
+                <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] shrink-0 ${on ? 'bg-sky-500 border-sky-500 text-white' : 'border-slate-600 text-transparent'}`}>v</span>
+                <span className="min-w-0 truncate">{a}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <Narrative title="Design Notes" value={d.notes} onSave={(v) => setD({ notes: v })} placeholder="Anything else about the design direction, inspiration, must-haves..." />
       <ListEditor title="Design References" items={d.references || []} columns={[['label', 'Reference', 'e.g. Figma mockups'], ['url', 'Link / URL', 'https://...', 'link']]} onChange={(v) => setD({ references: v })} empty="No design references linked yet." />
     </div>
   )
