@@ -55,9 +55,7 @@ import WorkforceAgent from './pages/workforce/WorkforceAgent'
 import WorkforceActivity from './pages/workforce/WorkforceActivity'
 import WorkforceOrgChart from './pages/workforce/WorkforceOrgChart'
 import CEODashboard from './pages/ceo/CEODashboard'
-import InHouseBuilds from './pages/InHouseBuilds'
 import CustomBuilds from './pages/CustomBuilds'
-import InHouseBuildDetail from './pages/InHouseBuildDetail'
 import MobilePreview from './pages/MobilePreview'
 import AppViewer from './pages/AppViewer'
 import Products from './pages/Products'
@@ -429,10 +427,7 @@ export default function App() {
             <Route path="hr-hub" element={<HRHub />} />
             <Route path="leadership-qc" element={<LeadershipQC />} />
             <Route path="cost-tracker" element={<CostTracker />} />
-            {/* In-House Builds */}
-            <Route path="builds" element={<InHouseBuilds />} />
             <Route path="custom-builds" element={<CustomBuilds />} />
-            <Route path="builds/:id" element={<InHouseBuildDetail />} />
             <Route path="mobile-preview" element={<MobilePreview />} />
             <Route path="products" element={<Products />} />
             <Route path="products/:slug" element={<ProductDetail />} />
