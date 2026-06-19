@@ -1,75 +1,89 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Smartphone, LayoutGrid, ExternalLink, ArrowRight } from 'lucide-react'
-import { PRODUCTS, CATEGORY_TINT, STAGES, STAGE_LABEL, STAGE_TINT } from '../lib/products'
+import { Smartphone, LayoutGrid, ExternalLink, ArrowRight, SlidersHorizontal } from 'lucide-react'
+import { PRODUCTS, CATEGORY_TINT, paletteTint } from '../lib/products'
+import { useStages } from '../lib/useStages'
 import { supabase } from '../lib/supabase'
+import StagesEditor from '../components/StagesEditor'
 
 /**
  * Products hub (/admin/products)
  *
- * One card per Liftori product — every CRM, web app, and mobile app is a build,
- * unified here and organized by BUILD STAGE tabs. Each product's stage comes
- * from the registry by default but can be overridden per product (saved in
- * product_workspaces.stage from the product page); this hub reflects that.
+ * One card per Liftori product, organized by editable BUILD STAGE tabs
+ * (managed in product_stages via the Manage stages editor). Each product's
+ * stage = its product_workspaces.stage override, else the registry default.
  */
 
 export default function Products() {
+  const { stages, byKey, reload } = useStages()
   const [overrides, setOverrides] = useState({})
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [stage, setStage] = useState('developing')
 
   useEffect(() => {
     let alive = true
-    supabase
-      .from('product_workspaces')
-      .select('slug, stage')
-      .then(({ data }) => {
-        if (!alive || !data) return
-        const map = {}
-        data.forEach((r) => { if (r.stage) map[r.slug] = r.stage })
-        setOverrides(map)
-      })
+    supabase.from('product_workspaces').select('slug, stage').then(({ data }) => {
+      if (!alive || !data) return
+      const map = {}
+      data.forEach((r) => { if (r.stage) map[r.slug] = r.stage })
+      setOverrides(map)
+    })
     return () => { alive = false }
   }, [])
 
   const stageOf = (p) => overrides[p.slug] || p.stage
-  const counts = STAGES.reduce((a, s) => ((a[s.key] = PRODUCTS.filter((p) => stageOf(p) === s.key).length), a), {})
-  const firstPopulated = STAGES.find((s) => counts[s.key] > 0)?.key || 'developing'
-  const [stage, setStage] = useState('developing')
-  // settle on a sensible default once, if the chosen tab is empty
+  const counts = stages.reduce((a, s) => ((a[s.stage_key] = PRODUCTS.filter((p) => stageOf(p) === s.stage_key).length), a), {})
+
+  // keep the active tab valid/populated as stages or overrides load
   useEffect(() => {
-    if (counts[stage] === 0 && counts[firstPopulated] > 0) setStage(firstPopulated)
+    const exists = stages.some((s) => s.stage_key === stage)
+    if (!exists || counts[stage] === 0) {
+      const firstPop = stages.find((s) => counts[s.stage_key] > 0)
+      if (firstPop) setStage(firstPop.stage_key)
+      else if (!exists && stages[0]) setStage(stages[0].stage_key)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Object.keys(overrides).length])
+  }, [stages.length, Object.keys(overrides).length])
 
   const shown = PRODUCTS.filter((p) => stageOf(p) === stage)
+  const activeLabel = byKey[stage]?.label || stage
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <div className="flex items-center gap-2 text-brand-blue">
-          <LayoutGrid className="h-5 w-5" />
-          <span className="text-xs font-semibold uppercase tracking-widest">Liftori Products</span>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2 text-brand-blue">
+            <LayoutGrid className="h-5 w-5" />
+            <span className="text-xs font-semibold uppercase tracking-widest">Liftori Products</span>
+          </div>
+          <h1 className="mt-1 text-3xl font-bold text-white">Products</h1>
+          <p className="mt-1 max-w-2xl text-sm text-gray-400">
+            Every CRM, web app, and mobile app Liftori builds — each one a single project, organized by build stage. Open a product to manage its CRM, preview its app, document the build, and set its status.
+          </p>
         </div>
-        <h1 className="mt-1 text-3xl font-bold text-white">Products</h1>
-        <p className="mt-1 max-w-2xl text-sm text-gray-400">
-          Every CRM, web app, and mobile app Liftori builds — each one a single project, organized by build stage. Open a product to manage its CRM, preview its app, document the build, and set its status.
-        </p>
+        <button
+          onClick={() => setEditorOpen(true)}
+          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-gray-200 hover:bg-navy-700"
+        >
+          <SlidersHorizontal className="h-4 w-4" /> Manage stages
+        </button>
       </div>
 
       {/* Stage tabs */}
       <div className="flex flex-wrap gap-2 border-b border-white/10">
-        {STAGES.map((s) => {
-          const active = stage === s.key
+        {stages.map((s) => {
+          const active = stage === s.stage_key
           return (
             <button
-              key={s.key}
-              onClick={() => setStage(s.key)}
+              key={s.stage_key}
+              onClick={() => setStage(s.stage_key)}
               className={`inline-flex items-center gap-2 rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
                 active ? 'border-brand-blue text-brand-blue' : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
               {s.label}
               <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-brand-blue/15 text-brand-blue' : 'bg-white/5 text-gray-500'}`}>
-                {counts[s.key]}
+                {counts[s.stage_key] || 0}
               </span>
             </button>
           )
@@ -79,18 +93,22 @@ export default function Products() {
       {/* Cards for the active stage */}
       {shown.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {shown.map((p) => <ProductCard key={p.slug} product={p} stage={stageOf(p)} />)}
+          {shown.map((p) => <ProductCard key={p.slug} product={p} stageObj={byKey[stageOf(p)]} stageKey={stageOf(p)} />)}
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-white/10 bg-navy-800/40 p-10 text-center">
-          <p className="text-sm text-gray-400">Nothing in <span className="font-medium text-gray-200">{STAGE_LABEL[stage]}</span> yet.</p>
+          <p className="text-sm text-gray-400">Nothing in <span className="font-medium text-gray-200">{activeLabel}</span> yet.</p>
         </div>
       )}
+
+      {editorOpen && <StagesEditor onClose={() => setEditorOpen(false)} onSaved={reload} />}
     </div>
   )
 }
 
-function ProductCard({ product, stage }) {
+function ProductCard({ product, stageObj, stageKey }) {
+  const label = stageObj?.label || stageKey
+  const tint = paletteTint(stageObj?.color)
   return (
     <Link
       to={`/admin/products/${product.slug}`}
@@ -101,8 +119,8 @@ function ProductCard({ product, stage }) {
           <h3 className="truncate text-lg font-semibold text-white">{product.name}</h3>
           <p className="mt-0.5 text-sm text-gray-400">{product.tagline}</p>
         </div>
-        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STAGE_TINT[stage]}`}>
-          {STAGE_LABEL[stage]}
+        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tint}`}>
+          {label}
         </span>
       </div>
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Smartphone, ExternalLink, Globe, LayoutDashboard, Check, AlertTriangle } from 'lucide-react'
-import { getProduct, CATEGORY_TINT, STAGE_TINT, STAGES } from '../lib/products'
+import { getProduct, CATEGORY_TINT, paletteTint } from '../lib/products'
+import { useStages } from '../lib/useStages'
 import AppPreviewPane from '../components/AppPreviewPane'
 import { supabase } from '../lib/supabase'
 import { WorkspaceTabBody, wsTabBadge, WORKSPACE_TABS, WORKSPACE_TAB_KEYS, PRODUCT_TYPES } from '../components/BuildWorkspace'
@@ -19,6 +20,7 @@ import { WorkspaceTabBody, wsTabBadge, WORKSPACE_TABS, WORKSPACE_TAB_KEYS, PRODU
 export default function ProductDetail() {
   const { slug } = useParams()
   const product = getProduct(slug)
+  const { stages, byKey } = useStages()
   const [tab, setTab] = useState('overview')
   const [ws, setWs] = useState({})
   const [loading, setLoading] = useState(true)
@@ -92,10 +94,10 @@ export default function ProductDetail() {
               value={effectiveStage}
               onChange={(e) => changeStage(e.target.value)}
               title="Change status / build stage"
-              className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-blue/40 ${STAGE_TINT[effectiveStage]}`}
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-blue/40 ${paletteTint(byKey[effectiveStage]?.color)}`}
             >
-              {STAGES.map((s) => (
-                <option key={s.key} value={s.key} className="bg-navy-800 normal-case text-white">{s.label}</option>
+              {stages.map((s) => (
+                <option key={s.stage_key} value={s.stage_key} className="bg-navy-800 normal-case text-white">{s.label}</option>
               ))}
             </select>
             <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${CATEGORY_TINT[product.category] || 'border-white/10 bg-white/5 text-gray-300'}`}>{product.category}</span>
