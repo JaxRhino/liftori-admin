@@ -153,12 +153,17 @@ function ManageLibrary({ features, onClose, onSaved }) {
 }
 
 // ── Picker modal ───────────────────────────────────────────────────────────
-export default function FeatureLibraryPicker({ ws, onSave }) {
+export default function FeatureLibraryPicker({ ws, onSave, mode = 'web' }) {
   const [open, setOpen] = useState(false)
   const [managing, setManaging] = useState(false)
   const { features, loading, reload } = useFeatureLibrary()
   const w = ws || {}
+  const isApp = mode === 'app'
   const appliedKeys = new Set((w.features || []).filter(f => f.libKey).map(f => f.libKey))
+
+  // App Builder tab shows ONLY Mobile App features; the web Features tab shows the rest.
+  const visible = features.filter(f => isApp ? f.category === 'Mobile App' : f.category !== 'Mobile App')
+  const appliedInScope = visible.filter(f => appliedKeys.has(f.key)).length
 
   const toggle = (feat) => {
     if (appliedKeys.has(feat.key)) onSave(removeLibraryFeature(w, feat.key, feat.name))
@@ -167,16 +172,23 @@ export default function FeatureLibraryPicker({ ws, onSave }) {
 
   const cats = []
   const grouped = {}
-  for (const f of features) {
+  for (const f of visible) {
     if (!grouped[f.category]) { grouped[f.category] = []; cats.push(f.category) }
     grouped[f.category].push(f)
   }
 
+  const addLabel = isApp ? '+ Add app feature' : '+ Add from library'
+  const title = isApp ? 'App feature library' : 'Feature library'
+  const subtitle = isApp
+    ? 'Check a pre-built app feature to drop it into this build - fills its scope, tasks and estimated cost.'
+    : 'Check a pre-built feature to drop it into this build - fills its scope, tasks and estimated cost.'
+  const countLabel = isApp ? 'app features' : 'from library'
+
   return (
     <>
       <div className="flex items-center gap-3">
-        <button onClick={() => { setOpen(true); setManaging(false) }} className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors">+ Add from library</button>
-        {appliedKeys.size > 0 && <span className="text-xs text-slate-500">{appliedKeys.size} from library</span>}
+        <button onClick={() => { setOpen(true); setManaging(false) }} className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors">{addLabel}</button>
+        {appliedInScope > 0 && <span className="text-xs text-slate-500">{appliedInScope} {countLabel}</span>}
       </div>
 
       {open && (
@@ -184,8 +196,8 @@ export default function FeatureLibraryPicker({ ws, onSave }) {
           <div className="bg-navy-800 border border-navy-700 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-navy-700/60">
               <div>
-                <p className="text-base font-semibold text-white">{managing ? 'Manage feature library' : 'Feature library'}</p>
-                {!managing && <p className="text-xs text-slate-500 mt-0.5">Check a pre-built feature to drop it into this build — fills its scope, tasks and estimated cost.</p>}
+                <p className="text-base font-semibold text-white">{managing ? 'Manage feature library' : title}</p>
+                {!managing && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
               </div>
               <div className="flex items-center gap-3">
                 {!managing && <button onClick={() => setManaging(true)} className="text-xs text-sky-400 hover:underline">Manage library</button>}
@@ -196,7 +208,9 @@ export default function FeatureLibraryPicker({ ws, onSave }) {
               {managing ? (
                 <ManageLibrary features={features} onClose={() => setManaging(false)} onSaved={() => { reload(); setManaging(false) }} />
               ) : loading ? (
-                <p className="text-sm text-slate-500">Loading…</p>
+                <p className="text-sm text-slate-500">Loading...</p>
+              ) : visible.length === 0 ? (
+                <p className="text-sm text-slate-500">No features in this library yet. Use Manage library to add some.</p>
               ) : (
                 <div className="space-y-5">
                   {cats.map(cat => (
