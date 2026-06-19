@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Smartphone, ExternalLink, Globe, LayoutDashboard, Check, AlertTriangle } from 'lucide-react'
-import { getProduct, CATEGORY_TINT, STAGE_TINT, STAGE_LABEL } from '../lib/products'
+import { getProduct, CATEGORY_TINT, STAGE_TINT, STAGES } from '../lib/products'
 import AppPreviewPane from '../components/AppPreviewPane'
 import { supabase } from '../lib/supabase'
 import { WorkspaceTabBody, wsTabBadge, WORKSPACE_TABS, WORKSPACE_TAB_KEYS, PRODUCT_TYPES } from '../components/BuildWorkspace'
@@ -23,16 +23,17 @@ export default function ProductDetail() {
   const [ws, setWs] = useState({})
   const [loading, setLoading] = useState(true)
   const [wsSaving, setWsSaving] = useState(false)
+  const [stageOverride, setStageOverride] = useState(null)
 
   useEffect(() => {
     let alive = true
     setLoading(true)
     supabase
       .from('product_workspaces')
-      .select('workspace')
+      .select('workspace, stage')
       .eq('slug', slug)
       .maybeSingle()
-      .then(({ data }) => { if (alive) { setWs(data?.workspace || {}); setLoading(false) } })
+      .then(({ data }) => { if (alive) { setWs(data?.workspace || {}); setStageOverride(data?.stage || null); setLoading(false) } })
     return () => { alive = false }
   }, [slug])
 
@@ -49,9 +50,20 @@ export default function ProductDetail() {
     }
   }
 
+  async function changeStage(next) {
+    setStageOverride(next)
+    try {
+      const { error } = await supabase
+        .from('product_workspaces')
+        .upsert({ slug, stage: next, updated_at: new Date().toISOString() }, { onConflict: 'slug' })
+      if (error) console.error('Error saving stage:', error)
+    } catch (e) { console.error(e) }
+  }
+
   if (!product) return <NotFound slug={slug} />
 
   const internalSystem = product.systemUrl && product.systemUrl.startsWith('/')
+  const effectiveStage = stageOverride || product.stage
 
   const productType = {
     value: ws.details?.product_type || product.category,
@@ -76,7 +88,16 @@ export default function ProductDetail() {
         <div className="min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-3xl font-bold text-white">{product.name}</h1>
-            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STAGE_TINT[product.stage]}`}>{STAGE_LABEL[product.stage]}</span>
+            <select
+              value={effectiveStage}
+              onChange={(e) => changeStage(e.target.value)}
+              title="Change status / build stage"
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-blue/40 ${STAGE_TINT[effectiveStage]}`}
+            >
+              {STAGES.map((s) => (
+                <option key={s.key} value={s.key} className="bg-navy-800 normal-case text-white">{s.label}</option>
+              ))}
+            </select>
             <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${CATEGORY_TINT[product.category] || 'border-white/10 bg-white/5 text-gray-300'}`}>{product.category}</span>
             {wsSaving && <span className="text-[11px] text-gray-500">Saving…</span>}
           </div>
