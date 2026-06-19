@@ -56,6 +56,13 @@ export default function InHouseBuildDetail() {
     }
   }
 
+  // Enter the live build system. Internal route navigates in-app; external opens a new tab.
+  function enterSystem() {
+    if (!build?.live_url) return
+    if (build.live_url.startsWith('/')) navigate(build.live_url)
+    else window.open(build.live_url, '_blank', 'noopener')
+  }
+
   async function handleSave() {
     setSaving(true)
     try {
@@ -152,13 +159,23 @@ export default function InHouseBuildDetail() {
           </div>
           {build.codename && <p className="text-slate-500 text-sm font-mono mt-1">/{build.codename}</p>}
         </div>
-        <button
-          onClick={() => editing ? handleSave() : setEditing(true)}
-          disabled={saving}
-          className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : editing ? 'Save Changes' : 'Edit'}
-        </button>
+        <div className="flex items-center gap-2">
+          {build.live_url && (
+            <button
+              onClick={enterSystem}
+              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Enter System
+            </button>
+          )}
+          <button
+            onClick={() => editing ? handleSave() : setEditing(true)}
+            disabled={saving}
+            className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : editing ? 'Save Changes' : 'Edit'}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
