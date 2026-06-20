@@ -149,6 +149,79 @@ export async function deleteScheduleEvent(id) {
 // ═══════════════════════════════════════════════
 // INVENTORY
 // ═══════════════════════════════════════════════
+// ─── INVENTORY FIELD MAPPERS (DB snake_case <-> UI camelCase) ───
+function _invNumOrNull(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function _invDateOrNull(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  return v;
+}
+function invFromDb(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    name: row.name || '',
+    sku: row.sku || '',
+    description: row.description || '',
+    category: row.category || 'Material',
+    quantity: Number(row.quantity) || 0,
+    minQuantity: Number(row.min_quantity) || 0,
+    maxQuantity: Number(row.max_quantity) || 0,
+    unit: row.unit || 'each',
+    unitCost: Number(row.unit_cost) || 0,
+    sellPrice: Number(row.sell_price) || 0,
+    location: row.storage_location || '',
+    assignedCrewId: row.assigned_crew_id || null,
+    serialNumber: row.serial_number || '',
+    condition: row.condition || 'good',
+    lastInspected: row.last_inspected || '',
+    warrantyExpiry: row.warranty_expiry || '',
+    photoUrl: row.photo_url || '',
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    supplier: {
+      name: row.supplier_name || '',
+      contact: row.supplier_contact || '',
+      partNumber: row.supplier_part_number || '',
+      reorderUrl: row.reorder_url || '',
+    },
+  };
+}
+function invToDb(item = {}) {
+  const s = item.supplier || {};
+  const db = {
+    name: item.name,
+    sku: item.sku || null,
+    description: item.description || null,
+    category: item.category || 'Material',
+    quantity: _invNumOrNull(item.quantity) ?? 0,
+    min_quantity: _invNumOrNull(item.minQuantity),
+    max_quantity: _invNumOrNull(item.maxQuantity),
+    unit: item.unit || null,
+    unit_cost: _invNumOrNull(item.unitCost),
+    sell_price: _invNumOrNull(item.sellPrice),
+    storage_location: item.location || null,
+    serial_number: item.serialNumber || null,
+    condition: item.condition || null,
+    last_inspected: _invDateOrNull(item.lastInspected),
+    warranty_expiry: _invDateOrNull(item.warrantyExpiry),
+    supplier_name: s.name || null,
+    supplier_contact: s.contact || null,
+    supplier_part_number: s.partNumber || null,
+    reorder_url: s.reorderUrl || null,
+  };
+  if (item.orgId !== undefined) db.org_id = item.orgId;
+  if (item.assignedCrewId !== undefined) db.assigned_crew_id = item.assignedCrewId || null;
+  if (item.photoUrl !== undefined) db.photo_url = item.photoUrl || null;
+  if (item.isActive !== undefined) db.is_active = item.isActive;
+  return db;
+}
+
 export async function fetchInventory(orgId, filters = {}) {
   let query = supabase.from('ops_inventory').select('*');
   if (orgId) query = query.eq('org_id', orgId);
@@ -159,20 +232,28 @@ export async function fetchInventory(orgId, filters = {}) {
   else query = query.eq('is_active', true);
   const { data, error } = await query.order('name');
   if (error) handleError(error, 'fetchInventory');
-  return data || [];
+  return (data || []).map(invFromDb);
 }
 
 export async function createInventoryItem(item) {
-  const { data, error } = await supabase.from('ops_inventory').insert(item).select().single();
+  const { data, error } = await supabase.from('ops_inventory').insert(invToDb(item)).select().single();
   if (error) handleError(error, 'createInventoryItem');
-  return data;
+  return invFromDb(data);
 }
 
 export async function updateInventoryItem(id, updates) {
   const { data, error } = await supabase.from('ops_inventory')
-    .update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+    .update({ ...invToDb(updates), updated_at: new Date().toISOString() }).eq('id', id).select().single();
   if (error) handleError(error, 'updateInventoryItem');
-  return data;
+  return invFromDb(data);
+}
+
+export async function bulkCreateInventoryItems(items = []) {
+  const rows = (items || []).map(invToDb).filter((r) => r.name && String(r.name).trim());
+  if (!rows.length) return [];
+  const { data, error } = await supabase.from('ops_inventory').insert(rows).select();
+  if (error) handleError(error, 'bulkCreateInventoryItems');
+  return (data || []).map(invFromDb);
 }
 
 export async function deleteInventoryItem(id) {
