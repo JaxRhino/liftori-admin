@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOrg } from '../../../lib/OrgContext';
 import {
   fetchInventory,
+  bulkCreateInventoryItems,
   createInventoryItem,
   updateInventoryItem,
   deleteInventoryItem,
@@ -36,6 +37,8 @@ import {
   Package,
   DollarSign,
   TrendingDown,
+  Upload,
+  Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -54,6 +57,10 @@ export default function OpsInventory() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showAdjustDialog, setShowAdjustDialog] = useState(false);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const [showLowStockSection, setShowLowStockSection] = useState(true);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState(null);
@@ -212,6 +219,113 @@ export default function OpsInventory() {
     setShowCreateDialog(true);
   };
 
+  // Bulk CSV import
+  const parseInventoryCsv = (text) => {
+    const rows = [];
+    let field = '', row = [], inQuotes = false;
+    const pushField = () => { row.push(field); field = ''; };
+    const pushRow = () => { rows.push(row); row = []; };
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else inQuotes = false;
+        } else { field += c; }
+      } else if (c === '"') { inQuotes = true; }
+      else if (c === ',') { pushField(); }
+      else if (c === '\n') { pushField(); pushRow(); }
+      else if (c === '\r') { /* skip */ }
+      else { field += c; }
+    }
+    if (field.length || row.length) { pushField(); pushRow(); }
+    return rows.filter((r) => r.some((v) => String(v).trim() !== ''));
+  };
+
+  const HEADER_ALIASES = {
+    name: 'name', sku: 'sku', category: 'category', description: 'description', desc: 'description',
+    quantity: 'quantity', qty: 'quantity', unit: 'unit',
+    unit_cost: 'unitCost', cost: 'unitCost', unitcost: 'unitCost',
+    sell_price: 'sellPrice', price: 'sellPrice', sellprice: 'sellPrice',
+    min_quantity: 'minQuantity', min: 'minQuantity', minquantity: 'minQuantity',
+    max_quantity: 'maxQuantity', max: 'maxQuantity', maxquantity: 'maxQuantity',
+    location: 'location', storage_location: 'location',
+    condition: 'condition', serial_number: 'serialNumber', serial: 'serialNumber',
+    supplier_name: 'supplierName', supplier: 'supplierName', supplier_contact: 'supplierContact',
+    supplier_part_number: 'supplierPartNumber', part_number: 'supplierPartNumber', reorder_url: 'reorderUrl',
+  };
+
+  const handleBulkImport = async () => {
+    const text = importText.trim();
+    if (!text) { toast.error('Paste CSV data or upload a file first'); return; }
+    if (!currentOrg?.id) { toast.error('No organization selected'); return; }
+    const matrix = parseInventoryCsv(text);
+    if (matrix.length < 2) { toast.error('CSV needs a header row and at least one item'); return; }
+    const headers = matrix[0].map((h) => h.trim().toLowerCase().replace(/[\s-]+/g, '_'));
+    const numericFields = new Set(['quantity', 'unitCost', 'sellPrice', 'minQuantity', 'maxQuantity']);
+    const items = [];
+    const errors = [];
+    for (let r = 1; r < matrix.length; r++) {
+      const cells = matrix[r];
+      const obj = {
+        category: 'Material', unit: 'each', condition: 'good',
+        quantity: 0, minQuantity: 5, maxQuantity: 100, unitCost: 0, sellPrice: 0,
+        supplier: { name: '', contact: '', partNumber: '', reorderUrl: '' },
+      };
+      headers.forEach((h, idx) => {
+        const key = HEADER_ALIASES[h];
+        if (!key) return;
+        const val = (cells[idx] ?? '').trim();
+        if (key === 'supplierName') { obj.supplier.name = val; return; }
+        if (key === 'supplierContact') { obj.supplier.contact = val; return; }
+        if (key === 'supplierPartNumber') { obj.supplier.partNumber = val; return; }
+        if (key === 'reorderUrl') { obj.supplier.reorderUrl = val; return; }
+        if (numericFields.has(key)) { const n = parseFloat(val); obj[key] = Number.isFinite(n) ? n : 0; return; }
+        if (val !== '') obj[key] = val;
+      });
+      if (!obj.name || !String(obj.name).trim()) { errors.push(`Row ${r + 1}: missing name (skipped)`); continue; }
+      items.push({ ...obj, orgId: currentOrg.id });
+    }
+    if (!items.length) { toast.error('No valid rows found'); setImportResult({ created: 0, errors }); return; }
+    try {
+      setImporting(true);
+      const created = await bulkCreateInventoryItems(items);
+      toast.success(`Imported ${created.length} item${created.length === 1 ? '' : 's'}`);
+      setImportResult({ created: created.length, errors });
+      setImportText('');
+      await loadInventory();
+      if (!errors.length) setShowImportDialog(false);
+    } catch (e) {
+      console.error('Bulk import failed:', e);
+      toast.error('Bulk import failed: ' + (e.message || 'unknown error'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setImportText(String(ev.target?.result || ''));
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const downloadInventoryTemplate = () => {
+    const header = 'name,sku,category,quantity,unit,unit_cost,sell_price,min_quantity,max_quantity,location,supplier_name,condition,description';
+    const sample = 'Sample Widget,SKU-001,Material,25,each,4.50,9.99,5,100,Warehouse A,Acme Supply,good,Example item';
+    const blob = new Blob([header + '\n' + sample + '\n'], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'inventory-template.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const handleOpenHistory = async (item) => {
     setSelectedItemForHistory(item);
     await loadTransactions(item.id);
@@ -294,6 +408,15 @@ export default function OpsInventory() {
             <h1 className="text-4xl font-bold">Inventory Management</h1>
             <p className="text-white/60 mt-1">Manage materials, equipment, and assets</p>
           </div>
+          <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => { setImportText(''); setImportResult(null); setShowImportDialog(true); }}
+            className="gap-2 border-white/20 text-white hover:bg-white/10"
+          >
+            <Upload size={18} />
+            Bulk Import
+          </Button>
           <Button
             onClick={() => {
               setEditingItem(null);
@@ -327,6 +450,7 @@ export default function OpsInventory() {
             <Plus size={18} />
             Add Item
           </Button>
+          </div>
         </div>
 
         {/* Stats Bar */}
@@ -1123,6 +1247,66 @@ export default function OpsInventory() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowHistoryDialog(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="bg-navy-800 border-white/10 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bulk Import Inventory</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-white/60 text-sm">
+              Upload or paste CSV data. The first row must be a header. Required column:{' '}
+              <span className="text-white">name</span>. Recognized columns: name, sku, category,
+              quantity, unit, unit_cost, sell_price, min_quantity, max_quantity, location,
+              supplier_name, condition, description.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={downloadInventoryTemplate}
+                className="gap-2 border-white/20 text-white hover:bg-white/10"
+              >
+                <Download size={16} /> Download template
+              </Button>
+              <label className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-white/20 text-white hover:bg-white/10 cursor-pointer text-sm font-medium">
+                <Upload size={16} /> Upload CSV
+                <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportFile} />
+              </label>
+            </div>
+            <Textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder="name,sku,category,quantity,unit,unit_cost,sell_price,min_quantity,max_quantity,location,supplier_name,condition,description"
+              className="bg-navy-900 border-white/10 text-white font-mono text-xs min-h-[180px]"
+            />
+            {importResult && (
+              <div className="text-sm">
+                <p className="text-green-400">Imported {importResult.created} item(s).</p>
+                {importResult.errors?.length > 0 && (
+                  <ul className="mt-2 text-amber-400 list-disc list-inside max-h-32 overflow-auto">
+                    {importResult.errors.map((er, i) => (
+                      <li key={i}>{er}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={handleBulkImport}
+              disabled={importing}
+              className="gap-2 bg-sky-500 hover:bg-sky-600 text-black font-semibold"
+            >
+              <Upload size={16} /> {importing ? 'Importing...' : 'Import items'}
             </Button>
           </DialogFooter>
         </DialogContent>
