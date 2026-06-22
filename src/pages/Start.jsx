@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase'
 
 // Account-first onboarding funnel. One entry for every customer:
 //   1) Create account  -> internal prospect account + temp portal
-//   2) What are you interested in (multi-select from the offerings catalog)
-//   3) Where are you in your business journey (drives how we help)
+//   2) Where are you in your business journey (drives how we help — asked first)
+//   3) What are you interested in (multi-select from the offerings catalog)
 // Writes an engagement record, then drops them into their portal.
 
 const JOURNEY_STAGES = [
@@ -16,7 +16,7 @@ const JOURNEY_STAGES = [
 ]
 
 function StepDots({ step }) {
-  const labels = ['Account', 'Interests', 'Your journey']
+  const labels = ['Account', 'Your journey', 'Interests']
   return (
     <div className="flex items-center gap-2 mb-8">
       {labels.map((l, i) => {
@@ -164,6 +164,28 @@ export default function Start() {
 
           {step === 2 && (
             <div>
+              <h1 className="text-2xl font-bold mb-1">Where are you in your business journey?</h1>
+              <p className="text-slate-400 text-sm mb-6">First things first — this tells us how to help. We're for the people, wherever they're starting from.</p>
+              <div className="space-y-2">
+                {JOURNEY_STAGES.map(s => {
+                  const on = journey === s.key
+                  return (
+                    <button key={s.key} onClick={() => setJourney(s.key)} className={`w-full text-left p-4 rounded-lg border transition-colors ${on ? 'border-brand-blue bg-brand-blue/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
+                      <div className="font-semibold text-sm">{s.title}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{s.desc}</div>
+                    </button>
+                  )
+                })}
+              </div>
+              {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+              <div className="flex items-center gap-3 mt-6">
+                <button onClick={() => setStep(3)} disabled={!journey} className="bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-colors">Continue</button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div>
               <h1 className="text-2xl font-bold mb-1">What are you interested in?</h1>
               <p className="text-slate-400 text-sm mb-6">Pick everything that fits — you can choose more than one. We'll build your journey around it.</p>
 
@@ -201,33 +223,11 @@ export default function Start() {
 
               {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
               <div className="flex items-center gap-3 mt-6">
-                <button onClick={() => setStep(3)} disabled={interests.length === 0} className="bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-colors">Continue</button>
-                <span className="text-slate-500 text-xs">{interests.length} selected</span>
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div>
-              <h1 className="text-2xl font-bold mb-1">Where are you in your business journey?</h1>
-              <p className="text-slate-400 text-sm mb-6">This tells us how to help — we're for the people, wherever they're starting from.</p>
-              <div className="space-y-2">
-                {JOURNEY_STAGES.map(s => {
-                  const on = journey === s.key
-                  return (
-                    <button key={s.key} onClick={() => setJourney(s.key)} className={`w-full text-left p-4 rounded-lg border transition-colors ${on ? 'border-brand-blue bg-brand-blue/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
-                      <div className="font-semibold text-sm">{s.title}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">{s.desc}</div>
-                    </button>
-                  )
-                })}
-              </div>
-              {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
-              <div className="flex items-center gap-3 mt-6">
-                <button onClick={finish} disabled={!journey || loading} className="bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-colors">
+                <button onClick={finish} disabled={interests.length === 0 || loading} className="bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-colors">
                   {loading ? 'Setting up…' : 'Finish & open my portal'}
                 </button>
-                <button onClick={() => setStep(2)} className="text-slate-400 hover:text-white text-sm">Back</button>
+                <span className="text-slate-500 text-xs">{interests.length} selected</span>
+                <button onClick={() => setStep(2)} className="text-slate-400 hover:text-white text-sm ml-auto">Back</button>
               </div>
             </div>
           )}
