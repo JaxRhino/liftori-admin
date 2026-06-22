@@ -1,23 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 
 // ── Flow taxonomy ─────────────────────────────────────────────
 const CATEGORIES = [
-  { key: 'main',     label: 'Main Flow',      hint: 'The account-first entry every customer starts with, before product flows' },
-  { key: 'customer', label: 'Customer Flows', hint: 'Public onboarding wizards customers complete to start a build' },
+  { key: 'main',     label: 'Main Flow', hint: 'The account-first entry every customer starts with, before product flows' },
+  { key: 'products', label: 'Products',  hint: 'One editable flow per product offering' },
+  { key: 'services', label: 'Services',  hint: 'One editable flow per service offering' },
   { key: 'team',     label: 'Internal Flows', hint: 'Internal onboarding — triggered after a team member is invited' },
 ]
 
-const FLOWS = [
-  // Main
-  { value: 'start',        label: 'Start Flow',   category: 'main',     desc: 'Account-first entry — create account, pick interests, set business journey (runs before every customer flow)' },
-  // Customer
-  { value: 'custom_build', label: 'Custom Build', category: 'customer', desc: 'Autonomous / custom build intake (formerly Standard)' },
-  { value: 'book',         label: 'Book',         category: 'customer', desc: 'Book writing app' },
-  { value: 'crm',          label: 'CRM',          category: 'customer', desc: 'Industry-tailored CRM builder' },
-  { value: 'website',      label: 'Website',      category: 'customer', desc: 'Website builder' },
-  { value: 'consulting',   label: 'Consulting',   category: 'customer', desc: 'Business audit & AI automation' },
-  // Internal
+// Main + Internal flows are static. Product/Service flows are loaded from the
+// offerings catalog at runtime so the dropdown always matches what we sell.
+const STATIC_FLOWS = [
+  { value: 'start', label: 'Start Flow', category: 'main', desc: 'Account-first entry — create account, set business journey, pick interests (runs before every customer flow)' },
   { value: 'tester_onboarding',     label: 'Tester Onboarding',     category: 'team', desc: 'NDA, 1099, platform access, first assignment' },
   { value: 'sales_onboarding',      label: 'Sales Onboarding',      category: 'team', desc: 'CRM training, scripts, pipeline rules' },
   { value: 'consultant_onboarding', label: 'Consultant Onboarding', category: 'team', desc: 'Scorecards, call hub, availability' },
@@ -66,13 +61,36 @@ const normOpts = (options) => (options || []).map(o => typeof o === 'string' ? {
 const enabledLabels = (options) => normOpts(options).filter(o => o.enabled && o.label).map(o => o.label)
 
 export default function WizardBuilder() {
-  const [category, setCategory] = useState('customer')
+  const [category, setCategory] = useState('products')
   const [selectedFlow, setSelectedFlow] = useState('crm')
   const [cards, setCards] = useState([])
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(null) // working copy of the card in the modal
   const [isNew, setIsNew] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [offeringFlows, setOfferingFlows] = useState([])
+
+  // Product/Service flows come from the offerings catalog -> dropdown stays in sync
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase
+        .from('offerings')
+        .select('slug, name, kind, summary, flow_type, sort')
+        .eq('active', true)
+        .order('sort', { ascending: true })
+      if (cancelled) return
+      setOfferingFlows((data || []).map(of => ({
+        value: of.flow_type || of.slug,
+        label: of.name,
+        category: of.kind === 'product' ? 'products' : 'services',
+        desc: of.summary || '',
+      })))
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const FLOWS = useMemo(() => [...STATIC_FLOWS, ...offeringFlows], [offeringFlows])
 
   const flowsInCategory = FLOWS.filter(f => f.category === category)
   const flowInfo = FLOWS.find(f => f.value === selectedFlow) || FLOWS[0]
