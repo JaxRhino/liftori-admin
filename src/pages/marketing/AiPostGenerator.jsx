@@ -1,8 +1,8 @@
 // AiPostGenerator: full-screen modal that calls generate-marketing-post and lets the
-// user pick one of 3 AI-drafted variants, previewed as a Facebook post with an optional
-// attached image. Quality controls (vibe, goal, hook style, platform, length, hashtags,
-// and "write like these" examples) steer the draft. The picked variant fills the
-// composer's content, card template, and media image.
+// user pick one of 3 AI-drafted variants, previewed as a Facebook post with optional
+// attached image(s). Quality controls (vibe, goal, hook style, platform, length,
+// hashtags, "write like these" examples) steer the draft. Images: pick one OR MANY
+// from the marketing-media library (multi-select), make AI variants, generate, or upload.
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -45,8 +45,10 @@ function Field({ label, children }) {
 }
 const selectCls = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
 
-// Facebook-style preview so you see the post the way it publishes.
-function PlatformPreview({ text, image }) {
+// Facebook-style preview. Shows the first image with a "+N" badge if more are attached.
+function PlatformPreview({ text, images }) {
+  const first = images && images.length ? images[0] : null
+  const extra = images && images.length > 1 ? images.length - 1 : 0
   return (
     <div className="bg-white rounded-lg overflow-hidden text-slate-900 shadow-sm">
       <div className="flex items-center gap-2 p-3">
@@ -57,7 +59,14 @@ function PlatformPreview({ text, image }) {
         </div>
       </div>
       <div className="px-3 pb-3 text-sm whitespace-pre-wrap text-slate-800">{text}</div>
-      {image && <img src={image} alt="" className="w-full max-h-80 object-cover" />}
+      {first && (
+        <div className="relative">
+          <img src={first} alt="" className="w-full max-h-80 object-cover" />
+          {extra > 0 && (
+            <span className="absolute bottom-2 right-2 text-xs font-semibold bg-black/70 text-white px-2 py-0.5 rounded-full">+{extra} more</span>
+          )}
+        </div>
+      )}
       <div className="flex items-center justify-around border-t border-slate-200 text-slate-500 text-xs font-medium py-2">
         <span>Like</span>
         <span>Comment</span>
@@ -80,7 +89,7 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
   const [sourceType, setSourceType] = useState('manual')
   const [productSlug, setProductSlug] = useState('')
   const [products, setProducts] = useState([])
-  const [selectedImage, setSelectedImage] = useState('')
+  const [selectedImages, setSelectedImages] = useState([])
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [variants, setVariants] = useState([])
@@ -103,6 +112,7 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
   if (!isOpen) return null
 
   const selectedProduct = products.find(p => p.slug === productSlug) || null
+  function removeImage(url) { setSelectedImages(prev => prev.filter(u => u !== url)) }
 
   async function generate() {
     setLoading(true)
@@ -153,28 +163,20 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
       content_type: contentType,
       suggested_card_template: variant.suggested_card_template || 'announcement',
       hashtags: variant.hashtags || [],
-      image: selectedImage || '',
+      image: selectedImages[0] || '',
+      images: selectedImages,
     })
     setVariants([])
     setCustomPrompt('')
-    setSelectedImage('')
+    setSelectedImages([])
     onClose?.()
   }
 
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/70 p-3 sm:p-5" onClick={onClose}>
-        <button
-          onClick={onClose}
-          className="fixed top-4 right-5 z-[60] text-slate-300 hover:text-white text-3xl leading-none"
-          aria-label="Close"
-        >
-          ×
-        </button>
-        <div
-          className="bg-slate-900 border border-slate-700 rounded-2xl w-full h-full overflow-y-auto p-6 md:p-8"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <button onClick={onClose} className="fixed top-4 right-5 z-[60] text-slate-300 hover:text-white text-3xl leading-none" aria-label="Close">×</button>
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full h-full overflow-y-auto p-6 md:p-8" onClick={(e) => e.stopPropagation()}>
           <div className="mb-6 max-w-5xl mx-auto">
             <h2 className="text-2xl font-bold text-white">AI post generator</h2>
             <p className="text-xs text-slate-400 mt-1">Claude drafts 3 variants previewed as they'll publish. Pick one. You still approve before publish.</p>
@@ -239,42 +241,35 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
 
             <div className="mb-4">
               <label className="text-xs text-slate-400 mb-1 block">Write like these (optional) — paste 1-2 posts you love; the AI imitates the voice</label>
-              <textarea
-                value={examples}
-                onChange={(e) => setExamples(e.target.value)}
-                placeholder="Paste a couple of example posts whose style you want to match..."
-                rows={2}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
-              />
+              <textarea value={examples} onChange={(e) => setExamples(e.target.value)} placeholder="Paste a couple of example posts whose style you want to match..." rows={2}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none" />
             </div>
 
             <div className="mb-4">
               <label className="text-xs text-slate-400 mb-1 block">What's the post about? (optional)</label>
-              <textarea
-                value={customPrompt}
-                onChange={(e) => setCustomPrompt(e.target.value)}
-                placeholder="e.g. Promote BOLO Go to resellers — fast scan-to-list, built-in storefront. Confident, not salesy."
-                rows={3}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
-              />
+              <textarea value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
+                placeholder="e.g. Promote BOLO Go to resellers — fast scan-to-list, built-in storefront. Confident, not salesy." rows={3}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none" />
               {selectedProduct && (
-                <p className="text-[11px] text-sky-400 mt-1.5">
-                  Writing as the maker of {selectedProduct.name} — it's treated as our own product, not a client.
-                </p>
+                <p className="text-[11px] text-sky-400 mt-1.5">Writing as the maker of {selectedProduct.name} — it's treated as our own product, not a client.</p>
               )}
             </div>
 
             <div className="mb-4">
-              <label className="text-xs text-slate-400 mb-1 block">Image (optional)</label>
-              {selectedImage ? (
-                <div className="flex items-center gap-3">
-                  <img src={selectedImage} alt="selected" className="w-20 h-20 object-cover rounded-lg border border-slate-700" />
-                  <button onClick={() => setLibraryOpen(true)} className="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">Change image</button>
-                  <button onClick={() => setSelectedImage('')} className="text-slate-400 hover:text-red-400 text-sm">Remove</button>
+              <label className="text-xs text-slate-400 mb-1 block">Images (optional) — attach one or several</label>
+              {selectedImages.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedImages.map((url) => (
+                    <div key={url} className="relative">
+                      <img src={url} alt="selected" className="w-20 h-20 object-cover rounded-lg border border-slate-700" />
+                      <button onClick={() => removeImage(url)} className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-slate-900 border border-slate-600 text-slate-300 hover:text-red-400 text-xs leading-none flex items-center justify-center" aria-label="Remove">×</button>
+                    </div>
+                  ))}
+                  <button onClick={() => setLibraryOpen(true)} className="w-20 h-20 rounded-lg border border-dashed border-slate-600 hover:border-sky-500 text-slate-400 text-xs">+ Add</button>
                 </div>
               ) : (
                 <button onClick={() => setLibraryOpen(true)} className="w-full border border-dashed border-slate-600 hover:border-sky-500 text-slate-300 text-sm rounded-lg py-3 transition-colors">
-                  Add image — pick from library, make a variant, generate, or upload
+                  Add images — pick one or several from the library, make a variant, generate, or upload
                 </button>
               )}
             </div>
@@ -303,7 +298,7 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
                         <span className="text-[10px] uppercase bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">card: {v.suggested_card_template}</span>
                       )}
                     </div>
-                    <PlatformPreview text={v.content} image={selectedImage} />
+                    <PlatformPreview text={v.content} images={selectedImages} />
                     {Array.isArray(v.hashtags) && v.hashtags.length > 0 && (
                       <div className="flex gap-1.5 mt-3 flex-wrap">
                         {v.hashtags.map(h => (
@@ -328,8 +323,9 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
 
       <MediaLibrary
         isOpen={libraryOpen}
+        multiple
         onClose={() => setLibraryOpen(false)}
-        onSelect={(url) => { setSelectedImage(url); setLibraryOpen(false) }}
+        onSelect={(urls) => { setSelectedImages(Array.isArray(urls) ? urls : [urls]); setLibraryOpen(false) }}
       />
     </>
   )
