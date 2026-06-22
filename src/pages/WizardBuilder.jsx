@@ -50,10 +50,27 @@ const FIELD_TYPES = [
   { value: 'multiselect', label: 'Multi-select' },
   { value: 'radio',       label: 'Radio (single)' },
   { value: 'file',        label: 'File Upload' },
+  { value: 'color_theme', label: 'Color Theme (library)' },
   { value: 'signature',   label: 'E-Signature' },
   { value: 'info',        label: 'Info (display only)' },
 ]
 const hasOptions = (t) => ['select', 'multiselect', 'radio'].includes(t)
+const isTheme = (t) => t === 'color_theme'
+const THEME_LIBRARY = [
+  { key: 'midnight', name: 'Midnight',     colors: ['#0B1220', '#1E3A5F', '#3B82F6', '#E2E8F0'] },
+  { key: 'ocean',    name: 'Ocean',        colors: ['#0C4A6E', '#0EA5E9', '#7DD3FC', '#F0F9FF'] },
+  { key: 'forest',   name: 'Forest',       colors: ['#14532D', '#16A34A', '#86EFAC', '#F0FDF4'] },
+  { key: 'sunset',   name: 'Sunset',       colors: ['#7C2D12', '#F97316', '#FDBA74', '#FFF7ED'] },
+  { key: 'berry',    name: 'Berry',        colors: ['#581C87', '#A855F7', '#D8B4FE', '#FAF5FF'] },
+  { key: 'rose',     name: 'Rose',         colors: ['#881337', '#F43F5E', '#FDA4AF', '#FFF1F2'] },
+  { key: 'slate',    name: 'Slate Pro',    colors: ['#0F172A', '#475569', '#94A3B8', '#F8FAFC'] },
+  { key: 'gold',     name: 'Gold & Black', colors: ['#1C1917', '#D4A017', '#FCD34D', '#FAFAF9'] },
+  { key: 'mint',     name: 'Mint',         colors: ['#064E3B', '#10B981', '#6EE7B7', '#ECFDF5'] },
+  { key: 'coral',    name: 'Coral',        colors: ['#7F1D1D', '#FB7185', '#FECDD3', '#FFF1F2'] },
+  { key: 'mono',     name: 'Monochrome',   colors: ['#111827', '#374151', '#9CA3AF', '#F9FAFB'] },
+  { key: 'sky',      name: 'Sky',          colors: ['#0369A1', '#38BDF8', '#BAE6FD', '#F0F9FF'] },
+]
+const themeKeys = () => THEME_LIBRARY.map(t => t.key)
 const DEFAULT_INDUSTRIES = ['Real Estate','Healthcare','Legal Services','Insurance','Financial Services','Construction','Retail / E-Commerce','SaaS / Technology','Marketing Agency','Non-Profit','Recruiting / Staffing','Consulting','Property Management','Automotive','Other']
 
 const slugify = (s) => (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'field'
@@ -205,7 +222,7 @@ export default function WizardBuilder() {
       type,
       required: !!f.required,
       placeholder: f.placeholder || '',
-      options: hasOptions(type) ? normOpts(f.options).filter(o => o.label.trim()).map(o => ({ label: o.label.trim(), enabled: o.enabled !== false })) : [],
+      options: hasOptions(type) ? normOpts(f.options).filter(o => o.label.trim()).map(o => ({ label: o.label.trim(), enabled: o.enabled !== false })) : isTheme(type) ? (Array.isArray(f.options) && f.options.length ? f.options : themeKeys()) : [],
     }
   }
 
@@ -244,6 +261,7 @@ export default function WizardBuilder() {
   const removeOption = (i, j) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => idx === i ? { ...f, options: normOpts(f.options).filter((_, oj) => oj !== j) } : f) }))
   const moveOption = (i, j, dir) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => { if (idx !== i) return f; const opts = normOpts(f.options); const k = j + dir; if (k < 0 || k >= opts.length) return f; const t = opts[j]; opts[j] = opts[k]; opts[k] = t; return { ...f, options: opts } }) }))
   const sortOptions = (i) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => { if (idx !== i) return f; const isOther = (l) => /^(other|none)$/i.test((l || '').trim()); const opts = normOpts(f.options).slice().sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })).sort((a, b) => (isOther(a.label) ? 1 : 0) - (isOther(b.label) ? 1 : 0)); return { ...f, options: opts } }) }))
+  const toggleTheme = (i, key) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => { if (idx !== i) return f; const cur = Array.isArray(f.options) && f.options.length ? f.options : themeKeys(); const has = cur.includes(key); return { ...f, options: has ? cur.filter(k => k !== key) : [...cur, key] } }) }))
   const toggleIndustry = (ind) => setEditing(e => {
     const has = (e.industries || []).includes(ind)
     return { ...e, industries: has ? e.industries.filter(x => x !== ind) : [...(e.industries || []), ind] }
@@ -489,12 +507,30 @@ export default function WizardBuilder() {
                               )}
                             </div>
                           )}
+                          {isTheme(f.type) && (
+                            <div className="space-y-1.5">
+                              <span className="text-[11px] text-slate-500">Theme library — the customer picks one. Uncheck to hide a theme.</span>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {THEME_LIBRARY.map(t => {
+                                  const on = (Array.isArray(f.options) && f.options.length ? f.options : themeKeys()).includes(t.key)
+                                  return (
+                                    <button key={t.key} type="button" onClick={() => toggleTheme(i, t.key)} className={`text-left rounded-lg border p-2 transition-colors ${on ? 'border-brand-blue bg-brand-blue/5' : 'border-white/10 opacity-50 hover:opacity-100'}`}>
+                                      <div className="flex gap-1 mb-1">
+                                        {t.colors.map((c, ci) => <span key={ci} className="w-4 h-4 rounded-sm border border-black/20" style={{ backgroundColor: c }} />)}
+                                      </div>
+                                      <div className="text-[11px] text-slate-300 flex items-center justify-between">{t.name}<span className="text-brand-blue">{on ? '\u2713' : ''}</span></div>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
                           <div className="flex items-center gap-4">
                             <label className="flex items-center gap-1.5 text-slate-400 text-xs cursor-pointer">
                               <input type="checkbox" checked={!!f.required} onChange={e => setField(i, { required: e.target.checked })} className="rounded" />
                               Required
                             </label>
-                            {!hasOptions(f.type) && f.type !== 'info' && (
+                            {!hasOptions(f.type) && !isTheme(f.type) && f.type !== 'info' && (
                               <input
                                 value={f.placeholder || ''}
                                 onChange={e => setField(i, { placeholder: e.target.value })}
