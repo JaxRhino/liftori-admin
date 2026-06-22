@@ -17,6 +17,9 @@ export const money = (v) => '$' + Number(v || 0).toLocaleString(undefined, { max
 export const PRODUCT_TYPES = ['Website', 'Websites', 'CRM', 'Custom Builds', 'Web App', 'Mobile App', 'Business Platform', 'E-Commerce', 'Dashboard', 'Marketplace', 'Book Writing App', 'CRM Builder', 'Website Builder', 'Other']
 
 const TL_STATUS = { planned: 'bg-slate-500/15 text-slate-300', active: 'bg-sky-500/15 text-sky-300', done: 'bg-green-500/15 text-green-300' }
+const FEAT_STATUS = { Live: 'bg-green-500/15 text-green-300 border-green-500/30', Building: 'bg-amber-500/15 text-amber-300 border-amber-500/30', Needed: 'bg-slate-500/15 text-slate-400 border-slate-500/30' }
+const FEAT_STATUS_OPTS = ['Live', 'Building', 'Needed']
+const featCount = (arr, s) => (arr || []).filter((x) => x.status === s).length
 
 // Workspace-backed spec tabs shared across detail pages.
 export const WORKSPACE_TABS = [
@@ -239,10 +242,23 @@ function FeaturesSectioned({ items, onChange }) {
   list.forEach((it) => { const c = it.category || 'Custom'; if (!byCat[c]) { byCat[c] = []; order.push(c) } byCat[c].push(it) })
   return (
     <div className="space-y-5">
+      {list.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 pb-1">
+          <span className="text-[11px] uppercase tracking-wider text-slate-500">Build status</span>
+          <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium bg-green-500/15 text-green-300 border-green-500/30">{featCount(list, 'Live')} live</span>
+          <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium bg-amber-500/15 text-amber-300 border-amber-500/30">{featCount(list, 'Building')} building</span>
+          <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium bg-slate-500/15 text-slate-400 border-slate-500/30">{featCount(list, 'Needed')} needed</span>
+        </div>
+      )}
       {list.length === 0 && <p className="text-sm text-slate-500">No features documented yet. Add from the library above, or add one manually.</p>}
       {order.map((cat) => (
         <div key={cat}>
-          <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-2">{cat}<span className="ml-2 text-slate-600">{byCat[cat].length}</span></p>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500">{cat}<span className="ml-2 text-slate-600">{byCat[cat].length}</span></p>
+            {featCount(byCat[cat], 'Live') > 0 && <span className="rounded-full border px-1.5 py-0.5 text-[10px] font-medium bg-green-500/15 text-green-300 border-green-500/30">{featCount(byCat[cat], 'Live')} live</span>}
+            {featCount(byCat[cat], 'Building') > 0 && <span className="rounded-full border px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/15 text-amber-300 border-amber-500/30">{featCount(byCat[cat], 'Building')} building</span>}
+            {featCount(byCat[cat], 'Needed') > 0 && <span className="rounded-full border px-1.5 py-0.5 text-[10px] font-medium bg-slate-500/15 text-slate-400 border-slate-500/30">{featCount(byCat[cat], 'Needed')} needed</span>}
+          </div>
           <div className="space-y-2">
             {byCat[cat].map((it) => (
               <div key={it.id} className="bg-navy-800 border border-navy-700/50 rounded-lg p-3 flex flex-wrap items-start gap-3">
@@ -253,6 +269,13 @@ function FeaturesSectioned({ items, onChange }) {
                 <div className="flex-1 min-w-[200px]">
                   <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Detail</label>
                   <input value={it.detail || ''} onChange={(e) => upd(it.id, 'detail', e.target.value)} placeholder="What it does" className="w-full bg-navy-900 border border-navy-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-sky-500" />
+                </div>
+                <div className="w-32">
+                  <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Status</label>
+                  <select value={it.status || ''} onChange={(e) => upd(it.id, 'status', e.target.value)} className={'w-full rounded border px-2 py-1.5 text-xs font-medium focus:outline-none ' + (it.status ? FEAT_STATUS[it.status] : 'bg-navy-900 border-navy-700 text-slate-400')}>
+                    <option value="" className="bg-navy-900 text-slate-400">- set -</option>
+                    {FEAT_STATUS_OPTS.map((s) => <option key={s} value={s} className="bg-navy-900 text-white">{s}</option>)}
+                  </select>
                 </div>
                 <button onClick={() => del(it.id)} className="text-xs text-slate-500 hover:text-red-400 mt-5">Remove</button>
               </div>
