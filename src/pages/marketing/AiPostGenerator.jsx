@@ -6,7 +6,7 @@
 // Image: pick from the marketing-media library, make an AI variant of one of ours,
 // generate a new one, or upload — all via the shared MediaLibrary modal.
 // Product targeting: loads marketing_products so the AI writes about OUR products as
-// the maker, never as a client.
+// the maker, never as a client. Post Vibe steers tone (folded into the prompt).
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -15,6 +15,11 @@ import MediaLibrary from './MediaLibrary'
 const CONTENT_TYPE_OPTIONS = [
   'Announcement', 'Product Launch', 'Tip / How-To', 'Behind the Scenes',
   'Promotion', 'Event', 'Testimonial', 'Question / Poll', 'Custom',
+]
+
+const VIBE_OPTIONS = [
+  'Professional', 'Conversational', 'Bold & confident', 'Friendly & warm',
+  'Inspirational', 'Playful', 'Educational', 'Urgent / limited-time',
 ]
 
 // A lightweight Facebook-style preview so you see the post the way it publishes.
@@ -41,6 +46,7 @@ function PlatformPreview({ text, image }) {
 
 export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
   const [contentType, setContentType] = useState('Announcement')
+  const [postVibe, setPostVibe] = useState('')
   const [customPrompt, setCustomPrompt] = useState('')
   const [sourceType, setSourceType] = useState('manual')
   const [productSlug, setProductSlug] = useState('')
@@ -78,6 +84,9 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
       const accessToken = sessionRes?.session?.access_token
       if (!accessToken) throw new Error('Not signed in')
 
+      const vibeNote = postVibe ? `Tone/vibe: ${postVibe}.` : ''
+      const composedPrompt = [vibeNote, customPrompt].filter(Boolean).join(' ').trim() || undefined
+
       const fnUrl = `${supabase.supabaseUrl}/functions/v1/generate-marketing-post`
       const res = await fetch(fnUrl, {
         method: 'POST',
@@ -89,7 +98,7 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
           content_type: contentType,
           source_type: sourceType === 'manual' ? undefined : sourceType,
           product_slug: productSlug || undefined,
-          custom_prompt: customPrompt || undefined,
+          custom_prompt: composedPrompt,
           num_variants: 3,
         }),
       })
@@ -120,16 +129,20 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/70 p-3 sm:p-5" onClick={onClose}>
+        <button
+          onClick={onClose}
+          className="fixed top-4 right-5 z-[60] text-slate-300 hover:text-white text-3xl leading-none"
+          aria-label="Close"
+        >
+          ×
+        </button>
         <div
           className="bg-slate-900 border border-slate-700 rounded-2xl w-full h-full overflow-y-auto p-6 md:p-8"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-start justify-between mb-6 max-w-5xl mx-auto">
-            <div>
-              <h2 className="text-2xl font-bold text-white">AI post generator</h2>
-              <p className="text-xs text-slate-400 mt-1">Claude drafts 3 variants previewed as they'll publish. Pick one. You still approve before publish.</p>
-            </div>
-            <button onClick={onClose} className="text-slate-500 hover:text-white text-3xl leading-none">×</button>
+          <div className="mb-6 max-w-5xl mx-auto">
+            <h2 className="text-2xl font-bold text-white">AI post generator</h2>
+            <p className="text-xs text-slate-400 mt-1">Claude drafts 3 variants previewed as they'll publish. Pick one. You still approve before publish.</p>
           </div>
 
           <div className="max-w-5xl mx-auto">
@@ -145,6 +158,17 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
                 </select>
               </div>
               <div>
+                <label className="text-xs text-slate-400 mb-1 block">Post vibe</label>
+                <select
+                  value={postVibe}
+                  onChange={(e) => setPostVibe(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                >
+                  <option value="">Brand default voice</option>
+                  {VIBE_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="text-xs text-slate-400 mb-1 block">Promote which product?</label>
                 <select
                   value={productSlug}
@@ -155,18 +179,17 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
                   {products.map(p => <option key={p.slug} value={p.slug}>{p.name}</option>)}
                 </select>
               </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="text-xs text-slate-400 mb-1 block">Pull context from</label>
-              <select
-                value={sourceType}
-                onChange={(e) => setSourceType(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
-              >
-                <option value="manual">Just my topic below</option>
-                <option value="customer_win">Most recent client launch</option>
-              </select>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Pull context from</label>
+                <select
+                  value={sourceType}
+                  onChange={(e) => setSourceType(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                >
+                  <option value="manual">Just my topic below</option>
+                  <option value="customer_win">Most recent client launch</option>
+                </select>
+              </div>
             </div>
 
             <div className="mb-4">
