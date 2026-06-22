@@ -1,19 +1,43 @@
-// AiPostGenerator: modal that calls generate-marketing-post edge function and lets
-// the user pick one of 3 AI-drafted variants. The picked variant fills the parent's
-// post content + suggested card template. No DB writes — purely a draft picker.
+// AiPostGenerator: full-screen modal that calls generate-marketing-post and lets the
+// user pick one of 3 AI-drafted variants. Each variant renders as a platform preview
+// (how it looks on Facebook) with an optional attached image. The picked variant fills
+// the parent's post content, card template, and media image.
 //
-// Product targeting: loads marketing_products (Liftori's own products) so the user can
-// explicitly tell the AI which of OUR products a post is for. The edge function reads the
-// company knowledge base (marketing_brand_profile + marketing_products) so it never treats
-// our own products as clients.
+// Image: pick from the marketing-media library, make an AI variant of one of ours,
+// generate a new one, or upload — all via the shared MediaLibrary modal.
+// Product targeting: loads marketing_products so the AI writes about OUR products as
+// the maker, never as a client.
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import MediaLibrary from './MediaLibrary'
 
 const CONTENT_TYPE_OPTIONS = [
   'Announcement', 'Product Launch', 'Tip / How-To', 'Behind the Scenes',
   'Promotion', 'Event', 'Testimonial', 'Question / Poll', 'Custom',
 ]
+
+// A lightweight Facebook-style preview so you see the post the way it publishes.
+function PlatformPreview({ text, image }) {
+  return (
+    <div className="bg-white rounded-lg overflow-hidden text-slate-900 shadow-sm">
+      <div className="flex items-center gap-2 p-3">
+        <div className="w-9 h-9 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-sm">L</div>
+        <div className="leading-tight">
+          <div className="text-sm font-semibold text-slate-900">Liftori</div>
+          <div className="text-[11px] text-slate-500">Just now · Sponsored</div>
+        </div>
+      </div>
+      <div className="px-3 pb-3 text-sm whitespace-pre-wrap text-slate-800">{text}</div>
+      {image && <img src={image} alt="" className="w-full max-h-80 object-cover" />}
+      <div className="flex items-center justify-around border-t border-slate-200 text-slate-500 text-xs font-medium py-2">
+        <span>Like</span>
+        <span>Comment</span>
+        <span>Share</span>
+      </div>
+    </div>
+  )
+}
 
 export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
   const [contentType, setContentType] = useState('Announcement')
@@ -21,11 +45,12 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
   const [sourceType, setSourceType] = useState('manual')
   const [productSlug, setProductSlug] = useState('')
   const [products, setProducts] = useState([])
+  const [selectedImage, setSelectedImage] = useState('')
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [variants, setVariants] = useState([])
   const [error, setError] = useState('')
 
-  // Load our own products for the targeting dropdown when the modal opens.
   useEffect(() => {
     if (!isOpen) return
     let cancelled = false
@@ -84,137 +109,179 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
       content_type: contentType,
       suggested_card_template: variant.suggested_card_template || 'announcement',
       hashtags: variant.hashtags || [],
+      image: selectedImage || '',
     })
     setVariants([])
     setCustomPrompt('')
+    setSelectedImage('')
     onClose?.()
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-bold text-white">AI post generator</h2>
-            <p className="text-xs text-slate-400 mt-1">Claude drafts 3 variants. Pick one. You still approve before publish.</p>
+    <>
+      <div className="fixed inset-0 z-50 bg-black/70 p-3 sm:p-5" onClick={onClose}>
+        <div
+          className="bg-slate-900 border border-slate-700 rounded-2xl w-full h-full overflow-y-auto p-6 md:p-8"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between mb-6 max-w-5xl mx-auto">
+            <div>
+              <h2 className="text-2xl font-bold text-white">AI post generator</h2>
+              <p className="text-xs text-slate-400 mt-1">Claude drafts 3 variants previewed as they'll publish. Pick one. You still approve before publish.</p>
+            </div>
+            <button onClick={onClose} className="text-slate-500 hover:text-white text-3xl leading-none">×</button>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white text-2xl leading-none">×</button>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-          <div>
-            <label className="text-xs text-slate-400 mb-1 block">Content type</label>
-            <select
-              value={contentType}
-              onChange={(e) => setContentType(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
-            >
-              {CONTENT_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 mb-1 block">Promote which product?</label>
-            <select
-              value={productSlug}
-              onChange={(e) => setProductSlug(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
-            >
-              <option value="">No specific product</option>
-              {products.map(p => <option key={p.slug} value={p.slug}>{p.name}</option>)}
-            </select>
-          </div>
-        </div>
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Content type</label>
+                <select
+                  value={contentType}
+                  onChange={(e) => setContentType(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                >
+                  {CONTENT_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Promote which product?</label>
+                <select
+                  value={productSlug}
+                  onChange={(e) => setProductSlug(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                >
+                  <option value="">No specific product</option>
+                  {products.map(p => <option key={p.slug} value={p.slug}>{p.name}</option>)}
+                </select>
+              </div>
+            </div>
 
-        <div className="mb-4">
-          <label className="text-xs text-slate-400 mb-1 block">Pull context from</label>
-          <select
-            value={sourceType}
-            onChange={(e) => setSourceType(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
-          >
-            <option value="manual">Just my topic below</option>
-            <option value="customer_win">Most recent client launch</option>
-          </select>
-        </div>
+            <div className="mb-4">
+              <label className="text-xs text-slate-400 mb-1 block">Pull context from</label>
+              <select
+                value={sourceType}
+                onChange={(e) => setSourceType(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+              >
+                <option value="manual">Just my topic below</option>
+                <option value="customer_win">Most recent client launch</option>
+              </select>
+            </div>
 
-        <div className="mb-4">
-          <label className="text-xs text-slate-400 mb-1 block">What's the post about? (optional)</label>
-          <textarea
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-            placeholder="e.g. Promote BOLO Go to resellers — fast scan-to-list, built-in storefront. Confident, not salesy."
-            rows={3}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
-          />
-          {selectedProduct && (
-            <p className="text-[11px] text-sky-400 mt-1.5">
-              Writing as the maker of {selectedProduct.name} — it's treated as our own product, not a client.
-            </p>
-          )}
-        </div>
+            <div className="mb-4">
+              <label className="text-xs text-slate-400 mb-1 block">What's the post about? (optional)</label>
+              <textarea
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                placeholder="e.g. Promote BOLO Go to resellers — fast scan-to-list, built-in storefront. Confident, not salesy."
+                rows={3}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
+              />
+              {selectedProduct && (
+                <p className="text-[11px] text-sky-400 mt-1.5">
+                  Writing as the maker of {selectedProduct.name} — it's treated as our own product, not a client.
+                </p>
+              )}
+            </div>
 
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={generate}
-            disabled={loading}
-            className="bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors"
-          >
-            {loading ? 'Drafting…' : 'Generate 3 variants'}
-          </button>
-          <button onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm">Cancel</button>
-        </div>
-
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 text-sm mb-4">
-            {error}
-          </div>
-        )}
-
-        {variants.length > 0 && (
-          <div className="space-y-3">
-            <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Pick one — fills your composer</div>
-            {variants.map((v, i) => (
-              <div key={i} className="bg-slate-800/70 border border-slate-700 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs uppercase tracking-wide text-sky-400">Variant {i + 1}</span>
-                  {v.suggested_card_template && (
-                    <span className="text-[10px] uppercase bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                      card: {v.suggested_card_template}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{v.content}</p>
-                {Array.isArray(v.hashtags) && v.hashtags.length > 0 && (
-                  <div className="flex gap-1.5 mt-3 flex-wrap">
-                    {v.hashtags.map(h => (
-                      <span key={h} className="text-[11px] bg-blue-500/10 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full">
-                        #{h}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="flex justify-end mt-3">
+            <div className="mb-4">
+              <label className="text-xs text-slate-400 mb-1 block">Image (optional)</label>
+              {selectedImage ? (
+                <div className="flex items-center gap-3">
+                  <img src={selectedImage} alt="selected" className="w-20 h-20 object-cover rounded-lg border border-slate-700" />
                   <button
-                    onClick={() => pick(v)}
-                    className="bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors"
+                    onClick={() => setLibraryOpen(true)}
+                    className="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
                   >
-                    Use this variant →
+                    Change image
+                  </button>
+                  <button
+                    onClick={() => setSelectedImage('')}
+                    className="text-slate-400 hover:text-red-400 text-sm"
+                  >
+                    Remove
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ) : (
+                <button
+                  onClick={() => setLibraryOpen(true)}
+                  className="w-full border border-dashed border-slate-600 hover:border-sky-500 text-slate-300 text-sm rounded-lg py-3 transition-colors"
+                >
+                  Add image — pick from library, make a variant, generate, or upload
+                </button>
+              )}
+            </div>
 
-        {!loading && variants.length === 0 && !error && (
-          <div className="text-center py-8 text-slate-500 text-sm">
-            Click "Generate 3 variants" to start
+            <div className="flex gap-2 mb-6">
+              <button
+                onClick={generate}
+                disabled={loading}
+                className="bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors"
+              >
+                {loading ? 'Drafting…' : 'Generate 3 variants'}
+              </button>
+              <button onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm">Cancel</button>
+            </div>
+
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 text-sm mb-4">
+                {error}
+              </div>
+            )}
           </div>
-        )}
+
+          {variants.length > 0 && (
+            <div className="mt-2">
+              <div className="text-xs uppercase tracking-wide text-slate-500 mb-3">Pick one — fills your composer (preview shown as it publishes)</div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+                {variants.map((v, i) => (
+                  <div key={i} className="bg-slate-800/70 border border-slate-700 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs uppercase tracking-wide text-sky-400">Variant {i + 1}</span>
+                      {v.suggested_card_template && (
+                        <span className="text-[10px] uppercase bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
+                          card: {v.suggested_card_template}
+                        </span>
+                      )}
+                    </div>
+                    <PlatformPreview text={v.content} image={selectedImage} />
+                    {Array.isArray(v.hashtags) && v.hashtags.length > 0 && (
+                      <div className="flex gap-1.5 mt-3 flex-wrap">
+                        {v.hashtags.map(h => (
+                          <span key={h} className="text-[11px] bg-blue-500/10 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full">
+                            #{h}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex justify-end mt-3">
+                      <button
+                        onClick={() => pick(v)}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors"
+                      >
+                        Use this variant →
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!loading && variants.length === 0 && !error && (
+            <div className="text-center py-10 text-slate-500 text-sm">
+              Click "Generate 3 variants" to start
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      <MediaLibrary
+        isOpen={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onSelect={(url) => { setSelectedImage(url); setLibraryOpen(false) }}
+      />
+    </>
   )
 }
