@@ -13,6 +13,13 @@ const PRODUCT_LINES = [
     defaultBilling: 'monthly',
   },
   {
+    key: 'bolo',
+    label: 'BOLO Go',
+    description: 'BOLO Go reseller app — AI scan-to-list, storefront, and orders. Monthly tiers.',
+    accent: 'sky',
+    defaultBilling: 'monthly',
+  },
+  {
     key: 'custom',
     label: 'Custom Builds',
     description: 'Full-stack builds — apps, platforms, e-commerce, dashboards.',
@@ -162,7 +169,7 @@ export default function Plans() {
   }
 
   const plansByLine = useMemo(() => {
-    const buckets = { crm: [], custom: [], consulting: [], addon: [] }
+    const buckets = { crm: [], bolo: [], custom: [], consulting: [], addon: [] }
     plans.forEach(p => {
       const key = (p.product_type || 'custom').toLowerCase()
       if (buckets[key]) buckets[key].push(p)
@@ -591,7 +598,7 @@ export default function Plans() {
               </fieldset>
 
               {/* Credits (CRM / usage-based) */}
-              {(form.product_type === 'crm' || form.billing_type === 'usage') && (
+              {(form.product_type === 'crm' || form.product_type === 'bolo' || form.billing_type === 'usage') && (
                 <fieldset className="border border-navy-700/50 rounded-lg p-4">
                   <legend className="px-2 text-sm font-semibold text-slate-300">Credits</legend>
                   <div className="grid grid-cols-2 gap-3">
