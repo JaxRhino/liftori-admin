@@ -3,11 +3,14 @@ import { supabase } from '../lib/supabase'
 
 // ── Flow taxonomy ─────────────────────────────────────────────
 const CATEGORIES = [
+  { key: 'main',     label: 'Main Flow',      hint: 'The account-first entry every customer starts with, before product flows' },
   { key: 'customer', label: 'Customer Flows', hint: 'Public onboarding wizards customers complete to start a build' },
   { key: 'team',     label: 'Internal Flows', hint: 'Internal onboarding — triggered after a team member is invited' },
 ]
 
 const FLOWS = [
+  // Main
+  { value: 'start',        label: 'Start Flow',   category: 'main',     desc: 'Account-first entry — create account, pick interests, set business journey (runs before every customer flow)' },
   // Customer
   { value: 'custom_build', label: 'Custom Build', category: 'customer', desc: 'Autonomous / custom build intake (formerly Standard)' },
   { value: 'book',         label: 'Book',         category: 'customer', desc: 'Book writing app' },
@@ -26,6 +29,7 @@ const FLOWS = [
 // Card types — what role a card plays in the flow
 const CARD_TYPES = [
   { value: 'welcome',      label: 'Welcome',         hasBody: true,  hasFields: false, dot: 'bg-sky-400' },
+  { value: 'account',      label: 'Create Account',  hasBody: true,  hasFields: true,  dot: 'bg-brand-blue' },
   { value: 'industry',     label: 'Industry Picker', hasBody: false, hasFields: true,  dot: 'bg-violet-400' },
   { value: 'customer_info',label: 'Customer Info',   hasBody: false, hasFields: true,  dot: 'bg-blue-400' },
   { value: 'company_info', label: 'Company Info',    hasBody: false, hasFields: true,  dot: 'bg-emerald-400' },
@@ -41,6 +45,7 @@ const FIELD_TYPES = [
   { value: 'text',        label: 'Short Text' },
   { value: 'textarea',    label: 'Long Text' },
   { value: 'email',       label: 'Email' },
+  { value: 'password',    label: 'Password' },
   { value: 'tel',         label: 'Phone' },
   { value: 'number',      label: 'Number' },
   { value: 'currency',    label: 'Currency / Revenue' },
