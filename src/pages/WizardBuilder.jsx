@@ -30,6 +30,7 @@ const CARD_TYPES = [
   { value: 'company_info', label: 'Company Info',    hasBody: false, hasFields: true,  dot: 'bg-emerald-400' },
   { value: 'features',     label: 'Features',        hasBody: false, hasFields: true,  dot: 'bg-amber-400' },
   { value: 'data',         label: 'Data / Fields',   hasBody: false, hasFields: true,  dot: 'bg-cyan-400' },
+  { value: 'estimate',     label: 'Estimate',        hasBody: true,  hasFields: false, dot: 'bg-teal-400' },
   { value: 'payment',      label: 'Payment',         hasBody: true,  hasFields: false, dot: 'bg-green-400' },
   { value: 'thankyou',     label: 'Thank You',       hasBody: true,  hasFields: false, dot: 'bg-rose-400' },
   { value: 'custom',       label: 'Custom',          hasBody: true,  hasFields: true,  dot: 'bg-slate-400' },
