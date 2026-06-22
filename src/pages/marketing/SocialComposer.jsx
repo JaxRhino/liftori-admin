@@ -308,6 +308,7 @@ export default function SocialComposer() {
   function handleAiVariantPicked(variant) {
     setPostContent(variant.content || '')
     if (variant.content_type) setContentType(variant.content_type)
+    if (variant.image) setMediaUrl(variant.image)
     if (variant.suggested_card_template) setCardTemplate(variant.suggested_card_template)
     const lines = (variant.content || '').split('\n').filter(Boolean)
     setCardHeadline(lines[0] || '')
