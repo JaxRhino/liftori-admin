@@ -80,6 +80,7 @@ import PortalDocuments from './pages/portal/PortalDocuments'
 import PortalInvoices from './pages/portal/PortalInvoices'
 import PortalCommissions from './pages/portal/PortalCommissions'
 import PortalWizard from './pages/portal/PortalWizard'
+import CustomerPortalPreview from './pages/CustomerPortalPreview'
 // Freight AI â€” BIH Logistics
 import FreightDashboard from './pages/freight/FreightDashboard'
 import FreightSalesProfiles from './pages/freight/FreightSalesProfiles'
@@ -453,6 +454,7 @@ export default function App() {
             <Route path="marketing/sequences" element={<EmailSequences />} />
             <Route path="marketing/performance" element={<MarketingPerformance />} />
             <Route path="wizard" element={<WizardBuilder />} />
+            <Route path="customer-portal" element={<CustomerPortalPreview />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="notes" element={<Notes />} />
             <Route path="calendar" element={<Calendar />} />
