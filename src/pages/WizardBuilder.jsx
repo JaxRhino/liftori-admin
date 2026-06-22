@@ -1,80 +1,93 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-const FLOW_TYPES = [
-  // Customer flows
-  { value: 'standard',   label: 'Standard',   desc: 'Web App, Mobile, E-Commerce, Dashboard…', color: 'blue',    category: 'customer', steps: 9 },
-  { value: 'book',       label: 'Book',       desc: 'Book Writing App',                         color: 'amber',   category: 'customer', steps: 11 },
-  { value: 'crm',        label: 'CRM',        desc: 'CRM Builder',                              color: 'violet',  category: 'customer', steps: 9 },
-  { value: 'website',    label: 'Website',    desc: 'Website Builder',                          color: 'emerald', category: 'customer', steps: 9 },
-  { value: 'consulting', label: 'Consulting', desc: 'Business Audit & AI Automation',           color: 'rose',    category: 'customer', steps: 7 },
-  // Team onboarding flows
-  { value: 'tester_onboarding',     label: 'Tester Onboarding',     desc: 'NDA, 1099, platform access, first assignment',       color: 'cyan',    category: 'team', steps: 12 },
-  { value: 'sales_onboarding',      label: 'Sales Onboarding',      desc: 'CRM training, scripts, pipeline rules, first calls', color: 'green',   category: 'team', steps: 10 },
-  { value: 'consultant_onboarding', label: 'Consultant Onboarding', desc: 'Scorecards, call hub, availability, compliance',     color: 'fuchsia', category: 'team', steps: 9 },
-  { value: 'dev_onboarding',        label: 'Dev Onboarding',        desc: 'GitHub, Supabase, deploy pipeline, code standards',  color: 'sky',     category: 'team', steps: 8 },
-  { value: 'pm_onboarding',         label: 'PM Onboarding',         desc: 'Project lifecycle, tools, communication cadence',    color: 'indigo',  category: 'team', steps: 8 },
-  { value: 'ops_onboarding',        label: 'Ops Onboarding',        desc: 'Ticket queue, SLAs, internal systems',               color: 'slate',   category: 'team', steps: 7 },
+// ── Flow taxonomy ─────────────────────────────────────────────
+const CATEGORIES = [
+  { key: 'customer', label: 'Customer Flows', hint: 'Public onboarding wizards customers complete to start a build' },
+  { key: 'team',     label: 'Internal Flows', hint: 'Internal onboarding — triggered after a team member is invited' },
 ]
 
-const FLOW_CATEGORIES = [
-  { key: 'customer', label: 'Customer Flows',  hint: 'Used on the public onboarding wizard at /onboard' },
-  { key: 'team',     label: 'Team Onboarding', hint: 'Used internally — trigger after a team member is invited' },
+const FLOWS = [
+  // Customer
+  { value: 'custom_build', label: 'Custom Build', category: 'customer', desc: 'Autonomous / custom build intake (formerly Standard)' },
+  { value: 'book',         label: 'Book',         category: 'customer', desc: 'Book writing app' },
+  { value: 'crm',          label: 'CRM',          category: 'customer', desc: 'Industry-tailored CRM builder' },
+  { value: 'website',      label: 'Website',      category: 'customer', desc: 'Website builder' },
+  { value: 'consulting',   label: 'Consulting',   category: 'customer', desc: 'Business audit & AI automation' },
+  // Internal
+  { value: 'tester_onboarding',     label: 'Tester Onboarding',     category: 'team', desc: 'NDA, 1099, platform access, first assignment' },
+  { value: 'sales_onboarding',      label: 'Sales Onboarding',      category: 'team', desc: 'CRM training, scripts, pipeline rules' },
+  { value: 'consultant_onboarding', label: 'Consultant Onboarding', category: 'team', desc: 'Scorecards, call hub, availability' },
+  { value: 'dev_onboarding',        label: 'Dev Onboarding',        category: 'team', desc: 'GitHub, Supabase, deploy pipeline' },
+  { value: 'pm_onboarding',         label: 'PM Onboarding',         category: 'team', desc: 'Project lifecycle, tools, cadence' },
+  { value: 'ops_onboarding',        label: 'Ops Onboarding',        category: 'team', desc: 'Ticket queue, SLAs, internal systems' },
 ]
 
-const FLOW_COLOR = {
-  standard:    { pill: 'bg-blue-500/10 text-blue-400 border-blue-500/20',       active: 'bg-blue-600 text-white',    badge: 'bg-blue-600/20 border-blue-500/30 text-blue-400' },
-  book:        { pill: 'bg-amber-500/10 text-amber-400 border-amber-500/20',    active: 'bg-amber-600 text-white',   badge: 'bg-amber-600/20 border-amber-500/30 text-amber-400' },
-  crm:         { pill: 'bg-violet-500/10 text-violet-400 border-violet-500/20', active: 'bg-violet-600 text-white',  badge: 'bg-violet-600/20 border-violet-500/30 text-violet-400' },
-  website:     { pill: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', active: 'bg-emerald-600 text-white', badge: 'bg-emerald-600/20 border-emerald-500/30 text-emerald-400' },
-  consulting:  { pill: 'bg-rose-500/10 text-rose-400 border-rose-500/20',       active: 'bg-rose-600 text-white',    badge: 'bg-rose-600/20 border-rose-500/30 text-rose-400' },
-  tester_onboarding:     { pill: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',          active: 'bg-cyan-600 text-white',    badge: 'bg-cyan-600/20 border-cyan-500/30 text-cyan-400' },
-  sales_onboarding:      { pill: 'bg-green-500/10 text-green-400 border-green-500/20',       active: 'bg-green-600 text-white',   badge: 'bg-green-600/20 border-green-500/30 text-green-400' },
-  consultant_onboarding: { pill: 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20', active: 'bg-fuchsia-600 text-white', badge: 'bg-fuchsia-600/20 border-fuchsia-500/30 text-fuchsia-400' },
-  dev_onboarding:        { pill: 'bg-sky-500/10 text-sky-400 border-sky-500/20',             active: 'bg-sky-600 text-white',     badge: 'bg-sky-600/20 border-sky-500/30 text-sky-400' },
-  pm_onboarding:         { pill: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',    active: 'bg-indigo-600 text-white',  badge: 'bg-indigo-600/20 border-indigo-500/30 text-indigo-400' },
-  ops_onboarding:        { pill: 'bg-slate-500/10 text-slate-300 border-slate-500/20',       active: 'bg-slate-600 text-white',   badge: 'bg-slate-600/20 border-slate-500/30 text-slate-300' },
-}
+// Card types — what role a card plays in the flow
+const CARD_TYPES = [
+  { value: 'welcome',      label: 'Welcome',         hasBody: true,  hasFields: false, dot: 'bg-sky-400' },
+  { value: 'industry',     label: 'Industry Picker', hasBody: false, hasFields: true,  dot: 'bg-violet-400' },
+  { value: 'customer_info',label: 'Customer Info',   hasBody: false, hasFields: true,  dot: 'bg-blue-400' },
+  { value: 'company_info', label: 'Company Info',    hasBody: false, hasFields: true,  dot: 'bg-emerald-400' },
+  { value: 'features',     label: 'Features',        hasBody: false, hasFields: true,  dot: 'bg-amber-400' },
+  { value: 'data',         label: 'Data / Fields',   hasBody: false, hasFields: true,  dot: 'bg-cyan-400' },
+  { value: 'payment',      label: 'Payment',         hasBody: true,  hasFields: false, dot: 'bg-green-400' },
+  { value: 'thankyou',     label: 'Thank You',       hasBody: true,  hasFields: false, dot: 'bg-rose-400' },
+  { value: 'custom',       label: 'Custom',          hasBody: true,  hasFields: true,  dot: 'bg-slate-400' },
+]
+const cardTypeInfo = (t) => CARD_TYPES.find(c => c.value === t) || CARD_TYPES.find(c => c.value === 'data')
 
 const FIELD_TYPES = [
-  { value: 'composite',   label: 'Composite (multiple fields)' },
-  { value: 'multiselect', label: 'Multi-select' },
-  { value: 'radio',       label: 'Radio / Single Select' },
   { value: 'text',        label: 'Short Text' },
   { value: 'textarea',    label: 'Long Text' },
-  { value: 'select',      label: 'Dropdown' },
-  { value: 'review',      label: 'Review / Summary' },
   { value: 'email',       label: 'Email' },
   { value: 'tel',         label: 'Phone' },
+  { value: 'number',      label: 'Number' },
+  { value: 'currency',    label: 'Currency / Revenue' },
+  { value: 'date',        label: 'Date' },
+  { value: 'address',     label: 'Address' },
+  { value: 'select',      label: 'Dropdown (single)' },
+  { value: 'multiselect', label: 'Multi-select' },
+  { value: 'radio',       label: 'Radio (single)' },
   { value: 'file',        label: 'File Upload' },
   { value: 'signature',   label: 'E-Signature' },
+  { value: 'info',        label: 'Info (display only)' },
 ]
+const hasOptions = (t) => ['select', 'multiselect', 'radio'].includes(t)
+const DEFAULT_INDUSTRIES = ['Real Estate','Healthcare','Legal Services','Insurance','Financial Services','Construction','Retail / E-Commerce','SaaS / Technology','Marketing Agency','Non-Profit','Recruiting / Staffing','Consulting','Property Management','Automotive','Other']
+
+const slugify = (s) => (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'field'
 
 export default function WizardBuilder() {
-  // Flow Editor state
-  const [selectedFlow, setSelectedFlow] = useState('standard')
-  const [steps, setSteps] = useState([])
-  const [stepsLoading, setStepsLoading] = useState(false)
-  const [editingStep, setEditingStep] = useState(null)
-  const [stepForm, setStepForm] = useState({
-    flow_type: 'standard',
-    step_number: 1,
-    question: '',
-    subtitle: '',
-    field_type: 'composite',
-    options: '',
-    required: true,
-    placeholder: '',
-  })
-  const [stepMode, setStepMode] = useState('list')
-  const [stepSaving, setStepSaving] = useState(false)
+  const [category, setCategory] = useState('customer')
+  const [selectedFlow, setSelectedFlow] = useState('crm')
+  const [cards, setCards] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [editing, setEditing] = useState(null) // working copy of the card in the modal
+  const [isNew, setIsNew] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    fetchSteps()
-  }, [selectedFlow])
+  const flowsInCategory = FLOWS.filter(f => f.category === category)
+  const flowInfo = FLOWS.find(f => f.value === selectedFlow) || FLOWS[0]
 
-  async function fetchSteps() {
-    setStepsLoading(true)
+  // Industries available for scoping come from this flow's industry-picker card, else a default list
+  const industryCard = cards.find(c => c.card_type === 'industry')
+  const availableIndustries =
+    (industryCard?.fields?.find(f => hasOptions(f.type))?.options) ||
+    (industryCard?.fields?.[0]?.options) ||
+    DEFAULT_INDUSTRIES
+
+  useEffect(() => { fetchCards() }, [selectedFlow])
+
+  // When switching category, jump to the first flow in that category
+  function switchCategory(cat) {
+    setCategory(cat)
+    const first = FLOWS.find(f => f.category === cat)
+    if (first) setSelectedFlow(first.value)
+  }
+
+  async function fetchCards() {
+    setLoading(true)
     try {
       const { data, error } = await supabase
         .from('wizard_steps')
@@ -82,362 +95,407 @@ export default function WizardBuilder() {
         .eq('flow_type', selectedFlow)
         .order('step_number', { ascending: true })
       if (error) throw error
-      setSteps(data || [])
+      setCards((data || []).map(normalize))
     } catch (err) {
-      console.error('fetchSteps:', err)
+      console.error('fetchCards:', err)
+      setCards([])
     } finally {
-      setStepsLoading(false)
+      setLoading(false)
     }
   }
 
-  async function saveStep() {
-    if (!stepForm.question.trim()) return
-    setStepSaving(true)
+  function normalize(row) {
+    return {
+      ...row,
+      card_title: row.card_title || row.question || 'Untitled',
+      card_type: row.card_type || 'data',
+      body: row.body || '',
+      subtitle: row.subtitle || '',
+      fields: Array.isArray(row.fields) ? row.fields : [],
+      industries: Array.isArray(row.industries) ? row.industries : [],
+    }
+  }
+
+  function openCard(card) {
+    setIsNew(false)
+    setEditing(JSON.parse(JSON.stringify(card)))
+  }
+
+  function openNewCard() {
+    setIsNew(true)
+    setEditing({
+      flow_type: selectedFlow,
+      step_number: cards.length + 1,
+      card_title: '',
+      card_type: 'data',
+      subtitle: '',
+      body: '',
+      fields: [],
+      industries: [],
+    })
+  }
+
+  function closeModal() { setEditing(null); setIsNew(false) }
+
+  async function saveCard() {
+    if (!editing) return
+    setSaving(true)
     try {
       const payload = {
-        flow_type: stepForm.flow_type || selectedFlow,
-        step_number: parseInt(stepForm.step_number) || 1,
-        question: stepForm.question.trim(),
-        subtitle: stepForm.subtitle.trim() || null,
-        field_type: stepForm.field_type,
-        options: stepForm.options
-          ? stepForm.options.split('\n').map(o => o.trim()).filter(Boolean)
-          : null,
-        required: stepForm.required,
-        placeholder: stepForm.placeholder.trim() || null,
+        flow_type: selectedFlow,
+        step_number: parseInt(editing.step_number) || cards.length + 1,
+        question: (editing.card_title || 'Untitled').trim(),
+        card_title: (editing.card_title || 'Untitled').trim(),
+        card_type: editing.card_type,
+        subtitle: (editing.subtitle || '').trim() || null,
+        body: (editing.body || '').trim() || null,
+        field_type: 'composite',
+        fields: (editing.fields || []).map(normalizeField),
+        industries: editing.industries || [],
+        required: false,
+        options: [],
       }
-      if (stepMode === 'edit' && editingStep) {
-        const { error } = await supabase.from('wizard_steps').update(payload).eq('id', editingStep.id)
+      if (!isNew && editing.id) {
+        const { error } = await supabase.from('wizard_steps').update(payload).eq('id', editing.id)
         if (error) throw error
       } else {
         const { error } = await supabase.from('wizard_steps').insert([payload])
         if (error) throw error
       }
-      await fetchSteps()
-      setStepMode('list')
-      setEditingStep(null)
+      await fetchCards()
+      closeModal()
     } catch (err) {
-      console.error('saveStep:', err)
+      console.error('saveCard:', err)
+      alert(err.message || 'Failed to save card')
     } finally {
-      setStepSaving(false)
+      setSaving(false)
     }
   }
 
-  async function deleteStep(id) {
-    if (!confirm('Delete this wizard step?')) return
-    const { error } = await supabase.from('wizard_steps').delete().eq('id', id)
-    if (!error) fetchSteps()
+  function normalizeField(f) {
+    const type = f.type || 'text'
+    return {
+      key: f.key || slugify(f.label),
+      label: f.label || '',
+      type,
+      required: !!f.required,
+      placeholder: f.placeholder || '',
+      options: hasOptions(type) ? (f.options || []) : [],
+    }
   }
 
-  async function duplicateStep(step) {
-    const payload = {
-      flow_type: step.flow_type,
-      step_number: (step.step_number || 0) + 1,
-      question: `${step.question} (Copy)`,
-      subtitle: step.subtitle,
-      field_type: step.field_type,
-      options: step.options,
-      required: step.required,
-      placeholder: step.placeholder,
-    }
-    const { error } = await supabase.from('wizard_steps').insert([payload])
+  async function deleteCard() {
+    if (!editing?.id) { closeModal(); return }
+    if (!confirm('Delete this card?')) return
+    const { error } = await supabase.from('wizard_steps').delete().eq('id', editing.id)
     if (error) { alert(error.message); return }
-    fetchSteps()
+    await fetchCards()
+    closeModal()
   }
 
-  function openCreateStep() {
-    setStepMode('create')
-    setEditingStep(null)
-    setStepForm({
-      flow_type: selectedFlow,
-      step_number: steps.length + 1,
-      question: '',
-      subtitle: '',
-      field_type: 'composite',
-      options: '',
-      required: true,
-      placeholder: '',
-    })
+  async function moveCard(card, dir) {
+    const idx = cards.findIndex(c => c.id === card.id)
+    const swapWith = cards[idx + dir]
+    if (!swapWith) return
+    await Promise.all([
+      supabase.from('wizard_steps').update({ step_number: swapWith.step_number }).eq('id', card.id),
+      supabase.from('wizard_steps').update({ step_number: card.step_number }).eq('id', swapWith.id),
+    ])
+    fetchCards()
   }
 
-  function openEditStep(step) {
-    setStepMode('edit')
-    setEditingStep(step)
-    setStepForm({
-      flow_type: step.flow_type,
-      step_number: step.step_number,
-      question: step.question,
-      subtitle: step.subtitle || '',
-      field_type: step.field_type,
-      options: (step.options || []).join('\n'),
-      required: step.required ?? true,
-      placeholder: step.placeholder || '',
-    })
-  }
+  // ── Field editor helpers (operate on the working copy) ──
+  const setField = (i, patch) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => idx === i ? { ...f, ...patch } : f) }))
+  const addField = () => setEditing(e => ({ ...e, fields: [...(e.fields || []), { key: '', label: '', type: 'text', required: false, placeholder: '', options: [] }] }))
+  const removeField = (i) => setEditing(e => ({ ...e, fields: e.fields.filter((_, idx) => idx !== i) }))
+  const moveField = (i, dir) => setEditing(e => {
+    const arr = [...e.fields]; const j = i + dir
+    if (j < 0 || j >= arr.length) return e
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    return { ...e, fields: arr }
+  })
+  const toggleIndustry = (ind) => setEditing(e => {
+    const has = (e.industries || []).includes(ind)
+    return { ...e, industries: has ? e.industries.filter(x => x !== ind) : [...(e.industries || []), ind] }
+  })
 
-  const flowInfo = FLOW_TYPES.find(f => f.value === selectedFlow) || FLOW_TYPES[0]
-  const colors = FLOW_COLOR[selectedFlow] || FLOW_COLOR.standard
+  const editTypeInfo = editing ? cardTypeInfo(editing.card_type) : null
 
   return (
     <div className="p-6 max-w-6xl">
       {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Wizard Builder</h1>
-          <p className="text-slate-400 text-sm mt-1">Design every Liftori wizard flow — customer onboarding flows and internal team onboarding checklists.</p>
+          <p className="text-slate-400 text-sm mt-1">Design each onboarding flow as a sequence of cards. Click a card to edit its fields.</p>
         </div>
         <button
           onClick={() => window.open('/onboard?test=true', '_blank')}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-blue hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+          className="shrink-0 flex items-center gap-2 px-4 py-2 bg-brand-blue hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-          Test Onboarding Wizard
+          Test Wizard
         </button>
       </div>
 
-      {/* ── FLOW EDITOR ── */}
-      <div className="space-y-4">
+      {/* Two-dropdown selector */}
+      <div className="bg-[#0D1424] border border-white/10 rounded-xl p-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-slate-400 text-xs mb-1 block">Flow group</label>
+            <select
+              value={category}
+              onChange={e => switchCategory(e.target.value)}
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-blue"
+            >
+              {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-slate-400 text-xs mb-1 block">Flow</label>
+            <select
+              value={selectedFlow}
+              onChange={e => setSelectedFlow(e.target.value)}
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-blue"
+            >
+              {flowsInCategory.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <p className="text-slate-500 text-xs mt-3">{flowInfo?.desc}</p>
+      </div>
 
-        {/* Flow Type Selector — grouped by category */}
-        <div className="space-y-4">
-          {FLOW_CATEGORIES.map(cat => {
-            const flows = FLOW_TYPES.filter(f => f.category === cat.key)
+      {/* Flow header + add */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-white">{flowInfo?.label} Flow</h2>
+          <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-slate-400">{cards.length} cards</span>
+          <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${category === 'team' ? 'border-white/20 text-slate-400' : 'border-white/10 text-slate-500'}`}>
+            {category === 'team' ? 'Internal' : 'Customer'}
+          </span>
+        </div>
+        <button onClick={openNewCard} className="bg-brand-blue hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+          + Add Card
+        </button>
+      </div>
+
+      {/* Card grid */}
+      {loading ? (
+        <div className="text-center py-16 text-slate-400">Loading cards...</div>
+      ) : cards.length === 0 ? (
+        <div className="text-center py-16 text-slate-400">
+          No cards yet — click <strong className="text-white">+ Add Card</strong> to start this flow.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {cards.map((card, idx) => {
+            const ti = cardTypeInfo(card.card_type)
+            const scoped = (card.industries || []).length > 0
             return (
-              <div key={cat.key} className="bg-[#0D1424] border border-white/10 rounded-xl p-4">
-                <div className="flex items-baseline justify-between mb-3">
-                  <div>
-                    <p className="text-slate-300 text-sm font-semibold">{cat.label}</p>
-                    <p className="text-slate-500 text-xs mt-0.5">{cat.hint}</p>
+              <div
+                key={card.id}
+                onClick={() => openCard(card)}
+                className="group bg-[#0D1424] border border-white/10 hover:border-brand-blue/50 rounded-xl p-4 cursor-pointer transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0">{idx + 1}</span>
+                    <span className="text-white font-semibold truncate">{card.card_title}</span>
                   </div>
-                  <span className="text-xs text-slate-500">{flows.length} flows</span>
+                  <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={e => { e.stopPropagation(); moveCard(card, -1) }} disabled={idx === 0} className="w-6 h-6 rounded border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 text-xs">↑</button>
+                    <button onClick={e => { e.stopPropagation(); moveCard(card, 1) }} disabled={idx === cards.length - 1} className="w-6 h-6 rounded border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 text-xs">↓</button>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {flows.map(flow => {
-                    const fc = FLOW_COLOR[flow.value] || FLOW_COLOR.standard
-                    const isActive = selectedFlow === flow.value
-                    return (
-                      <button
-                        key={flow.value}
-                        onClick={() => { setSelectedFlow(flow.value); setStepMode('list'); setEditingStep(null) }}
-                        className={`p-3 rounded-lg border text-left transition-all ${
-                          isActive
-                            ? `${fc.active} border-transparent`
-                            : `${fc.pill} border hover:opacity-80`
-                        }`}
-                      >
-                        <div className="font-semibold text-sm">{flow.label}</div>
-                        <div className={`text-xs mt-0.5 ${isActive ? 'text-white/70' : 'text-slate-500'}`}>{flow.desc}</div>
-                        <div className={`text-xs mt-1 font-medium ${isActive ? 'text-white/80' : ''}`}>{flow.steps} steps</div>
-                      </button>
-                    )
-                  })}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
+                    <span className={`w-2 h-2 rounded-full ${ti.dot}`}></span>{ti.label}
+                  </span>
+                  {ti.hasFields && <span className="text-[11px] text-slate-500">· {(card.fields || []).length} fields</span>}
                 </div>
+                {card.subtitle && <p className="text-slate-500 text-xs mb-2 line-clamp-2">{card.subtitle}</p>}
+                {scoped && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    <span className="text-[10px] text-amber-400/90 border border-amber-500/20 bg-amber-500/10 rounded px-1.5 py-0.5">
+                      Only: {card.industries.join(', ')}
+                    </span>
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
+      )}
 
-        {/* Flow Editor Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-white">{flowInfo?.label} Flow</h2>
-              <span className={`text-xs px-2 py-0.5 rounded-full border ${colors.pill}`}>
-                {steps.length} steps
-              </span>
-              <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${
-                flowInfo?.category === 'team' ? 'border-white/20 text-slate-400' : 'border-white/10 text-slate-500'
-              }`}>
-                {flowInfo?.category === 'team' ? 'Internal' : 'Customer'}
-              </span>
-            </div>
-            <p className="text-slate-400 text-sm mt-0.5">{flowInfo?.desc} — {flowInfo?.steps}-step wizard</p>
-          </div>
-          <button
-            onClick={openCreateStep}
-            className={`${colors.active} px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors`}
+      {/* ── Card editor modal ── */}
+      {editing && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-3 sm:p-6 overflow-y-auto" onClick={closeModal}>
+          <div
+            className="relative bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl mx-auto my-4"
+            onClick={e => e.stopPropagation()}
           >
-            + Add Step
-          </button>
-        </div>
+            <button onClick={closeModal} className="absolute top-3 right-4 text-slate-500 hover:text-white text-3xl leading-none">×</button>
 
-        {/* Step Form */}
-        {stepMode !== 'list' && (
-          <div className="bg-[#0D1424] border border-white/10 rounded-xl p-6 space-y-4">
-            <h3 className="text-white font-semibold">{stepMode === 'create' ? 'New Step' : 'Edit Step'}</h3>
-
-            <div className="grid grid-cols-2 gap-4">
+            <div className="p-6 space-y-5">
               <div>
-                <label className="text-slate-400 text-xs mb-1 block">Step Number</label>
+                <h3 className="text-white font-semibold text-lg pr-8">{isNew ? 'New Card' : 'Edit Card'}</h3>
+                <p className="text-slate-500 text-xs mt-0.5">Card {editing.step_number} of the {flowInfo?.label} flow</p>
+              </div>
+
+              {/* Title + type */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-400 text-xs mb-1 block">Card title</label>
+                  <input
+                    value={editing.card_title}
+                    onChange={e => setEditing(s => ({ ...s, card_title: e.target.value }))}
+                    placeholder="e.g. Company Information"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-blue"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 text-xs mb-1 block">Card type</label>
+                  <select
+                    value={editing.card_type}
+                    onChange={e => setEditing(s => ({ ...s, card_type: e.target.value }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-blue"
+                  >
+                    {CARD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">Subtitle (optional)</label>
                 <input
-                  type="number"
-                  value={stepForm.step_number}
-                  onChange={e => setStepForm(f => ({ ...f, step_number: e.target.value }))}
-                  min={1}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  value={editing.subtitle}
+                  onChange={e => setEditing(s => ({ ...s, subtitle: e.target.value }))}
+                  placeholder="Short helper line under the title"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-blue"
                 />
               </div>
-              <div>
-                <label className="text-slate-400 text-xs mb-1 block">Field Type</label>
-                <select
-                  value={stepForm.field_type}
-                  onChange={e => setStepForm(f => ({ ...f, field_type: e.target.value }))}
-                  className="w-full bg-[#0D1424] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
-                >
-                  {FIELD_TYPES.map(ft => (
-                    <option key={ft.value} value={ft.value}>{ft.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
-            <div>
-              <label className="text-slate-400 text-xs mb-1 block">Title / Question</label>
-              <input
-                value={stepForm.question}
-                onChange={e => setStepForm(f => ({ ...f, question: e.target.value }))}
-                placeholder="e.g. Your Vision"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="text-slate-400 text-xs mb-1 block">Subtitle (optional)</label>
-              <input
-                value={stepForm.subtitle}
-                onChange={e => setStepForm(f => ({ ...f, subtitle: e.target.value }))}
-                placeholder="e.g. What do you want to build?"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="text-slate-400 text-xs mb-1 block">Placeholder (optional)</label>
-              <input
-                value={stepForm.placeholder}
-                onChange={e => setStepForm(f => ({ ...f, placeholder: e.target.value }))}
-                placeholder="Hint text shown inside the field..."
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="text-slate-400 text-xs mb-1 block">
-                {['composite', 'multiselect', 'review'].includes(stepForm.field_type)
-                  ? 'Fields / Options (one per line)'
-                  : 'Options (one per line — for radio / select)'}
-              </label>
-              <textarea
-                value={stepForm.options}
-                onChange={e => setStepForm(f => ({ ...f, options: e.target.value }))}
-                placeholder={
-                  stepForm.field_type === 'composite'
-                    ? 'Project Name (text, required)\nElevator Pitch (textarea, required)\nProblem solved? (textarea, optional)'
-                    : stepForm.field_type === 'review'
-                    ? 'Summary card\nEdit button\nSubmit button'
-                    : 'Option A\nOption B\nOption C'
-                }
-                rows={6}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 resize-y font-mono"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="step-required"
-                checked={stepForm.required}
-                onChange={e => setStepForm(f => ({ ...f, required: e.target.checked }))}
-                className="rounded"
-              />
-              <label htmlFor="step-required" className="text-slate-400 text-sm cursor-pointer">Required field</label>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={saveStep}
-                disabled={!stepForm.question.trim() || stepSaving}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                {stepSaving ? 'Saving...' : stepMode === 'create' ? 'Add Step' : 'Save Changes'}
-              </button>
-              <button
-                onClick={() => { setStepMode('list'); setEditingStep(null) }}
-                className="text-slate-400 hover:text-white px-4 py-2 text-sm transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Steps List */}
-        {stepsLoading ? (
-          <div className="text-center py-16 text-slate-400">Loading steps...</div>
-        ) : steps.length === 0 && stepMode === 'list' ? (
-          <div className="text-center py-16 text-slate-400">
-            No steps configured yet — click <strong className="text-white">+ Add Step</strong> to build your wizard.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {steps.map(step => (
-              <div key={step.id} className="bg-[#0D1424] border border-white/10 rounded-xl p-4 flex items-start gap-4">
-                <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold text-sm shrink-0 mt-0.5 ${colors.badge}`}>
-                  {step.step_number}
+              {/* Body — for content cards */}
+              {editTypeInfo?.hasBody && (
+                <div>
+                  <label className="text-slate-400 text-xs mb-1 block">Body content {editing.card_type === 'welcome' ? '(welcome + product info shown to the customer)' : '(message shown to the customer)'}</label>
+                  <textarea
+                    value={editing.body}
+                    onChange={e => setEditing(s => ({ ...s, body: e.target.value }))}
+                    rows={5}
+                    placeholder="Text shown to the customer on this card..."
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-blue resize-y"
+                  />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-white font-semibold">{step.question}</span>
-                    {step.subtitle && (
-                      <span className="text-slate-400 text-sm">— {step.subtitle}</span>
-                    )}
+              )}
+
+              {/* Fields editor */}
+              {editTypeInfo?.hasFields && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-slate-300 text-sm font-medium">Fields on this card</label>
+                    <button onClick={addField} className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 px-3 py-1.5 rounded-lg transition-colors">+ Add field</button>
                   </div>
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className="text-xs text-slate-500 font-mono bg-white/5 px-2 py-0.5 rounded">
-                      {FIELD_TYPES.find(ft => ft.value === step.field_type)?.label || step.field_type}
-                    </span>
-                    {step.required && (
-                      <span className="text-xs text-amber-400">required</span>
-                    )}
-                    {step.placeholder && (
-                      <span className="text-xs text-slate-500 truncate max-w-xs">"{step.placeholder}"</span>
-                    )}
-                  </div>
-                  {step.options?.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {step.options.map((o, i) => (
-                        <div key={i} className="text-xs text-slate-400 bg-white/3 border border-white/5 rounded px-2 py-1">
-                          {o}
+                  {(editing.fields || []).length === 0 ? (
+                    <p className="text-slate-500 text-xs py-3 text-center border border-dashed border-white/10 rounded-lg">No fields yet. Add Name, Email, Phone, Revenue, Date, and more.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {editing.fields.map((f, i) => (
+                        <div key={i} className="bg-white/5 border border-white/10 rounded-lg p-3 space-y-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-start">
+                            <input
+                              value={f.label}
+                              onChange={e => setField(i, { label: e.target.value, key: slugify(e.target.value) })}
+                              placeholder="Field label (e.g. Annual Revenue)"
+                              className="sm:col-span-6 w-full bg-slate-800 border border-white/10 rounded px-2.5 py-1.5 text-white text-sm focus:outline-none focus:border-brand-blue"
+                            />
+                            <select
+                              value={f.type}
+                              onChange={e => setField(i, { type: e.target.value })}
+                              className="sm:col-span-4 w-full bg-slate-800 border border-white/10 rounded px-2.5 py-1.5 text-white text-sm focus:outline-none focus:border-brand-blue"
+                            >
+                              {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                            </select>
+                            <div className="sm:col-span-2 flex items-center justify-end gap-1">
+                              <button onClick={() => moveField(i, -1)} disabled={i === 0} className="w-7 h-7 rounded border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 text-xs">↑</button>
+                              <button onClick={() => moveField(i, 1)} disabled={i === editing.fields.length - 1} className="w-7 h-7 rounded border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 text-xs">↓</button>
+                              <button onClick={() => removeField(i)} className="w-7 h-7 rounded border border-red-500/20 text-red-400 hover:bg-red-500/10 text-xs">×</button>
+                            </div>
+                          </div>
+                          {hasOptions(f.type) && (
+                            <textarea
+                              value={(f.options || []).join('\n')}
+                              onChange={e => setField(i, { options: e.target.value.split('\n').map(o => o.trim()).filter(Boolean) })}
+                              rows={3}
+                              placeholder="One option per line"
+                              className="w-full bg-slate-800 border border-white/10 rounded px-2.5 py-1.5 text-white text-xs focus:outline-none focus:border-brand-blue resize-y font-mono"
+                            />
+                          )}
+                          <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-1.5 text-slate-400 text-xs cursor-pointer">
+                              <input type="checkbox" checked={!!f.required} onChange={e => setField(i, { required: e.target.checked })} className="rounded" />
+                              Required
+                            </label>
+                            {!hasOptions(f.type) && f.type !== 'info' && (
+                              <input
+                                value={f.placeholder || ''}
+                                onChange={e => setField(i, { placeholder: e.target.value })}
+                                placeholder="Placeholder (optional)"
+                                className="flex-1 bg-slate-800 border border-white/10 rounded px-2.5 py-1 text-white text-xs focus:outline-none focus:border-brand-blue"
+                              />
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-                <div className="flex gap-2 shrink-0">
+              )}
+
+              {/* Industry scoping (branching) — hidden on the industry picker itself */}
+              {editing.card_type !== 'industry' && availableIndustries.length > 0 && (
+                <div>
+                  <label className="text-slate-300 text-sm font-medium block mb-1">Show this card for…</label>
+                  <p className="text-slate-500 text-xs mb-2">Leave all unselected to show for every industry. Select industries to only show this card when one of them is picked.</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableIndustries.map(ind => {
+                      const on = (editing.industries || []).includes(ind)
+                      return (
+                        <button
+                          key={ind}
+                          onClick={() => toggleIndustry(ind)}
+                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${on ? 'bg-amber-500/15 border-amber-500/40 text-amber-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                        >
+                          {ind}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/10">
+                <div>
+                  {!isNew && (
+                    <button onClick={deleteCard} className="text-red-400 hover:text-red-300 text-sm px-2 py-2 transition-colors">Delete card</button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={closeModal} className="text-slate-400 hover:text-white text-sm px-4 py-2 transition-colors">Cancel</button>
                   <button
-                    onClick={() => duplicateStep(step)}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 hover:text-white transition-colors"
+                    onClick={saveCard}
+                    disabled={saving || !(editing.card_title || '').trim()}
+                    className="bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
                   >
-                    Duplicate
-                  </button>
-                  <button
-                    onClick={() => openEditStep(step)}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 hover:text-white transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteStep(step.id)}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors"
-                  >
-                    Delete
+                    {saving ? 'Saving…' : isNew ? 'Add Card' : 'Save Card'}
                   </button>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
