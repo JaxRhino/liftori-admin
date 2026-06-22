@@ -220,6 +220,7 @@ export default function WizardBuilder() {
   const addOption = (i) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => idx === i ? { ...f, options: [...normOpts(f.options), { label: '', enabled: true }] } : f) }))
   const removeOption = (i, j) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => idx === i ? { ...f, options: normOpts(f.options).filter((_, oj) => oj !== j) } : f) }))
   const moveOption = (i, j, dir) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => { if (idx !== i) return f; const opts = normOpts(f.options); const k = j + dir; if (k < 0 || k >= opts.length) return f; const t = opts[j]; opts[j] = opts[k]; opts[k] = t; return { ...f, options: opts } }) }))
+  const sortOptions = (i) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => { if (idx !== i) return f; const isOther = (l) => /^(other|none)$/i.test((l || '').trim()); const opts = normOpts(f.options).slice().sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })).sort((a, b) => (isOther(a.label) ? 1 : 0) - (isOther(b.label) ? 1 : 0)); return { ...f, options: opts } }) }))
   const toggleIndustry = (ind) => setEditing(e => {
     const has = (e.industries || []).includes(ind)
     return { ...e, industries: has ? e.industries.filter(x => x !== ind) : [...(e.industries || []), ind] }
@@ -432,7 +433,10 @@ export default function WizardBuilder() {
                             <div className="space-y-1.5">
                               <div className="flex items-center justify-between">
                                 <span className="text-[11px] text-slate-500">Options — uncheck to unpublish, × to remove</span>
-                                <button onClick={() => addOption(i)} className="text-[11px] text-brand-blue hover:text-blue-400">+ Add option</button>
+                                <div className="flex items-center gap-3">
+                                  <button onClick={() => sortOptions(i)} className="text-[11px] text-slate-400 hover:text-white">Sort A-Z</button>
+                                  <button onClick={() => addOption(i)} className="text-[11px] text-brand-blue hover:text-blue-400">+ Add option</button>
+                                </div>
                               </div>
                               {normOpts(f.options).length === 0 ? (
                                 <p className="text-[11px] text-slate-600">No options yet. Click + Add option.</p>
