@@ -61,6 +61,13 @@ const ACCENT = {
   emerald: { chip: 'bg-sky-500/15 text-sky-300 border-sky-500/30',  tab: 'border-sky-500 text-sky-400' },
 }
 
+const BILLING_LABEL = {
+  one_time: 'One-time',
+  monthly:  'Monthly',
+  yearly:   'Yearly',
+  both:     'Project + monthly',
+}
+
 const BLANK_PLAN = {
   name: '',
   description: '',
@@ -397,7 +404,7 @@ export default function Plans() {
             {/* Price line */}
             <div className="bg-navy-900/40 rounded-lg px-3 py-2 text-sm">
               <div className="font-semibold text-white">{priceDisplay(plan)}</div>
-              <div className="text-xs text-slate-400 capitalize">{plan.billing_type || 'project'} billing</div>
+              <div className="text-xs text-slate-400">{BILLING_LABEL[plan.billing_type] || 'Project'}</div>
               {(plan.seat_cap != null || plan.storage_gb_cap != null) && (
                 <div className="text-xs text-slate-400 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
                   <span>{plan.seat_cap != null ? `${plan.seat_cap} seats` : 'Custom seats'}</span>
