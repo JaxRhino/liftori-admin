@@ -6,18 +6,18 @@ import { supabase } from '../lib/supabase'
 // ──────────────────────────────────────────────────────────
 const PRODUCT_LINES = [
   {
+    key: 'crm',
+    label: 'Liftori CRM',
+    description: 'Liftori CRM SaaS — flat monthly tiers with soft seat + storage caps.',
+    accent: 'indigo',
+    defaultBilling: 'monthly',
+  },
+  {
     key: 'custom',
     label: 'Custom Builds',
     description: 'Full-stack builds — apps, platforms, e-commerce, dashboards.',
     accent: 'sky',
     defaultBilling: 'project',
-  },
-  {
-    key: 'labos',
-    label: 'Liftori',
-    description: 'Liftori AI Business OS — departments, agents, automation.',
-    accent: 'indigo',
-    defaultBilling: 'monthly',
   },
   {
     key: 'consulting',
@@ -49,6 +49,7 @@ const TIER_BADGE = {
   free:    'bg-gray-100 text-gray-700',
   preview: 'bg-purple-100 text-purple-700',
   starter: 'bg-sky-100 text-sky-700',
+  pro:     'bg-emerald-100 text-emerald-700',
   growth:  'bg-emerald-100 text-emerald-700',
   scale:   'bg-amber-100 text-amber-700',
 }
@@ -77,6 +78,9 @@ const BLANK_PLAN = {
   add_ons: [],
   credits_included: '',
   credits_price_per: '',
+  seat_cap: '',
+  storage_gb_cap: '',
+  storage_overage_per_gb: '0.25',
 }
 
 // ──────────────────────────────────────────────────────────
@@ -119,7 +123,7 @@ export default function Plans() {
   const [featureInput, setFeatureInput] = useState('')
   const [addOnInput, setAddOnInput]     = useState('')
   const [projectCounts, setProjectCounts] = useState({})
-  const [activeTab, setActiveTab]   = useState('custom')
+  const [activeTab, setActiveTab]   = useState('crm')
 
   useEffect(() => { fetchPlans() }, [])
 
@@ -151,7 +155,7 @@ export default function Plans() {
   }
 
   const plansByLine = useMemo(() => {
-    const buckets = { custom: [], labos: [], consulting: [], addon: [] }
+    const buckets = { crm: [], custom: [], consulting: [], addon: [] }
     plans.forEach(p => {
       const key = (p.product_type || 'custom').toLowerCase()
       if (buckets[key]) buckets[key].push(p)
@@ -197,6 +201,9 @@ export default function Plans() {
       add_ons:          Array.isArray(plan.add_ons) ? plan.add_ons : [],
       credits_included: plan.credits_included ?? '',
       credits_price_per: plan.credits_price_per ?? '',
+      seat_cap:         plan.seat_cap ?? '',
+      storage_gb_cap:   plan.storage_gb_cap ?? '',
+      storage_overage_per_gb: plan.storage_overage_per_gb ?? '0.25',
     })
     setFeatureInput('')
     setAddOnInput('')
@@ -245,6 +252,9 @@ export default function Plans() {
         add_ons:          form.add_ons,
         credits_included: toInt(form.credits_included),
         credits_price_per: toInt(form.credits_price_per),
+        seat_cap:         toInt(form.seat_cap),
+        storage_gb_cap:   toInt(form.storage_gb_cap),
+        storage_overage_per_gb: toInt(form.storage_overage_per_gb),
       }
       if (editing) {
         const { error } = await supabase.from('plans').update(payload).eq('id', editing.id)
@@ -291,7 +301,7 @@ export default function Plans() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Plans &amp; Products</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage every product line Liftori sells — Custom Builds, LABOS, Consulting, and Add-Ons.
+            Manage every product line Liftori sells — Liftori CRM, Custom Builds, Consulting, and Add-Ons.
           </p>
         </div>
         <button
@@ -388,6 +398,13 @@ export default function Plans() {
             <div className="bg-gray-50 rounded-lg px-3 py-2 text-sm">
               <div className="font-semibold text-gray-900">{priceDisplay(plan)}</div>
               <div className="text-xs text-gray-500 capitalize">{plan.billing_type || 'project'} billing</div>
+              {(plan.seat_cap != null || plan.storage_gb_cap != null) && (
+                <div className="text-xs text-gray-600 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                  <span>{plan.seat_cap != null ? `${plan.seat_cap} seats` : 'Custom seats'}</span>
+                  <span>{plan.storage_gb_cap != null ? `${plan.storage_gb_cap} GB storage` : 'Custom storage'}</span>
+                  {plan.storage_overage_per_gb ? <span>{`$${plan.storage_overage_per_gb}/GB over`}</span> : null}
+                </div>
+              )}
             </div>
 
             {Array.isArray(plan.features) && plan.features.length > 0 && (
@@ -566,8 +583,8 @@ export default function Plans() {
                 </div>
               </fieldset>
 
-              {/* Credits (LABOS / usage-based) */}
-              {(form.product_type === 'labos' || form.billing_type === 'usage') && (
+              {/* Credits (CRM / usage-based) */}
+              {(form.product_type === 'crm' || form.billing_type === 'usage') && (
                 <fieldset className="border border-gray-200 rounded-lg p-4">
                   <legend className="px-2 text-sm font-semibold text-gray-700">Credits</legend>
                   <div className="grid grid-cols-2 gap-3">
@@ -586,6 +603,34 @@ export default function Plans() {
                   </div>
                 </fieldset>
               )}
+
+              {/* Seat + storage caps */}
+              <fieldset className="border border-gray-200 rounded-lg p-4">
+                <legend className="px-2 text-sm font-semibold text-gray-700">Limits &amp; Caps</legend>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Seat Cap</label>
+                    <input type="number" value={form.seat_cap}
+                      onChange={e => setForm(f => ({ ...f, seat_cap: e.target.value }))}
+                      placeholder="blank = unlimited"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Storage Cap (GB)</label>
+                    <input type="number" value={form.storage_gb_cap}
+                      onChange={e => setForm(f => ({ ...f, storage_gb_cap: e.target.value }))}
+                      placeholder="blank = unlimited"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Overage ($/GB/mo)</label>
+                    <input type="number" step="0.01" value={form.storage_overage_per_gb}
+                      onChange={e => setForm(f => ({ ...f, storage_overage_per_gb: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Soft caps — used to trigger upgrade nudges, not hard lockouts. Blank = unlimited / custom.</p>
+              </fieldset>
 
               {/* Features */}
               <div>
