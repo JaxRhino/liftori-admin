@@ -57,6 +57,8 @@ const hasOptions = (t) => ['select', 'multiselect', 'radio'].includes(t)
 const DEFAULT_INDUSTRIES = ['Real Estate','Healthcare','Legal Services','Insurance','Financial Services','Construction','Retail / E-Commerce','SaaS / Technology','Marketing Agency','Non-Profit','Recruiting / Staffing','Consulting','Property Management','Automotive','Other']
 
 const slugify = (s) => (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'field'
+const normOpts = (options) => (options || []).map(o => typeof o === 'string' ? { label: o, enabled: true } : { label: o.label || '', enabled: o.enabled !== false })
+const enabledLabels = (options) => normOpts(options).filter(o => o.enabled && o.label).map(o => o.label)
 
 export default function WizardBuilder() {
   const [category, setCategory] = useState('customer')
@@ -70,12 +72,12 @@ export default function WizardBuilder() {
   const flowsInCategory = FLOWS.filter(f => f.category === category)
   const flowInfo = FLOWS.find(f => f.value === selectedFlow) || FLOWS[0]
 
-  // Industries available for scoping come from this flow's industry-picker card, else a default list
+  // Industries available for scoping come from this flow's industry-picker card (published only)
   const industryCard = cards.find(c => c.card_type === 'industry')
-  const availableIndustries =
-    (industryCard?.fields?.find(f => hasOptions(f.type))?.options) ||
-    (industryCard?.fields?.[0]?.options) ||
-    DEFAULT_INDUSTRIES
+  const industryField = industryCard?.fields?.find(f => hasOptions(f.type)) || industryCard?.fields?.[0]
+  const availableIndustries = (industryField && (industryField.options || []).length)
+    ? enabledLabels(industryField.options)
+    : DEFAULT_INDUSTRIES
 
   useEffect(() => { fetchCards() }, [selectedFlow])
 
@@ -180,7 +182,7 @@ export default function WizardBuilder() {
       type,
       required: !!f.required,
       placeholder: f.placeholder || '',
-      options: hasOptions(type) ? (f.options || []) : [],
+      options: hasOptions(type) ? normOpts(f.options).filter(o => o.label.trim()).map(o => ({ label: o.label.trim(), enabled: o.enabled !== false })) : [],
     }
   }
 
@@ -214,6 +216,9 @@ export default function WizardBuilder() {
     ;[arr[i], arr[j]] = [arr[j], arr[i]]
     return { ...e, fields: arr }
   })
+  const setOption = (i, j, patch) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => idx === i ? { ...f, options: normOpts(f.options).map((o, oj) => oj === j ? { ...o, ...patch } : o) } : f) }))
+  const addOption = (i) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => idx === i ? { ...f, options: [...normOpts(f.options), { label: '', enabled: true }] } : f) }))
+  const removeOption = (i, j) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => idx === i ? { ...f, options: normOpts(f.options).filter((_, oj) => oj !== j) } : f) }))
   const toggleIndustry = (ind) => setEditing(e => {
     const has = (e.industries || []).includes(ind)
     return { ...e, industries: has ? e.industries.filter(x => x !== ind) : [...(e.industries || []), ind] }
@@ -423,13 +428,36 @@ export default function WizardBuilder() {
                             </div>
                           </div>
                           {hasOptions(f.type) && (
-                            <textarea
-                              value={(f.options || []).join('\n')}
-                              onChange={e => setField(i, { options: e.target.value.split('\n').map(o => o.trim()).filter(Boolean) })}
-                              rows={3}
-                              placeholder="One option per line"
-                              className="w-full bg-slate-800 border border-white/10 rounded px-2.5 py-1.5 text-white text-xs focus:outline-none focus:border-brand-blue resize-y font-mono"
-                            />
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] text-slate-500">Options — uncheck to unpublish, × to remove</span>
+                                <button onClick={() => addOption(i)} className="text-[11px] text-brand-blue hover:text-blue-400">+ Add option</button>
+                              </div>
+                              {normOpts(f.options).length === 0 ? (
+                                <p className="text-[11px] text-slate-600">No options yet. Click + Add option.</p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {normOpts(f.options).map((o, j) => (
+                                    <div key={j} className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={o.enabled !== false}
+                                        onChange={e => setOption(i, j, { enabled: e.target.checked })}
+                                        className="rounded shrink-0"
+                                        title={o.enabled !== false ? 'Published — uncheck to hide from the live wizard' : 'Hidden from the live wizard'}
+                                      />
+                                      <input
+                                        value={o.label}
+                                        onChange={e => setOption(i, j, { label: e.target.value })}
+                                        placeholder="Option label"
+                                        className={`flex-1 bg-slate-800 border border-white/10 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-brand-blue ${o.enabled !== false ? 'text-white' : 'text-slate-500 line-through'}`}
+                                      />
+                                      <button onClick={() => removeOption(i, j)} className="w-6 h-6 rounded border border-red-500/20 text-red-400 hover:bg-red-500/10 text-xs shrink-0">×</button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           )}
                           <div className="flex items-center gap-4">
                             <label className="flex items-center gap-1.5 text-slate-400 text-xs cursor-pointer">
