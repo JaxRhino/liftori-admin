@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { computeEstimate, formatUSD } from '../lib/estimateEngine'
@@ -25,6 +25,10 @@ export default function WizardRunner() {
   const [loading, setLoading] = useState(true)
   const [idx, setIdx] = useState(0)
   const [answers, setAnswers] = useState({})
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(null)
+  const submitRef = useRef(false)
+  const isTest = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('test')
 
   useEffect(() => {
     let cancelled = false
@@ -49,6 +53,31 @@ export default function WizardRunner() {
     return { ...a, [k]: cur.includes(label) ? cur.filter(x => x !== label) : [...cur, label] }
   })
   const estimate = useMemo(() => card?.card_type === 'estimate' ? computeEstimate(flow, answers, pricing) : null, [card, flow, answers, pricing])
+
+  async function submitLead() {
+    setSubmitting(true)
+    const est = computeEstimate(flow, answers, pricing)
+    try {
+      const res = await fetch(`${supabase.supabaseUrl}/functions/v1/submit-onboarding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: supabase.supabaseKey },
+        body: JSON.stringify({ flow_type: flow, answers, estimate: est, test: isTest }),
+      })
+      const j = await res.json().catch(() => ({}))
+      setSubmitted(res.ok ? j : { error: j.error || ('HTTP ' + res.status) })
+    } catch (e) {
+      setSubmitted({ error: String(e) })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  useEffect(() => {
+    if (card && card.card_type === 'thankyou' && !submitRef.current) {
+      submitRef.current = true
+      submitLead()
+    }
+  }, [card]) // eslint-disable-line
 
   if (loading) return <div className="min-h-screen bg-navy-950 text-slate-400 flex items-center justify-center">Loading…</div>
   if (!card) return <div className="min-h-screen bg-navy-950 text-slate-400 flex items-center justify-center">No cards for this flow.</div>
@@ -169,6 +198,13 @@ export default function WizardRunner() {
                   {estimate.quote && <p className="text-[11px] text-slate-500 mt-3">Some items are custom-quoted — we will confirm final pricing with you.</p>}
                 </>
               )}
+            </div>
+          )}
+
+          {/* Submission status (thank-you card) */}
+          {card.card_type === 'thankyou' && (
+            <div className={`rounded-xl p-4 mb-5 text-sm border ${submitting ? 'border-white/10 bg-[#0D1424] text-slate-400' : submitted && submitted.ok ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : submitted && submitted.error ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-white/10 bg-[#0D1424] text-slate-400'}`}>
+              {submitting ? 'Setting up your request…' : submitted && submitted.ok ? 'You are all set — your request is in and the team has been notified.' : submitted && submitted.error ? ('Could not submit: ' + submitted.error) : 'Finalizing…'}
             </div>
           )}
 
