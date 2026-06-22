@@ -44,6 +44,7 @@ export default function SocialComposer() {
   const [cardHeadline, setCardHeadline] = useState('')
   const [cardBody, setCardBody] = useState('')
   const [mediaUrl, setMediaUrl] = useState('')
+  const [mediaUrls, setMediaUrls] = useState([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [cardEditedManually, setCardEditedManually] = useState(false)
@@ -210,13 +211,14 @@ export default function SocialComposer() {
         created_by: user?.id ?? null,
         ai_generated: false,
         source_type: 'manual',
-        media_urls: mediaUrl ? [mediaUrl] : [],
+        media_urls: (mediaUrls && mediaUrls.length) ? mediaUrls : (mediaUrl ? [mediaUrl] : []),
       }
       const { error } = await supabase.from('marketing_posts').insert([payload])
       if (error) throw error
       setPostContent('')
       setScheduledFor('')
       setMediaUrl('')
+      setMediaUrls([])
       setCardHeadline('')
       setCardBody('')
       setCardEditedManually(false)
@@ -308,7 +310,9 @@ export default function SocialComposer() {
   function handleAiVariantPicked(variant) {
     setPostContent(variant.content || '')
     if (variant.content_type) setContentType(variant.content_type)
-    if (variant.image) setMediaUrl(variant.image)
+    const _imgs = Array.isArray(variant.images) && variant.images.length ? variant.images : (variant.image ? [variant.image] : [])
+    setMediaUrls(_imgs)
+    setMediaUrl(_imgs[0] || '')
     if (variant.suggested_card_template) setCardTemplate(variant.suggested_card_template)
     const lines = (variant.content || '').split('\n').filter(Boolean)
     setCardHeadline(lines[0] || '')
@@ -336,7 +340,7 @@ export default function SocialComposer() {
         .upload(path, blob, { contentType: 'image/png', upsert: false })
       if (error) throw error
       const { data: pub } = supabase.storage.from('marketing-media').getPublicUrl(path)
-      setMediaUrl(pub.publicUrl)
+      setMediaUrl(pub.publicUrl); setMediaUrls([pub.publicUrl])
     } catch (err) {
       console.error('image upload:', err)
       alert(`Image upload failed: ${err.message}`)
@@ -345,7 +349,7 @@ export default function SocialComposer() {
     }
   }
 
-  function clearMedia() { setMediaUrl('') }
+  function clearMedia() { setMediaUrl(''); setMediaUrls([]) }
 
   function formatScheduled(dateStr) {
     if (!dateStr) return ''
@@ -979,7 +983,8 @@ export default function SocialComposer() {
       <MediaLibrary
         isOpen={libraryOpen}
         onClose={() => setLibraryOpen(false)}
-        onSelect={(url) => { setMediaUrl(url); setLibraryOpen(false) }}
+        multiple
+        onSelect={(urls) => { const a = Array.isArray(urls) ? urls : [urls]; setMediaUrls(a); setMediaUrl(a[0] || ''); setLibraryOpen(false) }}
       />
     </div>
   )
