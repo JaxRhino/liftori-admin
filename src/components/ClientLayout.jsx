@@ -80,7 +80,7 @@ const navItems = [
 ]
 
 export default function ClientLayout() {
-  const { user, profile, signOut, isAdmin } = useAuth()
+  const { user, profile, signOut, isAdmin, isImpersonating, stopImpersonation } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -92,7 +92,22 @@ export default function ClientLayout() {
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'User'
 
   return (
-    <div className="min-h-screen bg-navy-950 flex">
+    <div className="min-h-screen bg-navy-950 flex flex-col">
+      {isImpersonating && (
+        <div className="bg-amber-500 text-slate-900 flex items-center gap-3 px-4 py-2 z-50 flex-shrink-0">
+          <span className="text-sm font-semibold truncate">Previewing customer portal — viewing as {displayName}</span>
+          <span className="text-[11px] opacity-80 hidden sm:inline">Preview only — changes write as your admin account</span>
+          <div className="flex-1" />
+          <button
+            onClick={() => { stopImpersonation(); navigate('/admin') }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-sm font-semibold rounded-md hover:bg-slate-800 transition-colors flex-shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            Return to admin
+          </button>
+        </div>
+      )}
+      <div className="flex flex-1 min-h-0">
       {/* Mobile menu button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -181,6 +196,7 @@ export default function ClientLayout() {
       <main className="flex-1 lg:ml-0 p-6 lg:p-8 pt-16 lg:pt-8">
         <Outlet />
       </main>
+      </div>
     </div>
   )
 }
