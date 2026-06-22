@@ -1,8 +1,13 @@
 // AiPostGenerator: modal that calls generate-marketing-post edge function and lets
 // the user pick one of 3 AI-drafted variants. The picked variant fills the parent's
 // post content + suggested card template. No DB writes — purely a draft picker.
+//
+// Product targeting: loads marketing_products (Liftori's own products) so the user can
+// explicitly tell the AI which of OUR products a post is for. The edge function reads the
+// company knowledge base (marketing_brand_profile + marketing_products) so it never treats
+// our own products as clients.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
 const CONTENT_TYPE_OPTIONS = [
@@ -14,11 +19,30 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
   const [contentType, setContentType] = useState('Announcement')
   const [customPrompt, setCustomPrompt] = useState('')
   const [sourceType, setSourceType] = useState('manual')
+  const [productSlug, setProductSlug] = useState('')
+  const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(false)
   const [variants, setVariants] = useState([])
   const [error, setError] = useState('')
 
+  // Load our own products for the targeting dropdown when the modal opens.
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase
+        .from('marketing_products')
+        .select('name, slug')
+        .eq('active', true)
+        .order('sort_order', { ascending: true })
+      if (!cancelled) setProducts(data || [])
+    })()
+    return () => { cancelled = true }
+  }, [isOpen])
+
   if (!isOpen) return null
+
+  const selectedProduct = products.find(p => p.slug === productSlug) || null
 
   async function generate() {
     setLoading(true)
@@ -39,6 +63,7 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
         body: JSON.stringify({
           content_type: contentType,
           source_type: sourceType === 'manual' ? undefined : sourceType,
+          product_slug: productSlug || undefined,
           custom_prompt: customPrompt || undefined,
           num_variants: 3,
         }),
@@ -73,9 +98,7 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
       >
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span className="text-violet-400">✨</span> AI post generator
-            </h2>
+            <h2 className="text-xl font-bold text-white">AI post generator</h2>
             <p className="text-xs text-slate-400 mt-1">Claude drafts 3 variants. Pick one. You still approve before publish.</p>
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-white text-2xl leading-none">×</button>
@@ -93,16 +116,28 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-400 mb-1 block">Pull context from</label>
+            <label className="text-xs text-slate-400 mb-1 block">Promote which product?</label>
             <select
-              value={sourceType}
-              onChange={(e) => setSourceType(e.target.value)}
+              value={productSlug}
+              onChange={(e) => setProductSlug(e.target.value)}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
             >
-              <option value="manual">Just my topic below</option>
-              <option value="customer_win">Most recent client launch</option>
+              <option value="">No specific product</option>
+              {products.map(p => <option key={p.slug} value={p.slug}>{p.name}</option>)}
             </select>
           </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="text-xs text-slate-400 mb-1 block">Pull context from</label>
+          <select
+            value={sourceType}
+            onChange={(e) => setSourceType(e.target.value)}
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+          >
+            <option value="manual">Just my topic below</option>
+            <option value="customer_win">Most recent client launch</option>
+          </select>
         </div>
 
         <div className="mb-4">
@@ -110,17 +145,22 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
           <textarea
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
-            placeholder="e.g. We just launched VJ Thrift Finds — first real customer platform. Want to celebrate their go-live without sounding salesy."
+            placeholder="e.g. Promote BOLO Go to resellers — fast scan-to-list, built-in storefront. Confident, not salesy."
             rows={3}
             className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
           />
+          {selectedProduct && (
+            <p className="text-[11px] text-sky-400 mt-1.5">
+              Writing as the maker of {selectedProduct.name} — it's treated as our own product, not a client.
+            </p>
+          )}
         </div>
 
         <div className="flex gap-2 mb-4">
           <button
             onClick={generate}
             disabled={loading}
-            className="bg-violet-500 hover:bg-violet-400 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors"
+            className="bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors"
           >
             {loading ? 'Drafting…' : 'Generate 3 variants'}
           </button>
@@ -129,7 +169,7 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
 
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 text-sm mb-4">
-            ✗ {error}
+            {error}
           </div>
         )}
 
@@ -139,7 +179,7 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
             {variants.map((v, i) => (
               <div key={i} className="bg-slate-800/70 border border-slate-700 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs uppercase tracking-wide text-violet-400">Variant {i + 1}</span>
+                  <span className="text-xs uppercase tracking-wide text-sky-400">Variant {i + 1}</span>
                   {v.suggested_card_template && (
                     <span className="text-[10px] uppercase bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
                       card: {v.suggested_card_template}
@@ -171,8 +211,7 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
 
         {!loading && variants.length === 0 && !error && (
           <div className="text-center py-8 text-slate-500 text-sm">
-            <div className="text-3xl mb-2">✦</div>
-            <div>Click "Generate 3 variants" to start</div>
+            Click "Generate 3 variants" to start
           </div>
         )}
       </div>
