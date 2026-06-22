@@ -46,19 +46,19 @@ const BILLING_TYPES = [
 ]
 
 const TIER_BADGE = {
-  free:    'bg-gray-100 text-gray-700',
-  preview: 'bg-purple-100 text-purple-700',
-  starter: 'bg-sky-100 text-sky-700',
-  pro:     'bg-emerald-100 text-emerald-700',
-  growth:  'bg-emerald-100 text-emerald-700',
-  scale:   'bg-amber-100 text-amber-700',
+  free:    'bg-slate-500/20 text-slate-300',
+  preview: 'bg-sky-500/15 text-sky-300',
+  starter: 'bg-sky-500/15 text-sky-300',
+  pro:     'bg-sky-500/25 text-sky-200',
+  growth:  'bg-sky-500/20 text-sky-300',
+  scale:   'bg-cyan-500/15 text-cyan-300',
 }
 
 const ACCENT = {
-  sky:     { chip: 'bg-sky-100 text-sky-700 border-sky-200',           tab: 'border-sky-500 text-sky-700' },
-  indigo:  { chip: 'bg-indigo-100 text-indigo-700 border-indigo-200',  tab: 'border-indigo-500 text-indigo-700' },
-  amber:   { chip: 'bg-amber-100 text-amber-700 border-amber-200',     tab: 'border-amber-500 text-amber-700' },
-  emerald: { chip: 'bg-emerald-100 text-emerald-700 border-emerald-200', tab: 'border-emerald-500 text-emerald-700' },
+  sky:     { chip: 'bg-sky-500/15 text-sky-300 border-sky-500/30',  tab: 'border-sky-500 text-sky-400' },
+  indigo:  { chip: 'bg-sky-500/15 text-sky-300 border-sky-500/30',  tab: 'border-sky-500 text-sky-400' },
+  amber:   { chip: 'bg-sky-500/15 text-sky-300 border-sky-500/30',  tab: 'border-sky-500 text-sky-400' },
+  emerald: { chip: 'bg-sky-500/15 text-sky-300 border-sky-500/30',  tab: 'border-sky-500 text-sky-400' },
 }
 
 const BLANK_PLAN = {
@@ -292,15 +292,15 @@ export default function Plans() {
   // ──────────────────────────────────────────────────────────
   // Render
   // ──────────────────────────────────────────────────────────
-  if (loading) return <div className="p-6 text-gray-500">Loading plans…</div>
+  if (loading) return <div className="p-6 text-slate-400">Loading plans…</div>
 
   return (
     <div className="p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Plans &amp; Products</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-white">Plans &amp; Products</h1>
+          <p className="text-sm text-slate-400 mt-1">
             Manage every product line Liftori sells — Liftori CRM, Custom Builds, Consulting, and Add-Ons.
           </p>
         </div>
@@ -313,7 +313,7 @@ export default function Plans() {
       </div>
 
       {/* Product-line tabs */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-navy-700/50 mb-6">
         <nav className="flex flex-wrap gap-1 -mb-px">
           {PRODUCT_LINES.map(line => {
             const count = (plansByLine[line.key] || []).length
@@ -325,12 +325,12 @@ export default function Plans() {
                 onClick={() => setActiveTab(line.key)}
                 className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   isActive
-                    ? accent.tab + ' bg-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                    ? accent.tab + ' bg-navy-800'
+                    : 'border-transparent text-slate-400 hover:text-white hover:bg-navy-900/40'
                 }`}
               >
                 {line.label}
-                <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-navy-800 text-slate-400">
                   {count}
                 </span>
               </button>
@@ -340,24 +340,24 @@ export default function Plans() {
       </div>
 
       {/* Line description + stats */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-navy-800 rounded-xl border border-navy-700/50 p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-md border ${ACCENT[activeLine.accent].chip} mb-1`}>
             {activeLine.label}
           </div>
-          <p className="text-sm text-gray-600">{activeLine.description}</p>
+          <p className="text-sm text-slate-400">{activeLine.description}</p>
         </div>
-        <div className="flex items-center gap-6 text-xs text-gray-500">
+        <div className="flex items-center gap-6 text-xs text-slate-400">
           <div>
-            <div className="text-lg font-bold text-gray-900">{visiblePlans.length}</div>
+            <div className="text-lg font-bold text-white">{visiblePlans.length}</div>
             <div>plans</div>
           </div>
           <div>
-            <div className="text-lg font-bold text-gray-900">{visiblePlans.filter(p => p.is_active).length}</div>
+            <div className="text-lg font-bold text-white">{visiblePlans.filter(p => p.is_active).length}</div>
             <div>active</div>
           </div>
           <div>
-            <div className="text-lg font-bold text-gray-900">
+            <div className="text-lg font-bold text-white">
               {visiblePlans.reduce((s, p) => s + (projectCounts[p.id] || 0), 0)}
             </div>
             <div>attached projects</div>
@@ -370,36 +370,36 @@ export default function Plans() {
         {visiblePlans.map(plan => (
           <div
             key={plan.id}
-            className={`bg-white rounded-xl border shadow-sm p-5 flex flex-col gap-3 transition-opacity ${
+            className={`bg-navy-800 rounded-xl border border-navy-700/50 shadow-sm p-5 flex flex-col gap-3 transition-opacity ${
               !plan.is_active ? 'opacity-50' : ''
             }`}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="font-semibold text-gray-900 text-base">{plan.name}</h2>
+                  <h2 className="font-semibold text-white text-base">{plan.name}</h2>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${TIER_BADGE[plan.price_tier] || TIER_BADGE.starter}`}>
                     {plan.price_tier || 'starter'}
                   </span>
                   {!plan.is_active && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-500/20 text-slate-400 font-medium">
                       Inactive
                     </span>
                   )}
                 </div>
                 {plan.description && (
-                  <p className="text-sm text-gray-500 mt-1 leading-snug">{plan.description}</p>
+                  <p className="text-sm text-slate-400 mt-1 leading-snug">{plan.description}</p>
                 )}
               </div>
-              <span className="text-xs text-gray-400 shrink-0">#{plan.sort_order}</span>
+              <span className="text-xs text-slate-500 shrink-0">#{plan.sort_order}</span>
             </div>
 
             {/* Price line */}
-            <div className="bg-gray-50 rounded-lg px-3 py-2 text-sm">
-              <div className="font-semibold text-gray-900">{priceDisplay(plan)}</div>
-              <div className="text-xs text-gray-500 capitalize">{plan.billing_type || 'project'} billing</div>
+            <div className="bg-navy-900/40 rounded-lg px-3 py-2 text-sm">
+              <div className="font-semibold text-white">{priceDisplay(plan)}</div>
+              <div className="text-xs text-slate-400 capitalize">{plan.billing_type || 'project'} billing</div>
               {(plan.seat_cap != null || plan.storage_gb_cap != null) && (
-                <div className="text-xs text-gray-600 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                <div className="text-xs text-slate-400 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
                   <span>{plan.seat_cap != null ? `${plan.seat_cap} seats` : 'Custom seats'}</span>
                   <span>{plan.storage_gb_cap != null ? `${plan.storage_gb_cap} GB storage` : 'Custom storage'}</span>
                   {plan.storage_overage_per_gb ? <span>{`$${plan.storage_overage_per_gb}/GB over`}</span> : null}
@@ -410,44 +410,44 @@ export default function Plans() {
             {Array.isArray(plan.features) && plan.features.length > 0 && (
               <ul className="space-y-1">
                 {plan.features.slice(0, 5).map((f, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                  <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
                     <span className="text-sky-500 mt-0.5 shrink-0">✓</span> {f}
                   </li>
                 ))}
                 {plan.features.length > 5 && (
-                  <li className="text-xs text-gray-400 pl-5">+{plan.features.length - 5} more</li>
+                  <li className="text-xs text-slate-500 pl-5">+{plan.features.length - 5} more</li>
                 )}
               </ul>
             )}
 
             {Array.isArray(plan.add_ons) && plan.add_ons.length > 0 && (
-              <div className="text-xs text-gray-500 border-t border-gray-100 pt-2">
-                <span className="font-medium text-gray-700">Add-ons: </span>
+              <div className="text-xs text-slate-400 border-t border-navy-700/50 pt-2">
+                <span className="font-medium text-slate-300">Add-ons: </span>
                 {plan.add_ons.join(', ')}
               </div>
             )}
 
-            <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100">
-              <span className="text-xs text-gray-400">
+            <div className="flex items-center justify-between mt-auto pt-2 border-t border-navy-700/50">
+              <span className="text-xs text-slate-500">
                 {projectCounts[plan.id] || 0} project{projectCounts[plan.id] !== 1 ? 's' : ''}
               </span>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => duplicatePlan(plan)}
-                  className="text-xs px-2 py-1 rounded-md font-medium text-gray-500 hover:bg-gray-100"
+                  className="text-xs px-2 py-1 rounded-md font-medium text-slate-400 hover:bg-navy-800"
                   title="Duplicate"
                 >Dup</button>
                 <button
                   onClick={() => toggleActive(plan)}
                   className={`text-xs px-2 py-1 rounded-md font-medium transition-colors ${
-                    plan.is_active ? 'text-gray-500 hover:bg-gray-100' : 'text-sky-600 hover:bg-sky-50'
+                    plan.is_active ? 'text-slate-400 hover:bg-navy-800' : 'text-sky-600 hover:bg-sky-500/10'
                   }`}
                 >
                   {plan.is_active ? 'Deactivate' : 'Activate'}
                 </button>
                 <button
                   onClick={() => openEdit(plan)}
-                  className="text-xs px-2 py-1 rounded-md font-medium text-sky-600 hover:bg-sky-50 transition-colors"
+                  className="text-xs px-2 py-1 rounded-md font-medium text-sky-600 hover:bg-sky-500/10 transition-colors"
                 >Edit</button>
               </div>
             </div>
@@ -455,7 +455,7 @@ export default function Plans() {
         ))}
 
         {visiblePlans.length === 0 && (
-          <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">
+          <div className="col-span-full text-center py-12 text-slate-500 bg-navy-800 rounded-xl border border-dashed border-navy-700/50">
             No {activeLine.label} plans yet. Create your first one to get started.
           </div>
         )}
@@ -464,17 +464,17 @@ export default function Plans() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
-              <h2 className="text-lg font-semibold text-gray-900">
+          <div className="bg-navy-900 border border-navy-700/50 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-navy-700/50 sticky top-0 bg-navy-900 z-10">
+              <h2 className="text-lg font-semibold text-white">
                 {editing ? 'Edit Plan' : 'New Plan'}
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+              <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-slate-400 text-xl leading-none">×</button>
             </div>
 
             <div className="px-6 py-5 space-y-4">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+                <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg px-4 py-3">
                   {error}
                 </div>
               )}
@@ -482,34 +482,34 @@ export default function Plans() {
               {/* Product line + tier */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Product Line *</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Product Line *</label>
                   <select
                     value={form.product_type}
                     onChange={e => {
                       const line = PRODUCT_LINES.find(l => l.key === e.target.value) || PRODUCT_LINES[0]
                       setForm(f => ({ ...f, product_type: line.key, billing_type: f.billing_type || line.defaultBilling }))
                     }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   >
                     {PRODUCT_LINES.map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Price Tier</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Price Tier</label>
                   <select
                     value={form.price_tier}
                     onChange={e => setForm(f => ({ ...f, price_tier: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   >
                     {PRICE_TIERS.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Billing</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Billing</label>
                   <select
                     value={form.billing_type}
                     onChange={e => setForm(f => ({ ...f, billing_type: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   >
                     {BILLING_TYPES.map(b => <option key={b.key} value={b.key}>{b.label}</option>)}
                   </select>
@@ -519,123 +519,123 @@ export default function Plans() {
               {/* Name + Category */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Plan Name *</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Plan Name *</label>
                   <input
                     type="text"
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="e.g. Build + Hosting + Domains"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Category</label>
                   <input
                     type="text"
                     value={form.category}
                     onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                     placeholder="platform, seat, credit pack, etc."
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
                 <textarea
                   value={form.description}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   placeholder="Short description shown to customers"
                   rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
+                  className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
                 />
               </div>
 
               {/* Pricing */}
-              <fieldset className="border border-gray-200 rounded-lg p-4">
-                <legend className="px-2 text-sm font-semibold text-gray-700">Pricing</legend>
+              <fieldset className="border border-navy-700/50 rounded-lg p-4">
+                <legend className="px-2 text-sm font-semibold text-slate-300">Pricing</legend>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Price Min ($)</label>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Price Min ($)</label>
                     <input type="number" value={form.price_min}
                       onChange={e => setForm(f => ({ ...f, price_min: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Price Max ($)</label>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Price Max ($)</label>
                     <input type="number" value={form.price_max}
                       onChange={e => setForm(f => ({ ...f, price_max: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Monthly ($)</label>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Monthly ($)</label>
                     <input type="number" value={form.monthly_price}
                       onChange={e => setForm(f => ({ ...f, monthly_price: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Yearly ($)</label>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Yearly ($)</label>
                     <input type="number" value={form.yearly_price}
                       onChange={e => setForm(f => ({ ...f, yearly_price: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm" />
                   </div>
                 </div>
               </fieldset>
 
               {/* Credits (CRM / usage-based) */}
               {(form.product_type === 'crm' || form.billing_type === 'usage') && (
-                <fieldset className="border border-gray-200 rounded-lg p-4">
-                  <legend className="px-2 text-sm font-semibold text-gray-700">Credits</legend>
+                <fieldset className="border border-navy-700/50 rounded-lg p-4">
+                  <legend className="px-2 text-sm font-semibold text-slate-300">Credits</legend>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Credits Included</label>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">Credits Included</label>
                       <input type="number" value={form.credits_included}
                         onChange={e => setForm(f => ({ ...f, credits_included: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Price per Extra ($)</label>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">Price per Extra ($)</label>
                       <input type="number" step="0.01" value={form.credits_price_per}
                         onChange={e => setForm(f => ({ ...f, credits_price_per: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                        className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm" />
                     </div>
                   </div>
                 </fieldset>
               )}
 
               {/* Seat + storage caps */}
-              <fieldset className="border border-gray-200 rounded-lg p-4">
-                <legend className="px-2 text-sm font-semibold text-gray-700">Limits &amp; Caps</legend>
+              <fieldset className="border border-navy-700/50 rounded-lg p-4">
+                <legend className="px-2 text-sm font-semibold text-slate-300">Limits &amp; Caps</legend>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Seat Cap</label>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Seat Cap</label>
                     <input type="number" value={form.seat_cap}
                       onChange={e => setForm(f => ({ ...f, seat_cap: e.target.value }))}
                       placeholder="blank = unlimited"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Storage Cap (GB)</label>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Storage Cap (GB)</label>
                     <input type="number" value={form.storage_gb_cap}
                       onChange={e => setForm(f => ({ ...f, storage_gb_cap: e.target.value }))}
                       placeholder="blank = unlimited"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Overage ($/GB/mo)</label>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Overage ($/GB/mo)</label>
                     <input type="number" step="0.01" value={form.storage_overage_per_gb}
                       onChange={e => setForm(f => ({ ...f, storage_overage_per_gb: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm" />
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">Soft caps — used to trigger upgrade nudges, not hard lockouts. Blank = unlimited / custom.</p>
+                <p className="text-xs text-slate-500 mt-2">Soft caps — used to trigger upgrade nudges, not hard lockouts. Blank = unlimited / custom.</p>
               </fieldset>
 
               {/* Features */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Features <span className="text-gray-400 font-normal">(shown as checkmarks)</span>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Features <span className="text-slate-500 font-normal">(shown as checkmarks)</span>
                 </label>
                 <div className="flex gap-2 mb-2">
                   <input
@@ -644,7 +644,7 @@ export default function Plans() {
                     onChange={e => setFeatureInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addFeature() } }}
                     placeholder="e.g. Custom domain setup"
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="flex-1 border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                   <button type="button" onClick={addFeature}
                     className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 rounded-lg text-sm font-medium">
@@ -652,13 +652,13 @@ export default function Plans() {
                   </button>
                 </div>
                 {form.features.length > 0 && (
-                  <ul className="space-y-1 bg-gray-50 rounded-lg p-3">
+                  <ul className="space-y-1 bg-navy-900/40 rounded-lg p-3">
                     {form.features.map((f, i) => (
                       <li key={i} className="flex items-center justify-between gap-2 text-sm">
                         <span className="flex items-center gap-2">
                           <span className="text-sky-500">✓</span> {f}
                         </span>
-                        <button onClick={() => removeFeature(i)} className="text-red-400 hover:text-red-600 text-xs">remove</button>
+                        <button onClick={() => removeFeature(i)} className="text-red-400 hover:text-red-300 text-xs">remove</button>
                       </li>
                     ))}
                   </ul>
@@ -667,8 +667,8 @@ export default function Plans() {
 
               {/* Add-ons */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Add-Ons <span className="text-gray-400 font-normal">(available upgrades)</span>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Add-Ons <span className="text-slate-500 font-normal">(available upgrades)</span>
                 </label>
                 <div className="flex gap-2 mb-2">
                   <input
@@ -677,19 +677,19 @@ export default function Plans() {
                     onChange={e => setAddOnInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAddOn() } }}
                     placeholder="e.g. +1 seat ($50/mo)"
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="flex-1 border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                   <button type="button" onClick={addAddOn}
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm font-medium">
+                    className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 rounded-lg text-sm font-medium">
                     Add
                   </button>
                 </div>
                 {form.add_ons.length > 0 && (
-                  <ul className="flex flex-wrap gap-2 bg-gray-50 rounded-lg p-3">
+                  <ul className="flex flex-wrap gap-2 bg-navy-900/40 rounded-lg p-3">
                     {form.add_ons.map((a, i) => (
-                      <li key={i} className="inline-flex items-center gap-2 text-xs bg-white border border-gray-200 rounded-full px-3 py-1">
+                      <li key={i} className="inline-flex items-center gap-2 text-xs bg-navy-900 border border-navy-700/50 rounded-full px-3 py-1">
                         {a}
-                        <button onClick={() => removeAddOn(i)} className="text-red-400 hover:text-red-600">×</button>
+                        <button onClick={() => removeAddOn(i)} className="text-red-400 hover:text-red-300">×</button>
                       </li>
                     ))}
                   </ul>
@@ -699,22 +699,22 @@ export default function Plans() {
               {/* Sort + Active */}
               <div className="flex items-center gap-6">
                 <div className="w-28">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Sort Order</label>
                   <input type="number" value={form.sort_order}
                     onChange={e => setForm(f => ({ ...f, sort_order: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min={0} />
+                    className="w-full border border-navy-700/50 bg-navy-900 text-white placeholder-slate-600 rounded-lg px-3 py-2 text-sm" min={0} />
                 </div>
                 <label className="flex items-center gap-3 cursor-pointer mt-6">
                   <input type="checkbox" checked={form.is_active}
                     onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} />
-                  <span className="text-sm text-gray-700">Active (visible to customers)</span>
+                  <span className="text-sm text-slate-300">Active (visible to customers)</span>
                 </label>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl sticky bottom-0">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t bg-navy-900/40 rounded-b-xl sticky bottom-0">
               <button onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
+                className="px-4 py-2 text-sm font-medium text-slate-300 hover:bg-navy-700 rounded-lg transition-colors">
                 Cancel
               </button>
               <button onClick={savePlan} disabled={saving}
