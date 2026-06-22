@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/AuthContext'
 import SocialCardCanvas, { SOCIAL_CARD_TEMPLATES } from './SocialCardCanvas'
 import AiPostGenerator from './AiPostGenerator'
+import MediaLibrary from './MediaLibrary'
 import WeekPlanner from './WeekPlanner'
 
 const PLATFORMS = [
@@ -44,6 +45,7 @@ export default function SocialComposer() {
   const [cardBody, setCardBody] = useState('')
   const [mediaUrl, setMediaUrl] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [cardEditedManually, setCardEditedManually] = useState(false)
   const cardCanvasRef = useRef(null)
 
@@ -425,6 +427,12 @@ export default function SocialComposer() {
           >
             Plan a week with AI
           </button>
+          <button
+            onClick={() => setLibraryOpen(true)}
+            className="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            Image library
+          </button>
           <span className="text-xs text-slate-500">Claude drafts 3 on-brand variants. You still approve before publish.</span>
         </div>
       )}
@@ -447,7 +455,7 @@ export default function SocialComposer() {
             <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
               <label className="block text-sm font-medium text-slate-300 mb-2">Post Content</label>
               <textarea value={postContent} onChange={e => setPostContent(e.target.value)}
-                placeholder={`Write your ${contentType.toLowerCase()} post here...\n\nTip: Use emojis to increase engagement`}
+                placeholder={`Write your ${contentType.toLowerCase()} post here...`}
                 rows={8}
                 className="w-full bg-slate-900/50 border border-slate-600 rounded-lg p-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none" />
               <div className="flex justify-between items-center mt-2">
@@ -966,6 +974,11 @@ export default function SocialComposer() {
         isOpen={aiGenOpen}
         onClose={() => setAiGenOpen(false)}
         onPickVariant={handleAiVariantPicked}
+      />
+      <MediaLibrary
+        isOpen={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onSelect={(url) => { setMediaUrl(url); setLibraryOpen(false) }}
       />
     </div>
   )
