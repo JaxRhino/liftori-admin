@@ -82,6 +82,7 @@ import PortalCommissions from './pages/portal/PortalCommissions'
 import PortalWizard from './pages/portal/PortalWizard'
 import CustomerPortalPreview from './pages/CustomerPortalPreview'
 import Start from './pages/Start'
+import WizardRunner from './pages/WizardRunner'
 // Freight AI â€” BIH Logistics
 import FreightDashboard from './pages/freight/FreightDashboard'
 import FreightSalesProfiles from './pages/freight/FreightSalesProfiles'
@@ -316,6 +317,7 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           {/* Public onboarding wizard â€” no auth required */}
           <Route path="/start" element={<Start />} />
+          <Route path="/run/:flow" element={<WizardRunner />} />
           <Route path="/onboard" element={<OnboardingWizard />} />
           {/* Public Rally guest join â€” no auth required */}
           <Route path="/rally/join/:code" element={<RallyGuestJoin />} />
