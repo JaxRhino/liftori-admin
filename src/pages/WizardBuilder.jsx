@@ -219,6 +219,7 @@ export default function WizardBuilder() {
   const setOption = (i, j, patch) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => idx === i ? { ...f, options: normOpts(f.options).map((o, oj) => oj === j ? { ...o, ...patch } : o) } : f) }))
   const addOption = (i) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => idx === i ? { ...f, options: [...normOpts(f.options), { label: '', enabled: true }] } : f) }))
   const removeOption = (i, j) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => idx === i ? { ...f, options: normOpts(f.options).filter((_, oj) => oj !== j) } : f) }))
+  const moveOption = (i, j, dir) => setEditing(e => ({ ...e, fields: e.fields.map((f, idx) => { if (idx !== i) return f; const opts = normOpts(f.options); const k = j + dir; if (k < 0 || k >= opts.length) return f; const t = opts[j]; opts[j] = opts[k]; opts[k] = t; return { ...f, options: opts } }) }))
   const toggleIndustry = (ind) => setEditing(e => {
     const has = (e.industries || []).includes(ind)
     return { ...e, industries: has ? e.industries.filter(x => x !== ind) : [...(e.industries || []), ind] }
@@ -452,6 +453,8 @@ export default function WizardBuilder() {
                                         placeholder="Option label"
                                         className={`flex-1 bg-slate-800 border border-white/10 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-brand-blue ${o.enabled !== false ? 'text-white' : 'text-slate-500 line-through'}`}
                                       />
+                                      <button onClick={() => moveOption(i, j, -1)} disabled={j === 0} className="w-6 h-6 rounded border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 text-xs shrink-0">↑</button>
+                                      <button onClick={() => moveOption(i, j, 1)} disabled={j === normOpts(f.options).length - 1} className="w-6 h-6 rounded border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 text-xs shrink-0">↓</button>
                                       <button onClick={() => removeOption(i, j)} className="w-6 h-6 rounded border border-red-500/20 text-red-400 hover:bg-red-500/10 text-xs shrink-0">×</button>
                                     </div>
                                   ))}
