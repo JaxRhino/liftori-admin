@@ -5,6 +5,8 @@ import CrmDashboard from './pages/crm/CrmDashboard'
 import CrmPipeline from './pages/crm/CrmPipeline'
 import CrmLeadSources from './pages/crm/CrmLeadSources'
 import CrmCommissions from './pages/crm/CrmCommissions'
+import CrmSalesReports from './pages/crm/CrmSalesReports'
+import CrmProductionReports from './pages/crm/CrmProductionReports'
 import CrmSequences from './pages/crm/CrmSequences'
 import CrmSalesTraining from './pages/crm/CrmSalesTraining'
 import CrmOpsPipeline from './pages/crm/CrmOpsPipeline'
@@ -606,6 +608,9 @@ export default function App() {
             <Route path="lead-sources" element={<CrmLeadSources />} />
             <Route path="commissions" element={<CrmCommissions />} />
             <Route path="sequences" element={<CrmSequences />} />
+            <Route path="reports" element={<Navigate to="reports/sales" replace />} />
+            <Route path="reports/sales" element={<CrmSalesReports />} />
+            <Route path="reports/production" element={<CrmProductionReports />} />
             <Route path="sales-training" element={<CrmSalesTraining />} />
             <Route path="university" element={<CrmSalesTraining />} />
             <Route path="university/:track" element={<CrmSalesTraining />} />
