@@ -20,6 +20,7 @@ import CrmOperationsMeasurements from './pages/crm/operations/OperationsMeasurem
 import CrmOperationsWorkOrders from './pages/crm/operations/OperationsWorkOrders'
 import CrmOperationsProduction from './pages/crm/operations/OperationsProduction'
 import CrmOperationsSubcontractors from './pages/crm/operations/OperationsSubcontractors'
+import CrmOperationsPermits from './pages/crm/operations/OperationsPermits'
 import CrmOperationsSchedule from './pages/crm/operations/OperationsSchedule'
 import CrmCrewAvailability from './pages/crm/CrmCrewAvailability'
 import CrmJobMap from './pages/crm/CrmJobMap'
@@ -634,6 +635,7 @@ export default function App() {
               <Route path="work-orders" element={<CrmOperationsWorkOrders />} />
               <Route path="production" element={<CrmOperationsProduction />} />
               <Route path="subcontractors" element={<CrmOperationsSubcontractors />} />
+              <Route path="permits" element={<CrmOperationsPermits />} />
               <Route path="schedule" element={<CrmOperationsSchedule />} />
               <Route path="inventory" element={<CrmOperationsInventory />} />
               <Route path="crews" element={<CrmOperationsCrews />} />
