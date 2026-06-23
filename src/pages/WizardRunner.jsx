@@ -39,7 +39,9 @@ export default function WizardRunner() {
         supabase.from('estimate_pricing').select('*').eq('scope', flow).eq('active', true),
       ])
       if (cancelled) return
-      setCards((c.data || []).map(r => ({ ...r, fields: Array.isArray(r.fields) ? r.fields : [] })))
+      setCards((c.data || [])
+        .filter(r => !(r.config && r.config.disabled))
+        .map(r => ({ ...r, fields: Array.isArray(r.fields) ? r.fields : [] })))
       setPricing(p.data || [])
       setIdx(0); setAnswers({}); setLoading(false)
     })()
