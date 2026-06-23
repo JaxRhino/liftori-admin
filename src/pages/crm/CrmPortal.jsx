@@ -27,6 +27,7 @@ export default function CrmPortal() {
   const [photos, setPhotos] = useState([])
   const [agreements, setAgreements] = useState([])
   const [warranties, setWarranties] = useState([])
+  const [permits, setPermits] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -56,6 +57,8 @@ export default function CrmPortal() {
       if (o.data && o.data.accent_color) setAccent(o.data.accent_color)
       setDeals(dl.data || []); setJobs(jb.data || []); setEstimates(es.data || [])
       setInvoices(iv.data || []); setPhotos((ph.data || []).filter((p) => p.url)); setAgreements(ag.data || []); setWarranties(wr.data || [])
+      const jobIds = (jb.data || []).map((j) => j.id)
+      if (jobIds.length) { const pm = await safe(tc.from('permits').select('id, permit_number, permit_type, authority, status, issued_date').in('work_order_id', jobIds)); setPermits(pm.data || []) }
     } catch (e) { console.error(e); setError(e.message || 'Unable to load portal') }
     finally { setLoading(false) }
   }
@@ -193,9 +196,9 @@ export default function CrmPortal() {
           </Card>
         )}
 
-        {/* Documents & warranties */}
-        {(agreements.length > 0 || warranties.length > 0) && (
-          <Card title="Documents & warranties">
+        {/* Documents, permits & warranties */}
+        {(agreements.length > 0 || warranties.length > 0 || permits.length > 0) && (
+          <Card title="Documents, permits & warranties">
             <div className="space-y-2">
               {agreements.map((a) => (
                 <div key={a.id} className="flex items-center justify-between border border-slate-200 rounded-lg px-4 py-3">
@@ -203,6 +206,18 @@ export default function CrmPortal() {
                   <span className={'text-xs px-2.5 py-1 rounded-full ' + (a.esign_status === 'signed' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600')}>{a.esign_status === 'signed' ? 'Signed' : cap(a.status || 'Pending')}</span>
                 </div>
               ))}
+              {permits.map((pm) => {
+                const tone = pm.status === 'issued' ? 'bg-emerald-100 text-emerald-700' : pm.status === 'applied' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+                return (
+                  <div key={pm.id} className="flex items-center justify-between border border-slate-200 rounded-lg px-4 py-3">
+                    <div>
+                      <div className="font-medium text-slate-900">{pm.permit_type || 'Permit'}{pm.permit_number ? ` · ${pm.permit_number}` : ''}</div>
+                      <div className="text-xs text-slate-500">{[pm.authority, pm.issued_date ? `issued ${fmtDate(pm.issued_date)}` : ''].filter(Boolean).join(' · ')}</div>
+                    </div>
+                    <span className={'text-xs px-2.5 py-1 rounded-full ' + tone}>{cap(pm.status || 'Permit')}</span>
+                  </div>
+                )
+              })}
               {warranties.map((w) => (
                 <div key={w.id} className="flex items-center justify-between border border-slate-200 rounded-lg px-4 py-3">
                   <div>
@@ -216,7 +231,7 @@ export default function CrmPortal() {
           </Card>
         )}
 
-        {jobs.length === 0 && deals.length === 0 && groupProposals.length === 0 && invoices.length === 0 && photos.length === 0 && agreements.length === 0 && warranties.length === 0 && (
+        {jobs.length === 0 && deals.length === 0 && groupProposals.length === 0 && invoices.length === 0 && photos.length === 0 && agreements.length === 0 && warranties.length === 0 && permits.length === 0 && (
           <Card title="Nothing here yet"><p className="text-sm text-slate-500">Your project details will appear here as work progresses.</p></Card>
         )}
 
