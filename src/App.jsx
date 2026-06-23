@@ -61,6 +61,7 @@ import AdminLayout from './components/AdminLayout'
 import ClientLayout from './components/ClientLayout'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import CrmProposal from './pages/crm/CrmProposal'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import LeadHunter from './pages/LeadHunter'
@@ -405,6 +406,8 @@ export default function App() {
           <Route path="/onboard-tester/:token" element={<TesterOnboarding />} />
           {/* Public affiliate/creator onboarding wizard â€” no auth required */}
           <Route path="/onboard-affiliate/:token" element={<AffiliateOnboarding />} />
+          {/* Public homeowner proposal (Good/Better/Best + e-sign) — no auth required */}
+          <Route path="/proposal/:platformId/:groupId" element={<CrmProposal />} />
 
           {/* Root redirect based on role */}
           <Route path="/" element={
