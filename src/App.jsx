@@ -107,6 +107,7 @@ import AppViewer from './pages/AppViewer'
 import Products from './pages/Products'
 import CustomBuildDetail from './pages/CustomBuildDetail'
 import ProductDetail from './pages/ProductDetail'
+import LiftoriBuild from './pages/LiftoriBuild'
 import SalesPipeline from './pages/SalesPipeline'
 import Investors from './pages/Investors'
 import OpsDashboard from './pages/OpsDashboard'
@@ -503,6 +504,7 @@ export default function App() {
             <Route path="custom-builds/:id" element={<CustomBuildDetail />} />
             <Route path="products" element={<Products />} />
             <Route path="products/:slug" element={<ProductDetail />} />
+            <Route path="liftori" element={<LiftoriBuild />} />
             <Route path="pipeline" element={<SalesPipeline />} />
             <Route path="investors" element={<Investors />} />
             {/* Marketing Hub */}
