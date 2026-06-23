@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 // is connected).
 
 const FROM_FALLBACK = 'noreply@liftori.ai';
+const CLOSED_STAGES = ['won', 'closed_won', 'lost', 'ops'];
+const STALE_OPTIONS = [7, 14, 30, 60];
 const TRIGGERS = ['manual', 'lead_created', 'estimate_sent', 'appointment_booked', 'job_completed'];
 const channelMeta = {
   email: { label: 'Email', color: 'bg-blue-500/20 text-blue-300' },
@@ -53,19 +55,24 @@ export default function CrmSequences() {
   const [draftSteps, setDraftSteps] = useState([]);
   const [enrolling, setEnrolling] = useState(null); // sequence to enroll into
   const [enrollContact, setEnrollContact] = useState('');
+  const [deals, setDeals] = useState([]);
+  const [staleDays, setStaleDays] = useState(14);
+  const [followUp, setFollowUp] = useState(null); // stale deal we're enrolling
+  const [fuSeq, setFuSeq] = useState('');
 
   useEffect(() => { if (client) load(); /* eslint-disable-next-line */ }, [client]);
 
   async function load() {
     try {
       setLoading(true);
-      const [seqRes, stepRes, tplRes, conRes, sendRes, orgRes] = await Promise.all([
+      const [seqRes, stepRes, tplRes, conRes, sendRes, orgRes, dealRes] = await Promise.all([
         client.from('email_sequences').select('*').order('created_at', { ascending: false }),
         client.from('email_sequence_steps').select('*').order('step_order'),
         client.from('comms_templates').select('id, name, channel_type, subject, body, is_active').order('name'),
         client.from('customer_contacts').select('id, first_name, last_name, email, phone, contact_type').order('created_at', { ascending: false }),
         client.from('email_sends').select('*').order('scheduled_for', { ascending: true }),
         client.from('org_settings').select('*').limit(1).maybeSingle(),
+        client.from('customer_pipeline').select('id, title, stage, deal_value, contact_id, last_activity_at, created_at'),
       ]);
       setSequences(seqRes?.data || []);
       setSteps(stepRes?.data || []);
@@ -73,6 +80,7 @@ export default function CrmSequences() {
       setContacts(conRes?.data || []);
       setSends(sendRes?.data || []);
       setOrg(orgRes?.data || null);
+      setDeals(dealRes?.data || []);
     } catch (e) {
       console.error('sequences load failed', e);
       toast.error('Failed to load sequences');
@@ -94,6 +102,16 @@ export default function CrmSequences() {
   const sentCount = useMemo(() => sends.filter((s) => s.status === 'sent').length, [sends]);
   const activeCount = useMemo(() => sequences.filter((s) => s.status === 'active').length, [sequences]);
   const enrolledTotal = useMemo(() => sequences.reduce((a, s) => a + (s.total_enrolled || 0), 0), [sequences]);
+  const staleDeals = useMemo(() => {
+    const cutoff = Date.now() - staleDays * 86400000;
+    return deals
+      .filter((d) => !CLOSED_STAGES.includes((d.stage || '').toLowerCase()))
+      .map((d) => ({ ...d, last: d.last_activity_at || d.created_at }))
+      .filter((d) => d.last && new Date(d.last).getTime() < cutoff)
+      .sort((a, b) => new Date(a.last) - new Date(b.last));
+  }, [deals, staleDays]);
+  const daysSince = (d) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  const activeSeqs = useMemo(() => sequences.filter((s) => (stepsBySeq[s.id] || []).length), [sequences, stepsBySeq]);
 
   async function toggleSending() {
     if (!org?.id) { toast.error('No account settings row'); return; }
@@ -161,8 +179,8 @@ export default function CrmSequences() {
   }
 
   // ---- enrollment ----
-  async function doEnroll() {
-    const seq = enrolling; const cid = enrollContact;
+  async function enrollInto(seq, cid) {
+    if (!seq) { toast.error('Pick a sequence'); return; }
     if (!cid) { toast.error('Pick a contact'); return; }
     const seqSteps = stepsBySeq[seq.id] || [];
     if (!seqSteps.length) { toast.error('This sequence has no steps'); return; }
@@ -182,9 +200,10 @@ export default function CrmSequences() {
       if (error) throw error;
       await client.from('email_sequences').update({ total_enrolled: (seq.total_enrolled || 0) + 1 }).eq('id', seq.id);
       toast.success(`Enrolled ${contactName(c)} (${rows.length} steps queued)`);
-      setEnrolling(null); setEnrollContact(''); load();
+      setEnrolling(null); setEnrollContact(''); setFollowUp(null); setFuSeq(''); load();
     } catch (e) { console.error(e); toast.error(e.message || 'Enroll failed'); } finally { setBusy(false); }
   }
+  async function doEnroll() { return enrollInto(enrolling, enrollContact); }
   async function cancelSend(s) {
     try {
       const { error } = await client.from('email_sends').delete().eq('id', s.id);
@@ -214,12 +233,36 @@ export default function CrmSequences() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard label="Active Sequences" value={activeCount} />
             <StatCard label="Total Enrolled" value={enrolledTotal} accent="text-brand-blue" />
             <StatCard label="Steps Scheduled" value={scheduled.length} accent="text-amber-400" hint="queued, awaiting send" />
             <StatCard label="Sent" value={sentCount} accent="text-emerald-400" />
+            <StatCard label="Stale Deals" value={staleDeals.length} accent={staleDeals.length ? 'text-red-400' : 'text-gray-300'} hint={`no activity ${staleDays}d+`} />
           </div>
+
+          {/* stale deals -> follow up */}
+          <Section title="Stale deals \u2014 need follow-up" right={
+            <select value={staleDays} onChange={(e) => setStaleDays(Number(e.target.value))} className="bg-navy-800 border border-navy-700 text-white rounded-lg px-2 py-1.5 text-sm">
+              {STALE_OPTIONS.map((d) => <option key={d} value={d}>No activity {d}d+</option>)}
+            </select>
+          }>
+            <div className="divide-y divide-navy-700/40">
+              {staleDeals.length === 0 && <div className="px-5 py-8 text-center text-gray-500 text-sm">No stale open deals \u2014 nice. Everything has activity within {staleDays} days.</div>}
+              {staleDeals.slice(0, 25).map((d) => {
+                const c = conById[d.contact_id];
+                return (
+                  <div key={d.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-white font-medium truncate">{contactName(c)}</div>
+                      <div className="text-xs text-gray-500 truncate">{d.title || 'Deal'}{d.deal_value ? ` \u00b7 $${Math.round(Number(d.deal_value)).toLocaleString()}` : ''} \u00b7 <span className="text-amber-400">{daysSince(d.last)}d stale</span></div>
+                    </div>
+                    <Button onClick={() => { setFollowUp(d); setFuSeq(activeSeqs[0]?.id || ''); }} className="shrink-0 bg-navy-700 hover:bg-navy-600 text-white text-sm"><UserPlus className="w-4 h-4 mr-1.5" /> Follow up</Button>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
 
           {/* sequences */}
           <Section title="Sequences">
@@ -370,6 +413,28 @@ export default function CrmSequences() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)} className="border-navy-700 text-gray-300">Cancel</Button>
             <Button onClick={saveSequence} disabled={busy} className="bg-brand-blue hover:bg-brand-blue/90 text-white">Save sequence</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* follow up a stale deal */}
+      <Dialog open={followUp != null} onOpenChange={(o) => { if (!o) { setFollowUp(null); setFuSeq(''); } }}>
+        <DialogContent className="bg-navy-900 border-navy-800 text-white max-w-md">
+          <DialogHeader><DialogTitle>Follow up with {followUp ? contactName(conById[followUp.contact_id]) : ''}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-400">{followUp ? `${followUp.title || 'Deal'} \u2014 ${daysSince(followUp.last)} days without activity.` : ''}</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Enroll in sequence</label>
+              <select value={fuSeq} onChange={(e) => setFuSeq(e.target.value)} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                <option value="">Select a sequence...</option>
+                {activeSeqs.map((sq) => <option key={sq.id} value={sq.id}>{sq.name} ({(stepsBySeq[sq.id] || []).length} steps)</option>)}
+              </select>
+            </div>
+            <p className="text-xs text-gray-500">{sending ? '' : 'Sending is off, so steps queue until you turn it on.'}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setFollowUp(null); setFuSeq(''); }} className="border-navy-700 text-gray-300">Cancel</Button>
+            <Button onClick={() => enrollInto(sequences.find((x) => x.id === fuSeq), followUp?.contact_id)} disabled={busy || !fuSeq} className="bg-brand-blue hover:bg-brand-blue/90 text-white">Enroll</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
