@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 const uid = () => Math.random().toString(36).slice(2, 10);
 const money = (v) => '$' + (Number(v) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const num = (v) => Number(v) || 0;
+const TIER_LABEL = { good: 'Good', better: 'Better', best: 'Best' };
 
 const PITCH_OPTIONS = [
   { v: 'flat', label: 'Flat (0:12 - 2:12)', waste: 10 },
@@ -62,6 +63,10 @@ export default function CrmEstimateDetail() {
   const [grossMargin, setGrossMargin] = useState(50);
   const [taxRate, setTaxRate] = useState(0);
   const [measurements, setMeasurements] = useState({});
+  const [groupId, setGroupId] = useState(null);
+  const [tier, setTier] = useState(null);
+  const [tierRecommended, setTierRecommended] = useState(false);
+  const [siblings, setSiblings] = useState([]);
 
   useEffect(() => { if (client && id) load(); /* eslint-disable-next-line */ }, [client, id]);
 
@@ -78,6 +83,13 @@ export default function CrmEstimateDetail() {
       setStatus(est.status || 'draft');
       setSections(Array.isArray(est.sections) && est.sections.length ? est.sections : defaultSections());
       setMeasurements(est.measurements && typeof est.measurements === 'object' && !Array.isArray(est.measurements) ? est.measurements : {});
+      setGroupId(est.proposal_group_id || null);
+      setTier(est.tier || null);
+      setTierRecommended(!!est.tier_recommended);
+      if (est.proposal_group_id) {
+        const { data: sibs } = await client.from('customer_estimates').select('id, tier, tier_order, tier_recommended, total, title').eq('proposal_group_id', est.proposal_group_id).order('tier_order', { ascending: true });
+        setSiblings(sibs || []);
+      } else { setSiblings([]); }
       const [orgRes, setRes] = await Promise.all([
         client.from('org_settings').select('*').limit(1).maybeSingle(),
         client.from('estimate_settings').select('*').limit(1).maybeSingle(),
@@ -138,6 +150,44 @@ export default function CrmEstimateDetail() {
     // eslint-disable-next-line
   }, [sections, grossMargin, taxRate, settings, adjSquares, isRoofing]);
 
+  async function makeTiers() {
+    if (groupId) return;
+    try {
+      setSaving(true);
+      await save();
+      const gid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : (uid() + uid() + uid() + uid());
+      await client.from('customer_estimates').update({ proposal_group_id: gid, tier: 'good', tier_order: 0 }).eq('id', id);
+      const en = estimate && estimate.estimate_number ? estimate.estimate_number : 'EST';
+      const base = { contact_id: estimate.contact_id, project_id: estimate.project_id, pipeline_id: estimate.pipeline_id, intro, terms, valid_until: validUntil || null, sections, gross_margin: num(grossMargin), tax_rate: num(taxRate), status: 'draft', proposal_group_id: gid, show_photos: estimate.show_photos, photo_ids: estimate.photo_ids, cover_image_url: estimate.cover_image_url };
+      if (isRoofing) base.measurements = measurements;
+      await client.from('customer_estimates').insert([
+        { ...base, title: title || 'Proposal', tier: 'better', tier_order: 1, estimate_number: en + '-B' },
+        { ...base, title: title || 'Proposal', tier: 'best', tier_order: 2, estimate_number: en + '-C' },
+      ]);
+      toast.success('Created Good / Better / Best tiers');
+      await load();
+    } catch (e) { console.error(e); toast.error('Failed to create tiers'); }
+    finally { setSaving(false); }
+  }
+
+  async function toggleRecommended() {
+    if (!groupId) return;
+    const next = !tierRecommended;
+    try {
+      await client.from('customer_estimates').update({ tier_recommended: false }).eq('proposal_group_id', groupId);
+      if (next) await client.from('customer_estimates').update({ tier_recommended: true }).eq('id', id);
+      setTierRecommended(next);
+      await load();
+    } catch (e) { console.error(e); toast.error('Failed to update'); }
+  }
+
+  function copyShareLink() {
+    if (!groupId) return;
+    const url = window.location.origin + '/proposal/' + platformId + '/' + groupId;
+    if (navigator.clipboard) navigator.clipboard.writeText(url);
+    toast.success('Proposal link copied');
+  }
+
   async function save(nextStatus) {
     try {
       setSaving(true);
@@ -145,7 +195,7 @@ export default function CrmEstimateDetail() {
       const bakedSections = sections.map(s => ({ ...s, items: (s.items || []).map(it => it.per_square ? { ...it, qty: Number(adjSquares.toFixed(2)) } : it) }));
       const patch = {
         title, intro, terms, valid_until: validUntil || null,
-        status: nextStatus || status,
+        status: nextStatus || status, tier_recommended: tierRecommended,
         sections: bakedSections, gross_margin: num(grossMargin),
         total_cost: calc.totalCost, net_profit: calc.netProfit, minimum_applied: calc.minApplied,
         subtotal: calc.price, tax_rate: num(taxRate), tax_amount: calc.taxAmount, total: calc.total,
@@ -183,6 +233,29 @@ export default function CrmEstimateDetail() {
             <Button onClick={() => save()} disabled={saving} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">{saving ? 'Saving...' : 'Save'}</Button>
           </div>
         </div>
+
+        {groupId ? (
+          <Card className="bg-navy-900 border-navy-800 p-4 mb-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 mr-1">Proposal tiers</span>
+                {siblings.map(sib => (
+                  <button key={sib.id} onClick={() => { if (sib.id !== id) navigate('/crm/' + platformId + '/estimates/' + sib.id); }} className={'px-3 py-1.5 rounded-lg text-sm font-medium border ' + (sib.id === id ? 'bg-brand-blue text-white border-brand-blue' : 'border-navy-700 text-gray-300 hover:text-white')}>
+                    {(TIER_LABEL[sib.tier] || sib.tier)}{sib.tier_recommended ? ' \u2605' : ''}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={toggleRecommended} className={'px-3 py-1.5 rounded-lg text-sm border ' + (tierRecommended ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300' : 'border-navy-700 text-gray-400 hover:text-white')}>{tierRecommended ? '\u2605 Recommended' : 'Mark recommended'}</button>
+                <Button onClick={copyShareLink} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Copy proposal link</Button>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <div className="mb-5">
+            <button onClick={makeTiers} disabled={saving} className="text-sm text-brand-blue hover:text-brand-light flex items-center gap-1"><Plus size={14} /> Make this a Good / Better / Best proposal</button>
+          </div>
+        )}
 
         <Card className="bg-navy-900 border-navy-800 p-6 mb-5">
           <div className="flex items-start justify-between gap-4 mb-4">
