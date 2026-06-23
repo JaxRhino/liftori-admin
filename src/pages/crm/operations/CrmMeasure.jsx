@@ -5,9 +5,9 @@ import { MapPin, Save, RotateCcw, CheckCircle2, Trash2, Plus, Search, FileText, 
 import {
   LINE_TYPES, lineColor, lineTypeLabel,
   ensureTurf, ensurePdf,
-  facetPlanFt2, lineLengthFt,
+  facetPlanFt2, lineLengthFt, feetInches,
   computeMetrics, buildSummary, dominantPitchLabel,
-  diagramSvg, diagramPng, materialLineItems, buildPdf, pdfFilename,
+  diagramSvg, diagramPngSet, materialLineItems, buildPdf, pdfFilename,
   pitchMult, pitchLabel,
 } from './roofReport'
 
@@ -400,7 +400,7 @@ export default function CrmMeasure() {
     const turf = window.turf
     const facetObjs = facets.filter((f) => f.closed && f.pts.length >= 3).map((f) => ({ coords: f.pts, pitch: f.pitch }))
     const lineObjs = lines.filter((l) => l.closed && l.pts.length >= 2).map((l) => ({ type: l.type, coords: l.pts }))
-    return diagramSvg(facetObjs, lineObjs, metrics, { w: 520, h: 320 })
+    return diagramSvg(facetObjs, lineObjs, metrics, { w: 520, h: 320, variant: 'length' })
   }, [facets, lines, metrics, hasMetrics])
 
   // ---------- geocoding (Nominatim) ----------
@@ -518,14 +518,14 @@ export default function CrmMeasure() {
       const jsPDF = await ensurePdf()
       const facetObjs = facetObjects()
       const lineObjs = lineObjects()
-      const png = diagramPng(facetObjs, lineObjs, metrics, { w: 640, h: 440 })
+      const pngSet = diagramPngSet(facetObjs, lineObjs, metrics, { w: 640, h: 440 })
       const row = {
         title: title.trim() || addr.trim() || 'Aerial roof measurement',
         address: addr.trim() || '',
         customerName: selectedContact ? contactLabel(selectedContact) : '',
         created_at: new Date().toISOString(),
       }
-      const doc = buildPdf(jsPDF, { row, metrics, pngDataUrl: png, companyName })
+      const doc = buildPdf(jsPDF, { row, metrics, pngSet, companyName })
       doc.save(pdfFilename(row))
     } catch (e) {
       setSaveMsg(e.message || 'PDF export failed.')
@@ -635,8 +635,10 @@ export default function CrmMeasure() {
         ? { facets: row.measurements, lines: [] }
         : { facets: (row.measurements && row.measurements.facets) || [], lines: (row.measurements && row.measurements.lines) || [] })
       const sm = row.summary || {}
-      let m = sm.linear ? sm : computeMetrics(turf, norm.facets, norm.lines, { waste_pct: sm.waste_pct != null ? sm.waste_pct : 10 })
-      const png = diagramPng(norm.facets, norm.lines, m, { w: 640, h: 440 })
+      // For PDF fidelity (ft+in + per-facet area labels) recompute from geometry so
+      // raw line lengths + facet areas are present even for older summary-only rows.
+      let m = computeMetrics(turf, norm.facets, norm.lines, { waste_pct: sm.waste_pct != null ? sm.waste_pct : 10 })
+      const pngSet = diagramPngSet(norm.facets, norm.lines, m, { w: 640, h: 440 })
       const cust = contacts.find((c) => c.id === row.contact_id)
       const rowObj = {
         title: row.title || 'Aerial roof measurement',
@@ -645,7 +647,7 @@ export default function CrmMeasure() {
         created_at: row.created_at,
         id: row.id,
       }
-      const doc = buildPdf(jsPDF, { row: rowObj, metrics: m, pngDataUrl: png, companyName })
+      const doc = buildPdf(jsPDF, { row: rowObj, metrics: m, pngSet, companyName })
       doc.save(pdfFilename(rowObj))
     } catch (err) {
       setSaveMsg(err.message || 'PDF export failed.')
@@ -918,36 +920,96 @@ export default function CrmMeasure() {
             {saveMsg && <p className="text-xs mt-2 text-gray-300">{saveMsg}</p>}
           </div>
 
-          {/* linear feet by type */}
+          {/* length report - all 10 edge types in ft+in */}
           <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-5">
-            <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Linear feet</div>
+            <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Length report</div>
             <div className="space-y-1.5 text-sm">
               {[
-                ['ridge', 'Ridge', lin.ridge_ft],
-                ['hip', 'Hip', lin.hip_ft],
-                ['valley', 'Valley', lin.valley_ft],
-                ['eave', 'Eave', lin.eave_ft],
-                ['rake', 'Rake', lin.rake_ft],
-                ['flashing', 'Step/Wall flashing', lin.flashing_ft],
-              ].map(([k, label, v]) => (
+                ['eave', 'Eaves', lin.eave_raw, lin.eave_ft],
+                ['valley', 'Valleys', lin.valley_raw, lin.valley_ft],
+                ['hip', 'Hips', lin.hip_raw, lin.hip_ft],
+                ['ridge', 'Ridges', lin.ridge_raw, lin.ridge_ft],
+                ['rake', 'Rakes', lin.rake_raw, lin.rake_ft],
+                ['wall_flashing', 'Wall flashing', lin.wall_flashing_raw, lin.wall_flashing_ft],
+                ['step_flashing', 'Step flashing', lin.step_flashing_raw, lin.step_flashing_ft],
+                ['transition', 'Transitions', lin.transition_raw, lin.transition_ft],
+                ['parapet', 'Parapet wall', lin.parapet_raw, lin.parapet_ft],
+                ['unspecified', 'Unspecified', lin.unspecified_raw, lin.unspecified_ft],
+              ].map(([k, label, raw, ft]) => (
                 <div key={k} className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-2 text-gray-400">
                     <span className="inline-block w-3 h-1 rounded-full" style={{ backgroundColor: lineColor(k) }} />
                     {label}
                   </span>
-                  <span className="text-gray-200">{(v || 0).toLocaleString()} LF</span>
+                  <span className="text-gray-200">{feetInches(raw != null ? raw : (ft || 0))}</span>
                 </div>
               ))}
               <div className="flex items-center justify-between border-t border-navy-700/50 pt-1.5 mt-1.5">
-                <span className="text-gray-400">Drip edge (eave + rake)</span>
-                <span className="text-white font-semibold">{(lin.drip_edge_ft || 0).toLocaleString()} LF</span>
+                <span className="text-gray-400">Hips + ridges</span>
+                <span className="text-white font-semibold">{feetInches(lin.hips_ridges_raw != null ? lin.hips_ridges_raw : (lin.hips_ridges_ft || 0))}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">Total eave + rake</span>
-                <span className="text-gray-200">{((lin.eave_ft || 0) + (lin.rake_ft || 0)).toLocaleString()} LF</span>
+                <span className="text-gray-400">Eaves + rakes (drip edge)</span>
+                <span className="text-white font-semibold">{feetInches(lin.eaves_rakes_raw != null ? lin.eaves_rakes_raw : (lin.eaves_rakes_ft || 0))}</span>
               </div>
             </div>
           </div>
+
+          {/* area report */}
+          {metrics && (
+            <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-5">
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Area report</div>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Total area</span>
+                  <span className="text-white font-semibold">{(metrics.sloped_ft2 || 0).toLocaleString()} ft2</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Pitched area</span>
+                  <span className="text-gray-200">{(areas.pitched_ft2 || 0).toLocaleString()} ft2</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Flat / low-slope area</span>
+                  <span className="text-gray-200">{(areas.flat_ft2 || 0).toLocaleString()} ft2</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Predominant pitch</span>
+                  <span className="text-gray-200">{metrics.predominant_pitch || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Predominant pitch area</span>
+                  <span className="text-gray-200">{(metrics.predominant_pitch_area || 0).toLocaleString()} ft2</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* waste table */}
+          {metrics && Array.isArray(metrics.waste_table) && metrics.waste_table.length > 0 && (
+            <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-5">
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Waste table</div>
+              <div className="grid grid-cols-3 text-[11px] text-gray-500 uppercase tracking-wider pb-1.5 border-b border-navy-700/50">
+                <span>Waste</span>
+                <span className="text-right">Area</span>
+                <span className="text-right">Squares</span>
+              </div>
+              <div className="text-sm">
+                {metrics.waste_table.map((r) => (
+                  <div
+                    key={r.pct}
+                    className={`grid grid-cols-3 py-1.5 ${r.recommended ? 'bg-brand-blue/10 -mx-2 px-2 rounded' : ''}`}
+                  >
+                    <span className={r.recommended ? 'text-brand-light font-semibold' : 'text-gray-400'}>
+                      {r.pct}%{r.recommended ? ' *' : ''}
+                    </span>
+                    <span className="text-right text-gray-200">{Number(r.area).toLocaleString()}</span>
+                    <span className="text-right text-gray-200">{Number(r.squares).toFixed(1)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-500 mt-2">* Recommended waste factor</p>
+            </div>
+          )}
 
           {/* area by pitch */}
           {metrics && Object.keys(metrics.area_by_pitch || {}).length > 0 && (

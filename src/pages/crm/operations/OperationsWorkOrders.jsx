@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { HubPage, StatCard, Section, EmptyState, useCrmClient } from '../_shared'
 import {
   computeMetrics, normalizeMeasurements,
-  diagramSvg, diagramPng, buildPdf, pdfFilename,
-  lineColor, ensureTurf, ensurePdf,
+  diagramSvg, diagramPngSet, buildPdf, pdfFilename,
+  lineColor, feetInches, ensureTurf, ensurePdf,
 } from './roofReport'
 
 // ---------- formatters ----------
@@ -819,7 +819,8 @@ function RoofReportTab({ wo, client }) {
   async function resolveMetrics(r) {
     const norm = normalizeMeasurements(r.measurements)
     const sm = r.summary || {}
-    if (sm.linear) return { metrics: sm, norm }
+    // Always recompute from geometry so raw ft+in lengths + per-facet areas are
+    // present for the multi-page PDF (older summary rows lack the *_raw fields).
     const turf = await ensureTurf()
     const metrics = computeMetrics(turf, norm.facets, norm.lines, { waste_pct: sm.waste_pct != null ? sm.waste_pct : 10 })
     return { metrics, norm }
@@ -830,10 +831,10 @@ function RoofReportTab({ wo, client }) {
     try {
       const jsPDF = await ensurePdf()
       const { metrics, norm } = await resolveMetrics(r)
-      const png = diagramPng(norm.facets, norm.lines, metrics, { w: 640, h: 440 })
+      const pngSet = diagramPngSet(norm.facets, norm.lines, metrics, { w: 640, h: 440 })
       const companyName = 'Roof Report'
       const rowObj = { title: r.title || 'Aerial roof measurement', address: r.address || '', created_at: r.created_at, id: r.id }
-      const doc = buildPdf(jsPDF, { row: rowObj, metrics, pngDataUrl: png, companyName })
+      const doc = buildPdf(jsPDF, { row: rowObj, metrics, pngSet, companyName })
       doc.save(pdfFilename(rowObj))
     } catch (e) {
       setPdfErr(e.message || 'PDF export failed')
@@ -875,19 +876,17 @@ function RoofReportCard({ r, measureHref, onPdf, pdfBusy }) {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      let m = sm.linear ? sm : null
-      if (!m) {
-        try {
-          const turf = await ensureTurf()
-          m = computeMetrics(turf, norm.facets, norm.lines, { waste_pct: sm.waste_pct != null ? sm.waste_pct : 10 })
-        } catch { m = null }
-      }
+      let m = null
+      try {
+        const turf = await ensureTurf()
+        m = computeMetrics(turf, norm.facets, norm.lines, { waste_pct: sm.waste_pct != null ? sm.waste_pct : 10 })
+      } catch { m = sm.linear ? sm : null }
       if (cancelled) return
       setMetrics(m)
       try {
         const facetObjs = (norm.facets || []).map((f) => ({ coords: f.coords, pitch: f.pitch }))
         const lineObjs = (norm.lines || []).map((l) => ({ type: l.type, coords: l.coords }))
-        setSvg(diagramSvg(facetObjs, lineObjs, m, { w: 360, h: 220 }))
+        setSvg(diagramSvg(facetObjs, lineObjs, m, { w: 360, h: 220, variant: 'length' }))
       } catch { setSvg(null) }
     })()
     return () => { cancelled = true }
@@ -940,28 +939,36 @@ function RoofReportCard({ r, measureHref, onPdf, pdfBusy }) {
 
       {metrics && (
         <div className="bg-navy-800/40 rounded-md p-2 mb-2">
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Linear feet</div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Length report</div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
             {[
-              ['ridge', 'Ridge', lin.ridge_ft],
-              ['hip', 'Hip', lin.hip_ft],
-              ['valley', 'Valley', lin.valley_ft],
-              ['eave', 'Eave', lin.eave_ft],
-              ['rake', 'Rake', lin.rake_ft],
-              ['flashing', 'Flashing', lin.flashing_ft],
-            ].map(([k, label, v]) => (
+              ['eave', 'Eaves', lin.eave_raw, lin.eave_ft],
+              ['valley', 'Valleys', lin.valley_raw, lin.valley_ft],
+              ['hip', 'Hips', lin.hip_raw, lin.hip_ft],
+              ['ridge', 'Ridges', lin.ridge_raw, lin.ridge_ft],
+              ['rake', 'Rakes', lin.rake_raw, lin.rake_ft],
+              ['wall_flashing', 'Wall flash', lin.wall_flashing_raw, lin.wall_flashing_ft],
+              ['step_flashing', 'Step flash', lin.step_flashing_raw, lin.step_flashing_ft],
+              ['transition', 'Transition', lin.transition_raw, lin.transition_ft],
+              ['parapet', 'Parapet', lin.parapet_raw, lin.parapet_ft],
+              ['unspecified', 'Unspecified', lin.unspecified_raw, lin.unspecified_ft],
+            ].map(([k, label, raw, ft]) => (
               <div key={k} className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-1.5 text-gray-400">
                   <span className="inline-block w-2.5 h-1 rounded-full" style={{ backgroundColor: lineColor(k) }} />
                   {label}
                 </span>
-                <span className="text-gray-200">{(v || 0).toLocaleString()}</span>
+                <span className="text-gray-200">{feetInches(raw != null ? raw : (ft || 0))}</span>
               </div>
             ))}
           </div>
           <div className="flex items-center justify-between text-xs border-t border-navy-700/50 mt-1.5 pt-1.5">
-            <span className="text-gray-400">Drip edge</span>
-            <span className="text-white font-semibold">{(lin.drip_edge_ft || 0).toLocaleString()} LF</span>
+            <span className="text-gray-400">Hips + ridges</span>
+            <span className="text-white font-semibold">{feetInches(lin.hips_ridges_raw != null ? lin.hips_ridges_raw : (lin.hips_ridges_ft || 0))}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs mt-1">
+            <span className="text-gray-400">Eaves + rakes (drip edge)</span>
+            <span className="text-white font-semibold">{feetInches(lin.eaves_rakes_raw != null ? lin.eaves_rakes_raw : (lin.eaves_rakes_ft || 0))}</span>
           </div>
           {metrics.predominant_pitch ? (
             <div className="flex items-center justify-between text-xs mt-1">
@@ -969,6 +976,24 @@ function RoofReportCard({ r, measureHref, onPdf, pdfBusy }) {
               <span className="text-gray-200">{metrics.predominant_pitch}</span>
             </div>
           ) : null}
+        </div>
+      )}
+
+      {metrics && Array.isArray(metrics.waste_table) && metrics.waste_table.length > 0 && (
+        <div className="bg-navy-800/40 rounded-md p-2 mb-2">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Waste table</div>
+          <div className="grid grid-cols-3 text-[10px] text-gray-500 uppercase tracking-wider pb-1 border-b border-navy-700/50">
+            <span>Waste</span><span className="text-right">Area</span><span className="text-right">Squares</span>
+          </div>
+          <div className="text-xs">
+            {metrics.waste_table.map((r) => (
+              <div key={r.pct} className={`grid grid-cols-3 py-0.5 ${r.recommended ? 'bg-brand-blue/10 -mx-1 px-1 rounded' : ''}`}>
+                <span className={r.recommended ? 'text-brand-light font-semibold' : 'text-gray-400'}>{r.pct}%{r.recommended ? ' *' : ''}</span>
+                <span className="text-right text-gray-200">{Number(r.area).toLocaleString()}</span>
+                <span className="text-right text-gray-200">{Number(r.squares).toFixed(1)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
