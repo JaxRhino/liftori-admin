@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { HubPage, Section, EmptyState, useCrmClient } from '../_shared'
-import { MapPin, Save, RotateCcw, CheckCircle2, Trash2, Plus, Search } from 'lucide-react'
+import { MapPin, Save, RotateCcw, CheckCircle2, Trash2, Plus, Search, FileText, X } from 'lucide-react'
 
 // =====================================================================
 // CrmMeasure - Aerial roof measurement tool (Operations hub).
@@ -8,6 +9,12 @@ import { MapPin, Save, RotateCcw, CheckCircle2, Trash2, Plus, Search } from 'luc
 // since none are bundled deps). Trace each roof plane, set its pitch, and
 // the page computes plan ft2 / sloped surface ft2 / order squares.
 // Saves to ops_measurements on the per-tenant client (useCrmClient).
+//
+// SALES HOOK (additive): an optional contact picker ties a measurement to a
+// customer_contacts row (and its project_id if one exists). "Create estimate"
+// mirrors CrmCustomerDetail.createEstimate() exactly, then seeds the roof
+// measurements block so per-square line items auto-fill and the draft lands
+// pre-priced. Standalone measuring with no contact still works unchanged.
 // =====================================================================
 
 const M2_TO_FT2 = 10.7639104
@@ -75,8 +82,27 @@ function facetPlanFt2(turf, f) {
   return turf.area(poly) * M2_TO_FT2
 }
 
+const contactLabel = (c) => [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || c.id
+
+// Dominant pitch label ('6/12') across a measurement's facets, weighted by
+// plan area so the largest plane wins; falls back to most-frequent label.
+function dominantPitchLabel(lines) {
+  if (!Array.isArray(lines) || !lines.length) return ''
+  const counts = {}
+  lines.forEach((l) => {
+    const label = l.pitch_label || (l.pitch != null ? `${l.pitch}/12` : null)
+    if (!label) return
+    counts[label] = (counts[label] || 0) + 1
+  })
+  let best = '', n = -1
+  Object.entries(counts).forEach(([label, c]) => { if (c > n) { best = label; n = c } })
+  return best
+}
+
 export default function CrmMeasure() {
   const { client } = useCrmClient()
+  const navigate = useNavigate()
+  const { platformId } = useParams()
 
   const mapEl = useRef(null)
   const mapRef = useRef(null)
@@ -100,10 +126,18 @@ export default function CrmMeasure() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const suggestTimer = useRef(null)
 
+  // contact picker (optional)
+  const [contacts, setContacts] = useState([])
+  const [contactId, setContactId] = useState('')
+  const [contactSearch, setContactSearch] = useState('')
+  const [contactMenuOpen, setContactMenuOpen] = useState(false)
+  const contactBoxRef = useRef(null)
+
   // saved measurements
   const [saved, setSaved] = useState([])
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState(null)
+  const [creatingId, setCreatingId] = useState(null) // row id (or 'current') while building an estimate
 
   // ---------- init map ----------
   useEffect(() => {
@@ -153,12 +187,48 @@ export default function CrmMeasure() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ---------- load contacts (optional picker) ----------
+  useEffect(() => {
+    let cancelled = false
+    if (!client) return
+    ;(async () => {
+      const { data } = await client
+        .from('customer_contacts')
+        .select('id, first_name, last_name, email')
+        .order('created_at', { ascending: false })
+        .limit(500)
+      if (!cancelled) setContacts(data || [])
+    })()
+    return () => { cancelled = true }
+  }, [client])
+
+  // close contact menu on outside click
+  useEffect(() => {
+    function onDoc(e) {
+      if (contactBoxRef.current && !contactBoxRef.current.contains(e.target)) setContactMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+
+  const selectedContact = useMemo(
+    () => contacts.find((c) => c.id === contactId) || null,
+    [contacts, contactId],
+  )
+  const contactMatches = useMemo(() => {
+    const q = contactSearch.trim().toLowerCase()
+    const list = q
+      ? contacts.filter((c) => contactLabel(c).toLowerCase().includes(q) || String(c.email || '').toLowerCase().includes(q))
+      : contacts
+    return list.slice(0, 30)
+  }, [contacts, contactSearch])
+
   // ---------- load saved ----------
   async function loadSaved() {
     if (!client) return
     const { data, error } = await client
       .from('ops_measurements')
-      .select('id, title, address, status, summary, measurements, created_at, template_type')
+      .select('id, title, address, status, summary, measurements, created_at, template_type, contact_id, project_id')
       .eq('template_type', 'aerial_roof')
       .order('created_at', { ascending: false })
       .limit(50)
@@ -311,6 +381,21 @@ export default function CrmMeasure() {
     }
   }
 
+  // Resolve a project_id for a contact if exactly/most-recently one exists.
+  async function resolveProjectId(cid) {
+    if (!cid || !client) return null
+    try {
+      const { data } = await client
+        .from('customer_projects')
+        .select('id')
+        .eq('contact_id', cid)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      return data?.id || null
+    } catch { return null }
+  }
+
   // ---------- save ----------
   async function save() {
     if (!client) return
@@ -333,11 +418,14 @@ export default function CrmMeasure() {
         pitch_label: pitchLabel(f.pitch),
         coords: f.pts,
       }))
+      const projectId = contactId ? await resolveProjectId(contactId) : null
       const { error } = await client.from('ops_measurements').insert({
         title: (title.trim() || addr.trim() || 'Aerial roof measurement'),
         template_type: 'aerial_roof',
         status: 'measured',
         address: addr.trim() || null,
+        contact_id: contactId || null,
+        project_id: projectId,
         measurements,
         summary,
         photos: [],
@@ -355,6 +443,98 @@ export default function CrmMeasure() {
     }
   }
 
+  // ---------- create estimate from a measurement ----------
+  // Mirrors CrmCustomerDetail.createEstimate() exactly (same estimate_number
+  // scheme, default sections, seeded estimate_products, gross_margin), then
+  // additionally seeds contact_id / project_id and the roof measurements block
+  // so per-square line items land pre-priced.
+  async function createEstimateFrom({ cid, projectId, summaryObj, lines, label }) {
+    if (!client) return
+    if (!cid) { setSaveMsg('Select a contact first to create an estimate.'); return }
+    setCreatingId(label)
+    try {
+      const en = 'EST-' + Date.now().toString().slice(-6)
+      const rid = () => Math.random().toString(36).slice(2, 10)
+      const seed = [
+        { id: rid(), title: 'Materials', enabled: true, items: [] },
+        { id: rid(), title: 'Labor', enabled: true, items: [] },
+        { id: rid(), title: 'Fees', enabled: true, items: [] },
+      ]
+      let margin = 50
+      try {
+        const { data: st } = await client.from('estimate_settings').select('default_gross_margin').limit(1).maybeSingle()
+        if (st && st.default_gross_margin != null) margin = st.default_gross_margin
+        const { data: prods } = await client.from('estimate_products').select('*').eq('is_active', true).eq('in_default_template', true).order('name', { ascending: true })
+        ;(prods || []).forEach((pr) => {
+          const item = { id: rid(), description: pr.name, qty: 1, unit: pr.unit || '', unit_cost: Number(pr.cost) || 0 }
+          ;(pr.item_type === 'labor' ? seed[1] : seed[0]).items.push(item)
+        })
+      } catch (seedErr) { console.error(seedErr) }
+
+      // roof measurements block -> per-square line items auto-fill from this.
+      const squares = Number(summaryObj?.squares) || 0
+      const wastePct = summaryObj?.waste_pct != null ? Number(summaryObj.waste_pct) : 0
+      const meas = {
+        squares,
+        waste_pct: wastePct,
+        pitch: dominantPitchLabel(lines),
+        layers: 1,
+        stories: 1,
+      }
+
+      const payload = {
+        contact_id: cid,
+        project_id: projectId || null,
+        estimate_number: en,
+        title: 'New Estimate',
+        status: 'draft',
+        sections: seed,
+        gross_margin: margin,
+        measurements: meas,
+      }
+      const { data, error } = await client.from('customer_estimates').insert(payload).select().single()
+      if (error) throw error
+      navigate('/crm/' + platformId + '/estimates/' + data.id)
+    } catch (e) {
+      console.error(e)
+      setSaveMsg(e.message || 'Could not create estimate.')
+    } finally {
+      setCreatingId(null)
+    }
+  }
+
+  // Build an estimate from the live (unsaved or in-progress) traced roof.
+  async function createEstimateFromCurrent() {
+    const real = facetsRef.current.filter((f) => f.closed && f.pts.length >= 3)
+    if (!real.length) { setSaveMsg('Trace at least one roof section first.'); return }
+    if (!contactId) { setSaveMsg('Select a contact first to create an estimate.'); return }
+    const summaryObj = {
+      plan_ft2: Math.round(totals.plan),
+      sloped_ft2: Math.round(totals.surf),
+      squares: totals.squares,
+      waste_pct: totals.waste,
+      facet_count: totals.facetCount,
+    }
+    const lines = real.map((f, i) => ({ section: i + 1, pitch: f.pitch, pitch_label: pitchLabel(f.pitch) }))
+    const projectId = await resolveProjectId(contactId)
+    await createEstimateFrom({ cid: contactId, projectId, summaryObj, lines, label: 'current' })
+  }
+
+  // Build an estimate from a previously saved measurement row.
+  async function createEstimateFromRow(row, e) {
+    if (e) e.stopPropagation()
+    const cid = row.contact_id || contactId
+    if (!cid) { setSaveMsg('This measurement has no contact. Reopen it, pick a contact, and re-save first.'); return }
+    const projectId = row.project_id || (await resolveProjectId(cid))
+    await createEstimateFrom({
+      cid,
+      projectId,
+      summaryObj: row.summary || {},
+      lines: Array.isArray(row.measurements) ? row.measurements : [],
+      label: row.id,
+    })
+  }
+
   // ---------- reopen a saved measurement ----------
   function reopen(row) {
     clearAll()
@@ -364,6 +544,7 @@ export default function CrmMeasure() {
       .map((l) => ({ id: ++idRef.current, pitch: Number(l.pitch) || 6, pts: l.coords.map((c) => [c[0], c[1]]), closed: true }))
     setTitle(row.title || '')
     setAddr(row.address || '')
+    if (row.contact_id) { setContactId(row.contact_id); setContactSearch('') }
     if (row.summary?.waste_pct != null) setWaste(row.summary.waste_pct)
     syncMap()
     const first = facetsRef.current[0]
@@ -381,13 +562,23 @@ export default function CrmMeasure() {
       title="Roof Measure"
       subtitle="Trace each roof plane on aerial imagery, set pitch, and get order squares."
       actions={
-        <button
-          onClick={save}
-          disabled={saving || !realFacets.length}
-          className="inline-flex items-center gap-2 bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg"
-        >
-          <Save size={16} /> {saving ? 'Saving...' : 'Save measurement'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={createEstimateFromCurrent}
+            disabled={!!creatingId || !realFacets.length || !contactId}
+            title={!contactId ? 'Pick a contact above to enable' : 'Create a pre-priced estimate draft'}
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-600/90 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            <FileText size={16} /> {creatingId === 'current' ? 'Creating...' : 'Create estimate'}
+          </button>
+          <button
+            onClick={save}
+            disabled={saving || !realFacets.length}
+            className="inline-flex items-center gap-2 bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            <Save size={16} /> {saving ? 'Saving...' : 'Save measurement'}
+          </button>
+        </div>
       }
     >
       {loadErr && (
@@ -396,8 +587,8 @@ export default function CrmMeasure() {
         </div>
       )}
 
-      {/* address search */}
-      <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* address search + contact picker */}
+      <div className="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="relative">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -432,12 +623,58 @@ export default function CrmMeasure() {
             </div>
           )}
         </div>
+
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Measurement title (optional)"
           className="w-full bg-navy-900/60 border border-navy-700/60 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
         />
+
+        {/* contact picker (searchable, optional) */}
+        <div className="relative" ref={contactBoxRef}>
+          {selectedContact ? (
+            <div className="flex items-center justify-between w-full bg-navy-900/60 border border-navy-700/60 rounded-lg pl-3 pr-2 py-2">
+              <span className="text-sm text-white truncate">{contactLabel(selectedContact)}</span>
+              <button
+                onClick={() => { setContactId(''); setContactSearch(''); setContactMenuOpen(false) }}
+                className="text-gray-400 hover:text-white shrink-0 ml-2"
+                title="Clear contact"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                value={contactSearch}
+                onChange={(e) => { setContactSearch(e.target.value); setContactMenuOpen(true) }}
+                onFocus={() => setContactMenuOpen(true)}
+                placeholder="Link a customer (optional)"
+                className="w-full bg-navy-900/60 border border-navy-700/60 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
+              />
+            </div>
+          )}
+          {contactMenuOpen && !selectedContact && (
+            <div className="absolute z-30 mt-1 left-0 right-0 max-h-64 overflow-auto bg-navy-800 border border-navy-700/60 rounded-lg shadow-xl">
+              {contactMatches.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-gray-500">No matching customers</div>
+              ) : (
+                contactMatches.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => { setContactId(c.id); setContactMenuOpen(false); setContactSearch('') }}
+                    className="block w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-brand-blue/20 border-b border-navy-700/40 last:border-0"
+                  >
+                    <span className="text-white">{contactLabel(c)}</span>
+                    {c.email ? <span className="text-xs text-gray-500 ml-2">{c.email}</span> : null}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -551,19 +788,27 @@ export default function CrmMeasure() {
             ) : (
               <div className="divide-y divide-navy-700/50">
                 {saved.map((row) => (
-                  <button
-                    key={row.id}
-                    onClick={() => reopen(row)}
-                    className="block w-full text-left px-5 py-3 hover:bg-navy-700/30"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-white truncate">{row.title || 'Untitled'}</span>
-                      <span className="text-xs text-emerald-400 shrink-0 ml-2">{row.summary?.squares ?? '-'} sq</span>
+                  <div key={row.id} className="px-5 py-3 hover:bg-navy-700/30">
+                    <button onClick={() => reopen(row)} className="block w-full text-left">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-white truncate">{row.title || 'Untitled'}</span>
+                        <span className="text-xs text-emerald-400 shrink-0 ml-2">{row.summary?.squares ?? '-'} sq</span>
+                      </div>
+                      <div className="text-xs text-gray-500 truncate mt-0.5">
+                        {row.address || 'No address'} - {new Date(row.created_at).toLocaleDateString()}
+                      </div>
+                    </button>
+                    <div className="mt-2">
+                      <button
+                        onClick={(e) => createEstimateFromRow(row, e)}
+                        disabled={creatingId === row.id}
+                        title={row.contact_id ? 'Create a pre-priced estimate draft' : 'Reopen, pick a contact, and re-save to enable'}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+                      >
+                        <FileText size={13} /> {creatingId === row.id ? 'Creating...' : 'Create estimate'}
+                      </button>
                     </div>
-                    <div className="text-xs text-gray-500 truncate mt-0.5">
-                      {row.address || 'No address'} - {new Date(row.created_at).toLocaleDateString()}
-                    </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}

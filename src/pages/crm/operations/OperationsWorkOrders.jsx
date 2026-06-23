@@ -726,6 +726,7 @@ function WorkOrderDrawer({ wo, client, contacts, crews, contactName, crewById, o
           { k: 'photos', label: 'Photos' },
           { k: 'notes', label: 'Notes' },
           { k: 'checklist', label: 'Checklist' },
+          { k: 'roof', label: 'Roof Report' },
         ].map(t => (
           <button
             key={t.k}
@@ -760,7 +761,95 @@ function WorkOrderDrawer({ wo, client, contacts, crews, contactName, crewById, o
       {tab === 'checklist' && (
         <ChecklistTab draft={draft} setDraft={setDraft} onSave={saveChecklist} saving={saving} />
       )}
+
+      {tab === 'roof' && <RoofReportTab wo={wo} client={client} />}
     </Drawer>
+  )
+}
+
+// Read-only roof reports tied to this job (project_id and/or contact_id).
+// Queries ops_measurements (template_type='aerial_roof'); deep-links each
+// report into the Roof Measure tool to reopen it.
+function RoofReportTab({ wo, client }) {
+  const [reports, setReports] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!wo || !client) return
+    ;(async () => {
+      setLoading(true)
+      try {
+        const ors = []
+        if (wo.project_id) ors.push(`project_id.eq.${wo.project_id}`)
+        if (wo.contact_id) ors.push(`contact_id.eq.${wo.contact_id}`)
+        let q = client
+          .from('ops_measurements')
+          .select('id, title, address, summary, created_at, contact_id, project_id')
+          .eq('template_type', 'aerial_roof')
+          .order('created_at', { ascending: false })
+        if (ors.length) q = q.or(ors.join(','))
+        else { if (!cancelled) { setReports([]); setLoading(false) }; return }
+        const { data } = await q
+        if (!cancelled) setReports(data || [])
+      } catch (e) {
+        if (!cancelled) setReports([])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [wo?.id, wo?.project_id, wo?.contact_id, client])
+
+  const platformId = (typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : '') || ''
+  const measureHref = platformId ? `/crm/${platformId}/measure` : '#'
+
+  if (loading) {
+    return <div className="text-xs text-gray-500 py-6 text-center">Loading roof reports...</div>
+  }
+  if (!wo.project_id && !wo.contact_id) {
+    return <div className="text-xs text-gray-600 bg-navy-900/40 border border-dashed border-navy-700/60 rounded-lg p-4 text-center">Link a contact or project to this job to surface roof reports.</div>
+  }
+  if (reports.length === 0) {
+    return (
+      <div className="text-xs text-gray-600 bg-navy-900/40 border border-dashed border-navy-700/60 rounded-lg p-4 text-center">
+        No aerial roof reports for this job yet.
+        <div className="mt-2"><a href={measureHref} className="text-brand-cyan hover:text-brand-cyan/80">Open Roof Measure</a></div>
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-3">
+      {reports.map((r) => {
+        const sm = r.summary || {}
+        return (
+          <div key={r.id} className="bg-navy-900/40 border border-navy-700/50 rounded-lg p-3">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="text-sm text-white font-medium truncate">{r.title || 'Aerial roof measurement'}</span>
+              <span className="text-xs text-emerald-400 shrink-0">{sm.squares ?? '-'} sq</span>
+            </div>
+            <div className="text-xs text-gray-500 truncate mb-2">{r.address || 'No address'} - {fmtDate(r.created_at)}</div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-navy-800/60 rounded-md py-1.5">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Sloped</div>
+                <div className="text-sm text-gray-200">{(sm.sloped_ft2 ?? 0).toLocaleString()} ft2</div>
+              </div>
+              <div className="bg-navy-800/60 rounded-md py-1.5">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Plan</div>
+                <div className="text-sm text-gray-200">{(sm.plan_ft2 ?? 0).toLocaleString()} ft2</div>
+              </div>
+              <div className="bg-navy-800/60 rounded-md py-1.5">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Waste</div>
+                <div className="text-sm text-gray-200">{sm.waste_pct ?? 0}%</div>
+              </div>
+            </div>
+            <div className="mt-2 text-right">
+              <a href={measureHref} className="text-xs text-brand-cyan hover:text-brand-cyan/80">Open in Roof Measure</a>
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
