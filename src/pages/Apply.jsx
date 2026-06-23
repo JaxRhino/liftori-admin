@@ -1,23 +1,111 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Briefcase, Upload, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
+import { Briefcase, Upload, CheckCircle, Loader2, ExternalLink, MapPin, BadgeDollarSign, FileText } from 'lucide-react';
 
 /**
  * Public Job Application Page
- * Accessible at /apply or /apply?ref=REFERRAL_CODE
+ * Accessible at:
+ *   /apply                            — generic application (position dropdown)
+ *   /apply?posting=crm-remote-sales   — posting-specific application (loads the
+ *                                        opening + its screening questions)
+ *   /apply?position=Some%20Title      — legacy deep-link (pre-selects position)
+ *   /apply?ref=REFERRAL_CODE          — attaches a hiring referral
  * No auth required — anyone can submit an application.
  */
+
+const INPUT_CLS =
+  'w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none';
+
+// Renders a single screening question based on its declared type.
+function ScreeningField({ q, value, onChange }) {
+  if (q.type === 'boolean') {
+    return (
+      <div className="flex gap-2">
+        {[['Yes', true], ['No', false]].map(([lbl, val]) => (
+          <button
+            type="button"
+            key={lbl}
+            onClick={() => onChange(val)}
+            className={`px-5 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              value === val
+                ? 'bg-sky-500 border-sky-500 text-white'
+                : 'bg-[#0B1120] border-white/10 text-gray-300 hover:border-sky-500/50'
+            }`}
+          >
+            {lbl}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (q.type === 'multiselect') {
+    const arr = Array.isArray(value) ? value : [];
+    const toggle = (opt) =>
+      onChange(arr.includes(opt) ? arr.filter((o) => o !== opt) : [...arr, opt]);
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {(q.options || []).map((opt) => (
+          <label
+            key={opt}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer transition-colors ${
+              arr.includes(opt)
+                ? 'bg-sky-500/10 border-sky-500/50 text-sky-200'
+                : 'bg-[#0B1120] border-white/10 text-gray-300 hover:border-white/20'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={arr.includes(opt)}
+              onChange={() => toggle(opt)}
+              className="accent-sky-500"
+            />
+            {opt}
+          </label>
+        ))}
+      </div>
+    );
+  }
+
+  if (q.type === 'textarea') {
+    return (
+      <textarea
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        rows={3}
+        className={INPUT_CLS + ' resize-none'}
+        placeholder={q.placeholder || ''}
+      />
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value)}
+      className={INPUT_CLS}
+      placeholder={q.placeholder || ''}
+    />
+  );
+}
+
 export default function Apply() {
   const [searchParams] = useSearchParams();
   const referralCode = searchParams.get('ref') || '';
   const positionParam = searchParams.get('position') || '';
+  const postingSlug = searchParams.get('posting') || '';
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [resumeFile, setResumeFile] = useState(null);
   const [referrerName, setReferrerName] = useState('');
+
+  const [postings, setPostings] = useState([]);
+  const [posting, setPosting] = useState(null); // the resolved, locked posting (if any)
+  const [screening, setScreening] = useState({});
 
   const [form, setForm] = useState({
     full_name: '',
@@ -30,6 +118,26 @@ export default function Apply() {
     availability: '',
     cover_note: '',
   });
+
+  // Load active job postings (for the dropdown) + resolve the posting-specific page.
+  useEffect(() => {
+    supabase
+      .from('job_postings')
+      .select('id, slug, title, employment_type, comp_model, location, product_line, summary, description, compensation_detail, screening_questions, sort_order')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .then(({ data }) => {
+        const list = data || [];
+        setPostings(list);
+        let resolved = null;
+        if (postingSlug) resolved = list.find((p) => p.slug === postingSlug) || null;
+        if (!resolved && positionParam) resolved = list.find((p) => p.title === positionParam) || null;
+        if (resolved) {
+          setPosting(resolved);
+          setForm((f) => ({ ...f, position: resolved.title }));
+        }
+      });
+  }, [postingSlug, positionParam]);
 
   // Resolve referral code to name
   useEffect(() => {
@@ -46,6 +154,17 @@ export default function Apply() {
     }
   }, [referralCode]);
 
+  // Which screening questions are currently visible (honors show_if).
+  const questions = posting?.screening_questions || [];
+  const visibleQuestions = questions.filter((q) => {
+    if (!q.show_if) return true;
+    return screening[q.show_if.key] === q.show_if.equals;
+  });
+
+  function setAnswer(key, val) {
+    setScreening((s) => ({ ...s, [key]: val }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.full_name || !form.email || !form.position) {
@@ -60,6 +179,22 @@ export default function Apply() {
       setError('Please enter a valid phone number (at least 10 digits).');
       return;
     }
+    // Validate required screening questions that are currently visible.
+    for (const q of visibleQuestions) {
+      if (!q.required) continue;
+      const v = screening[q.key];
+      const missing =
+        q.type === 'boolean'
+          ? v !== true && v !== false
+          : q.type === 'multiselect'
+          ? !Array.isArray(v) || v.length === 0
+          : !v || !String(v).trim();
+      if (missing) {
+        setError(`Please answer: ${q.label}`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     setError('');
 
@@ -93,8 +228,10 @@ export default function Apply() {
         p_portfolio_url: form.portfolio_url || null,
         p_salary_expectation: form.salary_expectation || null,
         p_availability: form.availability || null,
-        p_cover_note: null,
+        p_cover_note: form.cover_note || null,
         p_resume_url: resume_url,
+        p_posting_slug: posting?.slug || postingSlug || null,
+        p_screening: posting ? screening : {},
       });
       if (rpcErr) throw rpcErr;
       const row = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
@@ -134,7 +271,7 @@ export default function Apply() {
           <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle className="h-8 w-8 text-green-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Application Submitted!</h1>
+          <h1 className="text-2xl font-bold text-white">Application Submitted</h1>
           <p className="text-gray-400">
             Thanks for your interest in joining the Liftori team, {form.full_name}.
             We'll review your application and get back to you soon.
@@ -167,6 +304,52 @@ export default function Apply() {
 
       {/* Form */}
       <div className="max-w-2xl mx-auto px-4 py-8">
+        {/* Posting-specific header */}
+        {posting && (
+          <div className="mb-6 bg-[#0B1120] border border-white/10 rounded-xl p-5">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-sky-500/15 flex items-center justify-center flex-shrink-0">
+                <Briefcase className="h-5 w-5 text-sky-400" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-white">{posting.title}</h2>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {posting.location && (
+                    <span className="inline-flex items-center gap-1 text-xs text-gray-300 bg-white/5 border border-white/10 rounded-full px-2.5 py-1">
+                      <MapPin className="h-3 w-3 text-gray-400" /> {posting.location}
+                    </span>
+                  )}
+                  {posting.employment_type && (
+                    <span className="inline-flex items-center gap-1 text-xs text-gray-300 bg-white/5 border border-white/10 rounded-full px-2.5 py-1">
+                      <FileText className="h-3 w-3 text-gray-400" /> {posting.employment_type}
+                    </span>
+                  )}
+                  {posting.comp_model && (
+                    <span className="inline-flex items-center gap-1 text-xs text-gray-300 bg-white/5 border border-white/10 rounded-full px-2.5 py-1">
+                      <BadgeDollarSign className="h-3 w-3 text-gray-400" /> {posting.comp_model}
+                    </span>
+                  )}
+                  {posting.product_line && (
+                    <span className="inline-flex items-center text-xs text-sky-300 bg-sky-500/10 border border-sky-500/20 rounded-full px-2.5 py-1">
+                      {posting.product_line}
+                    </span>
+                  )}
+                </div>
+                {posting.description && (
+                  <p className="mt-3 text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+                    {posting.description}
+                  </p>
+                )}
+                {posting.compensation_detail && (
+                  <div className="mt-3 text-sm text-gray-300 bg-sky-500/5 border-l-2 border-sky-500/40 rounded-r-lg px-3 py-2">
+                    <span className="text-sky-300 font-medium">Compensation:</span> {posting.compensation_detail}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {referrerName && (
           <div className="mb-6 bg-sky-500/10 border border-sky-500/20 rounded-lg p-4 flex items-center gap-3">
             <div className="w-8 h-8 bg-sky-500/20 rounded-full flex items-center justify-center">
@@ -190,7 +373,7 @@ export default function Apply() {
                   type="text"
                   value={form.full_name}
                   onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
+                  className={INPUT_CLS}
                   placeholder="Your full name"
                   required
                 />
@@ -201,7 +384,7 @@ export default function Apply() {
                   type="email"
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
+                  className={INPUT_CLS}
                   placeholder="you@email.com"
                   required
                 />
@@ -212,32 +395,51 @@ export default function Apply() {
                   type="tel"
                   value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
+                  className={INPUT_CLS}
                   placeholder="(555) 123-4567"
                 />
               </div>
               <div>
                 <label className="text-sm text-gray-400 mb-1 block">Position *</label>
-                <select
-                  value={form.position}
-                  onChange={e => setForm(f => ({ ...f, position: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
-                  required
-                >
-                  <option value="">Select a position</option>
-                  <option value="Sales Representative">Sales Representative</option>
-                  <option value="Account Executive">Account Executive</option>
-                  <option value="Frontend Developer">Frontend Developer</option>
-                  <option value="Full Stack Developer">Full Stack Developer</option>
-                  <option value="UI/UX Designer">UI/UX Designer</option>
-                  <option value="Project Manager">Project Manager</option>
-                  <option value="Marketing Specialist">Marketing Specialist</option>
-                  <option value="Customer Success">Customer Success</option>
-                  <option value="Other">Other</option>
-                </select>
+                {posting ? (
+                  <div className="w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm flex items-center justify-between">
+                    <span>{posting.title}</span>
+                    <span className="text-xs text-gray-500">This opening</span>
+                  </div>
+                ) : (
+                  <select
+                    value={form.position}
+                    onChange={e => setForm(f => ({ ...f, position: e.target.value }))}
+                    className={INPUT_CLS}
+                    required
+                  >
+                    <option value="">Select a position</option>
+                    {postings.map(p => (
+                      <option key={p.slug} value={p.title}>{p.title}</option>
+                    ))}
+                    <option value="Other">Other / General Interest</option>
+                  </select>
+                )}
               </div>
             </div>
           </div>
+
+          {/* Role-specific screening questions */}
+          {visibleQuestions.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold text-white mb-4">A Few Questions</h2>
+              <div className="space-y-5">
+                {visibleQuestions.map(q => (
+                  <div key={q.key}>
+                    <label className="text-sm text-gray-300 mb-2 block">
+                      {q.label}{q.required ? ' *' : ''}
+                    </label>
+                    <ScreeningField q={q} value={screening[q.key]} onChange={(v) => setAnswer(q.key, v)} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Professional Info */}
           <div>
@@ -249,7 +451,7 @@ export default function Apply() {
                   type="url"
                   value={form.linkedin_url}
                   onChange={e => setForm(f => ({ ...f, linkedin_url: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
+                  className={INPUT_CLS}
                   placeholder="https://linkedin.com/in/..."
                 />
               </div>
@@ -259,17 +461,17 @@ export default function Apply() {
                   type="url"
                   value={form.portfolio_url}
                   onChange={e => setForm(f => ({ ...f, portfolio_url: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
+                  className={INPUT_CLS}
                   placeholder="https://yoursite.com"
                 />
               </div>
               <div>
-                <label className="text-sm text-gray-400 mb-1 block">Salary Expectation</label>
+                <label className="text-sm text-gray-400 mb-1 block">Salary / Comp Expectation</label>
                 <input
                   type="text"
                   value={form.salary_expectation}
                   onChange={e => setForm(f => ({ ...f, salary_expectation: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
+                  className={INPUT_CLS}
                   placeholder="Commission-based, $80k base, etc."
                 />
               </div>
@@ -279,7 +481,7 @@ export default function Apply() {
                   type="text"
                   value={form.availability}
                   onChange={e => setForm(f => ({ ...f, availability: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
+                  className={INPUT_CLS}
                   placeholder="Available now, 2 weeks notice..."
                 />
               </div>
@@ -313,7 +515,7 @@ export default function Apply() {
             <textarea
               value={form.cover_note}
               onChange={e => setForm(f => ({ ...f, cover_note: e.target.value }))}
-              className="w-full px-3 py-2.5 rounded-lg bg-[#0B1120] border border-white/10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none resize-none"
+              className={INPUT_CLS + ' resize-none'}
               rows={4}
               placeholder="Tell us why you'd be a great fit for the Liftori team..."
             />

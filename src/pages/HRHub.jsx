@@ -13,19 +13,20 @@ import {
   FileText, Upload, ExternalLink, Briefcase, Mail, Phone, MapPin,
   Clock, Brain, MessageSquare, BarChart3, X, Plus, Edit2, Trash2,
   ArrowRight, GripVertical, Eye, Download, Sparkles, Check, AlertCircle,
-  Calendar, Send, ShieldCheck, UserCheck, CalendarPlus, CalendarClock
+  Calendar, Send, ShieldCheck, UserCheck, CalendarPlus, CalendarClock,
+  Copy, Power, Pencil
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createInterviewToken, sendApplicantWelcomeEmail, sendApprovalEmail } from '../lib/hrEmailService';
 
 // ─── Stage Configuration ─────────────────────────────────────
 const STAGES = [
-  { key: 'applied', label: 'Applied', color: 'bg-blue-500', badge: 'bg-blue-100 text-blue-800', icon: '📥' },
-  { key: 'screening', label: 'Screening', color: 'bg-yellow-500', badge: 'bg-yellow-100 text-yellow-800', icon: '🔍' },
-  { key: 'interview', label: 'Interview', color: 'bg-purple-500', badge: 'bg-purple-100 text-purple-800', icon: '🎤' },
-  { key: 'offer', label: 'Offer', color: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-800', icon: '📋' },
-  { key: 'hired', label: 'Hired', color: 'bg-green-500', badge: 'bg-green-100 text-green-800', icon: '✅' },
-  { key: 'rejected', label: 'Rejected', color: 'bg-red-500', badge: 'bg-red-100 text-red-800', icon: '❌' },
+  { key: 'applied', label: 'Applied', color: 'bg-blue-500', badge: 'bg-blue-100 text-blue-800' },
+  { key: 'screening', label: 'Screening', color: 'bg-yellow-500', badge: 'bg-yellow-100 text-yellow-800' },
+  { key: 'interview', label: 'Interview', color: 'bg-purple-500', badge: 'bg-purple-100 text-purple-800' },
+  { key: 'offer', label: 'Offer', color: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-800' },
+  { key: 'hired', label: 'Hired', color: 'bg-green-500', badge: 'bg-green-100 text-green-800' },
+  { key: 'rejected', label: 'Rejected', color: 'bg-red-500', badge: 'bg-red-100 text-red-800' },
 ];
 
 const STAGE_MAP = Object.fromEntries(STAGES.map(s => [s.key, s]));
@@ -77,7 +78,12 @@ export default function HRHub() {
   const [showRejected, setShowRejected] = useState(false);
 
   // Tabs
-  const [activeTab, setActiveTab] = useState('pipeline'); // pipeline | referrals | scheduling
+  const [activeTab, setActiveTab] = useState('pipeline'); // pipeline | referrals | scheduling | postings
+
+  // Job postings
+  const [postings, setPostings] = useState([]);
+  const [copiedSlug, setCopiedSlug] = useState('');
+  const [postingModal, setPostingModal] = useState(null); // null = closed; object = editing/creating
 
   // Dialogs
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -123,6 +129,7 @@ export default function HRHub() {
     fetchReferrals();
     fetchInterviewSlots();
     fetchScheduledInterviews();
+    loadPostings();
   }, []);
 
   async function fetchApplicants() {
@@ -139,6 +146,68 @@ export default function HRHub() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // ─── Job Postings ────────────────────────────────────────────
+  async function loadPostings() {
+    const { data } = await supabase
+      .from('job_postings')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    setPostings(data || []);
+  }
+
+  const APPLY_ORIGIN = (typeof window !== 'undefined' ? window.location.origin : 'https://admin.liftori.ai');
+  function postingApplyUrl(slug) { return `${APPLY_ORIGIN}/apply?posting=${slug}`; }
+  function copyApplyLink(slug) {
+    navigator.clipboard.writeText(postingApplyUrl(slug));
+    setCopiedSlug(slug);
+    setTimeout(() => setCopiedSlug(''), 2000);
+    toast.success('Apply link copied');
+  }
+  function hrSlugify(s) { return (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+  function openNewPosting() {
+    setPostingModal({ id: null, title: '', slug: '', employment_type: '', comp_model: '', location: 'Remote', product_line: '', summary: '', description: '', compensation_detail: '', is_active: true, sort_order: 0, screening_questions: [] });
+  }
+  function openEditPosting(p) {
+    setPostingModal({ ...p, screening_questions: Array.isArray(p.screening_questions) ? p.screening_questions : [] });
+  }
+  async function savePosting() {
+    const m = postingModal;
+    if (!m.title || !m.title.trim()) { toast.error('Title is required'); return; }
+    const slug = (m.slug && m.slug.trim()) ? hrSlugify(m.slug) : hrSlugify(m.title);
+    const payload = { title: m.title.trim(), slug, employment_type: m.employment_type || null, comp_model: m.comp_model || null, location: m.location || null, product_line: m.product_line || null, summary: m.summary || null, description: m.description || null, compensation_detail: m.compensation_detail || null, is_active: !!m.is_active, sort_order: Number(m.sort_order) || 0, screening_questions: m.screening_questions || [] };
+    let err;
+    if (m.id) { ({ error: err } = await supabase.from('job_postings').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', m.id)); }
+    else { ({ error: err } = await supabase.from('job_postings').insert(payload)); }
+    if (err) { toast.error(err.message || 'Save failed'); return; }
+    toast.success('Posting saved');
+    setPostingModal(null);
+    loadPostings();
+  }
+  async function togglePostingActive(p) {
+    const { error: err } = await supabase.from('job_postings').update({ is_active: !p.is_active, updated_at: new Date().toISOString() }).eq('id', p.id);
+    if (err) { toast.error('Update failed'); return; }
+    loadPostings();
+  }
+  function pmSetQ(i, patch) { setPostingModal(m => ({ ...m, screening_questions: m.screening_questions.map((q, idx) => idx === i ? { ...q, ...patch } : q) })); }
+  function pmAddQ() { setPostingModal(m => ({ ...m, screening_questions: [...m.screening_questions, { key: '', label: '', type: 'text', required: false }] })); }
+  function pmRemoveQ(i) { setPostingModal(m => ({ ...m, screening_questions: m.screening_questions.filter((_, idx) => idx !== i) })); }
+  function renderScreening(screening) {
+    if (!screening || typeof screening !== 'object' || Array.isArray(screening) || Object.keys(screening).length === 0) return null;
+    const fmt = (v) => Array.isArray(v) ? (v.length ? v.join(', ') : '—') : (v === true ? 'Yes' : v === false ? 'No' : (v || '—'));
+    const labelize = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return (
+      <div className="mt-3">
+        <h4 className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">Screening Answers</h4>
+        <div className="space-y-1.5">
+          {Object.entries(screening).map(([k, v]) => (
+            <div key={k} className="text-sm"><span className="text-gray-400">{labelize(k)}: </span><span className="text-gray-200">{fmt(v)}</span></div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   // ─── Referrals ───────────────────────────────────────────────
@@ -411,22 +480,19 @@ export default function HRHub() {
         .upload(path, file);
       if (uploadErr) throw uploadErr;
 
-      // chat-files is a PRIVATE bucket - getPublicUrl yields a non-resolving URL.
-      // Use a long-lived signed URL so View/Download work for authenticated admins.
-      const { data: urlData, error: signErr } = await supabase.storage
+      const { data: urlData } = supabase.storage
         .from('chat-files')
-        .createSignedUrl(path, 60 * 60 * 24 * 365);
-      if (signErr) throw signErr;
+        .getPublicUrl(path);
 
       const { error: updateErr } = await supabase
         .from('applicants')
-        .update({ resume_url: urlData.signedUrl })
+        .update({ resume_url: urlData.publicUrl })
         .eq('id', applicantId);
       if (updateErr) throw updateErr;
 
-      setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, resume_url: urlData.signedUrl } : a));
+      setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, resume_url: urlData.publicUrl } : a));
       if (selectedApplicant?.id === applicantId) {
-        setSelectedApplicant(prev => ({ ...prev, resume_url: urlData.signedUrl }));
+        setSelectedApplicant(prev => ({ ...prev, resume_url: urlData.publicUrl }));
       }
       toast.success('Resume uploaded');
     } catch (err) {
@@ -590,14 +656,6 @@ export default function HRHub() {
     return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
   }
 
-  // Upcoming = scheduled AND the slot's end datetime has not already passed
-  const upcomingInterviews = scheduledInterviews.filter(si => {
-    if (si.status !== 'scheduled') return false;
-    if (!si.slot?.date) return true;
-    const slotEnd = new Date(`${si.slot.date}T${si.slot.end_time || si.slot.start_time || '23:59'}`);
-    return !isNaN(slotEnd.getTime()) && slotEnd >= new Date();
-  });
-
   if (loading) return <div className="p-6 text-gray-400">Loading HR Hub...</div>;
 
   return (
@@ -655,7 +713,62 @@ export default function HRHub() {
         >
           <Calendar className="h-4 w-4 inline mr-2" />Interview Scheduling
         </button>
+        <button
+          onClick={() => setActiveTab('postings')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'postings' ? 'bg-sky-500 text-white' : 'text-gray-400 hover:text-white'}`}
+        >
+          <Briefcase className="h-4 w-4 inline mr-2" />Job Postings
+        </button>
       </div>
+
+      {/* ─── JOB POSTINGS TAB ───────────────────────────────────── */}
+      {activeTab === 'postings' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Job Postings</h2>
+              <p className="text-sm text-gray-400">Manage open roles. Share each posting's apply link to collect applications.</p>
+            </div>
+            <Button onClick={openNewPosting} className="bg-sky-500 hover:bg-sky-600 text-white"><Plus className="h-4 w-4 mr-1" /> New posting</Button>
+          </div>
+          {postings.length === 0 && (<div className="text-sm text-gray-400 bg-navy-800/40 border border-white/10 rounded-lg p-6 text-center">No postings yet. Create your first opening.</div>)}
+          <div className="grid grid-cols-1 gap-3">
+            {postings.map(p => {
+              const count = applicants.filter(a => a.posting_id === p.id || a.position === p.title).length;
+              return (
+                <div key={p.id} className="bg-navy-800/50 border border-white/10 rounded-lg p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-white font-semibold">{p.title}</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${p.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'}`}>{p.is_active ? 'Active' : 'Inactive'}</span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-400">
+                        {p.location && <span>{p.location}</span>}
+                        {p.employment_type && <span>• {p.employment_type}</span>}
+                        {p.comp_model && <span>• {p.comp_model}</span>}
+                        {p.product_line && <span>• {p.product_line}</span>}
+                        <span>• {count} applicant{count === 1 ? '' : 's'}</span>
+                      </div>
+                      {p.summary && <p className="mt-2 text-sm text-gray-300">{p.summary}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Button onClick={() => togglePostingActive(p)} variant="outline" className="border-white/10 text-gray-300 text-xs"><Power className="h-3.5 w-3.5 mr-1" />{p.is_active ? 'Deactivate' : 'Activate'}</Button>
+                      <Button onClick={() => openEditPosting(p)} variant="outline" className="border-white/10 text-gray-300 text-xs"><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Button>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 bg-navy-900/60 border border-white/10 rounded-md px-3 py-2">
+                    <Briefcase className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                    <code className="text-xs text-sky-300 truncate flex-1">{postingApplyUrl(p.slug)}</code>
+                    <button onClick={() => copyApplyLink(p.slug)} className="text-xs text-gray-300 hover:text-white inline-flex items-center gap-1">{copiedSlug === p.slug ? <><Check className="h-3.5 w-3.5 text-green-400" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}</button>
+                    <a href={postingApplyUrl(p.slug)} target="_blank" rel="noreferrer" className="text-xs text-gray-300 hover:text-white inline-flex items-center gap-1"><ExternalLink className="h-3.5 w-3.5" /> Open</a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ─── REFERRALS TAB ─────────────────────────────────────── */}
       {activeTab === 'referrals' && (
@@ -797,9 +910,9 @@ export default function HRHub() {
                 Upcoming Interviews
               </h3>
             </div>
-            {upcomingInterviews.length > 0 ? (
+            {scheduledInterviews.filter(si => si.status === 'scheduled').length > 0 ? (
               <div className="space-y-3">
-                {upcomingInterviews.map(si => (
+                {scheduledInterviews.filter(si => si.status === 'scheduled').map(si => (
                   <div key={si.id} className="flex items-center justify-between bg-navy-900/50 rounded-lg p-4 border border-white/5">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
@@ -891,7 +1004,7 @@ export default function HRHub() {
 
           {/* Add Slot Dialog */}
           <Dialog open={addSlotOpen} onOpenChange={setAddSlotOpen}>
-            <DialogContent className="bg-navy-950 border-white/10 text-white max-w-md">
+            <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <CalendarPlus className="h-5 w-5 text-sky-400" />
@@ -990,6 +1103,11 @@ export default function HRHub() {
             {positions.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         )}
+        {filterPosition && postings.find(p => p.title === filterPosition) && (
+          <button type="button" onClick={() => copyApplyLink(postings.find(p => p.title === filterPosition).slug)} className="px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-sm text-gray-300 hover:text-white inline-flex items-center gap-1">
+            {copiedSlug === (postings.find(p => p.title === filterPosition) || {}).slug ? <><Check className="h-3.5 w-3.5 text-green-400" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Apply link</>}
+          </button>
+        )}
         <div className="flex items-center gap-2 bg-navy-800/50 border border-white/10 rounded-md p-1">
           <button
             onClick={() => setViewMode('pipeline')}
@@ -1018,7 +1136,7 @@ export default function HRHub() {
               {/* Stage Header */}
               <div className="flex items-center gap-2 mb-3">
                 <div className={`w-2 h-2 rounded-full ${stage.color}`} />
-                <span className="text-sm font-semibold text-white">{stage.icon} {stage.label}</span>
+                <span className="text-sm font-semibold text-white">{stage.label}</span>
                 <Badge variant="outline" className="ml-auto text-xs border-white/20 text-gray-400">
                   {pipeline[stage.key]?.length || 0}
                 </Badge>
@@ -1060,7 +1178,7 @@ export default function HRHub() {
                           className={`px-2 py-0.5 rounded text-[10px] font-medium ${s.badge} hover:opacity-80 transition-opacity`}
                           title={`Move to ${s.label}`}
                         >
-                          {s.icon}
+                          {s.label}
                         </button>
                       ))}
                     </div>
@@ -1145,7 +1263,7 @@ export default function HRHub() {
 
       {/* ─── Add Applicant Dialog ───────────────────────────────── */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="bg-navy-950 border-white/10 text-white max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-sky-400" />
@@ -1170,7 +1288,8 @@ export default function HRHub() {
               </div>
               <div>
                 <label className="text-xs text-gray-400 mb-1 block">Position *</label>
-                <Input value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="Frontend Developer" required />
+                <Input list="hr-posting-titles" value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="Select or type a position" required />
+                <datalist id="hr-posting-titles">{postings.map(p => <option key={p.id} value={p.title} />)}</datalist>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -1215,11 +1334,11 @@ export default function HRHub() {
 
       {/* ─── Applicant Detail Panel ─────────────────────────────── */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="bg-navy-950 border-white/10 text-white w-[95vw] max-w-[1400px] h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="bg-[#0B1120] border-white/10 text-white w-[95vw] max-w-[1400px] h-[90vh] overflow-y-auto p-0">
           {selectedApplicant && (
             <div className="flex flex-col">
               {/* ── Hero Header ──────────────────────────────────── */}
-              <div className="px-8 pt-8 pb-6 border-b border-white/10 bg-gradient-to-r from-navy-800/80 to-navy-950">
+              <div className="px-8 pt-8 pb-6 border-b border-white/10 bg-gradient-to-r from-navy-800/80 to-[#0B1120]">
                 <div className="flex items-start gap-5">
                   <Avatar className="h-16 w-16 ring-2 ring-sky-500/30">
                     <AvatarFallback className="bg-sky-500/20 text-sky-400 text-xl font-bold">
@@ -1230,7 +1349,7 @@ export default function HRHub() {
                     <div className="flex items-center gap-3 flex-wrap">
                       <h2 className="text-2xl font-bold text-white">{selectedApplicant.full_name}</h2>
                       <Badge className={`${STAGE_MAP[selectedApplicant.stage]?.badge} text-xs`}>
-                        {STAGE_MAP[selectedApplicant.stage]?.icon} {STAGE_MAP[selectedApplicant.stage]?.label}
+                        {STAGE_MAP[selectedApplicant.stage]?.label}
                       </Badge>
                       {selectedApplicant.ai_score != null && (
                         <div className={`flex items-center gap-1 text-sm font-bold ${selectedApplicant.ai_score >= 80 ? 'text-green-400' : selectedApplicant.ai_score >= 60 ? 'text-yellow-400' : selectedApplicant.ai_score >= 40 ? 'text-orange-400' : 'text-red-400'}`}>
@@ -1294,7 +1413,7 @@ export default function HRHub() {
                       >
                         <div className={`h-2 rounded-full transition-colors ${isActive ? s.color : 'bg-gray-700/50'} ${!isCurrent ? 'hover:opacity-80' : ''}`} />
                         <span className={`text-[10px] mt-1 block text-center transition-colors ${isCurrent ? 'text-white font-semibold' : isActive ? 'text-gray-400' : 'text-gray-600'} group-hover:text-white`}>
-                          {s.icon} {s.label}
+                          {s.label}
                         </span>
                       </button>
                     );
@@ -1323,6 +1442,13 @@ export default function HRHub() {
                       </Card>
                     )}
                   </div>
+
+                  {/* Screening Answers (from public apply form) */}
+                  {renderScreening(selectedApplicant.screening) && (
+                    <Card className="bg-navy-800/30 border-white/10 p-5">
+                      {renderScreening(selectedApplicant.screening)}
+                    </Card>
+                  )}
 
                   {/* Resume + AI Assessment Row */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1554,7 +1680,7 @@ export default function HRHub() {
                           }`}
                         >
                           <div className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
-                          {s.icon} {s.label}
+                          {s.label}
                           {selectedApplicant.stage === s.key && <Check className="h-3.5 w-3.5 ml-auto" />}
                         </button>
                       ))}
@@ -1580,7 +1706,7 @@ export default function HRHub() {
 
       {/* ─── Score Dialog ───────────────────────────────────────── */}
       <Dialog open={scoreDialogOpen} onOpenChange={setScoreDialogOpen}>
-        <DialogContent className="bg-navy-950 border-white/10 text-white max-w-md">
+        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-sky-400" />
@@ -1630,7 +1756,7 @@ export default function HRHub() {
 
       {/* ─── Approve & Onboard Dialog ──────────────────────────── */}
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-        <DialogContent className="bg-navy-950 border-white/10 text-white max-w-md">
+        <DialogContent className="bg-[#0B1120] border-white/10 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-green-400" />
@@ -1692,6 +1818,63 @@ export default function HRHub() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ─── Job Posting Editor Modal ──────────────────────────── */}
+      {postingModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setPostingModal(null)}>
+          <div className="bg-navy-900 border border-white/10 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">{postingModal.id ? 'Edit posting' : 'New posting'}</h3>
+              <button onClick={() => setPostingModal(null)} className="text-gray-400 hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2"><label className="text-xs text-gray-400 mb-1 block">Title *</label><Input value={postingModal.title} onChange={e => setPostingModal(m => ({ ...m, title: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="CRM Sales Representative (Remote)" /></div>
+              <div><label className="text-xs text-gray-400 mb-1 block">Slug (URL)</label><Input value={postingModal.slug} onChange={e => setPostingModal(m => ({ ...m, slug: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="auto from title" /></div>
+              <div><label className="text-xs text-gray-400 mb-1 block">Product line</label><Input value={postingModal.product_line || ''} onChange={e => setPostingModal(m => ({ ...m, product_line: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="CRM" /></div>
+              <div><label className="text-xs text-gray-400 mb-1 block">Location</label><Input value={postingModal.location || ''} onChange={e => setPostingModal(m => ({ ...m, location: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="Remote (US)" /></div>
+              <div><label className="text-xs text-gray-400 mb-1 block">Employment type</label><Input value={postingModal.employment_type || ''} onChange={e => setPostingModal(m => ({ ...m, employment_type: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="1099 Contract" /></div>
+              <div><label className="text-xs text-gray-400 mb-1 block">Comp model</label><Input value={postingModal.comp_model || ''} onChange={e => setPostingModal(m => ({ ...m, comp_model: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder="Commission-only" /></div>
+              <div><label className="text-xs text-gray-400 mb-1 block">Sort order</label><Input type="number" value={postingModal.sort_order} onChange={e => setPostingModal(m => ({ ...m, sort_order: e.target.value }))} className="bg-navy-800/50 border-white/10" /></div>
+              <div className="sm:col-span-2"><label className="text-xs text-gray-400 mb-1 block">Summary (one line)</label><Input value={postingModal.summary || ''} onChange={e => setPostingModal(m => ({ ...m, summary: e.target.value }))} className="bg-navy-800/50 border-white/10" /></div>
+              <div className="sm:col-span-2"><label className="text-xs text-gray-400 mb-1 block">Description</label><textarea value={postingModal.description || ''} onChange={e => setPostingModal(m => ({ ...m, description: e.target.value }))} rows={5} className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-white text-sm resize-none" /></div>
+              <div className="sm:col-span-2"><label className="text-xs text-gray-400 mb-1 block">Compensation detail</label><textarea value={postingModal.compensation_detail || ''} onChange={e => setPostingModal(m => ({ ...m, compensation_detail: e.target.value }))} rows={2} className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-white text-sm resize-none" /></div>
+              <label className="sm:col-span-2 flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" checked={!!postingModal.is_active} onChange={e => setPostingModal(m => ({ ...m, is_active: e.target.checked }))} className="accent-sky-500" /> Active (visible on the public apply page)</label>
+            </div>
+            <div className="mt-5">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-white">Screening questions</h4>
+                <Button onClick={pmAddQ} variant="outline" className="border-white/10 text-gray-300 text-xs"><Plus className="h-3.5 w-3.5 mr-1" /> Add question</Button>
+              </div>
+              <div className="space-y-3">
+                {(postingModal.screening_questions || []).map((q, i) => (
+                  <div key={i} className="bg-navy-800/40 border border-white/10 rounded-lg p-3 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <Input value={q.label} onChange={e => pmSetQ(i, { label: e.target.value })} className="bg-navy-900/50 border-white/10 flex-1" placeholder="Question label" />
+                      <button onClick={() => pmRemoveQ(i)} className="text-gray-400 hover:text-red-400 mt-2"><X className="h-4 w-4" /></button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-center">
+                      <Input value={q.key} onChange={e => pmSetQ(i, { key: e.target.value })} className="bg-navy-900/50 border-white/10" placeholder="key" />
+                      <select value={q.type} onChange={e => pmSetQ(i, { type: e.target.value })} className="px-2 py-2 rounded-md bg-navy-900/50 border border-white/10 text-sm text-gray-200">
+                        <option value="text">Short text</option>
+                        <option value="textarea">Long text</option>
+                        <option value="boolean">Yes / No</option>
+                        <option value="multiselect">Multi-select</option>
+                      </select>
+                      <label className="flex items-center gap-1 text-xs text-gray-300"><input type="checkbox" checked={!!q.required} onChange={e => pmSetQ(i, { required: e.target.checked })} className="accent-sky-500" /> Required</label>
+                    </div>
+                    {q.type === 'multiselect' && (<Input value={(q.options || []).join(', ')} onChange={e => pmSetQ(i, { options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} className="bg-navy-900/50 border-white/10" placeholder="Option A, Option B, Option C" />)}
+                  </div>
+                ))}
+                {(postingModal.screening_questions || []).length === 0 && <p className="text-xs text-gray-500">No screening questions. Applicants will only fill the standard fields.</p>}
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button onClick={() => setPostingModal(null)} variant="outline" className="border-white/10 text-gray-300">Cancel</Button>
+              <Button onClick={savePosting} className="bg-sky-500 hover:bg-sky-600 text-white">Save posting</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
