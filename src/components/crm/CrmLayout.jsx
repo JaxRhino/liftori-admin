@@ -98,8 +98,8 @@ function LabosShell() {
         <div className="max-w-md bg-navy-800 border border-red-500/30 rounded-xl p-6 text-center">
           <h2 className="text-red-400 font-semibold mb-2">LABOS unavailable</h2>
           <p className="text-sm text-gray-400 mb-4">{error.message}</p>
-          <button onClick={() => navigate('/admin/platforms')} className="px-4 py-2 bg-brand-blue text-white rounded-lg text-sm">
-            Back to Platforms
+          <button onClick={() => navigate('/admin/products')} className="px-4 py-2 bg-brand-blue text-white rounded-lg text-sm">
+            Back to Products
           </button>
         </div>
       </div>
@@ -155,13 +155,13 @@ function LabosShell() {
       <aside className={`w-64 bg-navy-900 border-r border-navy-700/50 flex flex-col fixed h-screen z-40 transform transition-transform duration-200 ${navPinned ? 'lg:translate-x-0' : 'lg:-translate-x-full'} ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 border-b border-navy-700/50">
           <button
-            onClick={() => navigate('/admin/platforms')}
+            onClick={() => navigate('/admin/products')}
             className="text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1 mb-3"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            All Platforms
+            All Products
           </button>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-blue to-brand-cyan flex items-center justify-center text-white font-bold">
