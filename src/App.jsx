@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from '
 import CrmLayout from './components/crm/CrmLayout'
 import CrmDashboard from './pages/crm/CrmDashboard'
 import CrmPipeline from './pages/crm/CrmPipeline'
+import CrmLeadSources from './pages/crm/CrmLeadSources'
 import CrmSalesTraining from './pages/crm/CrmSalesTraining'
 import CrmOpsPipeline from './pages/crm/CrmOpsPipeline'
 import CrmCustomers from './pages/crm/CrmCustomers'
@@ -594,6 +595,7 @@ export default function App() {
             <Route path="dashboard" element={<CrmDashboardByIndustry />} />
             <Route path="sales" element={<CrmPipeline />} />
             <Route path="pipeline" element={<CrmPipeline />} />
+            <Route path="lead-sources" element={<CrmLeadSources />} />
             <Route path="sales-training" element={<CrmSalesTraining />} />
             <Route path="university" element={<CrmSalesTraining />} />
             <Route path="university/:track" element={<CrmSalesTraining />} />
