@@ -208,6 +208,8 @@ export default function CrmFinance() {
   const [budgets, setBudgets] = useState([])
   const [transactions, setTransactions] = useState([])
   const [contacts, setContacts] = useState([])
+  const [wonJobs, setWonJobs] = useState([])
+  const [fromJobOpen, setFromJobOpen] = useState(false)
 
   const [loadingInvoices, setLoadingInvoices] = useState(true)
   const [loadingPayments, setLoadingPayments] = useState(true)
@@ -313,10 +315,46 @@ export default function CrmFinance() {
     } catch (e) { console.error('[CrmFinance] loadContacts', e) }
   }
 
+  async function loadWonJobs() {
+    try {
+      const { data } = await client.from('customer_pipeline')
+        .select('id, title, deal_value, contact_id, stage, customer_contacts(first_name, last_name)')
+        .in('stage', ['won', 'ops']).order('updated_at', { ascending: false }).limit(200)
+      setWonJobs(data || [])
+    } catch (e) { console.error('[CrmFinance] loadWonJobs', e) }
+  }
+
+  async function generateMilestoneInvoices({ job, splits }) {
+    if (!client || !job) return
+    const total = Number(job.deal_value) || 0
+    const c = job.customer_contacts
+    const cname = c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() : (job.title || '')
+    const today = new Date().toISOString().slice(0, 10)
+    const rows = (splits || []).filter((sp) => Number(sp.pct) > 0).map((sp) => {
+      const amount = Math.round(total * (Number(sp.pct) || 0)) / 100
+      return {
+        invoice_number: genInvoiceNumber(),
+        customer_id: job.contact_id || null,
+        customer_name: cname || null,
+        project_name: job.title || null,
+        invoice_date: today,
+        due_date: today,
+        status: 'draft',
+        line_items: [{ name: `${sp.label} — ${job.title || 'job'}`, description: `${sp.pct}% of ${'$' + total.toLocaleString()}`, quantity: 1, unit_price: amount, amount }],
+        subtotal: amount, tax_rate: 0, tax_amount: 0, total_amount: amount, amount_paid: 0, balance_due: amount,
+        terms: `${sp.label} milestone`,
+      }
+    })
+    if (!rows.length) { alert('Add at least one milestone with a percentage.'); return }
+    const { error } = await client.from('finance_invoices').insert(rows)
+    if (error) { alert('Generate failed: ' + error.message); return }
+    setFromJobOpen(false); loadInvoices()
+  }
+
   useEffect(() => {
     if (!client) return
     loadInvoices(); loadPayments(); loadBills(); loadExpenses()
-    loadAccounts(); loadRecurring(); loadBudgets(); loadTransactions(); loadContacts()
+    loadAccounts(); loadRecurring(); loadBudgets(); loadTransactions(); loadContacts(); loadWonJobs()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client])
 
@@ -407,6 +445,7 @@ export default function CrmFinance() {
           invoices={invoices}
           loading={loadingInvoices}
           onOpenNew={() => setNewInvoiceOpen(true)}
+          onOpenFromJob={() => setFromJobOpen(true)}
           onRow={setInvoiceDrawer}
         />
       )}
@@ -465,6 +504,7 @@ export default function CrmFinance() {
       )}
 
       <NewInvoiceModal open={newInvoiceOpen} onClose={() => setNewInvoiceOpen(false)} client={client} contacts={contacts} onSaved={() => { setNewInvoiceOpen(false); loadInvoices() }} />
+      <FromJobModal open={fromJobOpen} onClose={() => setFromJobOpen(false)} jobs={wonJobs} onGenerate={generateMilestoneInvoices} />
       <NewBillModal open={newBillOpen} onClose={() => setNewBillOpen(false)} client={client} onSaved={() => { setNewBillOpen(false); loadBills() }} />
       <NewExpenseModal open={newExpenseOpen} onClose={() => setNewExpenseOpen(false)} client={client} accounts={accounts} onSaved={() => { setNewExpenseOpen(false); loadExpenses() }} />
       <NewAccountModal open={newAccountOpen} onClose={() => setNewAccountOpen(false)} client={client} accounts={accounts} onSaved={() => { setNewAccountOpen(false); loadAccounts() }} />
@@ -599,7 +639,7 @@ function OverviewTab({ invoices, bills, transactions, payments, expenses, loadin
 // ===========================================================================
 //                              TAB: INVOICES
 // ===========================================================================
-function InvoicesTab({ invoices, loading, onOpenNew, onRow }) {
+function InvoicesTab({ invoices, loading, onOpenNew, onOpenFromJob, onRow }) {
   const [statusFilter, setStatusFilter] = useState('all')
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
@@ -618,9 +658,16 @@ function InvoicesTab({ invoices, loading, onOpenNew, onRow }) {
     <Section
       title="Invoices"
       right={
-        <button onClick={onOpenNew} className="bg-brand-cyan/20 hover:bg-brand-cyan/30 text-brand-cyan border border-brand-cyan/40 text-xs px-3 py-1.5 rounded-lg">
-          + New Invoice
-        </button>
+        <>
+          {onOpenFromJob && (
+            <button onClick={onOpenFromJob} className="bg-navy-800 hover:bg-navy-700 text-gray-200 border border-navy-700 text-xs px-3 py-1.5 rounded-lg mr-2">
+              From job
+            </button>
+          )}
+          <button onClick={onOpenNew} className="bg-brand-cyan/20 hover:bg-brand-cyan/30 text-brand-cyan border border-brand-cyan/40 text-xs px-3 py-1.5 rounded-lg">
+            + New Invoice
+          </button>
+        </>
       }
     >
       <div className="px-5 py-3 border-b border-navy-700/50 flex flex-wrap items-center gap-2">
@@ -1174,6 +1221,51 @@ function totalsFromItems(items, taxRate) {
 // ===========================================================================
 //                             NEW INVOICE MODAL
 // ===========================================================================
+function FromJobModal({ open, onClose, jobs, onGenerate }) {
+  const [jobId, setJobId] = useState('')
+  const [splits, setSplits] = useState([{ label: 'Deposit', pct: 50 }, { label: 'Progress', pct: 40 }, { label: 'Final', pct: 10 }])
+  useEffect(() => { if (open) { setJobId(''); setSplits([{ label: 'Deposit', pct: 50 }, { label: 'Progress', pct: 40 }, { label: 'Final', pct: 10 }]) } }, [open])
+  if (!open) return null
+  const job = (jobs || []).find((j) => j.id === jobId)
+  const total = Number(job?.deal_value) || 0
+  const pctSum = splits.reduce((t, sp) => t + (Number(sp.pct) || 0), 0)
+  const money = (n) => '$' + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+      <div className="bg-navy-900 border border-navy-800 rounded-xl w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-white font-semibold mb-1">Generate invoices from a won job</h3>
+        <p className="text-xs text-gray-500 mb-4">Splits the job value into deposit / progress / final draft invoices.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Won job</label>
+            <select value={jobId} onChange={(e) => setJobId(e.target.value)} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm">
+              <option value="">Select a won job...</option>
+              {(jobs || []).map((j) => <option key={j.id} value={j.id}>{j.title} — {money(j.deal_value)}</option>)}
+            </select>
+          </div>
+          {job && <div className="text-sm text-gray-300">Job value: <span className="text-white font-semibold">{money(total)}</span></div>}
+          <div className="space-y-2">
+            {splits.map((sp, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <input value={sp.label} onChange={(e) => { const d = [...splits]; d[i] = { ...sp, label: e.target.value }; setSplits(d) }} className="col-span-5 bg-navy-800 border border-navy-700 text-white rounded px-2 py-1.5 text-sm" />
+                <div className="col-span-3 flex items-center gap-1"><input type="number" min="0" value={sp.pct} onChange={(e) => { const d = [...splits]; d[i] = { ...sp, pct: e.target.value }; setSplits(d) }} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-2 py-1.5 text-sm text-right" /><span className="text-gray-400 text-sm">%</span></div>
+                <div className="col-span-3 text-right text-sm text-gray-300">{money(total * (Number(sp.pct) || 0) / 100)}</div>
+                <button onClick={() => setSplits(splits.filter((_, j) => j !== i))} className="col-span-1 text-gray-500 hover:text-red-400">×</button>
+              </div>
+            ))}
+            <button onClick={() => setSplits([...splits, { label: 'Milestone', pct: 0 }])} className="text-xs text-brand-blue hover:text-brand-blue/80">+ Add milestone</button>
+          </div>
+          <div className={'text-xs ' + (Math.round(pctSum) === 100 ? 'text-gray-500' : 'text-amber-400')}>Splits total {pctSum}%{Math.round(pctSum) === 100 ? '' : ' (should be 100%)'}</div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm border border-navy-700 text-gray-300">Cancel</button>
+          <button onClick={() => onGenerate({ job, splits })} disabled={!job} className="px-3 py-2 rounded-lg text-sm bg-brand-blue hover:bg-brand-blue/90 text-white disabled:opacity-50">Generate invoices</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function NewInvoiceModal({ open, onClose, client, contacts, onSaved }) {
   const [customerId, setCustomerId] = useState('')
   const [invoiceDate, setInvoiceDate] = useState(todayISO())
