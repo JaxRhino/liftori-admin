@@ -38,6 +38,7 @@ export default function CrmPipeline() {
   const [viewMode, setViewMode] = useState('kanban');
   const [deals, setDeals] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [team, setTeam] = useState([]);
   const [pipelines, setPipelines] = useState([]);
   const [stageDefs, setStageDefs] = useState([]);
   const [activePipelineId, setActivePipelineId] = useState(null);
@@ -54,7 +55,7 @@ export default function CrmPipeline() {
     return {
       title: '', description: '', contact_id: '', stage: '', deal_value: '',
       probability: 50, lead_temperature: 'warm', service_type: '',
-      expected_close_date: '', tags: '', notes: '',
+      expected_close_date: '', tags: '', notes: '', assigned_to: '',
     };
   }
 
@@ -63,10 +64,11 @@ export default function CrmPipeline() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [dealsRes, contactsRes, pdefsRes] = await Promise.all([
+      const [dealsRes, contactsRes, pdefsRes, teamRes] = await Promise.all([
         client.from('customer_pipeline').select('*, customer_contacts(first_name, last_name)').order('last_activity_at', { ascending: false }),
         client.from('customer_contacts').select('*').order('created_at', { ascending: false }),
         client.from('pipeline_definitions').select('*').eq('is_active', true).order('display_order'),
+        client.from('org_team_members').select('id, user_id, first_name, last_name, role').not('user_id', 'is', null),
       ]);
       const pdefs = (pdefsRes?.data || []).filter(p => (p.kind || 'sales') === 'sales');
       let sdefs = [];
@@ -77,6 +79,7 @@ export default function CrmPipeline() {
       }
       setDeals(dealsRes?.data || []);
       setContacts(contactsRes?.data || []);
+      setTeam(teamRes?.data || []);
       setPipelines(pdefs);
       setStageDefs(sdefs);
       setActivePipelineId(prev =>
@@ -132,7 +135,7 @@ export default function CrmPipeline() {
       deal_value: deal.deal_value || '', probability: deal.probability || 50,
       lead_temperature: deal.lead_temperature || 'warm', service_type: deal.service_type || '',
       expected_close_date: deal.expected_close_date || '',
-      tags: deal.tags?.join(', ') || '', notes: deal.notes || '',
+      tags: deal.tags?.join(', ') || '', notes: deal.notes || '', assigned_to: deal.assigned_to || '',
     });
     setIsDialogOpen(true);
   };
@@ -152,6 +155,7 @@ export default function CrmPipeline() {
         expected_close_date: formData.expected_close_date || null,
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         notes: formData.notes,
+        assigned_to: formData.assigned_to || null,
       };
       if (editingDeal) {
         const { error } = await client.from('customer_pipeline')
@@ -269,7 +273,7 @@ export default function CrmPipeline() {
         )}
 
         <DealDialog isOpen={isDialogOpen} onOpenChange={setIsDialogOpen} formData={formData} setFormData={setFormData}
-          contacts={contacts} stages={activeStages} temperatureConfig={temperatureConfig} isEditing={!!editingDeal} onSave={handleSaveDeal} />
+          contacts={contacts} team={team} stages={activeStages} temperatureConfig={temperatureConfig} isEditing={!!editingDeal} onSave={handleSaveDeal} />
 
         {stageEditorOpen && (
           <StageEditor client={client} pipeline={activePipeline} stages={activeStages} dealsByStage={dealsByStage}
@@ -437,7 +441,7 @@ function TableView({ deals, stages, temperatureConfig, getContactName, onEditDea
   );
 }
 
-function DealDialog({ isOpen, onOpenChange, formData, setFormData, contacts, stages, temperatureConfig, isEditing, onSave }) {
+function DealDialog({ isOpen, onOpenChange, formData, setFormData, contacts, team, stages, temperatureConfig, isEditing, onSave }) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="bg-navy-900 border-navy-800 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -456,6 +460,13 @@ function DealDialog({ isOpen, onOpenChange, formData, setFormData, contacts, sta
             <select value={formData.contact_id} onChange={(e) => setFormData({ ...formData, contact_id: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
               <option value="">Select a contact...</option>
               {contacts.map(contact => <option key={contact.id} value={contact.id}>{contact.name || `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unnamed'}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-2">Assigned rep</label>
+            <select value={formData.assigned_to} onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+              <option value="">Unassigned</option>
+              {(team || []).map(m => <option key={m.user_id} value={m.user_id}>{`${m.first_name || ''} ${m.last_name || ''}`.trim()}{m.role ? ` - ${m.role}` : ''}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
