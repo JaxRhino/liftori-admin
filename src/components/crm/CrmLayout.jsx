@@ -40,6 +40,7 @@ const HUB_CHILDREN = {
     { label: 'Customers',    path: 'customers' },
     { label: 'Pipeline',     path: 'pipeline' },
     { label: 'Lead Sources', path: 'lead-sources' },
+    { label: 'Commissions',  path: 'commissions' },
   ],
   university: [
     { label: 'Sales', path: 'university/sales' },
