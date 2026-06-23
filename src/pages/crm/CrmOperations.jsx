@@ -13,6 +13,7 @@ const TABS = [
   { key: 'production',        label: 'Production',        path: 'production' },
   { key: 'subcontractors',    label: 'Subcontractors',    path: 'subcontractors' },
   { key: 'permits',           label: 'Permits',           path: 'permits' },
+  { key: 'materials',         label: 'Materials',         path: 'materials' },
   { key: 'schedule',          label: 'Schedule',          path: 'schedule' },
   { key: 'crews',             label: 'Crews',             path: 'crews' },
   { key: 'crew-availability', label: 'Crew Availability', path: 'crew-availability' },
