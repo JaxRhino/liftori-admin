@@ -10,6 +10,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 const TABS = [
   { key: 'dashboard',         label: 'Dashboard',         path: 'dashboard' },
   { key: 'work-orders',       label: 'Jobs',       path: 'work-orders' },
+  { key: 'production',        label: 'Production',        path: 'production' },
   { key: 'schedule',          label: 'Schedule',          path: 'schedule' },
   { key: 'crews',             label: 'Crews',             path: 'crews' },
   { key: 'crew-availability', label: 'Crew Availability', path: 'crew-availability' },
