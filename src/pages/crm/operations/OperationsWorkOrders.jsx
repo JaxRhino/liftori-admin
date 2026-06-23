@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { HubPage, StatCard, Section, EmptyState, useCrmClient } from '../_shared'
+import {
+  computeMetrics, normalizeMeasurements,
+  diagramSvg, diagramPng, buildPdf, pdfFilename,
+  lineColor, ensureTurf, ensurePdf,
+} from './roofReport'
 
 // ---------- formatters ----------
 const fmtMoney = (v) =>
@@ -767,12 +772,17 @@ function WorkOrderDrawer({ wo, client, contacts, crews, contactName, crewById, o
   )
 }
 
-// Read-only roof reports tied to this job (project_id and/or contact_id).
-// Queries ops_measurements (template_type='aerial_roof'); deep-links each
-// report into the Roof Measure tool to reopen it.
+// Roof reports tied to this job (project_id and/or contact_id). Renders the
+// full RoofR-style takeoff: squares, pitched/flat split, area-by-pitch,
+// linear feet by type + drip edge, schematic, and a branded PDF download.
+// Reads ops_measurements (template_type='aerial_roof'); deep-links into the
+// Roof Measure tool to reopen. Backward-compatible with legacy array-shaped
+// measurements (see normalizeMeasurements).
 function RoofReportTab({ wo, client }) {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
+  const [pdfBusyId, setPdfBusyId] = useState(null)
+  const [pdfErr, setPdfErr] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -785,7 +795,7 @@ function RoofReportTab({ wo, client }) {
         if (wo.contact_id) ors.push(`contact_id.eq.${wo.contact_id}`)
         let q = client
           .from('ops_measurements')
-          .select('id, title, address, summary, created_at, contact_id, project_id')
+          .select('id, title, address, summary, measurements, created_at, contact_id, project_id')
           .eq('template_type', 'aerial_roof')
           .order('created_at', { ascending: false })
         if (ors.length) q = q.or(ors.join(','))
@@ -804,6 +814,34 @@ function RoofReportTab({ wo, client }) {
   const platformId = (typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : '') || ''
   const measureHref = platformId ? `/crm/${platformId}/measure` : '#'
 
+  // Resolve a report's full metrics: prefer saved summary (if it carries linear),
+  // else recompute from geometry. Returns { metrics, norm }.
+  async function resolveMetrics(r) {
+    const norm = normalizeMeasurements(r.measurements)
+    const sm = r.summary || {}
+    if (sm.linear) return { metrics: sm, norm }
+    const turf = await ensureTurf()
+    const metrics = computeMetrics(turf, norm.facets, norm.lines, { waste_pct: sm.waste_pct != null ? sm.waste_pct : 10 })
+    return { metrics, norm }
+  }
+
+  async function downloadPdf(r) {
+    setPdfBusyId(r.id); setPdfErr('')
+    try {
+      const jsPDF = await ensurePdf()
+      const { metrics, norm } = await resolveMetrics(r)
+      const png = diagramPng(norm.facets, norm.lines, metrics, { w: 640, h: 440 })
+      const companyName = 'Roof Report'
+      const rowObj = { title: r.title || 'Aerial roof measurement', address: r.address || '', created_at: r.created_at, id: r.id }
+      const doc = buildPdf(jsPDF, { row: rowObj, metrics, pngDataUrl: png, companyName })
+      doc.save(pdfFilename(rowObj))
+    } catch (e) {
+      setPdfErr(e.message || 'PDF export failed')
+    } finally {
+      setPdfBusyId(null)
+    }
+  }
+
   if (loading) {
     return <div className="text-xs text-gray-500 py-6 text-center">Loading roof reports...</div>
   }
@@ -820,35 +858,144 @@ function RoofReportTab({ wo, client }) {
   }
   return (
     <div className="space-y-3">
-      {reports.map((r) => {
-        const sm = r.summary || {}
-        return (
-          <div key={r.id} className="bg-navy-900/40 border border-navy-700/50 rounded-lg p-3">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="text-sm text-white font-medium truncate">{r.title || 'Aerial roof measurement'}</span>
-              <span className="text-xs text-emerald-400 shrink-0">{sm.squares ?? '-'} sq</span>
-            </div>
-            <div className="text-xs text-gray-500 truncate mb-2">{r.address || 'No address'} - {fmtDate(r.created_at)}</div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-navy-800/60 rounded-md py-1.5">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Sloped</div>
-                <div className="text-sm text-gray-200">{(sm.sloped_ft2 ?? 0).toLocaleString()} ft2</div>
-              </div>
-              <div className="bg-navy-800/60 rounded-md py-1.5">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Plan</div>
-                <div className="text-sm text-gray-200">{(sm.plan_ft2 ?? 0).toLocaleString()} ft2</div>
-              </div>
-              <div className="bg-navy-800/60 rounded-md py-1.5">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Waste</div>
-                <div className="text-sm text-gray-200">{sm.waste_pct ?? 0}%</div>
-              </div>
-            </div>
-            <div className="mt-2 text-right">
-              <a href={measureHref} className="text-xs text-brand-cyan hover:text-brand-cyan/80">Open in Roof Measure</a>
-            </div>
+      {pdfErr && <div className="text-xs text-red-400">{pdfErr}</div>}
+      {reports.map((r) => <RoofReportCard key={r.id} r={r} measureHref={measureHref} onPdf={downloadPdf} pdfBusy={pdfBusyId === r.id} />)}
+    </div>
+  )
+}
+
+// One saved report rendered with full metrics + schematic. Recomputes linear /
+// area-by-pitch from geometry when an older row lacks them in summary.
+function RoofReportCard({ r, measureHref, onPdf, pdfBusy }) {
+  const sm = r.summary || {}
+  const norm = useMemo(() => normalizeMeasurements(r.measurements), [r])
+  const [metrics, setMetrics] = useState(sm.linear ? sm : null)
+  const [svg, setSvg] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      let m = sm.linear ? sm : null
+      if (!m) {
+        try {
+          const turf = await ensureTurf()
+          m = computeMetrics(turf, norm.facets, norm.lines, { waste_pct: sm.waste_pct != null ? sm.waste_pct : 10 })
+        } catch { m = null }
+      }
+      if (cancelled) return
+      setMetrics(m)
+      try {
+        const facetObjs = (norm.facets || []).map((f) => ({ coords: f.coords, pitch: f.pitch }))
+        const lineObjs = (norm.lines || []).map((l) => ({ type: l.type, coords: l.coords }))
+        setSvg(diagramSvg(facetObjs, lineObjs, m, { w: 360, h: 220 }))
+      } catch { setSvg(null) }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [r.id])
+
+  const lin = (metrics && metrics.linear) || {}
+  const areas = (metrics && metrics.areas) || {}
+  const squares = metrics ? metrics.squares : (sm.squares ?? '-')
+
+  return (
+    <div className="bg-navy-900/40 border border-navy-700/50 rounded-lg p-3">
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <span className="text-sm text-white font-medium truncate">{r.title || 'Aerial roof measurement'}</span>
+        <span className="text-xs text-emerald-400 shrink-0">{typeof squares === 'number' ? squares.toFixed(1) : squares} sq</span>
+      </div>
+      <div className="text-xs text-gray-500 truncate mb-2">{r.address || 'No address'} - {fmtDate(r.created_at)}</div>
+
+      {svg && (
+        <div className="rounded-md overflow-hidden mb-2 bg-navy-950/60" dangerouslySetInnerHTML={{ __html: svg }} />
+      )}
+
+      <div className="grid grid-cols-3 gap-2 text-center mb-2">
+        <div className="bg-navy-800/60 rounded-md py-1.5">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider">Sloped</div>
+          <div className="text-sm text-gray-200">{(metrics ? metrics.sloped_ft2 : (sm.sloped_ft2 ?? 0)).toLocaleString()} ft2</div>
+        </div>
+        <div className="bg-navy-800/60 rounded-md py-1.5">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider">Plan</div>
+          <div className="text-sm text-gray-200">{(metrics ? metrics.plan_ft2 : (sm.plan_ft2 ?? 0)).toLocaleString()} ft2</div>
+        </div>
+        <div className="bg-navy-800/60 rounded-md py-1.5">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider">Waste</div>
+          <div className="text-sm text-gray-200">{(metrics ? metrics.waste_pct : (sm.waste_pct ?? 0))}%</div>
+        </div>
+      </div>
+
+      {metrics && (
+        <div className="grid grid-cols-2 gap-2 text-center mb-2">
+          <div className="bg-navy-800/60 rounded-md py-1.5">
+            <div className="text-[10px] text-gray-500 uppercase tracking-wider">Pitched</div>
+            <div className="text-sm text-gray-200">{(areas.pitched_ft2 || 0).toLocaleString()} ft2</div>
           </div>
-        )
-      })}
+          <div className="bg-navy-800/60 rounded-md py-1.5">
+            <div className="text-[10px] text-gray-500 uppercase tracking-wider">Flat / low</div>
+            <div className="text-sm text-gray-200">{(areas.flat_ft2 || 0).toLocaleString()} ft2</div>
+          </div>
+        </div>
+      )}
+
+      {metrics && (
+        <div className="bg-navy-800/40 rounded-md p-2 mb-2">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Linear feet</div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+            {[
+              ['ridge', 'Ridge', lin.ridge_ft],
+              ['hip', 'Hip', lin.hip_ft],
+              ['valley', 'Valley', lin.valley_ft],
+              ['eave', 'Eave', lin.eave_ft],
+              ['rake', 'Rake', lin.rake_ft],
+              ['flashing', 'Flashing', lin.flashing_ft],
+            ].map(([k, label, v]) => (
+              <div key={k} className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-gray-400">
+                  <span className="inline-block w-2.5 h-1 rounded-full" style={{ backgroundColor: lineColor(k) }} />
+                  {label}
+                </span>
+                <span className="text-gray-200">{(v || 0).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between text-xs border-t border-navy-700/50 mt-1.5 pt-1.5">
+            <span className="text-gray-400">Drip edge</span>
+            <span className="text-white font-semibold">{(lin.drip_edge_ft || 0).toLocaleString()} LF</span>
+          </div>
+          {metrics.predominant_pitch ? (
+            <div className="flex items-center justify-between text-xs mt-1">
+              <span className="text-gray-400">Predominant pitch</span>
+              <span className="text-gray-200">{metrics.predominant_pitch}</span>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {metrics && Object.keys(metrics.area_by_pitch || {}).length > 0 && (
+        <div className="bg-navy-800/40 rounded-md p-2 mb-2">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Area by pitch</div>
+          <div className="space-y-1 text-xs">
+            {Object.keys(metrics.area_by_pitch).sort().map((k) => (
+              <div key={k} className="flex items-center justify-between">
+                <span className="text-gray-400">{k}</span>
+                <span className="text-gray-200">{Number(metrics.area_by_pitch[k]).toLocaleString()} ft2</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <a href={measureHref} className="text-xs text-brand-cyan hover:text-brand-cyan/80">Open in Roof Measure</a>
+        <button
+          onClick={() => onPdf(r)}
+          disabled={pdfBusy}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-blue hover:text-brand-light disabled:opacity-50"
+        >
+          {pdfBusy ? 'Building...' : 'Download report (PDF)'}
+        </button>
+      </div>
     </div>
   )
 }

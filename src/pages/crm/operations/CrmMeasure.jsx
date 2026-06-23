@@ -1,30 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { HubPage, Section, EmptyState, useCrmClient } from '../_shared'
-import { MapPin, Save, RotateCcw, CheckCircle2, Trash2, Plus, Search, FileText, X } from 'lucide-react'
+import { MapPin, Save, RotateCcw, CheckCircle2, Trash2, Plus, Search, FileText, X, Spline, Download } from 'lucide-react'
+import {
+  LINE_TYPES, lineColor, lineTypeLabel,
+  ensureTurf, ensurePdf,
+  facetPlanFt2, lineLengthFt,
+  computeMetrics, buildSummary, dominantPitchLabel,
+  diagramSvg, diagramPng, materialLineItems, buildPdf, pdfFilename,
+  pitchMult, pitchLabel,
+} from './roofReport'
 
 // =====================================================================
-// CrmMeasure - Aerial roof measurement tool (Operations hub).
-// MapLibre GL + Esri World Imagery + turf.js (all CDN-loaded at runtime,
-// since none are bundled deps). Trace each roof plane, set its pitch, and
-// the page computes plan ft2 / sloped surface ft2 / order squares.
-// Saves to ops_measurements on the per-tenant client (useCrmClient).
+// CrmMeasure (v3) - RoofR-style aerial roof takeoff (Operations hub).
+// MapLibre GL + Esri World Imagery + turf.js (CDN at runtime). Trace each
+// roof plane (facet) with its own pitch, AND tag linear features (ridge,
+// hip, valley, eave, rake, flashing) as polylines. Computes a full roof
+// report: squares, pitched/flat split, area-by-pitch, predominant pitch,
+// linear feet by type + drip edge, perimeter, waste. Saves to
+// ops_measurements (template_type='aerial_roof'), generates a schematic
+// diagram + branded PDF, and seeds an estimate with auto material lines.
 //
-// SALES HOOK (additive): an optional contact picker ties a measurement to a
-// customer_contacts row (and its project_id if one exists). "Create estimate"
-// mirrors CrmCustomerDetail.createEstimate() exactly, then seeds the roof
-// measurements block so per-square line items auto-fill and the draft lands
-// pre-priced. Standalone measuring with no contact still works unchanged.
+// measurements jsonb structure (NEW): { facets:[...], lines:[...] }
+//   facets: [{ section, pitch, pitch_label, coords:[[lng,lat]...] }]
+//   lines:  [{ id, type, coords:[[lng,lat]...], length_ft }]
+// Backward-compat: an old row's measurements is a plain ARRAY -> treated as
+// facets (see reopen() + normalizeMeasurements in roofReport.js).
 // =====================================================================
 
-const M2_TO_FT2 = 10.7639104
 const PITCHES = Array.from({ length: 13 }, (_, r) => r) // 0/12 .. 12/12
-const pitchMult = (rise) => Math.sqrt(1 + (rise / 12) * (rise / 12))
-const pitchLabel = (rise) => `${rise}/12`
 
 const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js'
 const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css'
-const TURF_JS = 'https://unpkg.com/@turf/turf@6/turf.min.js'
 
 const MAP_STYLE = {
   version: 8,
@@ -70,51 +77,34 @@ function loadCss(href) {
 async function ensureMapLibs() {
   loadCss(MAPLIBRE_CSS)
   if (!window.maplibregl) await loadScript(MAPLIBRE_JS)
-  if (!window.turf) await loadScript(TURF_JS)
+  await ensureTurf()
 }
 
 const fc = (features) => ({ type: 'FeatureCollection', features })
-
-// plan (flat) ft2 of one closed facet using turf
-function facetPlanFt2(turf, f) {
-  if (!f.closed || f.pts.length < 3) return 0
-  const poly = turf.polygon([[...f.pts, f.pts[0]]])
-  return turf.area(poly) * M2_TO_FT2
-}
-
 const contactLabel = (c) => [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || c.id
 
-// Dominant pitch label ('6/12') across a measurement's facets, weighted by
-// plan area so the largest plane wins; falls back to most-frequent label.
-function dominantPitchLabel(lines) {
-  if (!Array.isArray(lines) || !lines.length) return ''
-  const counts = {}
-  lines.forEach((l) => {
-    const label = l.pitch_label || (l.pitch != null ? `${l.pitch}/12` : null)
-    if (!label) return
-    counts[label] = (counts[label] || 0) + 1
-  })
-  let best = '', n = -1
-  Object.entries(counts).forEach(([label, c]) => { if (c > n) { best = label; n = c } })
-  return best
-}
-
 export default function CrmMeasure() {
-  const { client } = useCrmClient()
+  const { client, platform } = useCrmClient()
   const navigate = useNavigate()
   const { platformId } = useParams()
 
   const mapEl = useRef(null)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
-  const drawingRef = useRef(false)
-  const facetsRef = useRef([]) // [{id,pts:[[lng,lat]],pitch,closed}]
+  const drawingRef = useRef(false)      // facet draw active
+  const lineDrawingRef = useRef(false)  // line draw active
+  const lineTypeRef = useRef('ridge')   // current line type for active line
+  const facetsRef = useRef([])          // [{id,pts:[[lng,lat]],pitch,closed}]
+  const linesRef = useRef([])           // [{id,type,pts:[[lng,lat]],closed}]
   const idRef = useRef(0)
 
   const [ready, setReady] = useState(false)
   const [loadErr, setLoadErr] = useState(null)
   const [drawing, setDrawing] = useState(false)
-  const [facets, setFacets] = useState([]) // mirror for render
+  const [lineDrawing, setLineDrawing] = useState(false)
+  const [lineType, setLineType] = useState('ridge')
+  const [facets, setFacets] = useState([])
+  const [lines, setLines] = useState([])
   const [waste, setWaste] = useState(10)
   const [zoomHint, setZoomHint] = useState('Find an address to begin')
 
@@ -137,7 +127,10 @@ export default function CrmMeasure() {
   const [saved, setSaved] = useState([])
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState(null)
-  const [creatingId, setCreatingId] = useState(null) // row id (or 'current') while building an estimate
+  const [creatingId, setCreatingId] = useState(null)
+  const [pdfBusy, setPdfBusy] = useState(false)
+
+  const companyName = (platform && (platform.name || platform.company_name)) || 'Roof Report'
 
   // ---------- init map ----------
   useEffect(() => {
@@ -165,6 +158,12 @@ export default function CrmMeasure() {
             id: 'facet-line', type: 'line', source: 'facets',
             paint: { 'line-color': ['case', ['get', 'active'], '#2f6df6', '#34d399'], 'line-width': 2.5 },
           })
+          map.addSource('lines', { type: 'geojson', data: fc([]) })
+          map.addLayer({
+            id: 'line-stroke', type: 'line', source: 'lines',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: { 'line-color': ['get', 'color'], 'line-width': ['case', ['get', 'active'], 4, 3] },
+          })
           map.addSource('verts', { type: 'geojson', data: fc([]) })
           map.addLayer({
             id: 'vert', type: 'circle', source: 'verts',
@@ -187,7 +186,7 @@ export default function CrmMeasure() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ---------- load contacts (optional picker) ----------
+  // ---------- load contacts ----------
   useEffect(() => {
     let cancelled = false
     if (!client) return
@@ -202,7 +201,6 @@ export default function CrmMeasure() {
     return () => { cancelled = true }
   }, [client])
 
-  // close contact menu on outside click
   useEffect(() => {
     function onDoc(e) {
       if (contactBoxRef.current && !contactBoxRef.current.contains(e.target)) setContactMenuOpen(false)
@@ -240,7 +238,7 @@ export default function CrmMeasure() {
   function syncMap() {
     const map = mapRef.current
     if (!map || !map.getSource('facets')) return
-    const polys = [], verts = []
+    const polys = [], verts = [], lineFeats = []
     facetsRef.current.forEach((f) => {
       const active = !f.closed
       if (f.pts.length >= 2) {
@@ -252,14 +250,31 @@ export default function CrmMeasure() {
       }
       if (active) f.pts.forEach((p) => verts.push({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: p } }))
     })
+    linesRef.current.forEach((l) => {
+      const active = !l.closed
+      if (l.pts.length >= 2) {
+        lineFeats.push({ type: 'Feature', properties: { color: lineColor(l.type), active }, geometry: { type: 'LineString', coordinates: l.pts.slice() } })
+      }
+      if (active) l.pts.forEach((p) => verts.push({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: p } }))
+    })
     map.getSource('facets').setData(fc(polys))
+    map.getSource('lines').setData(fc(lineFeats))
     map.getSource('verts').setData(fc(verts))
     setFacets(facetsRef.current.map((f) => ({ ...f, pts: f.pts.slice() })))
+    setLines(linesRef.current.map((l) => ({ ...l, pts: l.pts.slice() })))
   }
 
   function activeFacet() { return facetsRef.current.find((f) => !f.closed) || null }
+  function activeLine() { return linesRef.current.find((l) => !l.closed) || null }
 
   function onMapClick(e) {
+    if (lineDrawingRef.current) {
+      const al = activeLine()
+      if (!al) return
+      al.pts.push([e.lngLat.lng, e.lngLat.lat])
+      syncMap()
+      return
+    }
     if (!drawingRef.current) return
     const af = activeFacet()
     if (!af) return
@@ -267,8 +282,9 @@ export default function CrmMeasure() {
     syncMap()
   }
 
-  // ---------- draw controls ----------
+  // ---------- facet draw controls ----------
   function addSection() {
+    if (lineDrawingRef.current) finishLine() // mutually exclusive
     setConfirmOpen(false)
     facetsRef.current.push({ id: ++idRef.current, pitch: 6, pts: [], closed: false })
     drawingRef.current = true
@@ -278,6 +294,11 @@ export default function CrmMeasure() {
     syncMap()
   }
   function undoPoint() {
+    if (lineDrawingRef.current) {
+      const al = activeLine()
+      if (al && al.pts.length) { al.pts.pop(); syncMap() }
+      return
+    }
     const af = activeFacet()
     if (af && af.pts.length) { af.pts.pop(); syncMap() }
   }
@@ -299,32 +320,88 @@ export default function CrmMeasure() {
     const f = facetsRef.current.find((x) => x.id === id)
     if (f) { f.pitch = rise; syncMap() }
   }
+
+  // ---------- line draw controls ----------
+  function addLine() {
+    if (drawingRef.current) doneSection() // close any open facet
+    setConfirmOpen(false)
+    lineTypeRef.current = lineType
+    linesRef.current.push({ id: ++idRef.current, type: lineType, pts: [], closed: false })
+    lineDrawingRef.current = true
+    setLineDrawing(true)
+    const map = mapRef.current
+    if (map) map.getCanvas().style.cursor = 'crosshair'
+    syncMap()
+  }
+  function finishLine() {
+    const al = activeLine()
+    if (al) {
+      if (al.pts.length < 2) {
+        // drop a degenerate line
+        linesRef.current = linesRef.current.filter((l) => l.id !== al.id)
+      } else {
+        al.closed = true
+      }
+    }
+    lineDrawingRef.current = false
+    setLineDrawing(false)
+    const map = mapRef.current
+    if (map) map.getCanvas().style.cursor = ''
+    syncMap()
+  }
+  function deleteLine(id) {
+    linesRef.current = linesRef.current.filter((l) => l.id !== id)
+    syncMap()
+  }
+
   function clearAll() {
     facetsRef.current = []
+    linesRef.current = []
     drawingRef.current = false
+    lineDrawingRef.current = false
     setDrawing(false)
+    setLineDrawing(false)
     const map = mapRef.current
     if (map) map.getCanvas().style.cursor = ''
     syncMap()
   }
 
-  // ---------- totals ----------
-  const totals = useMemo(() => {
+  // ---------- build facet/line plain objects (for metrics + save) ----------
+  function facetObjects() {
+    return facetsRef.current
+      .filter((f) => f.closed && f.pts.length >= 3)
+      .map((f, i) => ({ section: i + 1, pitch: f.pitch, pitch_label: pitchLabel(f.pitch), coords: f.pts.slice() }))
+  }
+  function lineObjects() {
     const turf = window.turf
-    const real = facets.filter((f) => f.closed && f.pts.length >= 3)
-    let plan = 0, surf = 0
-    if (turf) {
-      real.forEach((f) => {
-        const p = facetPlanFt2(turf, f)
-        plan += p
-        surf += p * pitchMult(f.pitch)
-      })
-    }
-    const w = Math.max(0, Math.min(40, Number(waste) || 0))
-    const withWaste = surf * (1 + w / 100)
-    const squares = Math.ceil((withWaste / 100) * 10) / 10
-    return { plan, surf, squares, facetCount: real.length, waste: w }
-  }, [facets, waste])
+    return linesRef.current
+      .filter((l) => l.closed && l.pts.length >= 2)
+      .map((l) => ({ id: l.id, type: l.type, coords: l.pts.slice(), length_ft: Math.round(lineLengthFt(turf, l.pts)) }))
+  }
+
+  // ---------- metrics (full roof report) ----------
+  const metrics = useMemo(() => {
+    const turf = window.turf
+    if (!turf) return null
+    const facetObjs = facets
+      .filter((f) => f.closed && f.pts.length >= 3)
+      .map((f, i) => ({ section: i + 1, pitch: f.pitch, pitch_label: pitchLabel(f.pitch), coords: f.pts }))
+    const lineObjs = lines
+      .filter((l) => l.closed && l.pts.length >= 2)
+      .map((l) => ({ id: l.id, type: l.type, coords: l.pts, length_ft: lineLengthFt(turf, l.pts) }))
+    return computeMetrics(turf, facetObjs, lineObjs, { waste_pct: waste })
+  }, [facets, lines, waste])
+
+  const hasMetrics = !!(metrics && metrics.facet_count > 0)
+
+  // schematic SVG (live)
+  const liveSvg = useMemo(() => {
+    if (!hasMetrics) return null
+    const turf = window.turf
+    const facetObjs = facets.filter((f) => f.closed && f.pts.length >= 3).map((f) => ({ coords: f.pts, pitch: f.pitch }))
+    const lineObjs = lines.filter((l) => l.closed && l.pts.length >= 2).map((l) => ({ type: l.type, coords: l.pts }))
+    return diagramSvg(facetObjs, lineObjs, metrics, { w: 520, h: 320 })
+  }, [facets, lines, metrics, hasMetrics])
 
   // ---------- geocoding (Nominatim) ----------
   async function geocode(q, limit = 5) {
@@ -381,7 +458,6 @@ export default function CrmMeasure() {
     }
   }
 
-  // Resolve a project_id for a contact if exactly/most-recently one exists.
   async function resolveProjectId(cid) {
     if (!cid || !client) return null
     try {
@@ -399,25 +475,16 @@ export default function CrmMeasure() {
   // ---------- save ----------
   async function save() {
     if (!client) return
-    const real = facetsRef.current.filter((f) => f.closed && f.pts.length >= 3)
-    if (!real.length) { setSaveMsg('Trace at least one roof section first.'); return }
+    const facetObjs = facetObjects()
+    if (!facetObjs.length) { setSaveMsg('Trace at least one roof section first.'); return }
     setSaving(true); setSaveMsg(null)
     try {
+      const turf = window.turf
+      const lineObjs = lineObjects()
+      const m = computeMetrics(turf, facetObjs, lineObjs, { waste_pct: waste })
+      const summary = buildSummary(m)
       const userRes = await client.auth.getUser()
       const uid = userRes?.data?.user?.id || null
-      const summary = {
-        plan_ft2: Math.round(totals.plan),
-        sloped_ft2: Math.round(totals.surf),
-        squares: totals.squares,
-        waste_pct: totals.waste,
-        facet_count: totals.facetCount,
-      }
-      const measurements = real.map((f, i) => ({
-        section: i + 1,
-        pitch: f.pitch,
-        pitch_label: pitchLabel(f.pitch),
-        coords: f.pts,
-      }))
       const projectId = contactId ? await resolveProjectId(contactId) : null
       const { error } = await client.from('ops_measurements').insert({
         title: (title.trim() || addr.trim() || 'Aerial roof measurement'),
@@ -426,7 +493,7 @@ export default function CrmMeasure() {
         address: addr.trim() || null,
         contact_id: contactId || null,
         project_id: projectId,
-        measurements,
+        measurements: { facets: facetObjs, lines: lineObjs },
         summary,
         photos: [],
         diagrams: [],
@@ -443,12 +510,32 @@ export default function CrmMeasure() {
     }
   }
 
+  // ---------- download PDF (live) ----------
+  async function downloadPdf() {
+    if (!hasMetrics) return
+    setPdfBusy(true)
+    try {
+      const jsPDF = await ensurePdf()
+      const facetObjs = facetObjects()
+      const lineObjs = lineObjects()
+      const png = diagramPng(facetObjs, lineObjs, metrics, { w: 640, h: 440 })
+      const row = {
+        title: title.trim() || addr.trim() || 'Aerial roof measurement',
+        address: addr.trim() || '',
+        customerName: selectedContact ? contactLabel(selectedContact) : '',
+        created_at: new Date().toISOString(),
+      }
+      const doc = buildPdf(jsPDF, { row, metrics, pngDataUrl: png, companyName })
+      doc.save(pdfFilename(row))
+    } catch (e) {
+      setSaveMsg(e.message || 'PDF export failed.')
+    } finally {
+      setPdfBusy(false)
+    }
+  }
+
   // ---------- create estimate from a measurement ----------
-  // Mirrors CrmCustomerDetail.createEstimate() exactly (same estimate_number
-  // scheme, default sections, seeded estimate_products, gross_margin), then
-  // additionally seeds contact_id / project_id and the roof measurements block
-  // so per-square line items land pre-priced.
-  async function createEstimateFrom({ cid, projectId, summaryObj, lines, label }) {
+  async function createEstimateFrom({ cid, projectId, metricsObj, facetObjs, label }) {
     if (!client) return
     if (!cid) { setSaveMsg('Select a contact first to create an estimate.'); return }
     setCreatingId(label)
@@ -461,23 +548,30 @@ export default function CrmMeasure() {
         { id: rid(), title: 'Fees', enabled: true, items: [] },
       ]
       let margin = 50
+      let productByName = {}
       try {
         const { data: st } = await client.from('estimate_settings').select('default_gross_margin').limit(1).maybeSingle()
         if (st && st.default_gross_margin != null) margin = st.default_gross_margin
         const { data: prods } = await client.from('estimate_products').select('*').eq('is_active', true).eq('in_default_template', true).order('name', { ascending: true })
         ;(prods || []).forEach((pr) => {
+          productByName[String(pr.name).toLowerCase()] = pr
           const item = { id: rid(), description: pr.name, qty: 1, unit: pr.unit || '', unit_cost: Number(pr.cost) || 0 }
           ;(pr.item_type === 'labor' ? seed[1] : seed[0]).items.push(item)
         })
       } catch (seedErr) { console.error(seedErr) }
 
-      // roof measurements block -> per-square line items auto-fill from this.
-      const squares = Number(summaryObj?.squares) || 0
-      const wastePct = summaryObj?.waste_pct != null ? Number(summaryObj.waste_pct) : 0
+      // append auto roof material lines into Materials (seed[0])
+      if (metricsObj) {
+        const matItems = materialLineItems(metricsObj, productByName)
+        seed[0].items.push(...matItems)
+      }
+
+      const squares = Number(metricsObj?.squares) || 0
+      const wastePct = metricsObj?.waste_pct != null ? Number(metricsObj.waste_pct) : 0
       const meas = {
         squares,
         waste_pct: wastePct,
-        pitch: dominantPitchLabel(lines),
+        pitch: metricsObj?.predominant_pitch || dominantPitchLabel(facetObjs),
         layers: 1,
         stories: 1,
       }
@@ -503,51 +597,83 @@ export default function CrmMeasure() {
     }
   }
 
-  // Build an estimate from the live (unsaved or in-progress) traced roof.
   async function createEstimateFromCurrent() {
-    const real = facetsRef.current.filter((f) => f.closed && f.pts.length >= 3)
-    if (!real.length) { setSaveMsg('Trace at least one roof section first.'); return }
+    const facetObjs = facetObjects()
+    if (!facetObjs.length) { setSaveMsg('Trace at least one roof section first.'); return }
     if (!contactId) { setSaveMsg('Select a contact first to create an estimate.'); return }
-    const summaryObj = {
-      plan_ft2: Math.round(totals.plan),
-      sloped_ft2: Math.round(totals.surf),
-      squares: totals.squares,
-      waste_pct: totals.waste,
-      facet_count: totals.facetCount,
-    }
-    const lines = real.map((f, i) => ({ section: i + 1, pitch: f.pitch, pitch_label: pitchLabel(f.pitch) }))
+    const turf = window.turf
+    const m = computeMetrics(turf, facetObjs, lineObjects(), { waste_pct: waste })
     const projectId = await resolveProjectId(contactId)
-    await createEstimateFrom({ cid: contactId, projectId, summaryObj, lines, label: 'current' })
+    await createEstimateFrom({ cid: contactId, projectId, metricsObj: m, facetObjs, label: 'current' })
   }
 
-  // Build an estimate from a previously saved measurement row.
   async function createEstimateFromRow(row, e) {
     if (e) e.stopPropagation()
     const cid = row.contact_id || contactId
     if (!cid) { setSaveMsg('This measurement has no contact. Reopen it, pick a contact, and re-save first.'); return }
     const projectId = row.project_id || (await resolveProjectId(cid))
-    await createEstimateFrom({
-      cid,
-      projectId,
-      summaryObj: row.summary || {},
-      lines: Array.isArray(row.measurements) ? row.measurements : [],
-      label: row.id,
-    })
+    const turf = window.turf
+    // Prefer the saved summary metrics; if missing linear, recompute from geometry.
+    const sm = row.summary || {}
+    const norm = (Array.isArray(row.measurements)
+      ? { facets: row.measurements, lines: [] }
+      : { facets: (row.measurements && row.measurements.facets) || [], lines: (row.measurements && row.measurements.lines) || [] })
+    let m = sm.linear ? sm : null
+    if (!m && turf) m = computeMetrics(turf, norm.facets, norm.lines, { waste_pct: sm.waste_pct != null ? sm.waste_pct : 10 })
+    if (!m) m = { squares: sm.squares || 0, waste_pct: sm.waste_pct || 0, predominant_pitch: sm.predominant_pitch || '', linear: sm.linear || {} }
+    await createEstimateFrom({ cid, projectId, metricsObj: m, facetObjs: norm.facets, label: row.id })
+  }
+
+  // ---------- PDF from a saved row ----------
+  async function downloadRowPdf(row, e) {
+    if (e) e.stopPropagation()
+    setPdfBusy(true)
+    try {
+      const jsPDF = await ensurePdf()
+      const turf = await ensureTurf()
+      const norm = (Array.isArray(row.measurements)
+        ? { facets: row.measurements, lines: [] }
+        : { facets: (row.measurements && row.measurements.facets) || [], lines: (row.measurements && row.measurements.lines) || [] })
+      const sm = row.summary || {}
+      let m = sm.linear ? sm : computeMetrics(turf, norm.facets, norm.lines, { waste_pct: sm.waste_pct != null ? sm.waste_pct : 10 })
+      const png = diagramPng(norm.facets, norm.lines, m, { w: 640, h: 440 })
+      const cust = contacts.find((c) => c.id === row.contact_id)
+      const rowObj = {
+        title: row.title || 'Aerial roof measurement',
+        address: row.address || '',
+        customerName: cust ? contactLabel(cust) : '',
+        created_at: row.created_at,
+        id: row.id,
+      }
+      const doc = buildPdf(jsPDF, { row: rowObj, metrics: m, pngDataUrl: png, companyName })
+      doc.save(pdfFilename(rowObj))
+    } catch (err) {
+      setSaveMsg(err.message || 'PDF export failed.')
+    } finally {
+      setPdfBusy(false)
+    }
   }
 
   // ---------- reopen a saved measurement ----------
+  // Backward-compat: old rows store measurements as a plain ARRAY (facets only);
+  // new rows store { facets, lines }. Both reopen cleanly.
   function reopen(row) {
     clearAll()
-    const lines = Array.isArray(row.measurements) ? row.measurements : []
-    facetsRef.current = lines
+    const norm = (Array.isArray(row.measurements)
+      ? { facets: row.measurements, lines: [] }
+      : { facets: (row.measurements && row.measurements.facets) || [], lines: (row.measurements && row.measurements.lines) || [] })
+    facetsRef.current = norm.facets
       .filter((l) => Array.isArray(l.coords) && l.coords.length >= 3)
       .map((l) => ({ id: ++idRef.current, pitch: Number(l.pitch) || 6, pts: l.coords.map((c) => [c[0], c[1]]), closed: true }))
+    linesRef.current = norm.lines
+      .filter((l) => Array.isArray(l.coords) && l.coords.length >= 2)
+      .map((l) => ({ id: ++idRef.current, type: l.type || 'ridge', pts: l.coords.map((c) => [c[0], c[1]]), closed: true }))
     setTitle(row.title || '')
     setAddr(row.address || '')
     if (row.contact_id) { setContactId(row.contact_id); setContactSearch('') }
     if (row.summary?.waste_pct != null) setWaste(row.summary.waste_pct)
     syncMap()
-    const first = facetsRef.current[0]
+    const first = facetsRef.current[0] || linesRef.current[0]
     if (first && mapRef.current) {
       const c = first.pts[0]
       mapRef.current.flyTo({ center: [c[0], c[1]], zoom: 19.5, speed: 1.4 })
@@ -555,14 +681,25 @@ export default function CrmMeasure() {
   }
 
   const realFacets = facets.filter((f) => f.closed && f.pts.length >= 3)
+  const realLines = lines.filter((l) => l.closed && l.pts.length >= 2)
   const af = facets.find((f) => !f.closed)
+  const lin = metrics ? metrics.linear : {}
+  const areas = metrics ? metrics.areas : {}
 
   return (
     <HubPage
       title="Roof Measure"
-      subtitle="Trace each roof plane on aerial imagery, set pitch, and get order squares."
+      subtitle="Trace each roof plane, tag ridge/hip/valley/eave lines, and build a full takeoff report."
       actions={
         <div className="flex items-center gap-2">
+          <button
+            onClick={downloadPdf}
+            disabled={pdfBusy || !hasMetrics}
+            title={hasMetrics ? 'Download a branded PDF report' : 'Trace a roof first'}
+            className="inline-flex items-center gap-2 bg-navy-800 border border-navy-700/60 hover:bg-navy-700/50 disabled:opacity-40 text-gray-200 text-sm font-medium px-3.5 py-2 rounded-lg"
+          >
+            <Download size={16} /> {pdfBusy ? 'Building...' : 'Download report (PDF)'}
+          </button>
           <button
             onClick={createEstimateFromCurrent}
             disabled={!!creatingId || !realFacets.length || !contactId}
@@ -631,7 +768,6 @@ export default function CrmMeasure() {
           className="w-full bg-navy-900/60 border border-navy-700/60 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
         />
 
-        {/* contact picker (searchable, optional) */}
         <div className="relative" ref={contactBoxRef}>
           {selectedContact ? (
             <div className="flex items-center justify-between w-full bg-navy-900/60 border border-navy-700/60 rounded-lg pl-3 pr-2 py-2">
@@ -691,30 +827,60 @@ export default function CrmMeasure() {
               </div>
             )}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 text-xs text-gray-300 bg-navy-900/80 border border-navy-700/50 rounded-full px-3 py-1">
-              {drawing ? 'Tracing - tap each corner of one plane' : zoomHint}
+              {lineDrawing ? `Drawing ${lineTypeLabel(lineType)} - tap vertices, then Finish line` : drawing ? 'Tracing - tap each corner of one plane' : zoomHint}
             </div>
           </div>
 
-          {/* draw toolbar */}
+          {/* facet draw toolbar */}
           <div className="mt-3 flex flex-wrap gap-2">
-            <button onClick={addSection} disabled={!ready || drawing} className="inline-flex items-center gap-1.5 bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-40 text-white text-sm font-medium px-3.5 py-2 rounded-lg">
+            <button onClick={addSection} disabled={!ready || drawing || lineDrawing} className="inline-flex items-center gap-1.5 bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-40 text-white text-sm font-medium px-3.5 py-2 rounded-lg">
               <Plus size={15} /> Add roof section
             </button>
-            <button onClick={undoPoint} disabled={!af || !af.pts.length} className="inline-flex items-center gap-1.5 bg-navy-800 border border-navy-700/60 hover:bg-navy-700/50 disabled:opacity-40 text-gray-200 text-sm px-3.5 py-2 rounded-lg">
+            <button onClick={undoPoint} disabled={!drawing && !lineDrawing} className="inline-flex items-center gap-1.5 bg-navy-800 border border-navy-700/60 hover:bg-navy-700/50 disabled:opacity-40 text-gray-200 text-sm px-3.5 py-2 rounded-lg">
               <RotateCcw size={15} /> Undo point
             </button>
             <button onClick={doneSection} disabled={!af || af.pts.length < 3} className="inline-flex items-center gap-1.5 bg-navy-800 border border-navy-700/60 hover:bg-navy-700/50 disabled:opacity-40 text-gray-200 text-sm px-3.5 py-2 rounded-lg">
               <CheckCircle2 size={15} /> Done section
             </button>
-            <button onClick={clearAll} disabled={!facets.length} className="inline-flex items-center gap-1.5 bg-navy-800 border border-navy-700/60 hover:bg-navy-700/50 disabled:opacity-40 text-gray-400 text-sm px-3.5 py-2 rounded-lg">
+            <button onClick={clearAll} disabled={!facets.length && !lines.length} className="inline-flex items-center gap-1.5 bg-navy-800 border border-navy-700/60 hover:bg-navy-700/50 disabled:opacity-40 text-gray-400 text-sm px-3.5 py-2 rounded-lg">
               <Trash2 size={15} /> Clear all
             </button>
+          </div>
+
+          {/* line takeoff toolbar */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select
+              value={lineType}
+              onChange={(e) => setLineType(e.target.value)}
+              disabled={lineDrawing}
+              className="bg-navy-900/60 border border-navy-700/60 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue disabled:opacity-50"
+            >
+              {LINE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </select>
+            {!lineDrawing ? (
+              <button onClick={addLine} disabled={!ready || drawing} className="inline-flex items-center gap-1.5 bg-navy-800 border border-navy-700/60 hover:bg-navy-700/50 disabled:opacity-40 text-gray-200 text-sm px-3.5 py-2 rounded-lg">
+                <Spline size={15} /> Add line
+              </button>
+            ) : (
+              <button onClick={finishLine} className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-600/90 text-white text-sm font-medium px-3.5 py-2 rounded-lg">
+                <CheckCircle2 size={15} /> Finish line
+              </button>
+            )}
+            {/* legend */}
+            <div className="flex flex-wrap items-center gap-3 ml-1">
+              {LINE_TYPES.map((t) => (
+                <span key={t.key} className="inline-flex items-center gap-1.5 text-xs text-gray-400">
+                  <span className="inline-block w-4 h-1 rounded-full" style={{ backgroundColor: t.color }} />
+                  {t.label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* PANEL */}
         <div className="space-y-4">
-          {/* totals */}
+          {/* roof report summary */}
           <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs text-gray-400 uppercase tracking-wider">Waste factor</span>
@@ -728,17 +894,83 @@ export default function CrmMeasure() {
             </div>
             <div className="flex items-baseline justify-between border-t border-navy-700/50 pt-3">
               <span className="text-xs text-gray-400">Sloped surface</span>
-              <span className="text-2xl font-bold text-white">{Math.round(totals.surf).toLocaleString()}<span className="text-sm text-gray-400 ml-1">ft2</span></span>
+              <span className="text-2xl font-bold text-white">{(metrics ? metrics.sloped_ft2 : 0).toLocaleString()}<span className="text-sm text-gray-400 ml-1">ft2</span></span>
             </div>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-xs text-gray-400">Order quantity</span>
-              <span className="text-2xl font-bold text-emerald-400">{totals.squares.toFixed(1)}<span className="text-sm text-gray-400 ml-1">sq</span></span>
+              <span className="text-2xl font-bold text-emerald-400">{(metrics ? metrics.squares : 0).toFixed(1)}<span className="text-sm text-gray-400 ml-1">sq</span></span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <div className="bg-navy-900/50 rounded-lg px-3 py-2">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Pitched</div>
+                <div className="text-sm text-gray-200">{(areas.pitched_ft2 || 0).toLocaleString()} ft2</div>
+                <div className="text-[10px] text-gray-500">{(areas.pitched_squares || 0).toFixed ? (areas.pitched_squares || 0).toFixed(1) : areas.pitched_squares} sq</div>
+              </div>
+              <div className="bg-navy-900/50 rounded-lg px-3 py-2">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Flat / low</div>
+                <div className="text-sm text-gray-200">{(areas.flat_ft2 || 0).toLocaleString()} ft2</div>
+                <div className="text-[10px] text-gray-500">{(areas.flat_squares || 0).toFixed ? (areas.flat_squares || 0).toFixed(1) : areas.flat_squares} sq</div>
+              </div>
             </div>
             <p className="text-xs text-gray-500 mt-3">
-              Plan area {Math.round(totals.plan).toLocaleString()} ft2 - {totals.facetCount} section{totals.facetCount === 1 ? '' : 's'} - incl. {totals.waste}% waste
+              Plan {(metrics ? metrics.plan_ft2 : 0).toLocaleString()} ft2 - {metrics ? metrics.facet_count : 0} facet{(metrics && metrics.facet_count === 1) ? '' : 's'} - perimeter {(metrics ? metrics.perimeter_ft : 0).toLocaleString()} ft - predominant {(metrics && metrics.predominant_pitch) || '-'}
             </p>
             {saveMsg && <p className="text-xs mt-2 text-gray-300">{saveMsg}</p>}
           </div>
+
+          {/* linear feet by type */}
+          <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-5">
+            <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Linear feet</div>
+            <div className="space-y-1.5 text-sm">
+              {[
+                ['ridge', 'Ridge', lin.ridge_ft],
+                ['hip', 'Hip', lin.hip_ft],
+                ['valley', 'Valley', lin.valley_ft],
+                ['eave', 'Eave', lin.eave_ft],
+                ['rake', 'Rake', lin.rake_ft],
+                ['flashing', 'Step/Wall flashing', lin.flashing_ft],
+              ].map(([k, label, v]) => (
+                <div key={k} className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-2 text-gray-400">
+                    <span className="inline-block w-3 h-1 rounded-full" style={{ backgroundColor: lineColor(k) }} />
+                    {label}
+                  </span>
+                  <span className="text-gray-200">{(v || 0).toLocaleString()} LF</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between border-t border-navy-700/50 pt-1.5 mt-1.5">
+                <span className="text-gray-400">Drip edge (eave + rake)</span>
+                <span className="text-white font-semibold">{(lin.drip_edge_ft || 0).toLocaleString()} LF</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Total eave + rake</span>
+                <span className="text-gray-200">{((lin.eave_ft || 0) + (lin.rake_ft || 0)).toLocaleString()} LF</span>
+              </div>
+            </div>
+          </div>
+
+          {/* area by pitch */}
+          {metrics && Object.keys(metrics.area_by_pitch || {}).length > 0 && (
+            <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-5">
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Area by pitch</div>
+              <div className="space-y-1.5 text-sm">
+                {Object.keys(metrics.area_by_pitch).sort().map((k) => (
+                  <div key={k} className="flex items-center justify-between">
+                    <span className="text-gray-400">{k}</span>
+                    <span className="text-gray-200">{Number(metrics.area_by_pitch[k]).toLocaleString()} ft2</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* schematic diagram */}
+          {liveSvg && (
+            <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-3">
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2 px-2">Schematic</div>
+              <div className="rounded-lg overflow-hidden" dangerouslySetInnerHTML={{ __html: liveSvg }} />
+            </div>
+          )}
 
           {/* sections */}
           <Section title="Sections">
@@ -749,7 +981,7 @@ export default function CrmMeasure() {
             ) : (
               <div className="divide-y divide-navy-700/50">
                 {realFacets.map((f, i) => {
-                  const plan = window.turf ? facetPlanFt2(window.turf, f) : 0
+                  const plan = window.turf ? facetPlanFt2(window.turf, f.pts) : 0
                   const surf = plan * pitchMult(f.pitch)
                   return (
                     <div key={f.id} className="px-5 py-3">
@@ -781,6 +1013,31 @@ export default function CrmMeasure() {
             )}
           </Section>
 
+          {/* lines */}
+          <Section title="Lines">
+            {realLines.length === 0 ? (
+              <div className="px-5 py-4 text-sm text-gray-500">No lines yet. Pick a type, tap Add line, trace, then Finish line.</div>
+            ) : (
+              <div className="divide-y divide-navy-700/50">
+                {realLines.map((l) => {
+                  const len = window.turf ? lineLengthFt(window.turf, l.pts) : 0
+                  return (
+                    <div key={l.id} className="px-5 py-2.5 flex items-center justify-between">
+                      <span className="inline-flex items-center gap-2 text-sm text-gray-200">
+                        <span className="inline-block w-3 h-1 rounded-full" style={{ backgroundColor: lineColor(l.type) }} />
+                        {lineTypeLabel(l.type)}
+                      </span>
+                      <span className="flex items-center gap-3">
+                        <span className="text-sm text-gray-300">{Math.round(len).toLocaleString()} LF</span>
+                        <button onClick={() => deleteLine(l.id)} className="text-xs text-gray-400 hover:text-red-300">Delete</button>
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </Section>
+
           {/* saved */}
           <Section title="Saved measurements">
             {saved.length === 0 ? (
@@ -798,7 +1055,7 @@ export default function CrmMeasure() {
                         {row.address || 'No address'} - {new Date(row.created_at).toLocaleDateString()}
                       </div>
                     </button>
-                    <div className="mt-2">
+                    <div className="mt-2 flex items-center gap-4">
                       <button
                         onClick={(e) => createEstimateFromRow(row, e)}
                         disabled={creatingId === row.id}
@@ -806,6 +1063,14 @@ export default function CrmMeasure() {
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
                       >
                         <FileText size={13} /> {creatingId === row.id ? 'Creating...' : 'Create estimate'}
+                      </button>
+                      <button
+                        onClick={(e) => downloadRowPdf(row, e)}
+                        disabled={pdfBusy}
+                        title="Download a branded PDF report"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-blue hover:text-brand-light disabled:opacity-50"
+                      >
+                        <Download size={13} /> PDF
                       </button>
                     </div>
                   </div>
