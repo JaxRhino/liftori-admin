@@ -87,6 +87,8 @@ export default function WizardBuilder() {
   const [isNew, setIsNew] = useState(false)
   const [saving, setSaving] = useState(false)
   const [offeringFlows, setOfferingFlows] = useState([])
+  const [manualQuote, setManualQuote] = useState(false)
+  const [mqBusy, setMqBusy] = useState(false)
 
   // Product/Service flows come from the offerings catalog -> dropdown stays in sync
   useEffect(() => {
@@ -107,6 +109,42 @@ export default function WizardBuilder() {
     })()
     return () => { cancelled = true }
   }, [])
+
+  // Manual-quote mode: when ON, all Estimate + Payment cards across every flow
+  // are flagged config.disabled so the runtime wizard skips them and customers
+  // finish at Thank You (lead + project + team email still fire) — we quote by hand.
+  useEffect(() => { refreshManualQuote() }, [])
+  async function refreshManualQuote() {
+    const { data } = await supabase
+      .from('wizard_steps')
+      .select('id, config')
+      .in('card_type', ['estimate', 'payment'])
+    const rows = data || []
+    setManualQuote(rows.length > 0 && rows.every(r => r.config && r.config.disabled === true))
+  }
+  async function toggleManualQuote() {
+    const next = !manualQuote
+    setMqBusy(true)
+    try {
+      const { data, error } = await supabase
+        .from('wizard_steps')
+        .select('id, config')
+        .in('card_type', ['estimate', 'payment'])
+      if (error) throw error
+      await Promise.all((data || []).map(r =>
+        supabase.from('wizard_steps')
+          .update({ config: { ...(r.config || {}), disabled: next } })
+          .eq('id', r.id)
+      ))
+      setManualQuote(next)
+      await fetchCards()
+    } catch (err) {
+      console.error('toggleManualQuote:', err)
+      alert(err.message || 'Could not update manual-quote mode')
+    } finally {
+      setMqBusy(false)
+    }
+  }
 
   const FLOWS = useMemo(() => [...STATIC_FLOWS, ...offeringFlows], [offeringFlows])
 
@@ -314,6 +352,27 @@ export default function WizardBuilder() {
         <p className="text-slate-500 text-xs mt-3">{flowInfo?.desc}</p>
       </div>
 
+      {/* Manual quote mode */}
+      <div className="bg-[#0D1424] border border-white/10 rounded-xl p-4 mb-6 flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-white text-sm font-semibold">Manual quote mode</h3>
+            <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${manualQuote ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-white/10 text-slate-500'}`}>{manualQuote ? 'On' : 'Off'}</span>
+          </div>
+          <p className="text-slate-400 text-xs mt-1 max-w-2xl">When on, the Estimate and Payment cards are hidden on every customer flow. Customers finish at the Thank You step and their request still creates a lead, routes a project, and emails the team — so you can review it and send a real quote (with any case-by-case discount) after a sales call.</p>
+        </div>
+        <button
+          type="button"
+          onClick={toggleManualQuote}
+          disabled={mqBusy}
+          role="switch"
+          aria-checked={manualQuote}
+          className={`relative shrink-0 mt-1 inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${manualQuote ? 'bg-brand-blue' : 'bg-white/15'}`}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${manualQuote ? 'translate-x-6' : 'translate-x-1'}`} />
+        </button>
+      </div>
+
       {/* Flow header + add */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -368,6 +427,11 @@ export default function WizardBuilder() {
                     <span className="text-[10px] text-amber-400/90 border border-amber-500/20 bg-amber-500/10 rounded px-1.5 py-0.5">
                       Only: {card.industries.join(', ')}
                     </span>
+                  </div>
+                )}
+                {card.config?.disabled && (
+                  <div className="mt-2">
+                    <span className="text-[10px] text-slate-400 border border-white/15 bg-white/5 rounded px-1.5 py-0.5">Hidden · manual quote</span>
                   </div>
                 )}
               </div>
