@@ -37,8 +37,9 @@ const HUB_CHILDREN = {
     { label: 'Marketing', path: 'marketing' },
   ],
   sales: [
-    { label: 'Customers', path: 'customers' },
-    { label: 'Pipeline',  path: 'pipeline' },
+    { label: 'Customers',    path: 'customers' },
+    { label: 'Pipeline',     path: 'pipeline' },
+    { label: 'Lead Sources', path: 'lead-sources' },
   ],
   university: [
     { label: 'Sales', path: 'university/sales' },
