@@ -192,7 +192,11 @@ function LabosShell() {
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
           {hubs.map(hub => {
             const Icon = hub.icon
-            const children = HUB_CHILDREN[hub.key]
+            let children = HUB_CHILDREN[hub.key]
+            // Roofing-only Operations children (insurance claims, warranties) stay hidden for other industries.
+            if (children && hub.key === 'operations' && !String(platform?.industry || '').toLowerCase().includes('roof')) {
+              children = children.filter(ch => ch.path !== 'operations/insurance-claims' && ch.path !== 'operations/warranties')
+            }
             if (children) {
               const groupActive = children.some(ch => location.pathname.startsWith(`/crm/${platformId}/${ch.path}`)) || location.pathname === `/crm/${platformId}/${hub.path}`
               const isOpen = openGroups[hub.key] !== undefined ? openGroups[hub.key] : groupActive
