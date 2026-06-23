@@ -43,6 +43,7 @@ const HUB_CHILDREN = {
     { label: 'Lead Sources', path: 'lead-sources' },
     { label: 'Commissions',  path: 'commissions' },
     { label: 'Sequences',    path: 'sequences' },
+    { label: 'Roof Measure',  path: 'measure' },
   ],
   university: [
     { label: 'Sales', path: 'university/sales' },
@@ -64,7 +65,6 @@ const HUB_CHILDREN = {
     { label: 'Crews',             path: 'operations/crews' },
     { label: 'Crew Availability', path: 'operations/crew-availability' },
     { label: 'Job Map',           path: 'operations/map' },
-    { label: 'Roof Measure',      path: 'operations/measure' },
     { label: 'Inventory',         path: 'operations/inventory' },
   ],
   reports: [
