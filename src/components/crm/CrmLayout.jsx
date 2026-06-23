@@ -54,6 +54,7 @@ const HUB_CHILDREN = {
     { label: 'Ops Pipeline',      path: 'ops-pipeline' },
     { label: 'Jobs',       path: 'operations/work-orders' },
     { label: 'Production',        path: 'operations/production' },
+    { label: 'Subcontractors',    path: 'operations/subcontractors' },
     { label: 'Schedule',          path: 'operations/schedule' },
     { label: 'Crews',             path: 'operations/crews' },
     { label: 'Crew Availability', path: 'operations/crew-availability' },
