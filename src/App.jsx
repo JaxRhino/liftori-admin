@@ -1,4 +1,50 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
+// Liftori CRM — per-client tenant backend (admin impersonation enters here)
+import CrmLayout from './components/crm/CrmLayout'
+import CrmDashboard from './pages/crm/CrmDashboard'
+import CrmPipeline from './pages/crm/CrmPipeline'
+import CrmSalesTraining from './pages/crm/CrmSalesTraining'
+import CrmOpsPipeline from './pages/crm/CrmOpsPipeline'
+import CrmCustomers from './pages/crm/CrmCustomers'
+import CrmCustomerDetail from './pages/crm/CrmCustomerDetail'
+import CrmEstimateDetail from './pages/crm/CrmEstimateDetail'
+import CrmCallCenter from './pages/crm/CrmCallCenter'
+import CrmOperations from './pages/crm/CrmOperations'
+import CrmOperationsDashboard from './pages/crm/operations/OperationsDashboard'
+import CrmOperationsInventory from './pages/crm/operations/OperationsInventory'
+import CrmOperationsCrews from './pages/crm/operations/OperationsCrews'
+import CrmOperationsMeasurements from './pages/crm/operations/OperationsMeasurements'
+import CrmOperationsWorkOrders from './pages/crm/operations/OperationsWorkOrders'
+import CrmOperationsSchedule from './pages/crm/operations/OperationsSchedule'
+import CrmCrewAvailability from './pages/crm/CrmCrewAvailability'
+import CrmJobMap from './pages/crm/CrmJobMap'
+import CrmMarketing from './pages/crm/CrmMarketing'
+import CrmFinance from './pages/crm/CrmFinance'
+import CrmCommunications from './pages/crm/CrmCommunications'
+import CrmChat from './pages/crm/CrmChat'
+import CrmCalendar from './pages/crm/CrmCalendar'
+import CrmNotes from './pages/crm/CrmNotes'
+import CrmTasks from './pages/crm/CrmTasks'
+import CrmNotifications from './pages/crm/CrmNotifications'
+import CrmSettings from './pages/crm/CrmSettings'
+import CrmEOS from './pages/crm/CrmEOS'
+import CrmEOSRocks from './pages/crm/eos/EOSRocks'
+import CrmEOSIssues from './pages/crm/eos/EOSIssues'
+import CrmEOSTodos from './pages/crm/eos/EOSTodos'
+import CrmEOSMeetings from './pages/crm/eos/EOSMeetings'
+import CrmEOSScorecard from './pages/crm/eos/EOSScorecard'
+import CrmEOSVTO from './pages/crm/eos/EOSVTO'
+import CrmEOSAccountability from './pages/crm/eos/EOSAccountability'
+import CrmEOSHeadlines from './pages/crm/eos/EOSHeadlines'
+import EcomDashboard from './pages/ecomm/EcomDashboard'
+import EcomListings from './pages/ecomm/EcomListings'
+import EcomListingEditor from './pages/ecomm/EcomListingEditor'
+import EcomOrders from './pages/ecomm/EcomOrders'
+import EcomCustomers from './pages/ecomm/EcomCustomers'
+import EcomSocial from './pages/ecomm/EcomSocial'
+import EcomAssistant from './pages/ecomm/EcomAssistant'
+import CscOpsDashboard from './pages/csc/CscOpsDashboard'
+import { useCrm } from './contexts/CrmContext'
 import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { OrgProvider } from './lib/OrgContext'
@@ -223,6 +269,26 @@ import CscInvoices from './pages/csc/CscInvoices'
 import CscCertificates from './pages/csc/CscCertificates'
 import CscStickers from './pages/csc/CscStickers'
 import CscAhjMap from './pages/csc/CscAhjMap'
+
+// Industry switch for shared /crm/:platformId route slots: ecommerce tenants get
+// the retail pages; every other industry renders the base CRM (no-op otherwise).
+function CrmDashboardByIndustry() {
+  const { platform } = useCrm()
+  return platform?.industry === 'ecommerce' ? <EcomDashboard /> : <CrmDashboard />
+}
+function CrmCustomersByIndustry() {
+  const { platform } = useCrm()
+  return platform?.industry === 'ecommerce' ? <EcomCustomers /> : <CrmCustomers />
+}
+// CRM access: admins (impersonation/support) OR the customer who owns THIS platform.
+function CrmRoute({ children }) {
+  const { isAdmin, myPlatformId, loading } = useAuth()
+  const { platformId } = useParams()
+  if (loading) return null
+  if (isAdmin) return children
+  if (myPlatformId && myPlatformId === platformId) return children
+  return <Navigate to={myPlatformId ? `/crm/${myPlatformId}/dashboard` : '/portal'} replace />
+}
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -514,6 +580,75 @@ export default function App() {
             </Route>
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Route>
+
+          {/* Liftori CRM — per-client tenant backend (admin impersonation enters here) */}
+          <Route path="/crm/:platformId" element={
+            <ProtectedRoute>
+              <CrmRoute>
+                <CrmLayout />
+              </CrmRoute>
+            </ProtectedRoute>
+          }>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<CrmDashboardByIndustry />} />
+            <Route path="sales" element={<CrmPipeline />} />
+            <Route path="pipeline" element={<CrmPipeline />} />
+            <Route path="sales-training" element={<CrmSalesTraining />} />
+            <Route path="university" element={<CrmSalesTraining />} />
+            <Route path="university/:track" element={<CrmSalesTraining />} />
+            <Route path="ops-pipeline" element={<CrmOpsPipeline />} />
+            <Route path="call-center" element={<CrmCallCenter />} />
+            <Route path="overview" element={<CscOverview />} />
+            <Route path="operations-dashboard" element={<CscOpsDashboard />} />
+            <Route path="jobs" element={<CscJobs />} />
+            <Route path="jobs/:id" element={<CscJobDetail />} />
+            <Route path="deficiencies" element={<CscDeficiencies />} />
+            <Route path="certificates" element={<CscCertificates />} />
+            <Route path="stickers" element={<CscStickers />} />
+            <Route path="ahj" element={<CscAhjMap />} />
+            <Route path="customers" element={<CrmCustomersByIndustry />} />
+            <Route path="customers/:id" element={<CrmCustomerDetail />} />
+            {/* E-commerce industry routes (pages self-scope via useCrmClient) */}
+            <Route path="listings" element={<EcomListings />} />
+            <Route path="listings/new" element={<EcomListingEditor />} />
+            <Route path="listings/:listingId" element={<EcomListingEditor />} />
+            <Route path="orders" element={<EcomOrders />} />
+            <Route path="assistant" element={<EcomAssistant />} />
+            <Route path="social" element={<EcomSocial />} />
+            <Route path="estimates/:id" element={<CrmEstimateDetail />} />
+            <Route path="invoices" element={<CscInvoices />} />
+            <Route path="operations" element={<CrmOperations />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<CrmOperationsDashboard />} />
+              <Route path="work-orders" element={<CrmOperationsWorkOrders />} />
+              <Route path="schedule" element={<CrmOperationsSchedule />} />
+              <Route path="inventory" element={<CrmOperationsInventory />} />
+              <Route path="crews" element={<CrmOperationsCrews />} />
+              <Route path="crew-availability" element={<CrmCrewAvailability />} />
+              <Route path="map" element={<CrmJobMap />} />
+              <Route path="measurements" element={<CrmOperationsMeasurements />} />
+            </Route>
+            <Route path="marketing" element={<CrmMarketing />} />
+            <Route path="finance" element={<CrmFinance />} />
+            <Route path="communications" element={<CrmCommunications />} />
+            <Route path="chat" element={<CrmChat />} />
+            <Route path="calendar" element={<CrmCalendar />} />
+            <Route path="notes" element={<CrmNotes />} />
+            <Route path="tasks" element={<CrmTasks />} />
+            <Route path="notifications" element={<CrmNotifications />} />
+            <Route path="settings" element={<CrmSettings />} />
+            <Route path="eos" element={<CrmEOS />}>
+              <Route index element={<Navigate to="rocks" replace />} />
+              <Route path="rocks" element={<CrmEOSRocks />} />
+              <Route path="issues" element={<CrmEOSIssues />} />
+              <Route path="todos" element={<CrmEOSTodos />} />
+              <Route path="meetings" element={<CrmEOSMeetings />} />
+              <Route path="scorecard" element={<CrmEOSScorecard />} />
+              <Route path="vto" element={<CrmEOSVTO />} />
+              <Route path="accountability" element={<CrmEOSAccountability />} />
+              <Route path="headlines" element={<CrmEOSHeadlines />} />
+            </Route>
           </Route>
 
           {/* CSC public — restaurant owner portal + AHJ verify (no auth) */}
