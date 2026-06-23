@@ -24,6 +24,7 @@ import CrmOperationsProduction from './pages/crm/operations/OperationsProduction
 import CrmOperationsSubcontractors from './pages/crm/operations/OperationsSubcontractors'
 import CrmOperationsPermits from './pages/crm/operations/OperationsPermits'
 import CrmOperationsMaterials from './pages/crm/operations/OperationsMaterials'
+import CrmInsurance from './pages/crm/operations/CrmInsurance'
 import CrmOperationsSchedule from './pages/crm/operations/OperationsSchedule'
 import CrmCrewAvailability from './pages/crm/CrmCrewAvailability'
 import CrmJobMap from './pages/crm/CrmJobMap'
@@ -646,6 +647,7 @@ export default function App() {
               <Route path="subcontractors" element={<CrmOperationsSubcontractors />} />
               <Route path="permits" element={<CrmOperationsPermits />} />
               <Route path="materials" element={<CrmOperationsMaterials />} />
+              <Route path="insurance-claims" element={<CrmInsurance />} />
               <Route path="schedule" element={<CrmOperationsSchedule />} />
               <Route path="inventory" element={<CrmOperationsInventory />} />
               <Route path="crews" element={<CrmOperationsCrews />} />
