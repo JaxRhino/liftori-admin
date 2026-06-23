@@ -64,6 +64,7 @@ const HUB_CHILDREN = {
     { label: 'Crews',             path: 'operations/crews' },
     { label: 'Crew Availability', path: 'operations/crew-availability' },
     { label: 'Job Map',           path: 'operations/map' },
+    { label: 'Roof Measure',      path: 'operations/measure' },
     { label: 'Inventory',         path: 'operations/inventory' },
   ],
   reports: [
@@ -191,11 +192,7 @@ function LabosShell() {
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
           {hubs.map(hub => {
             const Icon = hub.icon
-            let children = HUB_CHILDREN[hub.key]
-            // Roofing-only Operations children (insurance claims, warranties) stay hidden for other industries.
-            if (children && hub.key === 'operations' && !String(platform?.industry || '').toLowerCase().includes('roof')) {
-              children = children.filter(ch => ch.path !== 'operations/insurance-claims' && ch.path !== 'operations/warranties')
-            }
+            const children = HUB_CHILDREN[hub.key]
             if (children) {
               const groupActive = children.some(ch => location.pathname.startsWith(`/crm/${platformId}/${ch.path}`)) || location.pathname === `/crm/${platformId}/${hub.path}`
               const isOpen = openGroups[hub.key] !== undefined ? openGroups[hub.key] : groupActive
