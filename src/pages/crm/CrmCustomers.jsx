@@ -53,15 +53,20 @@ export default function CrmCustomers() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(blankForm());
+  const [leadSources, setLeadSources] = useState([]);
 
   useEffect(() => { if (client) load(); /* eslint-disable-next-line */ }, [client]);
 
   const load = async () => {
     try {
       setLoading(true);
-      const { data, error } = await client.from('customer_contacts').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      setContacts(data || []);
+      const [contactRes, srcRes] = await Promise.all([
+        client.from('customer_contacts').select('*').order('created_at', { ascending: false }),
+        client.from('lead_sources').select('label, name, is_active').order('sort_order'),
+      ]);
+      if (contactRes.error) throw contactRes.error;
+      setContacts(contactRes.data || []);
+      setLeadSources((srcRes.data || []).filter(s => s.is_active !== false));
     } catch (e) {
       console.error('Error loading customers:', e);
       toast.error('Failed to load customers');
@@ -252,7 +257,8 @@ export default function CrmCustomers() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Lead Source</label>
-                  <Input value={form.lead_source} onChange={(e) => setForm({ ...form, lead_source: e.target.value })} className="bg-navy-800 border-navy-700 text-white placeholder-gray-500" placeholder="referral, google..." />
+                  <Input list="crm-lead-src-list" value={form.lead_source} onChange={(e) => setForm({ ...form, lead_source: e.target.value })} className="bg-navy-800 border-navy-700 text-white placeholder-gray-500" placeholder="referral, google..." />
+                  <datalist id="crm-lead-src-list">{leadSources.map((s) => <option key={s.name} value={s.name}>{s.label || s.name}</option>)}</datalist>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
