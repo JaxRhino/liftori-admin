@@ -14,7 +14,7 @@ import {
   Clock, Brain, MessageSquare, BarChart3, X, Plus, Edit2, Trash2,
   ArrowRight, GripVertical, Eye, Download, Sparkles, Check, AlertCircle,
   Calendar, Send, ShieldCheck, UserCheck, CalendarPlus, CalendarClock,
-  Copy, Power, Pencil
+  Copy, Power, Pencil, Share2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createInterviewToken, sendApplicantWelcomeEmail, sendApprovalEmail } from '../lib/hrEmailService';
@@ -84,6 +84,9 @@ export default function HRHub() {
   const [postings, setPostings] = useState([]);
   const [copiedSlug, setCopiedSlug] = useState('');
   const [postingModal, setPostingModal] = useState(null); // null = closed; object = editing/creating
+  const [socialModal, setSocialModal] = useState(null); // { posting, fb, li, x }
+  const [socialCopied, setSocialCopied] = useState('');
+  const [socialSending, setSocialSending] = useState(false);
 
   // Dialogs
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -190,6 +193,34 @@ export default function HRHub() {
     const { error: err } = await supabase.from('job_postings').update({ is_active: !p.is_active, updated_at: new Date().toISOString() }).eq('id', p.id);
     if (err) { toast.error('Update failed'); return; }
     loadPostings();
+  }
+  function buildSocialCopy(p) {
+    const link = postingApplyUrl(p.slug);
+    const meta = [p.location, p.employment_type, p.comp_model].filter(Boolean).join(' | ');
+    const summary = (p.summary || '').trim();
+    const fb = `We're hiring: ${p.title}` + (meta ? `\n${meta}` : '') + (summary ? `\n\n${summary}` : '') + (p.compensation_detail ? `\n\n${p.compensation_detail}` : '') + `\n\nApply here: ${link}`;
+    const li = `We're hiring: ${p.title}` + (p.location ? ` (${p.location})` : '') + (summary ? `\n\n${summary}` : '') + (p.compensation_detail ? `\n\n${p.compensation_detail}` : '') + `\n\nApply: ${link}`;
+    const x = (`We're hiring a ${p.title}.` + (p.comp_model ? ` ${p.comp_model}.` : '') + (p.location ? ` ${p.location}.` : '') + ` Apply: ${link}`).replace(/\s+/g, ' ').trim();
+    return { fb, li, x };
+  }
+  function openSocial(p) { const c = buildSocialCopy(p); setSocialModal({ posting: p, fb: c.fb, li: c.li, x: c.x }); }
+  function copySocial(which, text) { navigator.clipboard.writeText(text); setSocialCopied(which); setTimeout(() => setSocialCopied(''), 2000); toast.success('Copied'); }
+  async function sendJobToMarketingHub() {
+    if (!socialModal) return;
+    setSocialSending(true);
+    const { error: err } = await supabase.from('marketing_posts').insert({
+      content: socialModal.fb,
+      content_type: 'Announcement',
+      platforms: ['facebook'],
+      status: 'pending_approval',
+      source_type: 'manual',
+      source_id: socialModal.posting.id,
+      media_urls: [],
+    });
+    setSocialSending(false);
+    if (err) { toast.error(err.message || 'Failed to queue post'); return; }
+    toast.success('Sent to Marketing Hub - pending approval');
+    setSocialModal(null);
   }
   function pmSetQ(i, patch) { setPostingModal(m => ({ ...m, screening_questions: m.screening_questions.map((q, idx) => idx === i ? { ...q, ...patch } : q) })); }
   function pmAddQ() { setPostingModal(m => ({ ...m, screening_questions: [...m.screening_questions, { key: '', label: '', type: 'text', required: false }] })); }
@@ -754,6 +785,7 @@ export default function HRHub() {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <Button onClick={() => togglePostingActive(p)} variant="outline" className="border-white/10 text-gray-300 text-xs"><Power className="h-3.5 w-3.5 mr-1" />{p.is_active ? 'Deactivate' : 'Activate'}</Button>
+                      <Button onClick={() => openSocial(p)} variant="outline" className="border-white/10 text-gray-300 text-xs"><Share2 className="h-3.5 w-3.5 mr-1" />Post to socials</Button>
                       <Button onClick={() => openEditPosting(p)} variant="outline" className="border-white/10 text-gray-300 text-xs"><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Button>
                     </div>
                   </div>
@@ -1871,6 +1903,47 @@ export default function HRHub() {
             <div className="mt-6 flex justify-end gap-2">
               <Button onClick={() => setPostingModal(null)} variant="outline" className="border-white/10 text-gray-300">Cancel</Button>
               <Button onClick={savePosting} className="bg-sky-500 hover:bg-sky-600 text-white">Save posting</Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {socialModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSocialModal(null)}>
+          <div className="bg-navy-900 border border-white/10 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-semibold text-white">Post to socials</h3>
+              <button onClick={() => setSocialModal(null)} className="text-gray-400 hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <p className="text-sm text-gray-400 mb-4">{socialModal.posting.title} - copy is editable. The apply link is included.</p>
+            <div className="space-y-5">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-gray-300 uppercase tracking-wide">Facebook</label>
+                  <button onClick={() => copySocial('fb', socialModal.fb)} className="text-xs text-gray-300 hover:text-white inline-flex items-center gap-1">{socialCopied === 'fb' ? <><Check className="h-3.5 w-3.5 text-green-400" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}</button>
+                </div>
+                <textarea value={socialModal.fb} onChange={e => setSocialModal(m => ({ ...m, fb: e.target.value }))} rows={6} className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-white text-sm resize-none" />
+                <div className="mt-2 flex items-center gap-2">
+                  <Button onClick={sendJobToMarketingHub} disabled={socialSending} className="bg-sky-500 hover:bg-sky-600 text-white text-sm">{socialSending ? 'Sending...' : 'Send to Marketing Hub'}</Button>
+                  <span className="text-xs text-gray-500">Queues a Facebook post for approval in Marketing.</span>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-gray-300 uppercase tracking-wide">LinkedIn</label>
+                  <button onClick={() => copySocial('li', socialModal.li)} className="text-xs text-gray-300 hover:text-white inline-flex items-center gap-1">{socialCopied === 'li' ? <><Check className="h-3.5 w-3.5 text-green-400" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}</button>
+                </div>
+                <textarea value={socialModal.li} onChange={e => setSocialModal(m => ({ ...m, li: e.target.value }))} rows={5} className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-white text-sm resize-none" />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-gray-300 uppercase tracking-wide">X (Twitter)</label>
+                  <button onClick={() => copySocial('x', socialModal.x)} className="text-xs text-gray-300 hover:text-white inline-flex items-center gap-1">{socialCopied === 'x' ? <><Check className="h-3.5 w-3.5 text-green-400" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}</button>
+                </div>
+                <textarea value={socialModal.x} onChange={e => setSocialModal(m => ({ ...m, x: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-md bg-navy-800/50 border border-white/10 text-white text-sm resize-none" />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => setSocialModal(null)} variant="outline" className="border-white/10 text-gray-300">Close</Button>
             </div>
           </div>
         </div>
