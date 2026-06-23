@@ -613,6 +613,7 @@ export default function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<CrmDashboardByIndustry />} />
             <Route path="sales" element={<CrmPipeline />} />
+            <Route path="measure" element={<CrmMeasure />} />
             <Route path="pipeline" element={<CrmPipeline />} />
             <Route path="lead-sources" element={<CrmLeadSources />} />
             <Route path="commissions" element={<CrmCommissions />} />
@@ -659,7 +660,6 @@ export default function App() {
               <Route path="crews" element={<CrmOperationsCrews />} />
               <Route path="crew-availability" element={<CrmCrewAvailability />} />
               <Route path="map" element={<CrmJobMap />} />
-              <Route path="measure" element={<CrmMeasure />} />
               <Route path="measurements" element={<CrmOperationsMeasurements />} />
             </Route>
             <Route path="marketing" element={<CrmMarketing />} />
