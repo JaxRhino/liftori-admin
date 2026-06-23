@@ -58,6 +58,7 @@ const HUB_CHILDREN = {
     { label: 'Subcontractors',    path: 'operations/subcontractors' },
     { label: 'Permits',           path: 'operations/permits' },
     { label: 'Materials',         path: 'operations/materials' },
+    { label: 'Insurance Claims',  path: 'operations/insurance-claims' },
     { label: 'Schedule',          path: 'operations/schedule' },
     { label: 'Crews',             path: 'operations/crews' },
     { label: 'Crew Availability', path: 'operations/crew-availability' },
