@@ -620,7 +620,7 @@ export default function HRHub() {
   }
 
   // ─── Filtering ──────────────────────────────────────────────
-  const positions = [...new Set(applicants.map(a => a.position).filter(Boolean))];
+  const positions = [...new Set([...postings.filter(p => p.is_active).map(p => p.title), ...applicants.map(a => a.position).filter(Boolean)])];
 
   const filtered = applicants.filter(a => {
     if (searchQuery && !a.full_name.toLowerCase().includes(searchQuery.toLowerCase()) && !a.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
