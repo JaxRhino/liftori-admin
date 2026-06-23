@@ -1,118 +1,75 @@
-// AiPostGenerator: full-screen modal that calls generate-marketing-post and lets the
-// user pick one of 3 AI-drafted variants, previewed as a Facebook post with optional
-// attached image(s). Quality controls (vibe, goal, hook style, platform, length,
-// hashtags, "write like these" examples) steer the draft. Images: pick one OR MANY
-// from the marketing-media library (multi-select), make AI variants, generate, or upload.
+// AiPostGenerator: modal that calls generate-marketing-post edge function and lets
+// the user pick one of 3 AI-drafted variants. The picked variant fills the parent's
+// post content + suggested card template. No DB writes — purely a draft picker.
+//
+// Two modes (prop `mode`):
+//   'generate' (default) — draft new posts from a topic + steering dropdowns
+//   'improve'            — rewrite an existing post (prop `baseContent`) using typed
+//                          commands + the same steering dropdowns ("Update with AI")
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import MediaLibrary from './MediaLibrary'
 
 const CONTENT_TYPE_OPTIONS = [
   'Announcement', 'Product Launch', 'Tip / How-To', 'Behind the Scenes',
   'Promotion', 'Event', 'Testimonial', 'Question / Poll', 'Custom',
 ]
-const VIBE_OPTIONS = [
-  'Professional', 'Conversational', 'Bold & confident', 'Friendly & warm',
-  'Inspirational', 'Playful', 'Educational', 'Urgent / limited-time',
-]
 const GOAL_OPTIONS = [
-  'Get signups / waitlist', 'Drive app downloads', 'Get comments / engagement',
-  'Brand awareness', 'Book a demo or call', 'Drive traffic to liftori.ai',
+  ['', 'Auto'],
+  ['build awareness', 'Awareness'],
+  ['drive engagement (comments, shares)', 'Engagement'],
+  ['drive clicks / traffic to the link', 'Clicks / traffic'],
+  ['drive signups or leads', 'Signups / leads'],
+  ['drive job applications', 'Hiring / applications'],
+  ['build brand trust / authority', 'Brand trust'],
 ]
 const HOOK_OPTIONS = [
-  'Bold claim', 'Question', 'Surprising stat', 'Mini-story', 'Contrarian take', 'How we / how-to',
-]
-const PLATFORM_OPTIONS = [
-  { v: 'facebook', l: 'Facebook' }, { v: 'linkedin', l: 'LinkedIn' },
-  { v: 'instagram', l: 'Instagram' }, { v: 'x', l: 'X (Twitter)' },
+  ['', 'Auto'],
+  ['a bold claim', 'Bold claim'],
+  ['a question', 'Question'],
+  ['a surprising stat', 'Surprising stat'],
+  ['a short story', 'Short story'],
+  ['a contrarian take', 'Contrarian take'],
+  ['a direct, clear statement', 'Direct & clear'],
 ]
 const LENGTH_OPTIONS = [
-  { v: 'short', l: 'Very short' }, { v: 'medium', l: 'Short' },
-  { v: 'detailed', l: 'Detailed' }, { v: 'structured', l: 'Hook + 3 points + CTA' },
+  ['', 'Auto'],
+  ['short', 'Very short'],
+  ['medium', 'Short'],
+  ['detailed', 'Detailed'],
+  ['structured', 'Hook + 3 points + CTA'],
 ]
 const HASHTAG_OPTIONS = [
-  { v: '', l: 'Auto' }, { v: 'none', l: 'None' }, { v: 'few', l: 'A few (branded)' }, { v: 'discovery', l: 'Discovery set' },
+  ['', 'Auto'],
+  ['none', 'None'],
+  ['few', 'Few (branded)'],
+  ['discovery', 'Discovery (4-6)'],
+]
+const PLATFORM_OPTIONS = [
+  ['facebook', 'Facebook'],
+  ['linkedin', 'LinkedIn'],
+  ['instagram', 'Instagram'],
+  ['x', 'X (Twitter)'],
 ]
 
-function Field({ label, children }) {
-  return (
-    <div>
-      <label className="text-xs text-slate-400 mb-1 block">{label}</label>
-      {children}
-    </div>
-  )
-}
-const selectCls = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+const SELECT_CLS = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500'
 
-// Facebook-style preview. Shows the first image with a "+N" badge if more are attached.
-function PlatformPreview({ text, images }) {
-  const first = images && images.length ? images[0] : null
-  const extra = images && images.length > 1 ? images.length - 1 : 0
-  return (
-    <div className="bg-white rounded-lg overflow-hidden text-slate-900 shadow-sm">
-      <div className="flex items-center gap-2 p-3">
-        <div className="w-9 h-9 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-sm">L</div>
-        <div className="leading-tight">
-          <div className="text-sm font-semibold text-slate-900">Liftori</div>
-          <div className="text-[11px] text-slate-500">Just now · Sponsored</div>
-        </div>
-      </div>
-      <div className="px-3 pb-3 text-sm whitespace-pre-wrap text-slate-800">{text}</div>
-      {first && (
-        <div className="relative">
-          <img src={first} alt="" className="w-full max-h-80 object-cover" />
-          {extra > 0 && (
-            <span className="absolute bottom-2 right-2 text-xs font-semibold bg-black/70 text-white px-2 py-0.5 rounded-full">+{extra} more</span>
-          )}
-        </div>
-      )}
-      <div className="flex items-center justify-around border-t border-slate-200 text-slate-500 text-xs font-medium py-2">
-        <span>Like</span>
-        <span>Comment</span>
-        <span>Share</span>
-      </div>
-    </div>
-  )
-}
-
-export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
+export default function AiPostGenerator({ isOpen, onClose, onPickVariant, mode = 'generate', baseContent = '' }) {
+  const improve = mode === 'improve'
   const [contentType, setContentType] = useState('Announcement')
-  const [postVibe, setPostVibe] = useState('')
+  const [customPrompt, setCustomPrompt] = useState('')
+  const [instruction, setInstruction] = useState('')
+  const [sourceType, setSourceType] = useState('manual')
   const [goal, setGoal] = useState('')
   const [hookStyle, setHookStyle] = useState('')
-  const [platform, setPlatform] = useState('facebook')
-  const [length, setLength] = useState('medium')
+  const [length, setLength] = useState('')
   const [hashtags, setHashtags] = useState('')
-  const [examples, setExamples] = useState('')
-  const [customPrompt, setCustomPrompt] = useState('')
-  const [sourceType, setSourceType] = useState('manual')
-  const [productSlug, setProductSlug] = useState('')
-  const [products, setProducts] = useState([])
-  const [selectedImages, setSelectedImages] = useState([])
-  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [platform, setPlatform] = useState('facebook')
   const [loading, setLoading] = useState(false)
   const [variants, setVariants] = useState([])
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (!isOpen) return
-    let cancelled = false
-    ;(async () => {
-      const { data } = await supabase
-        .from('marketing_products')
-        .select('name, slug')
-        .eq('active', true)
-        .order('sort_order', { ascending: true })
-      if (!cancelled) setProducts(data || [])
-    })()
-    return () => { cancelled = true }
-  }, [isOpen])
-
   if (!isOpen) return null
-
-  const selectedProduct = products.find(p => p.slug === productSlug) || null
-  function removeImage(url) { setSelectedImages(prev => prev.filter(u => u !== url)) }
 
   async function generate() {
     setLoading(true)
@@ -123,9 +80,6 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
       const accessToken = sessionRes?.session?.access_token
       if (!accessToken) throw new Error('Not signed in')
 
-      const vibeNote = postVibe ? `Tone/vibe: ${postVibe}.` : ''
-      const composedPrompt = [vibeNote, customPrompt].filter(Boolean).join(' ').trim() || undefined
-
       const fnUrl = `${supabase.supabaseUrl}/functions/v1/generate-marketing-post`
       const res = await fetch(fnUrl, {
         method: 'POST',
@@ -134,16 +88,17 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
+          mode,
+          base_content: improve ? (baseContent || '') : undefined,
+          instruction: improve ? (instruction || undefined) : undefined,
           content_type: contentType,
-          source_type: sourceType === 'manual' ? undefined : sourceType,
-          product_slug: productSlug || undefined,
-          custom_prompt: composedPrompt,
+          source_type: !improve && sourceType !== 'manual' ? sourceType : undefined,
+          custom_prompt: !improve ? (customPrompt || undefined) : undefined,
           goal: goal || undefined,
           hook_style: hookStyle || undefined,
-          platform,
-          length,
+          length: length || undefined,
           hashtags: hashtags || undefined,
-          examples: examples.trim() || undefined,
+          platform: platform || undefined,
           num_variants: 3,
         }),
       })
@@ -163,170 +118,183 @@ export default function AiPostGenerator({ isOpen, onClose, onPickVariant }) {
       content_type: contentType,
       suggested_card_template: variant.suggested_card_template || 'announcement',
       hashtags: variant.hashtags || [],
-      image: selectedImages[0] || '',
-      images: selectedImages,
     })
     setVariants([])
     setCustomPrompt('')
-    setSelectedImages([])
+    setInstruction('')
     onClose?.()
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-50 bg-black/70 p-3 sm:p-5" onClick={onClose}>
-        <button onClick={onClose} className="fixed top-4 right-5 z-[60] text-slate-300 hover:text-white text-3xl leading-none" aria-label="Close">×</button>
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full h-full overflow-y-auto p-6 md:p-8" onClick={(e) => e.stopPropagation()}>
-          <div className="mb-6 max-w-5xl mx-auto">
-            <h2 className="text-2xl font-bold text-white">AI post generator</h2>
-            <p className="text-xs text-slate-400 mt-1">Claude drafts 3 variants previewed as they'll publish. Pick one. You still approve before publish.</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <span className="text-violet-400">✨</span> {improve ? 'Update with AI' : 'AI post generator'}
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              {improve
+                ? 'Claude rewrites your post using your commands + the controls below. Pick the version you like.'
+                : 'Claude drafts 3 variants. Pick one. You still approve before publish.'}
+            </p>
           </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white text-2xl leading-none">×</button>
+        </div>
 
-          <div className="max-w-5xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-              <Field label="Content type">
-                <select value={contentType} onChange={(e) => setContentType(e.target.value)} className={selectCls}>
-                  {CONTENT_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </Field>
-              <Field label="Post vibe">
-                <select value={postVibe} onChange={(e) => setPostVibe(e.target.value)} className={selectCls}>
-                  <option value="">Brand default voice</option>
-                  {VIBE_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </Field>
-              <Field label="Promote which product?">
-                <select value={productSlug} onChange={(e) => setProductSlug(e.target.value)} className={selectCls}>
-                  <option value="">No specific product</option>
-                  {products.map(p => <option key={p.slug} value={p.slug}>{p.name}</option>)}
-                </select>
-              </Field>
-              <Field label="Pull context from">
-                <select value={sourceType} onChange={(e) => setSourceType(e.target.value)} className={selectCls}>
-                  <option value="manual">Just my topic below</option>
-                  <option value="customer_win">Most recent client launch</option>
-                </select>
-              </Field>
+        {/* Improve mode: show the current post being improved */}
+        {improve && (
+          <div className="mb-4">
+            <label className="text-xs text-slate-400 mb-1 block">Current post</label>
+            <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
+              {baseContent ? baseContent : <span className="text-slate-500">No content yet.</span>}
             </div>
+          </div>
+        )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-              <Field label="Goal">
-                <select value={goal} onChange={(e) => setGoal(e.target.value)} className={selectCls}>
-                  <option value="">No specific goal</option>
-                  {GOAL_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </Field>
-              <Field label="Hook style">
-                <select value={hookStyle} onChange={(e) => setHookStyle(e.target.value)} className={selectCls}>
-                  <option value="">Let AI choose</option>
-                  {HOOK_OPTIONS.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </Field>
-              <Field label="Platform">
-                <select value={platform} onChange={(e) => setPlatform(e.target.value)} className={selectCls}>
-                  {PLATFORM_OPTIONS.map(p => <option key={p.v} value={p.v}>{p.l}</option>)}
-                </select>
-              </Field>
-              <Field label="Length">
-                <select value={length} onChange={(e) => setLength(e.target.value)} className={selectCls}>
-                  {LENGTH_OPTIONS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-                </select>
-              </Field>
-              <Field label="Hashtags">
-                <select value={hashtags} onChange={(e) => setHashtags(e.target.value)} className={selectCls}>
-                  {HASHTAG_OPTIONS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-                </select>
-              </Field>
+        {/* Improve mode: typed commands */}
+        {improve && (
+          <div className="mb-4">
+            <label className="text-xs text-slate-400 mb-1 block">What should change? (commands)</label>
+            <textarea
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              placeholder="e.g. Make it punchier and shorter. Add a clear call to apply. Lead with the commission upside. Drop the corporate tone."
+              rows={3}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
+            />
+          </div>
+        )}
+
+        {/* Steering dropdowns (both modes) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          {!improve && (
+            <div>
+              <label className="text-xs text-slate-400 mb-1 block">Content type</label>
+              <select value={contentType} onChange={(e) => setContentType(e.target.value)} className={SELECT_CLS}>
+                {CONTENT_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
             </div>
+          )}
+          <div>
+            <label className="text-xs text-slate-400 mb-1 block">Platform</label>
+            <select value={platform} onChange={(e) => setPlatform(e.target.value)} className={SELECT_CLS}>
+              {PLATFORM_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 mb-1 block">Goal</label>
+            <select value={goal} onChange={(e) => setGoal(e.target.value)} className={SELECT_CLS}>
+              {GOAL_OPTIONS.map(([v, l]) => <option key={l} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 mb-1 block">Hook style</label>
+            <select value={hookStyle} onChange={(e) => setHookStyle(e.target.value)} className={SELECT_CLS}>
+              {HOOK_OPTIONS.map(([v, l]) => <option key={l} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 mb-1 block">Length</label>
+            <select value={length} onChange={(e) => setLength(e.target.value)} className={SELECT_CLS}>
+              {LENGTH_OPTIONS.map(([v, l]) => <option key={l} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 mb-1 block">Hashtags</label>
+            <select value={hashtags} onChange={(e) => setHashtags(e.target.value)} className={SELECT_CLS}>
+              {HASHTAG_OPTIONS.map(([v, l]) => <option key={l} value={v}>{l}</option>)}
+            </select>
+          </div>
+        </div>
 
+        {/* Generate mode: topic + context */}
+        {!improve && (
+          <>
             <div className="mb-4">
-              <label className="text-xs text-slate-400 mb-1 block">Write like these (optional) — paste 1-2 posts you love; the AI imitates the voice</label>
-              <textarea value={examples} onChange={(e) => setExamples(e.target.value)} placeholder="Paste a couple of example posts whose style you want to match..." rows={2}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none" />
+              <label className="text-xs text-slate-400 mb-1 block">Pull context from</label>
+              <select value={sourceType} onChange={(e) => setSourceType(e.target.value)} className={SELECT_CLS + ' md:w-1/2'}>
+                <option value="manual">Just my topic below</option>
+                <option value="customer_win">Most recent client launch</option>
+              </select>
             </div>
-
             <div className="mb-4">
               <label className="text-xs text-slate-400 mb-1 block">What's the post about? (optional)</label>
-              <textarea value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
-                placeholder="e.g. Promote BOLO Go to resellers — fast scan-to-list, built-in storefront. Confident, not salesy." rows={3}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none" />
-              {selectedProduct && (
-                <p className="text-[11px] text-sky-400 mt-1.5">Writing as the maker of {selectedProduct.name} — it's treated as our own product, not a client.</p>
-              )}
+              <textarea
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                placeholder="e.g. We're hiring a remote, commission-only CRM sales rep. Want it to attract closers, not order-takers."
+                rows={3}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none"
+              />
             </div>
+          </>
+        )}
 
-            <div className="mb-4">
-              <label className="text-xs text-slate-400 mb-1 block">Images (optional) — attach one or several</label>
-              {selectedImages.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  {selectedImages.map((url) => (
-                    <div key={url} className="relative">
-                      <img src={url} alt="selected" className="w-20 h-20 object-cover rounded-lg border border-slate-700" />
-                      <button onClick={() => removeImage(url)} className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-slate-900 border border-slate-600 text-slate-300 hover:text-red-400 text-xs leading-none flex items-center justify-center" aria-label="Remove">×</button>
-                    </div>
-                  ))}
-                  <button onClick={() => setLibraryOpen(true)} className="w-20 h-20 rounded-lg border border-dashed border-slate-600 hover:border-sky-500 text-slate-400 text-xs">+ Add</button>
-                </div>
-              ) : (
-                <button onClick={() => setLibraryOpen(true)} className="w-full border border-dashed border-slate-600 hover:border-sky-500 text-slate-300 text-sm rounded-lg py-3 transition-colors">
-                  Add images — pick one or several from the library, make a variant, generate, or upload
-                </button>
-              )}
-            </div>
-
-            <div className="flex gap-2 mb-6">
-              <button onClick={generate} disabled={loading} className="bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors">
-                {loading ? 'Drafting…' : 'Generate 3 variants'}
-              </button>
-              <button onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm">Cancel</button>
-            </div>
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 text-sm mb-4">{error}</div>
-            )}
-          </div>
-
-          {variants.length > 0 && (
-            <div className="mt-2">
-              <div className="text-xs uppercase tracking-wide text-slate-500 mb-3">Pick one — fills your composer (preview shown as it publishes)</div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-                {variants.map((v, i) => (
-                  <div key={i} className="bg-slate-800/70 border border-slate-700 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs uppercase tracking-wide text-sky-400">Variant {i + 1}</span>
-                      {v.suggested_card_template && (
-                        <span className="text-[10px] uppercase bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">card: {v.suggested_card_template}</span>
-                      )}
-                    </div>
-                    <PlatformPreview text={v.content} images={selectedImages} />
-                    {Array.isArray(v.hashtags) && v.hashtags.length > 0 && (
-                      <div className="flex gap-1.5 mt-3 flex-wrap">
-                        {v.hashtags.map(h => (
-                          <span key={h} className="text-[11px] bg-blue-500/10 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full">#{h}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex justify-end mt-3">
-                      <button onClick={() => pick(v)} className="bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors">Use this variant →</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {!loading && variants.length === 0 && !error && (
-            <div className="text-center py-10 text-slate-500 text-sm">Click "Generate 3 variants" to start</div>
-          )}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={generate}
+            disabled={loading || (improve && !baseContent)}
+            className="bg-violet-500 hover:bg-violet-400 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors"
+          >
+            {loading ? 'Working…' : (improve ? 'Improve — 3 versions' : 'Generate 3 variants')}
+          </button>
+          <button onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm">Cancel</button>
         </div>
-      </div>
 
-      <MediaLibrary
-        isOpen={libraryOpen}
-        multiple
-        onClose={() => setLibraryOpen(false)}
-        onSelect={(urls) => { setSelectedImages(Array.isArray(urls) ? urls : [urls]); setLibraryOpen(false) }}
-      />
-    </>
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 text-sm mb-4">
+            {error}
+          </div>
+        )}
+
+        {variants.length > 0 && (
+          <div className="space-y-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">
+              {improve ? 'Pick the rewrite you want' : 'Pick one — fills your composer'}
+            </div>
+            {variants.map((v, i) => (
+              <div key={i} className="bg-slate-800/70 border border-slate-700 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs uppercase tracking-wide text-violet-400">{improve ? 'Version' : 'Variant'} {i + 1}</span>
+                  {v.suggested_card_template && (
+                    <span className="text-[10px] uppercase bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
+                      card: {v.suggested_card_template}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{v.content}</p>
+                {Array.isArray(v.hashtags) && v.hashtags.length > 0 && (
+                  <div className="flex gap-1.5 mt-3 flex-wrap">
+                    {v.hashtags.map(h => (
+                      <span key={h} className="text-[11px] bg-blue-500/10 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full">
+                        #{h}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex justify-end mt-3">
+                  <button
+                    onClick={() => pick(v)}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors"
+                  >
+                    {improve ? 'Use this version →' : 'Use this variant →'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && variants.length === 0 && !error && (
+          <div className="text-center py-8 text-slate-500 text-sm">
+            {improve ? 'Add a command or set the controls, then Improve.' : 'Click "Generate 3 variants" to start'}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

@@ -1,9 +1,8 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/AuthContext'
 import SocialCardCanvas, { SOCIAL_CARD_TEMPLATES } from './SocialCardCanvas'
 import AiPostGenerator from './AiPostGenerator'
-import MediaLibrary from './MediaLibrary'
 import WeekPlanner from './WeekPlanner'
 
 const PLATFORMS = [
@@ -17,7 +16,7 @@ const PLATFORMS = [
 const CONTENT_TYPES = ['Announcement', 'Product Launch', 'Tip / How-To', 'Behind the Scenes', 'Promotion', 'Event', 'Testimonial', 'Question / Poll', 'Custom']
 
 // Wave A: Facebook is the only platform actually wired to publish. Others are
-// kept selectable so the queue/UI is forward-compatible — they'll just stay in
+// kept selectable so the queue/UI is forward-compatible â€” they'll just stay in
 // pending_approval until their respective edge functions ship.
 const PUBLISHABLE_PLATFORMS = ['facebook']
 
@@ -39,14 +38,18 @@ export default function SocialComposer() {
 
   // Wave B: AI generator + branded card image
   const [aiGenOpen, setAiGenOpen] = useState(false)
+  const [aiMode, setAiMode] = useState('generate')
+  const [aiTarget, setAiTarget] = useState('composer')
+  const [aiBaseContent, setAiBaseContent] = useState('')
+  const [selectedPost, setSelectedPost] = useState(null)
+  const [editContent, setEditContent] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
   const [weekPlannerOpen, setWeekPlannerOpen] = useState(false)
   const [cardTemplate, setCardTemplate] = useState('announcement')
   const [cardHeadline, setCardHeadline] = useState('')
   const [cardBody, setCardBody] = useState('')
   const [mediaUrl, setMediaUrl] = useState('')
-  const [mediaUrls, setMediaUrls] = useState([])
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [libraryOpen, setLibraryOpen] = useState(false)
   const [cardEditedManually, setCardEditedManually] = useState(false)
   const cardCanvasRef = useRef(null)
 
@@ -70,7 +73,7 @@ export default function SocialComposer() {
     try {
       const { data, error } = await supabase
         .from('marketing_posts')
-        .select('id, content, content_type, platforms, status, scheduled_for, published_at, platform_post_ids, error_message, created_at, ai_generated, source_type')
+        .select('id, content, content_type, platforms, status, scheduled_for, published_at, platform_post_ids, error_message, created_at, ai_generated, source_type, media_urls')
         .order('created_at', { ascending: false })
         .limit(200)
       if (error) throw error
@@ -211,18 +214,17 @@ export default function SocialComposer() {
         created_by: user?.id ?? null,
         ai_generated: false,
         source_type: 'manual',
-        media_urls: (mediaUrls && mediaUrls.length) ? mediaUrls : (mediaUrl ? [mediaUrl] : []),
+        media_urls: mediaUrl ? [mediaUrl] : [],
       }
       const { error } = await supabase.from('marketing_posts').insert([payload])
       if (error) throw error
       setPostContent('')
       setScheduledFor('')
       setMediaUrl('')
-      setMediaUrls([])
       setCardHeadline('')
       setCardBody('')
       setCardEditedManually(false)
-      setSaveSuccess('Added to queue — pending your approval before it publishes.')
+      setSaveSuccess('Added to queue â€” pending your approval before it publishes.')
       await fetchPosts()
       setTimeout(() => setSaveSuccess(''), 4000)
     } catch (err) {
@@ -308,16 +310,40 @@ export default function SocialComposer() {
   }
 
   function handleAiVariantPicked(variant) {
+    if (aiTarget === 'detail') {
+      setEditContent(variant.content || '')
+      return
+    }
     setPostContent(variant.content || '')
     if (variant.content_type) setContentType(variant.content_type)
-    const _imgs = Array.isArray(variant.images) && variant.images.length ? variant.images : (variant.image ? [variant.image] : [])
-    setMediaUrls(_imgs)
-    setMediaUrl(_imgs[0] || '')
     if (variant.suggested_card_template) setCardTemplate(variant.suggested_card_template)
     const lines = (variant.content || '').split('\n').filter(Boolean)
     setCardHeadline(lines[0] || '')
     setCardBody(lines.slice(1).join('\n').slice(0, 220) || '')
     setCardEditedManually(false)
+  }
+
+  function openComposerAI() {
+    setAiMode('generate'); setAiTarget('composer'); setAiBaseContent(''); setAiGenOpen(true)
+  }
+  function openComposerImprove() {
+    if (!postContent.trim()) return
+    setAiMode('improve'); setAiTarget('composer'); setAiBaseContent(postContent); setAiGenOpen(true)
+  }
+  function openDetail(post) {
+    setSelectedPost(post); setEditContent(post.content || '')
+  }
+  function openDetailImprove() {
+    setAiMode('improve'); setAiTarget('detail'); setAiBaseContent(editContent); setAiGenOpen(true)
+  }
+  async function saveEditedPost() {
+    if (!selectedPost) return
+    setSavingEdit(true)
+    const { error } = await supabase.from('marketing_posts').update({ content: editContent, updated_at: new Date().toISOString() }).eq('id', selectedPost.id)
+    setSavingEdit(false)
+    if (error) { alert('Save failed: ' + error.message); return }
+    setSelectedPost({ ...selectedPost, content: editContent })
+    fetchPosts()
   }
 
   // Auto-derive card text from postContent until the user manually edits it
@@ -340,7 +366,7 @@ export default function SocialComposer() {
         .upload(path, blob, { contentType: 'image/png', upsert: false })
       if (error) throw error
       const { data: pub } = supabase.storage.from('marketing-media').getPublicUrl(path)
-      setMediaUrl(pub.publicUrl); setMediaUrls([pub.publicUrl])
+      setMediaUrl(pub.publicUrl)
     } catch (err) {
       console.error('image upload:', err)
       alert(`Image upload failed: ${err.message}`)
@@ -349,7 +375,7 @@ export default function SocialComposer() {
     }
   }
 
-  function clearMedia() { setMediaUrl(''); setMediaUrls([]) }
+  function clearMedia() { setMediaUrl('') }
 
   function formatScheduled(dateStr) {
     if (!dateStr) return ''
@@ -421,22 +447,23 @@ export default function SocialComposer() {
       {activeTab === 'composer' && (
         <div className="mb-3 flex items-center gap-3 flex-wrap">
           <button
-            onClick={() => setAiGenOpen(true)}
+            onClick={openComposerAI}
             className="bg-violet-500 hover:bg-violet-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
           >
-            Generate with AI
+            <span>âœ¨</span> Generate with AI
+          </button>
+          <button
+            onClick={openComposerImprove}
+            disabled={!postContent.trim()}
+            className="bg-violet-500/15 hover:bg-violet-500/25 disabled:opacity-40 disabled:cursor-not-allowed text-violet-300 border border-violet-500/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+          >
+            Update with AI
           </button>
           <button
             onClick={() => setWeekPlannerOpen(true)}
             className="bg-amber-500 hover:bg-amber-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             Plan a week with AI
-          </button>
-          <button
-            onClick={() => setLibraryOpen(true)}
-            className="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            Image library
           </button>
           <span className="text-xs text-slate-500">Claude drafts 3 on-brand variants. You still approve before publish.</span>
         </div>
@@ -460,7 +487,7 @@ export default function SocialComposer() {
             <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
               <label className="block text-sm font-medium text-slate-300 mb-2">Post Content</label>
               <textarea value={postContent} onChange={e => setPostContent(e.target.value)}
-                placeholder={`Write your ${contentType.toLowerCase()} post here...`}
+                placeholder={`Write your ${contentType.toLowerCase()} post here...\n\nTip: Use emojis to increase engagement ðŸš€`}
                 rows={8}
                 className="w-full bg-slate-900/50 border border-slate-600 rounded-lg p-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-sky-500 resize-none" />
               <div className="flex justify-between items-center mt-2">
@@ -495,7 +522,7 @@ export default function SocialComposer() {
                   ? 'bg-red-500/10 border-red-500/30 text-red-400'
                   : 'bg-green-500/10 border-green-500/30 text-green-400'
               }`}>
-                {saveSuccess.startsWith('Error') ? '✗ ' : '✓ '}{saveSuccess}
+                {saveSuccess.startsWith('Error') ? 'âœ— ' : 'âœ“ '}{saveSuccess}
               </div>
             )}
           </div>
@@ -506,32 +533,19 @@ export default function SocialComposer() {
                 {PLATFORMS.map(platform => {
                   const isPublishable = PUBLISHABLE_PLATFORMS.includes(platform.id)
                   const isSelected = selectedPlatforms.includes(platform.id)
-                  // Wave G2: honest mode. Block NEW selection of platforms whose publish
-                  // backend is not wired; allow deselection always so users can recover
-                  // from drafts that already include a non-publishable platform.
-                  const canToggle = isPublishable || isSelected
-                  const tooltip = isPublishable
-                    ? `${platform.label} publish backend is live. Click to toggle.`
-                    : `${platform.label} publish backend has not shipped yet. Selection disabled. Posts queued here would not actually go out.`
                   return (
-                    <button key={platform.id}
-                      onClick={canToggle ? () => togglePlatform(platform.id) : undefined}
-                      disabled={!canToggle}
-                      title={tooltip}
-                      aria-disabled={!canToggle}
+                    <button key={platform.id} onClick={() => togglePlatform(platform.id)}
                       className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                        !canToggle
-                          ? 'bg-slate-900/20 border-slate-800 text-slate-600 cursor-not-allowed opacity-50'
-                          : isSelected
-                            ? `${platform.bgColor} ${platform.borderColor} ${platform.textColor}`
-                            : 'bg-slate-900/30 border-slate-700 text-slate-400 hover:border-slate-600'
+                        isSelected
+                          ? `${platform.bgColor} ${platform.borderColor} ${platform.textColor}`
+                          : 'bg-slate-900/30 border-slate-700 text-slate-400 hover:border-slate-600'
                       }`}>
                       <div className={isSelected ? platform.textColor : 'text-slate-500'}>{platform.icon}</div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium flex items-center gap-2">
                           {platform.label}
                           {!isPublishable && (
-                            <span className="text-[10px] uppercase tracking-wide bg-slate-700/60 text-slate-400 px-1.5 py-0.5 rounded">backend pending</span>
+                            <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">soon</span>
                           )}
                         </div>
                         <div className="text-xs opacity-60">{platform.limit.toLocaleString()} char limit</div>
@@ -550,7 +564,7 @@ export default function SocialComposer() {
                 })}
               </div>
               <p className="text-[11px] text-slate-500 mt-3 leading-snug">
-                Only <span className="text-blue-400">Facebook</span> publish is wired today. Other platforms become selectable when their backends ship.
+                Wave A wires <span className="text-blue-400">Facebook</span> live. Other platforms queue but won't publish yet.
               </p>
             </div>
 
@@ -590,7 +604,7 @@ export default function SocialComposer() {
               />
               {mediaUrl ? (
                 <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2.5 text-xs text-emerald-400 flex items-center justify-between">
-                  <span>✓ Image attached — will publish with the post</span>
+                  <span>âœ“ Image attached â€” will publish with the post</span>
                   <button onClick={clearMedia} className="text-slate-400 hover:text-red-400 ml-2">remove</button>
                 </div>
               ) : (
@@ -599,7 +613,7 @@ export default function SocialComposer() {
                   disabled={uploadingImage || !cardHeadline}
                   className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-xs font-medium py-2 rounded-lg transition-colors"
                 >
-                  {uploadingImage ? 'Uploading…' : 'Generate & attach image'}
+                  {uploadingImage ? 'Uploadingâ€¦' : 'Generate & attach image'}
                 </button>
               )}
             </div>
@@ -628,20 +642,22 @@ export default function SocialComposer() {
         <div className="space-y-6">
           {actionError && (
             <div className="rounded-lg p-3 text-sm border bg-red-500/10 border-red-500/30 text-red-400">
-              ✗ {actionError}
+              âœ— {actionError}
             </div>
           )}
 
           {postsLoading ? (
-            <div className="text-slate-400 text-sm">Loading queue…</div>
+            <div className="text-slate-400 text-sm">Loading queueâ€¦</div>
           ) : posts.length === 0 ? (
             <div className="text-center py-16 text-slate-400">
+              <div className="text-4xl mb-3">ðŸ“¬</div>
               <div className="font-medium">No posts in queue</div>
               <div className="text-sm mt-1">Compose a post to get started</div>
             </div>
           ) : (
             <>
               <QueueSection
+                onSelect={openDetail}
                 title="Pending Approval"
                 count={pendingPosts.length}
                 tone="amber"
@@ -657,7 +673,7 @@ export default function SocialComposer() {
                       onClick={() => approveAndPublish(post)}
                       disabled={actioningId === post.id || !post.platforms?.includes('facebook')}
                       className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium transition-colors">
-                      {actioningId === post.id ? 'Publishing…' : 'Approve & Publish'}
+                      {actioningId === post.id ? 'Publishingâ€¦' : 'Approve & Publish'}
                     </button>
                     <button
                       onClick={() => rejectPost(post)}
@@ -676,6 +692,7 @@ export default function SocialComposer() {
               />
 
               <QueueSection
+                onSelect={openDetail}
                 title="Scheduled / Approved"
                 count={scheduledPosts.length}
                 tone="sky"
@@ -696,6 +713,7 @@ export default function SocialComposer() {
               />
 
               <QueueSection
+                onSelect={openDetail}
                 title="Published"
                 count={publishedPosts.length}
                 tone="emerald"
@@ -711,13 +729,14 @@ export default function SocialComposer() {
                   return url ? (
                     <a href={url} target="_blank" rel="noreferrer"
                       className="text-xs px-3 py-1.5 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors">
-                      View on Facebook ↗
+                      View on Facebook â†—
                     </a>
                   ) : null
                 }}
               />
 
               <QueueSection
+                onSelect={openDetail}
                 title="Failed"
                 count={failedPosts.length}
                 tone="rose"
@@ -748,6 +767,7 @@ export default function SocialComposer() {
 
               {rejectedPosts.length > 0 && (
                 <QueueSection
+                  onSelect={openDetail}
                   title="Rejected"
                   count={rejectedPosts.length}
                   tone="slate"
@@ -784,7 +804,7 @@ export default function SocialComposer() {
                   { label: 'Total Page Views', value: totalViews.toLocaleString(), sub: 'All time (last 500)' },
                   { label: 'Views Today', value: todayViews.toLocaleString(), sub: `${yesterdayViews} yesterday` },
                   { label: 'Unique Pages', value: topPages.length.toString(), sub: 'Distinct routes tracked' },
-                  { label: 'Most Visited', value: topPages[0]?.page || '—', sub: topPages[0] ? `${topPages[0].count} views` : 'No data', mono: true },
+                  { label: 'Most Visited', value: topPages[0]?.page || 'â€”', sub: topPages[0] ? `${topPages[0].count} views` : 'No data', mono: true },
                 ].map((card, i) => (
                   <div key={i} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                     <div className="text-xs text-slate-400 mb-1">{card.label}</div>
@@ -930,7 +950,7 @@ export default function SocialComposer() {
                 <div className="text-center py-12 text-slate-400">Loading posts...</div>
               ) : blogPosts.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
-                  No posts yet — click <strong className="text-white">+ New Post</strong> to get started.
+                  No posts yet â€” click <strong className="text-white">+ New Post</strong> to get started.
                 </div>
               ) : (
                 blogPosts.map(post => (
@@ -975,16 +995,44 @@ export default function SocialComposer() {
         onClose={() => setWeekPlannerOpen(false)}
         onPlanScheduled={() => fetchPosts()}
       />
+      {selectedPost && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4" onClick={() => setSelectedPost(null)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h2 className="text-lg font-bold text-white">Post details</h2>
+                <p className="text-xs text-slate-400 mt-0.5">{selectedPost.content_type} · {(selectedPost.status || '').replace(/_/g, ' ')}</p>
+              </div>
+              <button onClick={() => setSelectedPost(null)} className="text-slate-500 hover:text-white text-2xl leading-none">×</button>
+            </div>
+            {Array.isArray(selectedPost.media_urls) && selectedPost.media_urls.length > 0 && (
+              <img src={selectedPost.media_urls[0]} alt="" className="w-full rounded-lg border border-slate-700 mb-3 max-h-72 object-cover" />
+            )}
+            <label className="text-xs text-slate-400 mb-1 block">Content</label>
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              rows={12}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white whitespace-pre-wrap focus:outline-none focus:border-sky-500 resize-y"
+            />
+            {selectedPost.error_message && (
+              <div className="mt-2 text-xs bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg px-2 py-1.5 font-mono">{selectedPost.error_message}</div>
+            )}
+            <div className="flex items-center gap-2 mt-4 flex-wrap">
+              <button onClick={openDetailImprove} className="bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 border border-violet-500/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors">Update with AI</button>
+              <button onClick={saveEditedPost} disabled={savingEdit || editContent === selectedPost.content} className="bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">{savingEdit ? 'Saving…' : 'Save changes'}</button>
+              <div className="flex-1" />
+              <button onClick={() => setSelectedPost(null)} className="px-4 py-2 text-slate-400 hover:text-white text-sm">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
       <AiPostGenerator
         isOpen={aiGenOpen}
         onClose={() => setAiGenOpen(false)}
         onPickVariant={handleAiVariantPicked}
-      />
-      <MediaLibrary
-        isOpen={libraryOpen}
-        onClose={() => setLibraryOpen(false)}
-        multiple
-        onSelect={(urls) => { const a = Array.isArray(urls) ? urls : [urls]; setMediaUrls(a); setMediaUrl(a[0] || ''); setLibraryOpen(false) }}
+        mode={aiMode}
+        baseContent={aiBaseContent}
       />
     </div>
   )
@@ -992,7 +1040,7 @@ export default function SocialComposer() {
 
 // --- Sub-components ---
 
-function QueueSection({ title, count, tone, emptyText, posts, actioningId, getPlatformObj, formatScheduled, fbPostUrl, showPublishedAt, showError, actions }) {
+function QueueSection({ title, count, tone, emptyText, posts, actioningId, getPlatformObj, formatScheduled, fbPostUrl, showPublishedAt, showError, actions, onSelect }) {
   const toneMap = {
     amber: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
     sky: 'text-sky-400 bg-sky-500/10 border-sky-500/30',
@@ -1013,7 +1061,7 @@ function QueueSection({ title, count, tone, emptyText, posts, actioningId, getPl
           {posts.map(post => {
             const postPlatforms = (post.platforms || []).map(id => getPlatformObj(id)).filter(Boolean)
             return (
-              <div key={post.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <div key={post.id} onClick={() => onSelect?.(post)} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 cursor-pointer hover:border-slate-600 transition-colors">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -1042,7 +1090,7 @@ function QueueSection({ title, count, tone, emptyText, posts, actioningId, getPl
                           ? `Scheduled ${formatScheduled(post.scheduled_for)}`
                           : `Created ${formatScheduled(post.created_at)}`}
                     </span>
-                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end" onClick={(e) => e.stopPropagation()}>
                       {actions ? actions(post) : null}
                     </div>
                   </div>
