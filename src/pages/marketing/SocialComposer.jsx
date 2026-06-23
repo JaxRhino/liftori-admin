@@ -44,6 +44,10 @@ export default function SocialComposer() {
   const [selectedPost, setSelectedPost] = useState(null)
   const [editContent, setEditContent] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  const [editMedia, setEditMedia] = useState('')
+  const [imgPrompt, setImgPrompt] = useState('')
+  const [genImgLoading, setGenImgLoading] = useState(false)
+  const [uploadingDetailImg, setUploadingDetailImg] = useState(false)
   const [weekPlannerOpen, setWeekPlannerOpen] = useState(false)
   const [cardTemplate, setCardTemplate] = useState('announcement')
   const [cardHeadline, setCardHeadline] = useState('')
@@ -331,7 +335,7 @@ export default function SocialComposer() {
     setAiMode('improve'); setAiTarget('composer'); setAiBaseContent(postContent); setAiGenOpen(true)
   }
   function openDetail(post) {
-    setSelectedPost(post); setEditContent(post.content || '')
+    setSelectedPost(post); setEditContent(post.content || ''); setEditMedia(Array.isArray(post.media_urls) && post.media_urls[0] ? post.media_urls[0] : ''); setImgPrompt('')
   }
   function openDetailImprove() {
     setAiMode('improve'); setAiTarget('detail'); setAiBaseContent(editContent); setAiGenOpen(true)
@@ -339,11 +343,49 @@ export default function SocialComposer() {
   async function saveEditedPost() {
     if (!selectedPost) return
     setSavingEdit(true)
-    const { error } = await supabase.from('marketing_posts').update({ content: editContent, updated_at: new Date().toISOString() }).eq('id', selectedPost.id)
+    const nextMedia = editMedia ? [editMedia] : []
+    const { error } = await supabase.from('marketing_posts').update({ content: editContent, media_urls: nextMedia, updated_at: new Date().toISOString() }).eq('id', selectedPost.id)
     setSavingEdit(false)
     if (error) { alert('Save failed: ' + error.message); return }
-    setSelectedPost({ ...selectedPost, content: editContent })
+    setSelectedPost({ ...selectedPost, content: editContent, media_urls: nextMedia })
     fetchPosts()
+  }
+  async function uploadDetailImage(file) {
+    if (!file) return
+    setUploadingDetailImg(true)
+    try {
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+      const path = `uploads/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('marketing-media').upload(path, file, { contentType: file.type || 'image/png', upsert: false })
+      if (error) throw error
+      const { data: pub } = supabase.storage.from('marketing-media').getPublicUrl(path)
+      setEditMedia(pub.publicUrl)
+    } catch (err) {
+      alert('Upload failed: ' + (err.message || 'error'))
+    } finally {
+      setUploadingDetailImg(false)
+    }
+  }
+  async function generateDetailImage() {
+    setGenImgLoading(true)
+    try {
+      const { data: sessionRes } = await supabase.auth.getSession()
+      const accessToken = sessionRes?.session?.access_token
+      if (!accessToken) throw new Error('Not signed in')
+      const prompt = (imgPrompt || '').trim() || (editContent || '').split('\n').filter(Boolean)[0] || 'Liftori announcement'
+      const res = await fetch(`${supabase.supabaseUrl}/functions/v1/marketing-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ mode: 'generate', prompt, name: 'Post image' }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json.ok || !json.public_url) throw new Error(json.error || `HTTP ${res.status}`)
+      setEditMedia(json.public_url)
+    } catch (err) {
+      alert('Image generation failed: ' + (err.message || 'error'))
+    } finally {
+      setGenImgLoading(false)
+    }
   }
 
   // Auto-derive card text from postContent until the user manually edits it
@@ -1005,9 +1047,31 @@ export default function SocialComposer() {
               </div>
               <button onClick={() => setSelectedPost(null)} className="text-slate-500 hover:text-white text-2xl leading-none">×</button>
             </div>
-            {Array.isArray(selectedPost.media_urls) && selectedPost.media_urls.length > 0 && (
-              <img src={selectedPost.media_urls[0]} alt="" className="w-full rounded-lg border border-slate-700 mb-3 max-h-72 object-cover" />
-            )}
+            <div className="mb-3">
+              <label className="text-xs text-slate-400 mb-1 block">Image</label>
+              {editMedia ? (
+                <div className="relative">
+                  <img src={editMedia} alt="" className="w-full rounded-lg border border-slate-700 max-h-72 object-cover" />
+                  <button onClick={() => setEditMedia('')} className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white text-xs px-2 py-1 rounded-md">Remove</button>
+                </div>
+              ) : (
+                <div className="border border-dashed border-slate-700 rounded-lg p-3 text-xs text-slate-500">No image attached.</div>
+              )}
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <label className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg cursor-pointer transition-colors">
+                  {uploadingDetailImg ? 'Uploading…' : 'Upload image'}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { uploadDetailImage(e.target.files?.[0]); e.target.value = '' }} />
+                </label>
+                <input
+                  type="text"
+                  value={imgPrompt}
+                  onChange={(e) => setImgPrompt(e.target.value)}
+                  placeholder="Describe an image to generate (optional)"
+                  className="flex-1 min-w-[180px] bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                />
+                <button onClick={generateDetailImage} disabled={genImgLoading} className="bg-violet-500/15 hover:bg-violet-500/25 disabled:opacity-40 text-violet-300 border border-violet-500/30 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">{genImgLoading ? 'Generating…' : 'Generate image'}</button>
+              </div>
+            </div>
             <label className="text-xs text-slate-400 mb-1 block">Content</label>
             <textarea
               value={editContent}
@@ -1020,7 +1084,7 @@ export default function SocialComposer() {
             )}
             <div className="flex items-center gap-2 mt-4 flex-wrap">
               <button onClick={openDetailImprove} className="bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 border border-violet-500/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors">Update with AI</button>
-              <button onClick={saveEditedPost} disabled={savingEdit || editContent === selectedPost.content} className="bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">{savingEdit ? 'Saving…' : 'Save changes'}</button>
+              <button onClick={saveEditedPost} disabled={savingEdit || (editContent === selectedPost.content && editMedia === ((selectedPost.media_urls && selectedPost.media_urls[0]) || ''))} className="bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">{savingEdit ? 'Saving…' : 'Save changes'}</button>
               <div className="flex-1" />
               <button onClick={() => setSelectedPost(null)} className="px-4 py-2 text-slate-400 hover:text-white text-sm">Close</button>
             </div>
