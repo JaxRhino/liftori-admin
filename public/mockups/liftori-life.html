@@ -145,6 +145,10 @@
       <button data-s="chat"><span class="ic">✦</span> Chat</button>
     </nav>
     <div class="fam">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:0 6px 8px">
+        <span style="font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--muted)">FAMILY</span>
+        <button onclick="go('family')" style="border:0;background:transparent;color:var(--pine);font:inherit;font-weight:700;font-size:12px;cursor:pointer">Manage</button>
+      </div>
       <div class="famrow"><span class="av" style="background:#2F6B5E">RM</span><div><div style="font-weight:700;font-size:13px">Ryan March</div><small>Head of household</small></div></div>
       <div class="famrow"><span class="av" style="background:#D9805A">VM</span><div><div style="font-weight:700;font-size:13px">Vanessa Martinez</div><small>Parent</small></div></div>
       <div class="famrow"><span class="av" style="background:#3E7CB1">TM</span><div><div style="font-weight:700;font-size:13px">Tyler Martinez</div><small>Renter · 19</small></div></div>
@@ -158,7 +162,7 @@
     <header class="top">
       <div class="mbrand"><div class="logo">L</div><div><b style="font-size:16px">Liftori-Life</b></div></div>
       <div style="flex:1"><h1 id="ttl">Good morning, Ryan</h1><div class="sub" id="tsub">Tuesday · 5 in the family · 3 things need you today</div></div>
-      <div class="avs">
+      <div class="avs" onclick="go('family')" style="cursor:pointer" title="Manage family">
         <span class="av" style="background:#2F6B5E">RM</span>
         <span class="av" style="background:#D9805A">VM</span>
         <span class="av" style="background:#E8B04B;color:#5a4310">DD</span>
@@ -292,6 +296,17 @@
         </div>
       </section>
 
+      <!-- MANAGE FAMILY (head of household) -->
+      <section class="screen" id="family">
+        <div class="card" style="background:linear-gradient(135deg,#E7EFEA,#F3F0E6);border-color:var(--pine)">
+          <h3 style="color:var(--pine)">You're the head of household</h3>
+          <p style="font-size:13.5px;color:var(--ink);line-height:1.5;margin-top:-4px">Add or remove family members, set each person's role and details, and choose what they can see. Renters get a weekly rent; kids get a limited view.</p>
+        </div>
+        <div id="familyList" style="display:grid;gap:14px;margin-top:14px"></div>
+        <button class="btn" style="margin-top:14px" onclick="addMember()">+ Add family member</button>
+        <p class="note" style="margin-top:10px">Changes here update everyone's calendar, lists, money and chat access. (Mockup — edits aren't saved yet.)</p>
+      </section>
+
     </div>
 
     <!-- Bottom tabs (mobile) -->
@@ -310,7 +325,8 @@
     cal:['Calendar & Care','Shared schedule + everything Mom needs'],
     money:['Money','Rent, budget & family savings'],
     lists:['Lists & Tasks','Shopping list and who owns what'],
-    chat:['Chat','Message the family — or video call']};
+    chat:['Chat','Message the family — or video call'],
+    family:['Manage family','Add members, set roles, control what each person sees']};
   function go(s){
     document.querySelectorAll('.screen').forEach(function(e){e.classList.toggle('on',e.id===s)});
     document.querySelectorAll('#navd button,#navm button').forEach(function(b){b.classList.toggle('on',b.dataset.s===s)});
@@ -318,6 +334,54 @@
     document.querySelector('.scroll').scrollTop=0;
   }
   document.querySelectorAll('#navd button,#navm button').forEach(function(b){b.addEventListener('click',function(){go(b.dataset.s)})});
+  // ---- Manage family (head of household) ----
+  var ROLES=['Head of household','Parent','Renter','Teen','Child','Grandparent','Extended family'];
+  var SEES=['Everything','Hide money','Kid view','Read-only'];
+  var PALETTE=['#2F6B5E','#D9805A','#3E7CB1','#C25B6B','#E8B04B','#7A8B99','#9B6B8C','#5B8C5A'];
+  var members=[
+    {name:'Ryan March',role:'Head of household',age:'',phone:'(904) 555-0142',color:'#2F6B5E',rent:'',sees:'Everything'},
+    {name:'Vanessa Martinez',role:'Parent',age:'',phone:'(904) 555-0188',color:'#D9805A',rent:'',sees:'Everything'},
+    {name:'Tyler Martinez',role:'Renter',age:'19',phone:'(904) 555-0119',color:'#3E7CB1',rent:'100',sees:'Hide money'},
+    {name:'Kennedy Martinez',role:'Renter',age:'17',phone:'(904) 555-0126',color:'#C25B6B',rent:'100',sees:'Kid view'},
+    {name:'Diane Dietrich',role:'Grandparent',age:'71',phone:'(904) 555-0173',color:'#E8B04B',rent:'',sees:'Hide money'}
+  ];
+  function initials(n){var p=(n||'').trim().split(/\s+/).filter(Boolean);return ((p[0]||'?')[0]+(p[1]?p[1][0]:'')).toUpperCase();}
+  function esc(s){return (s||'').replace(/"/g,'&quot;');}
+  function cell(label,inner){return '<div><label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:3px">'+label+'</label>'+inner+'</div>';}
+  function inp(k,i,v,type,ph){return '<input type="'+type+'" value="'+esc(v)+'" oninput="upd('+i+',\''+k+'\',this.value)" placeholder="'+ph+'" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:8px;font:inherit;font-size:13px;background:var(--surface);color:var(--ink)"/>';}
+  function sel(k,i,opts,v){return '<select onchange="upd('+i+',\''+k+'\',this.value)" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:8px;font:inherit;font-size:13px;background:var(--surface);color:var(--ink)">'+opts.map(function(o){return '<option'+(o===v?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';}
+  function colorDots(i,v){return PALETTE.map(function(c){return '<button onclick="upd('+i+',\'color\',\''+c+'\')" title="'+c+'" style="width:22px;height:22px;border-radius:50%;border:'+(c===v?'2px solid var(--ink)':'2px solid #fff')+';box-shadow:0 0 0 1px var(--line);background:'+c+';cursor:pointer;margin-right:5px"></button>';}).join('');}
+  function renderFamily(){
+    var el=document.getElementById('familyList');if(!el)return;el.innerHTML='';
+    members.forEach(function(m,i){
+      var card=document.createElement('div');card.className='card';
+      var renter=m.role==='Renter';
+      var dark=(m.color==='#E8B04B');
+      card.innerHTML=
+        '<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">'
+        +'<span id="av'+i+'" class="av" style="width:44px;height:44px;font-size:15px;flex:0 0 44px;background:'+m.color+';color:'+(dark?'#5a4310':'#fff')+'">'+initials(m.name)+'</span>'
+        +'<input value="'+esc(m.name)+'" oninput="upd('+i+',\'name\',this.value)" placeholder="Full name" style="flex:1;min-width:0;font-weight:700;font-size:15px;border:0;border-bottom:1px solid var(--line);padding:6px 2px;background:transparent;color:var(--ink)"/>'
+        +'<button onclick="removeMember('+i+')" style="border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer">Remove</button>'
+        +'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+        +cell('Role',sel('role',i,ROLES,m.role))
+        +cell('Age',inp('age',i,m.age,'number','Age'))
+        +cell('Phone',inp('phone',i,m.phone,'text','(xxx) xxx-xxxx'))
+        +cell('Can see',sel('sees',i,SEES,m.sees))
+        +(renter?cell('Rent ($ / week)',inp('rent',i,m.rent,'number','100')):'')
+        +cell('Avatar color','<div style="padding-top:5px">'+colorDots(i,m.color)+'</div>')
+        +'</div>';
+      el.appendChild(card);
+    });
+  }
+  function upd(i,k,val){members[i][k]=val;
+    if(k==='name'){var a=document.getElementById('av'+i);if(a)a.textContent=initials(val);}
+    if(k==='role'||k==='color'){renderFamily();}
+  }
+  function addMember(){members.push({name:'',role:'Child',age:'',phone:'',color:PALETTE[members.length%PALETTE.length],rent:'',sees:'Kid view'});renderFamily();}
+  function removeMember(i){members.splice(i,1);renderFamily();}
+  renderFamily();
+
 </script>
 </body>
 </html>
