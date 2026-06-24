@@ -148,7 +148,7 @@
     <div class="fam">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:0 6px 8px">
         <span style="font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--muted)">FAMILY</span>
-        <button onclick="go('family')" style="border:0;background:transparent;color:var(--pine);font:inherit;font-weight:700;font-size:12px;cursor:pointer">Manage</button>
+        <button id="manageBtn" onclick="go('family')" style="border:0;background:transparent;color:var(--pine);font:inherit;font-weight:700;font-size:12px;cursor:pointer">Manage</button>
       </div>
       <div class="famrow"><span class="av" style="background:#2F6B5E">RM</span><div><div style="font-weight:700;font-size:13px">Ryan March</div><small>Head of household</small></div></div>
       <div class="famrow"><span class="av" style="background:#D9805A">VM</span><div><div style="font-weight:700;font-size:13px">Vanessa Martinez</div><small>Parent</small></div></div>
@@ -160,11 +160,15 @@
 
   <!-- Main -->
   <div class="main">
+    <div id="viewBanner" style="display:none;align-items:center;justify-content:space-between;gap:10px;background:#2B2622;color:#fff;padding:9px 16px;font-size:12.5px;font-weight:600;position:sticky;top:0;z-index:20">
+      <span>Viewing as <b id="viewBannerName">—</b> · you can see &amp; edit what they see</span>
+      <button onclick="applyView(0)" style="border:0;background:#fff;color:#2B2622;font:inherit;font-weight:800;font-size:11.5px;padding:6px 11px;border-radius:8px;cursor:pointer;white-space:nowrap">Return to my view</button>
+    </div>
     <header class="top">
       <div class="mbrand"><div class="logo">L</div><div><b style="font-size:16px">Liftori-Life</b></div></div>
       <div style="flex:1"><h1 id="ttl">Good morning, Ryan</h1><div class="sub" id="tsub">Tuesday · 5 in the family · 3 things need you today</div></div>
       <div class="avs" onclick="go('family')" style="cursor:pointer" title="Manage family">
-        <span class="av" style="background:#2F6B5E">RM</span>
+        <span id="meAv" class="av" style="background:#2F6B5E">RM</span>
         <span class="av" style="background:#D9805A">VM</span>
         <span class="av" style="background:#E8B04B;color:#5a4310">DD</span>
       </div>
@@ -174,13 +178,13 @@
 
       <!-- HOME -->
       <section class="screen on" id="home">
-        <div class="hello">Good morning, <span>Ryan</span></div>
+        <div class="hello">Good morning, <span id="helloName">Ryan</span></div>
         <div class="hellosub">Here's your family at a glance — nothing slips through.</div>
         <div class="tiles" style="margin-bottom:14px">
           <div class="tile"><div class="k">Next up</div><div class="v">9:30a</div><div class="m warn">Mom · Dr. Patel</div></div>
           <div class="tile"><div class="k">Tasks due</div><div class="v">3</div><div class="m up">1 done today</div></div>
-          <div class="tile"><div class="k">Rent</div><div class="v">$200<span style="font-size:12px">/wk</span></div><div class="m up">1 of 2 renters in</div></div>
-          <div class="tile"><div class="k">Budget left</div><div class="v">$1,240</div><div class="m">of $4,800 · Jun</div></div>
+          <div class="tile" id="tileRent"><div class="k">Rent</div><div class="v">$200<span style="font-size:12px">/wk</span></div><div class="m up">1 of 2 renters in</div></div>
+          <div class="tile" id="tileBudget"><div class="k">Budget left</div><div class="v">$1,240</div><div class="m">of $4,800 · Jun</div></div>
         </div>
         <div class="grid side2">
           <div class="card board">
@@ -433,8 +437,9 @@
       var dark=(m.color==='#E8B04B');
       card.innerHTML=
         '<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">'
-        +'<span id="av'+i+'" class="av" style="width:44px;height:44px;font-size:15px;flex:0 0 44px;background:'+m.color+';color:'+(dark?'#5a4310':'#fff')+'">'+initials(m.name)+'</span>'
+        +'<span id="av'+i+'" onclick="applyView('+i+')" title="View as '+esc(m.name)+'" class="av" style="width:44px;height:44px;font-size:15px;flex:0 0 44px;cursor:pointer;background:'+m.color+';color:'+(dark?'#5a4310':'#fff')+'">'+initials(m.name)+'</span>'
         +'<input value="'+esc(m.name)+'" oninput="upd('+i+',\'name\',this.value)" placeholder="Full name" style="flex:1;min-width:0;font-weight:700;font-size:15px;border:0;border-bottom:1px solid var(--line);padding:6px 2px;background:transparent;color:var(--ink)"/>'
+        +'<button onclick="applyView('+i+')" style="border:0;background:var(--pine-soft);color:var(--pine);font:inherit;font-weight:700;font-size:12px;padding:7px 11px;border-radius:9px;cursor:pointer;white-space:nowrap">View as</button>'
         +'<button onclick="removeMember('+i+')" style="border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer">Remove</button>'
         +'</div>'
         +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
@@ -464,6 +469,23 @@
   function addMember(){members.push({name:'',role:'Child',birthday:'',email:'',phone:'',color:PALETTE[members.length%PALETTE.length],rent:'',sees:'Kid view',care:false});renderFamily();}
   function removeMember(i){members.splice(i,1);renderFamily();}
   function toggleCare(i){members[i].care=!members[i].care;renderFamily();}
+  var activeUser=0;
+  function applyView(i){
+    i=Number(i);var m=members[i];if(!m)return;activeUser=i;
+    var owner=(i===0);var first=(m.name||'Member').split(/\s+/)[0]||'there';var dark=(m.color==='#E8B04B');
+    var canCare=!!m.care,canMoney=(m.sees==='Everything'),canManage=(m.role==='Head of household');
+    var b=document.getElementById('viewBanner');
+    if(b){b.style.display=owner?'none':'flex';var bn=document.getElementById('viewBannerName');if(bn)bn.textContent=(m.name||'this member')+' · '+m.role;}
+    document.querySelectorAll('[data-s="care"]').forEach(function(x){x.style.display=canCare?'':'none';});
+    document.querySelectorAll('[data-s="money"]').forEach(function(x){x.style.display=canMoney?'':'none';});
+    var mb=document.getElementById('manageBtn');if(mb)mb.style.display=canManage?'':'none';
+    var tr=document.getElementById('tileRent');if(tr)tr.style.display=canMoney?'':'none';
+    var tb=document.getElementById('tileBudget');if(tb)tb.style.display=canMoney?'':'none';
+    var hn=document.getElementById('helloName');if(hn)hn.textContent=first;
+    var me=document.getElementById('meAv');if(me){me.style.background=m.color;me.style.color=dark?'#5a4310':'#fff';me.textContent=initials(m.name);}
+    titles.home=['Good morning, '+first, owner?'Tuesday · 5 in the family · 3 things need you today':(m.role+" · you're viewing "+first+"'s Liftori-Life")];
+    go('home');
+  }
   function resetPw(i){var b=document.getElementById('pw'+i);if(!b)return;var e=members[i].email;if(!e){var o=b.textContent;b.textContent='Add an email first';setTimeout(function(){b.textContent='Send password reset';},1600);return;}b.textContent='Reset link sent to '+e;b.style.background='var(--pine-soft)';b.style.color='var(--pine)';b.style.borderColor='var(--pine)';setTimeout(function(){b.textContent='Send password reset';b.style.background='var(--bg)';b.style.color='var(--ink)';b.style.borderColor='var(--line)';},2200);}
   renderFamily();
 
