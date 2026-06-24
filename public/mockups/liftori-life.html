@@ -148,6 +148,7 @@
       <button data-s="money"><span class="ic">◈</span> Money</button>
       <button data-s="lists"><span class="ic">☰</span> Lists &amp; Tasks</button>
       <button data-s="chat"><span class="ic">✦</span> Chat</button>
+      <button data-s="settings"><span class="ic">⊙</span> Settings</button>
     </nav>
     <div class="fam">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:0 6px 8px">
@@ -171,7 +172,7 @@
     <header class="top">
       <div class="mbrand"><div class="logo">L</div><div><b style="font-size:16px">Liftori-Life</b></div></div>
       <div style="flex:1"><h1 id="ttl">Good morning, Ryan</h1><div class="sub" id="tsub">Tuesday · 5 in the family · 3 things need you today</div></div>
-      <div class="avs" onclick="go('family')" style="cursor:pointer" title="Manage family">
+      <div class="avs" onclick="go('settings')" style="cursor:pointer" title="Your profile & settings">
         <span id="meAv" class="av" style="background:#2F6B5E">RM</span>
         <span class="av" style="background:#D9805A">VM</span>
         <span class="av" style="background:#E8B04B;color:#5a4310">DD</span>
@@ -395,6 +396,10 @@
         </div>
       </section>
 
+      <!-- PROFILE & SETTINGS (per user) -->
+      <section class="screen" id="settings">
+        <div id="settingsBody" style="display:grid;gap:14px"></div>
+      </section>
       <!-- MANAGE FAMILY (head of household) -->
       <section class="screen" id="family">
         <div class="card" style="background:linear-gradient(135deg,#E7EFEA,#F3F0E6);border-color:var(--pine)">
@@ -445,10 +450,12 @@
     money:['Money','Rent, budget & family savings'],
     lists:['Lists & Tasks','Shopping list and who owns what'],
     chat:['Chat','Message the family — or video call'],
-    family:['Manage family','Add members, set roles, control what each person sees']};
+    family:['Manage family','Add members, set roles, control what each person sees'],
+    settings:['Profile & settings','Your account, password and notifications']};
   function go(s){
     document.querySelectorAll('.screen').forEach(function(e){e.classList.toggle('on',e.id===s)});
     document.querySelectorAll('#navd button,#navm button').forEach(function(b){b.classList.toggle('on',b.dataset.s===s)});
+    if(s==='settings')renderSettings();
     if(titles[s]){document.getElementById('ttl').textContent=titles[s][0];document.getElementById('tsub').textContent=titles[s][1];}
     document.querySelector('.scroll').scrollTop=0;
   }
@@ -536,7 +543,7 @@
     var qv=document.getElementById('qaVitals');if(qv)qv.style.display=canCare?'':'none';
     var tr=document.getElementById('tileRent');if(tr)tr.style.display=canMoney?'':'none';
     var tb=document.getElementById('tileBudget');if(tb)tb.style.display=canMoney?'':'none';
-    var hn=document.getElementById('helloName');if(hn)hn.textContent=first;
+    var hn=document.getElementById('helloName');if(hn)hn.textContent=(m.nickname||first);
     var me=document.getElementById('meAv');if(me){me.style.background=m.color;me.style.color=dark?'#5a4310':'#fff';me.textContent=initials(m.name);}
     titles.home=['Good morning, '+first, owner?'Tuesday · 5 in the family · 3 things need you today':(m.role+" · you're viewing "+first+"'s Liftori-Life")];
     renderCareHeader();
@@ -610,6 +617,53 @@
   }
   renderVitals();
   renderCareHeader();
+
+  // ---- Per-user profile & settings ----
+  function settingsColorDots(v){return PALETTE.map(function(c){return '<button onclick="updSelf(\'color\',\''+c+'\')" style="width:24px;height:24px;border-radius:50%;border:'+(c===v?'2px solid var(--ink)':'2px solid #fff')+';box-shadow:0 0 0 1px var(--line);background:'+c+';cursor:pointer;margin-right:6px"></button>';}).join('');}
+  function renderSettings(){
+    var el=document.getElementById('settingsBody');if(!el)return;
+    var m=members[activeUser];if(!m)return;var dark=(m.color==='#E8B04B');
+    if(!m.notify)m.notify={calendar:true,care:!!m.care,messages:true,money:(m.sees==='Everything'),tasks:true};
+    var nt=m.notify;
+    function rowf(label,inner){return '<div><label class="vl">'+label+'</label>'+inner+'</div>';}
+    function sw(key,label,desc){var on=!!nt[key];return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)"><div><div style="font-weight:700;font-size:13.5px">'+label+'</div><div style="font-size:11.5px;color:var(--muted)">'+desc+'</div></div><button onclick="toggleNotify(\''+key+'\')" style="border:0;border-radius:999px;width:46px;height:26px;cursor:pointer;flex:0 0 46px;position:relative;background:'+(on?'var(--pine)':'#D9CFC2')+'"><span style="position:absolute;top:3px;left:'+(on?'23px':'3px')+';width:20px;height:20px;border-radius:50%;background:#fff"></span></button></div>';}
+    var manage=(m.role==='Head of household')?'<button class="btn ghost" style="width:100%;margin-top:12px" onclick="go(\'family\')">Manage family</button>':'';
+    el.innerHTML=
+      '<div class="card"><h3>Profile</h3>'
+      +'<div style="display:flex;gap:14px;align-items:center;margin-bottom:14px">'
+      +'<span id="profileAv" class="av" style="width:60px;height:60px;font-size:22px;flex:0 0 60px;background:'+m.color+';color:'+(dark?'#5a4310':'#fff')+'">'+initials(m.name)+'</span>'
+      +'<div><button class="btn ghost sm" onclick="photoNote(this)">Change photo</button><div style="font-size:11px;color:var(--muted);margin:6px 0 4px">Or pick a color</div>'+settingsColorDots(m.color)+'</div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +rowf('Nickname','<input class="vi" value="'+esc(m.nickname||'')+'" oninput="updSelf(\'nickname\',this.value)" placeholder="What the family calls you"/>')
+      +rowf('Full name','<input class="vi" value="'+esc(m.name)+'" oninput="updSelf(\'name\',this.value)"/>')
+      +rowf('Birthday','<input class="vi" type="date" value="'+esc(m.birthday||'')+'" oninput="updSelf(\'birthday\',this.value)"/>')
+      +rowf('Phone','<input class="vi" value="'+esc(m.phone||'')+'" oninput="updSelf(\'phone\',this.value)"/>')
+      +'<div style="grid-column:1/-1">'+rowf('Email','<input class="vi" type="email" value="'+esc(m.email||'')+'" oninput="updSelf(\'email\',this.value)"/>')+'</div>'
+      +'</div>'+manage+'</div>'
+      +'<div class="card"><h3>Password</h3><div style="display:grid;gap:10px">'
+      +rowf('Current password','<input class="vi" type="password" placeholder="Current password"/>')
+      +rowf('New password','<input class="vi" type="password" placeholder="At least 8 characters"/>')
+      +rowf('Confirm new password','<input class="vi" type="password" placeholder="Re-enter new password"/>')
+      +'</div><button class="btn" style="margin-top:12px" onclick="pwUpdated(this)">Update password</button></div>'
+      +'<div class="card"><h3>Notifications</h3>'
+      +sw('calendar','Calendar & reminders','Appointments, events and to-dos')
+      +sw('care','Care alerts','Meds, vitals and care updates')
+      +sw('messages','Messages','Chat and family board')
+      +sw('money','Money','Rent and budget reminders')
+      +sw('tasks','Tasks & chores','Assignments and due dates')
+      +'<p class="note" style="text-align:left;margin-top:10px">Turn off anything you don’t want pinging your phone.</p>'
+      +'</div>';
+  }
+  function updSelf(k,val){var m=members[activeUser];if(!m)return;m[k]=val;
+    if(k==='name'){var pa=document.getElementById('profileAv');if(pa)pa.textContent=initials(m.name);var me=document.getElementById('meAv');if(me)me.textContent=initials(m.name);}
+    if(k==='color'){var me2=document.getElementById('meAv');if(me2){me2.style.background=m.color;me2.style.color=(m.color==='#E8B04B'?'#5a4310':'#fff');}renderSettings();}
+    if(k==='nickname'||k==='name'){var hn=document.getElementById('helloName');if(hn)hn.textContent=(m.nickname||(m.name||'').split(/\s+/)[0]||'there');}
+    renderCareHeader();
+  }
+  function toggleNotify(key){var m=members[activeUser];if(!m.notify)m.notify={};m.notify[key]=!m.notify[key];renderSettings();}
+  function photoNote(b){var o=b.textContent;b.textContent='Photo upload in the full app';setTimeout(function(){b.textContent=o;},1700);}
+  function pwUpdated(b){b.textContent='Password updated';b.style.background='var(--pine-soft)';b.style.color='var(--pine)';setTimeout(function(){b.textContent='Update password';b.style.background='';b.style.color='';},2000);}
 
 </script>
 </body>
