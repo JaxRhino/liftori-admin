@@ -913,7 +913,7 @@ export default function CrmDealDetail() {
 
             {measSub === 'measure' && (
               <Card className="bg-navy-900 border-navy-800 p-4">
-                <CrmMeasure embedded lockedContactId={deal.contact_id || null} lockedContactLabel={lockedLabel} pipelineId={id} />
+                <CrmMeasure embedded lockedContactId={deal.contact_id || null} lockedContactLabel={lockedLabel} pipelineId={id} initialAddress={form.job_address || (contact ? [contact.property_address, contact.property_city, contact.property_state, contact.property_zip].filter(Boolean).join(", ") : "")} initialTitle={form.title || ""} />
               </Card>
             )}
 
