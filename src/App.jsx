@@ -275,6 +275,7 @@ import CscCustomers from './pages/csc/CscCustomers'
 import CscJobs from './pages/csc/CscJobs'
 import CscJobDetail from './pages/csc/CscJobDetail'
 import CscRecurring from './pages/csc/CscRecurring'
+import CscReports from './pages/csc/CscReports'
 // CSC public — Wave D customer portal + AHJ verify
 import CscPublicLayout from './pages/csc-public/CscPublicLayout'
 import CscPortal from './pages/csc-public/CscPortal'
@@ -602,6 +603,8 @@ export default function App() {
               <Route path="jobs" element={<CscJobs />} />
               <Route path="jobs/:id" element={<CscJobDetail />} />
               <Route path="recurring" element={<CscRecurring />} />
+            <Route path="compliance-report" element={<CscReports />} />
+              <Route path="compliance-report" element={<CscReports />} />
               <Route path="deficiencies" element={<CscDeficiencies />} />
               <Route path="invoices" element={<CscInvoices />} />
               <Route path="certificates" element={<CscCertificates />} />
