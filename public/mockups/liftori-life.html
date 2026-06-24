@@ -540,7 +540,7 @@
           </optgroup>
         </select></div>
       <div><label class="vl">Of (who in the tree)</label><select id="arAnchor" class="vi" onchange="arRefreshWith()"></select></div>
-      <div id="arWithWrap" style="display:none"><label class="vl">Other parent of this child</label><select id="arWith" class="vi"></select></div>
+      <div id="arWithWrap" style="display:none"><label class="vl">Other parent (type a name, or pick someone already on the tree)</label><input id="arWith" class="vi" list="arWithList" placeholder="Leave blank for no second parent"/><datalist id="arWithList"></datalist></div>
       <div><label class="vl">Name (optional)</label><input id="arName" class="vi" placeholder="You can fill in the rest after"/></div>
       <div id="arHint" style="font-size:12px;color:var(--muted)"></div>
     </div>
@@ -1076,7 +1076,7 @@
     var bf=birthFam(pid);
     var sibs=bf?(bf.kids||[]).filter(function(k){return k!==pid;}):[];
     var unit=focal?descBlock(pid):singleNode(pid);
-    var sibUnits=sibs.map(singleNode);
+    var sibUnits=sibs.map(focal?descBlock:singleNode);
     if(!bf){
       var ord=(side==='left')?sibUnits.concat([unit]):[unit].concat(sibUnits);
       var flat=[],x=0,pidX=0;ord.forEach(function(bl){if(bl===unit)pidX=x+unit.ax;bl.els.forEach(function(e){flat.push({pid:e.pid,x:e.x+x,gen:e.gen});});x+=bl.w;});
@@ -1203,7 +1203,7 @@
     var sel=document.getElementById('arAnchor');
     sel.innerHTML=buildPeopleList().map(function(x){return '<option value="'+x.id+'">'+esc(x.name+(x.rel?' - '+x.rel:''))+'</option>';}).join('');
     if(anchorId)sel.value=anchorId;
-    document.getElementById('arRel').value='child';document.getElementById('arName').value='';arHint();arRefreshWith();
+    document.getElementById('arRel').selectedIndex=0;document.getElementById('arName').value='';var _aw=document.getElementById('arWith');if(_aw)_aw.value='';arHint();arRefreshWith();
     document.getElementById('addRelModal').style.display='flex';
   }
   function closeAddRel(){document.getElementById('addRelModal').style.display='none';}
@@ -1217,7 +1217,7 @@
     var X=P(anchorId);if(!X){closeAddRel();return;}var newId=null;
     function mkp(defName){return addPerson({name:nm||defName,rel:rLabel,sex:rSex,marital:rMar});}
     if(rel==='child'){
-      var withEl=document.getElementById('arWith');var withId=withEl?withEl.value:'';var f;if(withId&&withId!=='__none')f=ensureFam(anchorId,withId);else f=spouseFams(anchorId).filter(function(x){return !x.b;})[0]||ensureFam(anchorId,null);
+      var withEl=document.getElementById('arWith');var withName=withEl?withEl.value.trim():'';var f,coId=null;if(withName){eachPerson(function(p){if(!coId&&p.id!==anchorId&&(p.name||'').toLowerCase()===withName.toLowerCase())coId=p.id;});if(!coId)coId=addPerson({name:withName});f=ensureFam(anchorId,coId);}else{f=spouseFams(anchorId).filter(function(x){return !x.b;})[0]||ensureFam(anchorId,null);}
       var c=mkp(rLabel||'New child');f.kids=f.kids||[];f.kids.push(c);newId=c;
     }else if(rel==='partner'){
       var pp=addPerson({name:nm||rLabel||'Partner',rel:rLabel,sex:rSex,marital:rMar||'Partner / co-parent'});ensureFam(anchorId,pp);newId=pp;
@@ -1275,11 +1275,10 @@
   }
   function arRefreshWith(){
     var relEl=document.getElementById('arRel'),anEl=document.getElementById('arAnchor');if(!relEl||!anEl)return;
-    var rel=(relEl.value||"").split("|")[0],anchorId=anEl.value;var wrap=document.getElementById('arWithWrap'),sel=document.getElementById('arWith');if(!wrap||!sel)return;
+    var rel=(relEl.value||"").split("|")[0],anchorId=anEl.value;var wrap=document.getElementById('arWithWrap'),dl=document.getElementById('arWithList');if(!wrap)return;
     if(rel!=='child'){wrap.style.display='none';return;}
-    var parts=spouseFams(anchorId).map(function(f){return partnerOf(f,anchorId);}).filter(function(p){return p;});
-    sel.innerHTML='<option value="__none">New / no second parent</option>'+parts.map(function(p){return '<option value="'+p+'">with '+esc(P(p).name||'partner')+'</option>';}).join('');
-    wrap.style.display=parts.length?'block':'none';
+    wrap.style.display='block';
+    if(dl)dl.innerHTML=buildPeopleList().filter(function(x){return x.id!==anchorId;}).map(function(x){return '<option value="'+esc(x.name)+'">'+(x.rel?esc(x.rel):'')+'</option>';}).join('');
   }
   function isBlocked(m,name){return !!m&&(m.blocked||[]).indexOf(name)>=0;}
   function toggleBlock(name){var m=members[activeUser];if(!m.blocked)m.blocked=[];var i=m.blocked.indexOf(name);if(i>=0)m.blocked.splice(i,1);else m.blocked.push(name);renderSettings();if(typeof renderTree==='function')renderTree();}
