@@ -169,7 +169,8 @@
   <div class="main">
     <div id="viewBanner" style="display:none;align-items:center;justify-content:space-between;gap:10px;background:#2B2622;color:#fff;padding:9px 16px;font-size:12.5px;font-weight:600;position:sticky;top:0;z-index:20">
       <span>Viewing as <b id="viewBannerName">—</b> · you can see &amp; edit what they see</span>
-      <button onclick="applyView(0)" style="border:0;background:#fff;color:#2B2622;font:inherit;font-weight:800;font-size:11.5px;padding:6px 11px;border-radius:8px;cursor:pointer;white-space:nowrap">Return to my view</button>
+      <button onclick="go('community');cmInit()"><span class="ico">&#9783;</span> Community</button>
+        <button onclick="applyView(0)" style="border:0;background:#fff;color:#2B2622;font:inherit;font-weight:800;font-size:11.5px;padding:6px 11px;border-radius:8px;cursor:pointer;white-space:nowrap">Return to my view</button>
     </div>
     <header class="top">
       <div class="mbrand"><div class="logo">L</div><div><b style="font-size:16px">Liftori-Life</b></div></div>
@@ -412,6 +413,52 @@
         <div id="budgetBody" style="display:grid;gap:14px;margin-top:12px"></div>
       </section>
       <!-- PROFILE & SETTINGS (per user) -->
+      <section id="community" class="screen">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+    <div><div style="font-size:20px;font-weight:800">Community</div><div style="font-size:12.5px;color:var(--muted)">Chat with your circles and play games with family near and far.</div></div>
+    <div style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:800;color:#B8862E"><span style="font-size:14px">&#9670;</span> <span id="cmChips">2,500</span> chips</div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:14px">
+    <button id="cmTabChats" onclick="cmTab('chats')" class="btn" style="flex:1">Chats</button>
+    <button id="cmTabGames" onclick="cmTab('games')" class="btn ghost" style="flex:1">Game Hub</button>
+  </div>
+
+  <div id="cmChats">
+    <div style="display:grid;grid-template-columns:200px 1fr;gap:14px" class="cmGrid">
+      <div>
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Channels</div>
+        <button onclick="cmChan('community')" id="cmCh_community" class="cmChan" style="display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--pine);color:#fff;border-radius:12px;padding:11px 12px;margin-bottom:8px;cursor:pointer;font-weight:700">Community<div style="font-size:11px;font-weight:500;opacity:.85">Everyone on Liftori</div></button>
+        <button onclick="cmChan('family')" id="cmCh_family" class="cmChan" style="display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:11px 12px;margin-bottom:8px;cursor:pointer;font-weight:700">Family<div style="font-size:11px;font-weight:500;color:var(--muted)">The March household</div></button>
+        <button onclick="cmChan('inner')" id="cmCh_inner" class="cmChan" style="display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:11px 12px;cursor:pointer;font-weight:700">Inner Circle<div style="font-size:11px;font-weight:500;color:var(--muted)">Your private few</div></button>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;min-height:420px">
+        <div id="cmChanTitle" style="padding:12px 14px;border-bottom:1px solid var(--line);font-weight:800">Community</div>
+        <div id="cmMsgs" style="flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px"></div>
+        <div style="display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)"><input id="cmInput" class="vi" placeholder="Message..." onkeydown="if(event.key==='Enter')cmSend()"/><button onclick="cmSend()" class="btn" style="padding:0 16px">Send</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cmGames" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="font-size:13px;color:var(--muted)">Play solo, challenge another family, or build teams. Friendly play-chips &mdash; no real money.</div>
+      <button onclick="cmGame('challenge')" class="btn">Challenge a family</button>
+    </div>
+    <div id="cmGameGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:18px"></div>
+    <div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px">
+      <div style="font-weight:800;margin-bottom:10px">Family leaderboard &mdash; this week</div>
+      <div id="cmLeader"></div>
+    </div>
+  </div>
+</section>
+
+<div id="cmGameModal" style="position:fixed;inset:0;background:rgba(43,38,34,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:95">
+  <div style="background:var(--surface);border-radius:18px;max-width:460px;width:100%;max-height:92%;overflow:auto;box-shadow:0 24px 60px rgba(43,38,34,.35);padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div id="cmGameTitle" style="font-size:18px;font-weight:800">Game</div><button onclick="cmCloseGame()" style="border:0;background:transparent;font-size:24px;cursor:pointer;color:var(--muted);line-height:1">&times;</button></div>
+    <div id="cmGameBody"></div>
+  </div>
+</div>
+
       <section class="screen" id="settings">
         <div id="settingsBody" style="display:grid;gap:14px"></div>
       </section>
@@ -1301,6 +1348,76 @@
   function goHome(){treeRoot='p_me';_treeFitDone=false;renderTree();}
   function drawMinimap(){var el=document.getElementById('treeMini');if(!el||!_miniBox)return;var d=_miniBox,bw=132,bh=92,pad=6;var sc=Math.min((bw-2*pad)/Math.max(1,d.W),(bh-2*pad)/Math.max(1,d.H));var dots='';for(var k in d.pos){var mx=(pad+d.pos[k].x*sc).toFixed(1),my=(pad+d.pos[k].y*sc).toFixed(1);var foc=(k===treeRoot);dots+='<circle cx="'+mx+'" cy="'+my+'" r="'+(foc?3.6:1.9)+'" fill="'+(foc?'#D9805A':((P(k)&&P(k).color)||'#B9AE9F'))+'"'+(foc?' stroke="#fff" stroke-width="1"':'')+'/>';}el.innerHTML='<svg width="'+bw+'" height="'+bh+'" viewBox="0 0 '+bw+' '+bh+'" style="display:block"><rect x="0" y="0" width="'+bw+'" height="'+bh+'" fill="transparent"/>'+dots+'<rect id="treeMiniRect" x="0" y="0" width="0" height="0" fill="rgba(47,107,94,.10)" stroke="#2F6B5E" stroke-width="1.3"/></svg>';updateMiniRect();}
   function updateMiniRect(){var r=document.getElementById('treeMiniRect');var vp=document.getElementById('treeViewport');if(!r||!vp||!_miniBox)return;var d=_miniBox,bw=132,bh=92,pad=6;var sc=Math.min((bw-2*pad)/Math.max(1,d.W),(bh-2*pad)/Math.max(1,d.H));var rect=vp.getBoundingClientRect();var vx=(-treePanX)/treeZoom,vy=(-treePanY)/treeZoom,vw=rect.width/treeZoom,vh=rect.height/treeZoom;r.setAttribute('x',(pad+vx*sc).toFixed(1));r.setAttribute('y',(pad+vy*sc).toFixed(1));r.setAttribute('width',Math.max(2,vw*sc).toFixed(1));r.setAttribute('height',Math.max(2,vh*sc).toFixed(1));}
+  
+  var cmChan_cur='community',cmChipBal=2500;
+  var cmGamesList=[
+    {k:'trivia',n:'Family Trivia',d:'Questions about your own family tree',modes:'Solo - Family - Teams',play:1},
+    {k:'roulette',n:'Roulette',d:'Spin and bet your chips',modes:'Solo - Family'},
+    {k:'poker',n:'Poker',d:'Texas Holdem at the table',modes:'Family - Teams'},
+    {k:'blackjack',n:'Blackjack',d:'Beat the dealer to 21',modes:'Solo - Family'},
+    {k:'word',n:'Daily Word',d:'Guess the word in six tries',modes:'Solo - Family'},
+    {k:'spades',n:'Spades & Hearts',d:'Team card games',modes:'Teams'},
+    {k:'bingo',n:'Bingo',d:'Family game night, big groups',modes:'Family - Teams'},
+    {k:'connect',n:'Connect Four',d:'Quick head-to-head',modes:'Solo - Family'}
+  ];
+  var cmMsgData={
+    community:[['Liftori Team','Welcome to the Community! Say hi and find families to play.'],['The Riveras','Anyone up for a Bingo night Friday?'],['Grandpa Lou','New here - 4 generations on my tree now!']],
+    family:[['Vanessa','Got Tyler a ride to practice'],['Mom','Trivia rematch after dinner? I am winning this time'],['Caitlyn','dad you are going down at Connect Four']],
+    inner:[['Mike L','Poker tonight? winner picks the next game'],['You','I am in. Loser does the family newsletter lol']]
+  };
+  function cmTab(which){
+    document.getElementById('cmChats').style.display=which==='chats'?'block':'none';
+    document.getElementById('cmGames').style.display=which==='games'?'block':'none';
+    var a=document.getElementById('cmTabChats'),b=document.getElementById('cmTabGames');
+    a.className=which==='chats'?'btn':'btn ghost';b.className=which==='games'?'btn':'btn ghost';
+    if(which==='games')cmRenderGames();
+  }
+  function cmChan(key){
+    cmChan_cur=key;['community','family','inner'].forEach(function(k){var el=document.getElementById('cmCh_'+k);if(el){el.style.background=(k===key)?'var(--pine)':'var(--surface)';el.style.color=(k===key)?'#fff':'var(--ink)';el.querySelector('div').style.color=(k===key)?'rgba(255,255,255,.85)':'var(--muted)';}});
+    document.getElementById('cmChanTitle').textContent=key==='community'?'Community':key==='family'?'Family':'Inner Circle';
+    cmRenderMsgs();
+  }
+  function cmRenderMsgs(){
+    var box=document.getElementById('cmMsgs');if(!box)return;var msgs=cmMsgData[cmChan_cur]||[];
+    box.innerHTML=msgs.map(function(m){var me=m[0]==='You';return '<div style="display:flex;flex-direction:column;align-items:'+(me?'flex-end':'flex-start')+'"><div style="font-size:10.5px;color:var(--muted);margin-bottom:2px">'+esc(m[0])+'</div><div style="max-width:80%;background:'+(me?'var(--pine)':'var(--bg)')+';color:'+(me?'#fff':'var(--ink)')+';border:1px solid var(--line);border-radius:12px;padding:8px 11px;font-size:13px">'+esc(m[1])+'</div></div>';}).join('');
+    box.scrollTop=box.scrollHeight;
+  }
+  function cmSend(){var i=document.getElementById('cmInput');if(!i||!i.value.trim())return;(cmMsgData[cmChan_cur]=cmMsgData[cmChan_cur]||[]).push(['You',i.value.trim()]);i.value='';cmRenderMsgs();}
+  function cmRenderGames(){
+    var g=document.getElementById('cmGameGrid');if(g)g.innerHTML=cmGamesList.map(function(x){return '<div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px"><div style="font-weight:800">'+esc(x.n)+'</div><div style="font-size:12px;color:var(--muted);min-height:32px">'+esc(x.d)+'</div><div style="font-size:10.5px;color:var(--pine);font-weight:700">'+esc(x.modes)+'</div><button onclick="cmGame(\''+x.k+'\')" class="btn'+(x.play?'':' ghost')+'" style="margin-top:4px">'+(x.play?'Play':'Open')+'</button></div>';}).join('');
+    var lb=document.getElementById('cmLeader');var rows=[['The Marches',1240],['The Riveras',980],['Grandpa Lou crew',915],['The Andersons',640]];
+    if(lb)lb.innerHTML=rows.map(function(r,i){return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:10px"><span style="width:22px;height:22px;border-radius:50%;background:'+(i===0?'var(--gold)':'var(--bg)')+';color:'+(i===0?'#fff':'var(--muted)')+';display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">'+(i+1)+'</span><span style="font-weight:600">'+esc(r[0])+'</span></div><span style="font-weight:800;color:#B8862E">'+r[1]+' &#9670;</span></div>';}).join('');
+  }
+  function cmGame(key){
+    var modal=document.getElementById('cmGameModal'),title=document.getElementById('cmGameTitle'),body=document.getElementById('cmGameBody');
+    if(key==='trivia'){title.textContent='Family Trivia';cmTrivia();}
+    else if(key==='challenge'){title.textContent='Challenge a family';body.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Pick a family to challenge to any game. They will get an invite in their Community chat.</div>'+['The Riveras','Grandpa Lou crew','The Andersons'].map(function(f){return '<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px"><span style="font-weight:700">'+f+'</span><button class="btn" style="padding:6px 14px" onclick="cmCloseGame()">Invite</button></div>';}).join('');}
+    else{var gm=cmGamesList.filter(function(x){return x.k===key;})[0]||{n:'Game'};title.textContent=gm.n;
+      body.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:14px">'+esc(gm.d)+'. Choose how you want to play:</div>'+['Play solo','Challenge a family','Create teams'].map(function(m){return '<button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="cmCloseGame()">'+m+'</button>';}).join('')+'<div style="background:var(--bg);border:1px dashed var(--line);border-radius:12px;padding:12px;text-align:center;color:var(--muted);font-size:12.5px;margin-top:6px">Live table coming soon &mdash; chips are on us.</div>';}
+    modal.style.display='flex';
+  }
+  function cmTrivia(){
+    var body=document.getElementById('cmGameBody');
+    var people=[];try{eachPerson(function(p){if(p&&p.id!=='p_me'&&p.rel&&p.name)people.push(p);});}catch(e){}
+    if(people.length<1){body.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0">Add a few relatives to your family tree first, then come back &mdash; Family Trivia builds its questions from your real tree.</div>';return;}
+    var who=people[Math.floor(Math.random()*people.length)];
+    var rels=['Mother','Father','Brother','Sister','Aunt','Uncle','Grandmother','Grandfather','Son','Daughter','Cousin'];
+    var correct=who.rel;var opts=[correct];while(opts.length<4){var r=rels[Math.floor(Math.random()*rels.length)];if(opts.indexOf(r)<0)opts.push(r);}
+    for(var i=opts.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=opts[i];opts[i]=opts[j];opts[j]=t;}
+    body.innerHTML='<div style="font-size:11px;color:var(--pine);font-weight:800;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">From your tree</div>'
+      +'<div style="font-size:16px;font-weight:700;margin-bottom:14px">How is <b>'+esc((who.name||'').split(' ')[0])+'</b> related to you?</div>'
+      +'<div id="cmTrivOpts">'+opts.map(function(o){return '<button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="cmTrivAns(this,'+(o===correct?1:0)+')">'+esc(o)+'</button>';}).join('')+'</div>'
+      +'<div id="cmTrivMsg" style="text-align:center;font-weight:700;min-height:22px;margin-top:4px"></div>'
+      +'<button class="btn" style="width:100%;margin-top:6px" onclick="cmTrivia()">Next question</button>';
+  }
+  function cmTrivAns(btn,right){
+    var msg=document.getElementById('cmTrivMsg');var opts=document.getElementById('cmTrivOpts');if(opts)[].slice.call(opts.children).forEach(function(b){b.onclick=null;b.style.opacity='.6';});
+    if(right){btn.style.background='var(--pine)';btn.style.color='#fff';btn.style.opacity='1';if(msg){msg.textContent='Correct! +50 chips';msg.style.color='var(--pine)';}cmChipBal+=50;var c=document.getElementById('cmChips');if(c)c.textContent=cmChipBal.toLocaleString();}
+    else{btn.style.background='#C25B6B';btn.style.color='#fff';btn.style.opacity='1';if(msg){msg.textContent='Not quite!';msg.style.color='#B0472A';}}
+  }
+  function cmCloseGame(){var m=document.getElementById('cmGameModal');if(m)m.style.display='none';}
+  function cmInit(){cmChan('community');}
+
   function isBlocked(m,name){return !!m&&(m.blocked||[]).indexOf(name)>=0;}
   function toggleBlock(name){var m=members[activeUser];if(!m.blocked)m.blocked=[];var i=m.blocked.indexOf(name);if(i>=0)m.blocked.splice(i,1);else m.blocked.push(name);renderSettings();if(typeof renderTree==='function')renderTree();}
   function buildSafetyCard(m){var list=blockables();var blocked=(m.blocked||[]);
