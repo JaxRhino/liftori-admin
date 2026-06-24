@@ -287,22 +287,18 @@
       <!-- CHAT -->
       <section class="screen" id="chat">
         <div class="grid side2">
-          <div class="card">
+          <div class="card" id="chatThreads">
             <h3>Family chat <span class="cta">New</span></h3>
-            <div class="thread"><span class="av" style="background:#2F6B5E;font-size:11px">All</span><div class="g"><div class="t">Everyone</div><div class="s">Vanessa: I'll grab Mom's prescription…</div></div><span class="badge">3</span></div>
-            <div class="thread"><span class="av" style="background:#D9805A">VM</span><div class="g"><div class="t">Vanessa</div><div class="s">You: sounds good, love you</div></div><button class="vbtn" title="Video call" style="font-size:10px;font-weight:800">Call</button></div>
-            <div class="thread"><span class="av" style="background:#3E7CB1">TM</span><div class="g"><div class="t">Tyler</div><div class="s">Tyler: rent sent</div></div><button class="vbtn" title="Video call" style="font-size:10px;font-weight:800">Call</button></div>
-            <div class="thread"><span class="av" style="background:#E8B04B;color:#5a4310">DD</span><div class="g"><div class="t">Mom</div><div class="s">Mom: thank you sweetheart</div></div><button class="vbtn" title="Video call" style="font-size:10px;font-weight:800">Call</button></div>
-            <div class="thread"><span class="av" style="background:#8A8178">EF</span><div class="g"><div class="t">Extended family</div><div class="s">Aunt Deb: miss you all! photos?</div></div><span class="badge">7</span></div>
+            <div class="thread" data-c="everyone" onclick="openChat('everyone')" style="cursor:pointer"><span class="av" style="background:#2F6B5E;font-size:11px">All</span><div class="g"><div class="t">Everyone</div><div class="s">Vanessa: I'll grab Mom's prescription…</div></div><span class="badge">3</span></div>
+            <div class="thread" data-c="vanessa" onclick="openChat('vanessa')" style="cursor:pointer"><span class="av" style="background:#D9805A">VM</span><div class="g"><div class="t">Vanessa</div><div class="s">You: sounds good, love you</div></div><button class="vbtn" title="Video call" style="font-size:10px;font-weight:800" onclick="event.stopPropagation()">Call</button></div>
+            <div class="thread" data-c="tyler" onclick="openChat('tyler')" style="cursor:pointer"><span class="av" style="background:#3E7CB1">TM</span><div class="g"><div class="t">Tyler</div><div class="s">Tyler: rent sent</div></div><button class="vbtn" title="Video call" style="font-size:10px;font-weight:800" onclick="event.stopPropagation()">Call</button></div>
+            <div class="thread" data-c="mom" onclick="openChat('mom')" style="cursor:pointer"><span class="av" style="background:#E8B04B;color:#5a4310">DD</span><div class="g"><div class="t">Mom</div><div class="s">Mom: thank you sweetheart</div></div><button class="vbtn" title="Video call" style="font-size:10px;font-weight:800" onclick="event.stopPropagation()">Call</button></div>
+            <div class="thread" data-c="extended" onclick="openChat('extended')" style="cursor:pointer"><span class="av" style="background:#8A8178">EF</span><div class="g"><div class="t">Extended family</div><div class="s">Aunt Deb: miss you all! photos?</div></div><span class="badge">7</span></div>
           </div>
           <div class="card" style="display:flex;flex-direction:column">
-            <h3>Everyone</h3>
-            <div style="flex:1;display:flex;flex-direction:column;gap:9px;font-size:13.5px">
-              <div style="align-self:flex-start;background:var(--bg);border:1px solid var(--line);padding:9px 12px;border-radius:14px;border-bottom-left-radius:4px;max-width:80%"><b style="color:var(--terra);font-size:12px">Vanessa</b><br>Tyler's got Kennedy after practice 5:30</div>
-              <div style="align-self:flex-start;background:var(--bg);border:1px solid var(--line);padding:9px 12px;border-radius:14px;border-bottom-left-radius:4px;max-width:80%"><b style="color:#5a4310;font-size:12px">Mom</b><br>Out of my tea again</div>
-              <div style="align-self:flex-end;background:var(--pine);color:#fff;padding:9px 12px;border-radius:14px;border-bottom-right-radius:4px;max-width:80%">On it — adding to the store list now</div>
-            </div>
-            <div class="composer" style="margin-top:12px"><input placeholder="Message everyone…"/><button>Send</button><button class="btn terra sm" title="Video call">Video</button></div>
+            <h3 id="chatTitle">Everyone</h3>
+            <div id="chatMsgs" style="flex:1;display:flex;flex-direction:column;gap:9px;font-size:13.5px"></div>
+            <div class="composer" style="margin-top:12px"><input id="chatInput" placeholder="Message everyone…"/><button>Send</button><button class="btn terra sm" title="Video call">Video</button></div>
           </div>
         </div>
       </section>
@@ -407,8 +403,11 @@
           <p style="font-size:13.5px;color:var(--ink);line-height:1.5;margin-top:-4px">Add or remove family members, set each person's role and details, and choose what they can see. Renters get a weekly rent; kids get a limited view.</p>
         </div>
         <div id="familyList" style="display:grid;gap:14px;margin-top:14px"></div>
-        <button class="btn" style="margin-top:14px" onclick="addMember()">+ Add family member</button>
-        <p class="note" style="margin-top:10px">Changes here update everyone's calendar, lists, money and chat access. (Mockup — edits aren't saved yet.)</p>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn ghost" onclick="addMember()">+ Add family member</button>
+          <button class="btn" style="margin-left:auto" onclick="saveAll(this)">Save changes</button>
+        </div>
+        <p class="note" style="margin-top:10px">Changes update everyone's calendar, lists, money and chat access. Save to keep them on this device.</p>
       </section>
 
     </div>
@@ -456,6 +455,7 @@
     document.querySelectorAll('.screen').forEach(function(e){e.classList.toggle('on',e.id===s)});
     document.querySelectorAll('#navd button,#navm button').forEach(function(b){b.classList.toggle('on',b.dataset.s===s)});
     if(s==='settings')renderSettings();
+    if(s==='chat')renderChat();
     if(titles[s]){document.getElementById('ttl').textContent=titles[s][0];document.getElementById('tsub').textContent=titles[s][1];}
     document.querySelector('.scroll').scrollTop=0;
   }
@@ -613,10 +613,32 @@
     if(!(e.weight||e.glucose||e.sys||e.pulse)){closeVitals();return;}
     vitals.unshift(e);vitals.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
     ['vWeight','vGlucose','vSys','vDia','vPulse','vNote'].forEach(function(id){var x=document.getElementById(id);if(x)x.value='';});
-    closeVitals();renderVitals();
+    closeVitals();renderVitals();persist();
   }
+  var convos={
+    everyone:{name:'Everyone',msgs:[{from:'Vanessa',color:'#D9805A',text:"Tyler's got Kennedy after practice 5:30"},{from:'Mom',color:'#8a6410',text:'Out of my tea again'},{me:true,text:'On it — adding to the store list now'}]},
+    vanessa:{name:'Vanessa',msgs:[{from:'Vanessa',color:'#D9805A',text:"I'll grab Mom's prescription on the way home"},{me:true,text:'Perfect, thank you. Dinner at 6:30?'},{from:'Vanessa',color:'#D9805A',text:'Sounds good, love you'}]},
+    tyler:{name:'Tyler',msgs:[{from:'Tyler',color:'#3E7CB1',text:'Sent rent — lmk if it came through'},{me:true,text:'Got it, thanks bud'},{from:'Tyler',color:'#3E7CB1',text:'Cool. Can I borrow the car Friday?'}]},
+    mom:{name:'Mom',msgs:[{me:true,text:"Picked up your heart med, it's on the counter"},{from:'Mom',color:'#8a6410',text:'Thank you sweetheart'},{from:'Mom',color:'#8a6410',text:'Can we go to the bank Thursday?'}]},
+    extended:{name:'Extended family',msgs:[{from:'Aunt Deb',color:'#8A8178',text:'Miss you all! Can you send photos?'},{me:true,text:'Of course — will post some this weekend'}]}
+  };
+  var activeChat='everyone';
+  function renderChat(){
+    var t=document.getElementById('chatTitle'),mm=document.getElementById('chatMsgs');var c=convos[activeChat]||convos.everyone;
+    if(t)t.textContent=c.name;
+    if(mm)mm.innerHTML=c.msgs.map(function(x){return x.me?'<div style="align-self:flex-end;background:var(--pine);color:#fff;padding:9px 12px;border-radius:14px;border-bottom-right-radius:4px;max-width:80%">'+x.text+'</div>':'<div style="align-self:flex-start;background:var(--bg);border:1px solid var(--line);padding:9px 12px;border-radius:14px;border-bottom-left-radius:4px;max-width:80%"><b style="color:'+(x.color||'var(--terra)')+';font-size:12px">'+x.from+'</b><br>'+x.text+'</div>';}).join('');
+    var th=document.querySelectorAll('#chatThreads .thread');for(var k=0;k<th.length;k++){th[k].style.background=(th[k].dataset.c===activeChat)?'var(--bg)':'';}
+    var ci=document.getElementById('chatInput');if(ci)ci.placeholder='Message '+(activeChat==='everyone'?'everyone':c.name)+'…';
+  }
+  function openChat(k){activeChat=k;renderChat();}
+  function persist(){try{localStorage.setItem('liftoriLifeMock',JSON.stringify({members:members,vitals:vitals}));}catch(e){}}
+  function loadState(){try{var raw=localStorage.getItem('liftoriLifeMock');if(!raw)return;var d=JSON.parse(raw);if(d&&d.members&&d.members.length){members.length=0;d.members.forEach(function(m){members.push(m);});}if(d&&d.vitals&&d.vitals.length){vitals.length=0;d.vitals.forEach(function(v){vitals.push(v);});}}catch(e){}}
+  function saveAll(btn){persist();if(btn){var o=btn.textContent;btn.textContent='Saved';btn.style.background='var(--pine-soft)';btn.style.color='var(--pine)';setTimeout(function(){btn.textContent=o;btn.style.background='';btn.style.color='';},1700);}}
+  loadState();
+  renderFamily();
   renderVitals();
   renderCareHeader();
+  renderChat();
 
   // ---- Per-user profile & settings ----
   function settingsColorDots(v){return PALETTE.map(function(c){return '<button onclick="updSelf(\'color\',\''+c+'\')" style="width:24px;height:24px;border-radius:50%;border:'+(c===v?'2px solid var(--ink)':'2px solid #fff')+';box-shadow:0 0 0 1px var(--line);background:'+c+';cursor:pointer;margin-right:6px"></button>';}).join('');}
@@ -653,7 +675,8 @@
       +sw('money','Money','Rent and budget reminders')
       +sw('tasks','Tasks & chores','Assignments and due dates')
       +'<p class="note" style="text-align:left;margin-top:10px">Turn off anything you don’t want pinging your phone.</p>'
-      +'</div>';
+      +'</div>'
+      +'<button class="btn" style="width:100%" onclick="saveAll(this)">Save changes</button>';
   }
   function updSelf(k,val){var m=members[activeUser];if(!m)return;m[k]=val;
     if(k==='name'){var pa=document.getElementById('profileAv');if(pa)pa.textContent=initials(m.name);var me=document.getElementById('meAv');if(me)me.textContent=initials(m.name);}
