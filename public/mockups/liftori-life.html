@@ -339,11 +339,11 @@
   var SEES=['Everything','Hide money','Kid view','Read-only'];
   var PALETTE=['#2F6B5E','#D9805A','#3E7CB1','#C25B6B','#E8B04B','#7A8B99','#9B6B8C','#5B8C5A'];
   var members=[
-    {name:'Ryan March',role:'Head of household',age:'',phone:'(904) 555-0142',color:'#2F6B5E',rent:'',sees:'Everything'},
-    {name:'Vanessa Martinez',role:'Parent',age:'',phone:'(904) 555-0188',color:'#D9805A',rent:'',sees:'Everything'},
-    {name:'Tyler Martinez',role:'Renter',age:'19',phone:'(904) 555-0119',color:'#3E7CB1',rent:'100',sees:'Hide money'},
-    {name:'Kennedy Martinez',role:'Renter',age:'17',phone:'(904) 555-0126',color:'#C25B6B',rent:'100',sees:'Kid view'},
-    {name:'Diane Dietrich',role:'Grandparent',age:'71',phone:'(904) 555-0173',color:'#E8B04B',rent:'',sees:'Hide money'}
+    {name:'Ryan March',role:'Head of household',birthday:'1988-06-09',email:'ryan.march@gmail.com',phone:'(904) 555-0142',color:'#2F6B5E',rent:'',sees:'Everything'},
+    {name:'Vanessa Martinez',role:'Parent',birthday:'1990-11-21',email:'vanessa.martinez@gmail.com',phone:'(904) 555-0188',color:'#D9805A',rent:'',sees:'Everything'},
+    {name:'Tyler Martinez',role:'Renter',birthday:'2007-04-12',email:'tyler.martinez@gmail.com',phone:'(904) 555-0119',color:'#3E7CB1',rent:'100',sees:'Hide money'},
+    {name:'Kennedy Martinez',role:'Renter',birthday:'2009-08-23',email:'kennedy.martinez@gmail.com',phone:'(904) 555-0126',color:'#C25B6B',rent:'100',sees:'Kid view'},
+    {name:'Diane Dietrich',role:'Grandparent',birthday:'1955-02-09',email:'diane.dietrich@gmail.com',phone:'(904) 555-0173',color:'#E8B04B',rent:'',sees:'Hide money'}
   ];
   function initials(n){var p=(n||'').trim().split(/\s+/).filter(Boolean);return ((p[0]||'?')[0]+(p[1]?p[1][0]:'')).toUpperCase();}
   function esc(s){return (s||'').replace(/"/g,'&quot;');}
@@ -365,11 +365,16 @@
         +'</div>'
         +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
         +cell('Role',sel('role',i,ROLES,m.role))
-        +cell('Age',inp('age',i,m.age,'number','Age'))
+        +cell('Birthday',inp('birthday',i,m.birthday,'date',''))
+        +cell('Email',inp('email',i,m.email,'email','name@email.com'))
         +cell('Phone',inp('phone',i,m.phone,'text','(xxx) xxx-xxxx'))
         +cell('Can see',sel('sees',i,SEES,m.sees))
         +(renter?cell('Rent ($ / week)',inp('rent',i,m.rent,'number','100')):'')
         +cell('Avatar color','<div style="padding-top:5px">'+colorDots(i,m.color)+'</div>')
+        +'</div>'
+        +'<div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px">'
+        +'<button id="pw'+i+'" onclick="resetPw('+i+')" style="border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:700;font-size:12px;padding:8px 12px;border-radius:10px;cursor:pointer">Send password reset</button>'
+        +'<span style="font-size:11.5px;color:var(--muted)">Emails them a secure reset link.</span>'
         +'</div>';
       el.appendChild(card);
     });
@@ -378,8 +383,9 @@
     if(k==='name'){var a=document.getElementById('av'+i);if(a)a.textContent=initials(val);}
     if(k==='role'||k==='color'){renderFamily();}
   }
-  function addMember(){members.push({name:'',role:'Child',age:'',phone:'',color:PALETTE[members.length%PALETTE.length],rent:'',sees:'Kid view'});renderFamily();}
+  function addMember(){members.push({name:'',role:'Child',birthday:'',email:'',phone:'',color:PALETTE[members.length%PALETTE.length],rent:'',sees:'Kid view'});renderFamily();}
   function removeMember(i){members.splice(i,1);renderFamily();}
+  function resetPw(i){var b=document.getElementById('pw'+i);if(!b)return;var e=members[i].email;if(!e){var o=b.textContent;b.textContent='Add an email first';setTimeout(function(){b.textContent='Send password reset';},1600);return;}b.textContent='Reset link sent to '+e;b.style.background='var(--pine-soft)';b.style.color='var(--pine)';b.style.borderColor='var(--pine)';setTimeout(function(){b.textContent='Send password reset';b.style.background='var(--bg)';b.style.color='var(--ink)';b.style.borderColor='var(--line)';},2200);}
   renderFamily();
 
 </script>
