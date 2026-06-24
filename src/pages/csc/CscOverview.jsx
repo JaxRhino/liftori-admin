@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { cscSupabase, fmtMoney, fmtDate, relTime, CLEANING_STATUS_TONES, SEVERITY_TONES } from '../../lib/cscClient'
-import DemoTools from '../../components/csc/DemoTools'
 
 function StatCard({ label, value, hint, accent, to }) {
   const inner = (
@@ -98,7 +97,6 @@ export default function CscOverview() {
 
   return (
     <div className="space-y-6">
-      <DemoTools />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-white">Dashboard</h1>
@@ -106,7 +104,7 @@ export default function CscOverview() {
         </div>
         <a href="/csc/tech" target="_blank" rel="noopener noreferrer"
            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/30 text-brand-cyan transition-colors">
-          <span>📱</span> Open tech app (new tab)
+          Open tech app (new tab)
         </a>
       </div>
 
