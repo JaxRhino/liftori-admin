@@ -24,7 +24,6 @@ const PHOTO_SLOTS = [
   { key: 'after_plenum', label: 'After plenum' },
 ]
 
-const STOCK_PHOTO = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=demo-photo&color=666&bgcolor=ddd' // placeholder; real impl uses camera
 
 function Section({ title, hint, children, sticky }) {
   return (
@@ -56,6 +55,23 @@ export default function CscTechJob() {
   const [signName, setSignName] = useState('')
   const [busy, setBusy] = useState(false)
   const [success, setSuccess] = useState(null)
+  const [uploadingSlot, setUploadingSlot] = useState(null)
+  const [defPhotoFile, setDefPhotoFile] = useState(null)
+
+  async function callField(payload) {
+    const resp = await fetch(CSC_URL + '/functions/v1/csc-field', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CSC_ANON}` },
+      body: JSON.stringify(payload),
+    })
+    return resp.json()
+  }
+  async function uploadToBucket(file, prefix) {
+    const ext = ((file.name || '').split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `${id}/${prefix}-${Date.now()}.${ext}`
+    const { error } = await cscSupabase.storage.from('cleaning-photos').upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' })
+    if (error) throw error
+    return cscSupabase.storage.from('cleaning-photos').getPublicUrl(path).data.publicUrl
+  }
 
   // Add new deficiency form state
   const [defForm, setDefForm] = useState({ open: false, title: '', severity: 'minor', nfpa_code_ref: 'NFPA 96', quote_amount: '', quote_description: '' })
@@ -91,41 +107,35 @@ export default function CscTechJob() {
     await cscSupabase.from('csc_cleanings').update({ checklist: next }).eq('id', id)
   }
 
-  async function captureStockPhoto(slot) {
-    // Demo placeholder: insert a row pointing at a stock NFPA-style image URL.
-    // Real impl: <input type="file" accept="image/*" capture="environment"> + upload to bucket.
-    const stockUrl = `https://placehold.co/600x600/1e293b/f97316/png?text=${encodeURIComponent(slot.replace('_',' ').toUpperCase())}`
-    const { error } = await cscSupabase.from('csc_cleaning_photos').insert({
-      cleaning_id: id,
-      photo_type: slot.startsWith('before_') ? 'before' : 'after',
-      storage_url: stockUrl,
-      thumbnail_url: stockUrl,
-      hood_section: slot.split('_')[1],
-      required_slot: slot,
-      caption: `${slot} captured at ${new Date().toLocaleTimeString()}`,
-    })
-    if (error) { alert('Photo save failed: ' + error.message); return }
-    setPhotos(prev => ({ ...prev, [slot]: stockUrl }))
+  async function capturePhoto(slot, file) {
+    if (!file) return
+    setUploadingSlot(slot)
+    try {
+      const url = await uploadToBucket(file, slot)
+      const res = await callField({ action: 'add_photo', cleaning_id: id, slot, url, caption: `${slot} ${new Date().toLocaleString()}` })
+      if (!res.ok) throw new Error(res.error || 'save failed')
+      setPhotos(prev => ({ ...prev, [slot]: url }))
+    } catch (e) { alert('Photo failed: ' + (e.message || e)) }
+    finally { setUploadingSlot(null) }
   }
 
   async function addDeficiency() {
     if (!defForm.title.trim()) return
     setBusy(true)
-    const { error } = await cscSupabase.from('csc_deficiencies').insert({
-      cleaning_id: id,
-      restaurant_id: data.cleaning.restaurant_id,
-      title: defForm.title.trim(),
-      severity: defForm.severity,
-      nfpa_code_ref: defForm.nfpa_code_ref || null,
-      quote_amount: defForm.quote_amount ? Number(defForm.quote_amount) : null,
-      quote_description: defForm.quote_description || null,
-      quote_status: defForm.quote_amount ? 'quoted' : 'open',
-      quoted_at: defForm.quote_amount ? new Date().toISOString() : null,
-    })
-    setBusy(false)
-    if (error) { alert('Could not add deficiency: ' + error.message); return }
-    setDefForm({ open: false, title: '', severity: 'minor', nfpa_code_ref: 'NFPA 96', quote_amount: '', quote_description: '' })
-    fetchJob()
+    try {
+      let photo_url = null
+      if (defPhotoFile) photo_url = await uploadToBucket(defPhotoFile, 'deficiency')
+      const res = await callField({
+        action: 'add_deficiency', cleaning_id: id, restaurant_id: data.cleaning.restaurant_id,
+        title: defForm.title.trim(), severity: defForm.severity, nfpa_code_ref: defForm.nfpa_code_ref || null,
+        quote_amount: defForm.quote_amount || null, quote_description: defForm.quote_description || null, photo_url,
+      })
+      if (!res.ok) throw new Error(res.error || 'save failed')
+      setDefForm({ open: false, title: '', severity: 'minor', nfpa_code_ref: 'NFPA 96', quote_amount: '', quote_description: '' })
+      setDefPhotoFile(null)
+      fetchJob()
+    } catch (e) { alert('Could not add deficiency: ' + (e.message || e)) }
+    finally { setBusy(false) }
   }
 
   async function closeOut() {
@@ -133,72 +143,26 @@ export default function CscTechJob() {
     if (!grease.pre || !grease.post) { alert('Pre + post grease readings required'); return }
     setBusy(true)
     try {
-      // 1. Mark cleaning complete + write all the captured data
-      const exceeded = Number(grease.pre) >= 0.125
-      const { error: cErr } = await cscSupabase.from('csc_cleanings').update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-        grease_depth_pre_inches: Number(grease.pre),
-        grease_depth_post_inches: Number(grease.post),
-        exceeded_threshold: exceeded,
-        areas_not_accessible: areas || null,
-        signature_manager_name: signName.trim(),
-        signature_at: new Date().toISOString(),
-        checklist,
-      }).eq('id', id)
-      if (cErr) throw cErr
+      // 1. Close out server-side: cleaning complete + cert + sticker mint (service role)
+      const out = await callField({
+        action: 'close_out', cleaning_id: id,
+        grease_pre: Number(grease.pre), grease_post: Number(grease.post),
+        signature_name: signName.trim(), areas: areas || null, checklist,
+      })
+      if (!out.ok) throw new Error(out.error || 'close-out failed')
 
-      // 2. Mint cert + sticker if not already (the trigger only updates restaurant.last_cleaned_at; we still need to create cert/sticker rows for new jobs)
-      // For demo: only auto-mint for the in_progress job that doesn't have a cert yet
-      let certRow = null
-      const { data: existing } = await cscSupabase.from('csc_certificates').select('id, qr_code, cert_number').eq('cleaning_id', id).maybeSingle()
-      if (existing) {
-        certRow = existing
-      } else {
-        // Generate a cert + sticker row inline; PDF will be filled in by the edge fn below
-        const certNum = `CSC-${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-DEMO${Math.floor(Math.random()*99000+1000)}`
-        const qr = Array.from({length:12}, () => '0123456789ABCDEF'[Math.floor(Math.random()*16)]).join('')
-        const expires = new Date()
-        const tier = data.cleaning.restaurant?.frequency_tier || 'semi_annual'
-        const days = tier === 'monthly' ? 30 : tier === 'quarterly' ? 90 : tier === 'semi_annual' ? 180 : 365
-        expires.setDate(expires.getDate() + days)
-        const { data: insCert, error: insErr } = await cscSupabase.from('csc_certificates').insert({
-          cleaning_id: id,
-          restaurant_id: data.cleaning.restaurant_id,
-          cert_number: certNum,
-          qr_code: qr,
-          expires_at: expires.toISOString(),
-          tech_name: data.cleaning.tech_name,
-          supervisor_name: data.cleaning.supervisor_name,
-          grease_depth_pre_inches: Number(grease.pre),
-          grease_depth_post_inches: Number(grease.post),
-          ahj_jurisdiction_id: data.cleaning.restaurant?.ahj_jurisdiction_id || null,
-        }).select().single()
-        if (insErr) throw insErr
-        certRow = insCert
-        await cscSupabase.from('csc_stickers').insert({
-          cleaning_id: id,
-          certificate_id: certRow.id,
-          qr_code: qr,
-          hood_location: 'canopy',
-          batch_number: 'CSC-2026-Q2-001',
-        })
-      }
-
-      // 3. Call the cert engine to generate the PDF
-      const fnUrl = CSC_URL + '/functions/v1/generate-csc-cert'
-      const anon = CSC_ANON
-      const resp = await fetch(fnUrl, {
+      // 2. Generate the branded NFPA 96 certificate PDF
+      const resp = await fetch(CSC_URL + '/functions/v1/generate-csc-cert', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anon}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CSC_ANON}` },
         body: JSON.stringify({ cleaning_id: id, force: true }),
       })
       const certResp = resp.ok ? await resp.json() : null
 
       setSuccess({
-        cert_id: certRow.id,
-        cert_number: certRow.cert_number,
-        qr: certRow.qr_code,
+        cert_id: out.cert_id,
+        cert_number: out.cert_number,
+        qr: out.qr_code,
         pdf_url: certResp?.pdf_url,
         verify_url: certResp?.verify_url,
       })
@@ -356,22 +320,25 @@ export default function CscTechJob() {
               {PHOTO_SLOTS.map(slot => {
                 const url = photos[slot.key]
                 return (
-                  <button key={slot.key} onClick={() => captureStockPhoto(slot.key)}
-                          className="aspect-square rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 flex flex-col items-center justify-center text-center p-2 overflow-hidden">
+                  <label key={slot.key}
+                          className="aspect-square rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 flex flex-col items-center justify-center text-center p-2 overflow-hidden cursor-pointer">
+                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                           onChange={e => capturePhoto(slot.key, e.target.files?.[0])} />
                     {url ? (
                       <img src={url} alt={slot.label} className="w-full h-full object-cover" />
+                    ) : uploadingSlot === slot.key ? (
+                      <div className="text-[11px] text-orange-300">Uploading...</div>
                     ) : (
                       <>
-                        <div className="text-2xl text-white/30">📷</div>
-                        <div className="text-[10px] uppercase tracking-wider text-white/50 mt-1">{slot.label}</div>
-                        <div className="text-[10px] text-white/30 mt-0.5">tap to capture</div>
+                        <div className="text-[10px] uppercase tracking-wider text-white/50">{slot.label}</div>
+                        <div className="text-[10px] text-white/30 mt-0.5">tap to add photo</div>
                       </>
                     )}
-                  </button>
+                  </label>
                 )
               })}
             </div>
-            <div className="text-[10px] text-white/30 mt-2">Demo build uses stock placeholders. Production app uses live camera capture (input capture=environment).</div>
+            <div className="text-[10px] text-white/30 mt-2">Tap a slot to take a photo with your device camera. Photos attach to the certificate and the customer portal.</div>
           </Section>
 
           <Section title="Deficiencies Logged" hint="Issues found that need quoting or follow-up.">
@@ -404,6 +371,10 @@ export default function CscTechJob() {
                 <input value={defForm.nfpa_code_ref} onChange={e => setDefForm(f => ({...f, nfpa_code_ref: e.target.value}))} placeholder="NFPA code reference" className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded text-white text-sm" />
                 <input type="number" step="0.01" inputMode="decimal" value={defForm.quote_amount} onChange={e => setDefForm(f => ({...f, quote_amount: e.target.value}))} placeholder="Quote $ (optional)" className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded text-white text-sm" />
                 <textarea value={defForm.quote_description} onChange={e => setDefForm(f => ({...f, quote_description: e.target.value}))} placeholder="Repair scope (what we'd do)" className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded text-white text-sm" rows="2" />
+                <label className="block text-[11px] text-white/50">Photo (optional)
+                  <input type="file" accept="image/*" capture="environment" onChange={e => setDefPhotoFile(e.target.files?.[0] || null)} className="mt-1 w-full text-xs text-white/70 file:mr-2 file:px-2 file:py-1 file:rounded file:border-0 file:bg-orange-500/20 file:text-orange-200" />
+                  {defPhotoFile && <span className="text-[10px] text-emerald-300">{defPhotoFile.name} ready</span>}
+                </label>
                 <div className="flex gap-2">
                   <button onClick={addDeficiency} disabled={busy || !defForm.title.trim()} className="flex-1 px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 rounded text-sm font-medium disabled:opacity-50">{busy ? '…' : 'Save'}</button>
                   <button onClick={() => setDefForm({ open: false, title: '', severity: 'minor', nfpa_code_ref: 'NFPA 96', quote_amount: '', quote_description: '' })} className="px-3 py-2 bg-white/5 border border-white/10 text-white/70 rounded text-sm">Cancel</button>
