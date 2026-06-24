@@ -60,6 +60,7 @@ const HUB_CHILDREN = {
     { label: 'Materials',         path: 'operations/materials' },
     { label: 'Insurance Claims',  path: 'operations/insurance-claims' },
     { label: 'Warranties',        path: 'operations/warranties' },
+    { label: 'Storm Center',      path: 'operations/storms' },
     { label: 'Schedule',          path: 'operations/schedule' },
     { label: 'Crews',             path: 'operations/crews' },
     { label: 'Crew Availability', path: 'operations/crew-availability' },
@@ -194,7 +195,7 @@ function LabosShell() {
             let children = HUB_CHILDREN[hub.key]
             // Roofing-only Operations children (insurance claims, warranties) stay hidden for other industries.
             if (children && hub.key === 'operations' && !String(platform?.industry || '').toLowerCase().includes('roof')) {
-              children = children.filter(ch => ch.path !== 'operations/insurance-claims' && ch.path !== 'operations/warranties')
+              children = children.filter(ch => ch.path !== 'operations/insurance-claims' && ch.path !== 'operations/warranties' && ch.path !== 'operations/storms')
             }
             if (children) {
               const groupActive = children.some(ch => location.pathname.startsWith(`/crm/${platformId}/${ch.path}`)) || location.pathname === `/crm/${platformId}/${hub.path}`
