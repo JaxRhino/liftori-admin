@@ -148,6 +148,7 @@
       <button data-s="money"><span class="ic">◈</span> Money</button>
       <button data-s="lists"><span class="ic">☰</span> Lists &amp; Tasks</button>
       <button data-s="chat"><span class="ic">✦</span> Chat</button>
+      <button data-s="docs"><span class="ic">▤</span> Documents</button>
       <button data-s="settings"><span class="ic">⊙</span> Settings</button>
     </nav>
     <div class="fam">
@@ -392,6 +393,10 @@
         </div>
       </section>
 
+      <!-- DOCUMENTS (family docs for adults; personal for everyone) -->
+      <section class="screen" id="docs">
+        <div id="docsBody" style="display:grid;gap:14px"></div>
+      </section>
       <!-- FAMILY BUDGET (run like a business) -->
       <section class="screen" id="budget">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -427,6 +432,7 @@
       <button data-s="care"><span class="ic">✚</span>Care</button>
       <button data-s="money"><span class="ic">◈</span>Money</button>
       <button data-s="lists"><span class="ic">☰</span>Lists</button>
+      <button data-s="docs"><span class="ic">▤</span>Docs</button>
       <button data-s="chat"><span class="ic">✦</span>Chat</button>
     </nav>
   </div>
@@ -459,13 +465,15 @@
     chat:['Chat','Message the family — or video call'],
     family:['Manage family','Add members, set roles, control what each person sees'],
     settings:['Profile & settings','Your account, password and notifications'],
-    budget:['Family Budget','Run the household like a business']};
+    budget:['Family Budget','Run the household like a business'],
+    docs:['Documents','Wills, insurance & important family records']};
   function go(s){
     document.querySelectorAll('.screen').forEach(function(e){e.classList.toggle('on',e.id===s)});
     document.querySelectorAll('#navd button,#navm button').forEach(function(b){b.classList.toggle('on',b.dataset.s===s)});
     if(s==='settings')renderSettings();
     if(s==='chat')renderChat();
     if(s==='budget')renderBudget();
+    if(s==='docs')renderDocs();
     if(titles[s]){document.getElementById('ttl').textContent=titles[s][0];document.getElementById('tsub').textContent=titles[s][1];}
     document.querySelector('.scroll').scrollTop=0;
   }
@@ -744,9 +752,64 @@
     txns+='</div></div>';
     el.innerHTML=tiles+chart+income+cats+accts+bills+goals+txns;
   }
+  // ---- Documents (permission-aware) ----
+  var familyDocs=[
+    {id:'fd1',name:'Last Will & Testament',detail:'Ryan & Vanessa · updated 2025',cat:'Estate'},
+    {id:'fd2',name:'Power of Attorney',detail:'Diane → Ryan',cat:'Estate'},
+    {id:'fd3',name:'Living Will / Medical Directive',detail:'Diane',cat:'Medical'},
+    {id:'fd4',name:'Homeowners Insurance',detail:'Policy #HO-4821',cat:'Insurance'},
+    {id:'fd5',name:'Auto Insurance',detail:'2 vehicles · Policy #AU-3920',cat:'Insurance'},
+    {id:'fd6',name:'Life Insurance',detail:'Ryan & Vanessa',cat:'Insurance'},
+    {id:'fd7',name:'Health Insurance',detail:'Humana — family plan',cat:'Insurance'},
+    {id:'fd8',name:'Mortgage & Deed',detail:'123 Maple St',cat:'Property'},
+    {id:'fd9',name:'Vehicle Titles',detail:'2 vehicles',cat:'Property'},
+    {id:'fd10',name:'Tax Returns',detail:'2023 - 2025',cat:'Financial'},
+    {id:'fd11',name:'Passports',detail:'Family (5)',cat:'IDs'},
+    {id:'fd12',name:'Birth Certificates',detail:'Family',cat:'IDs'}
+  ];
+  function docAdult(m){return m && (m.role==='Head of household'||m.role==='Parent'||m.role==='Grandparent');}
+  function defaultPersonalDocs(m){
+    if(docAdult(m))return [{id:bUid(),name:"Driver's license",detail:'FL'},{id:bUid(),name:'Social Security card',detail:'Personal'},{id:bUid(),name:'Resume',detail:'2026'},{id:bUid(),name:'Vaccination record',detail:'Up to date'}];
+    return [{id:bUid(),name:'Student ID',detail:'School'},{id:bUid(),name:'Report card',detail:'Spring 2026'},{id:bUid(),name:'Vaccination record',detail:'Up to date'},{id:bUid(),name:'Birth certificate',detail:'Personal copy'}];
+  }
+  var DOC_TAGS={Estate:'terra',Medical:'gold',Insurance:'green',Property:'gray',Financial:'gold',IDs:'gray',Personal:'gray'};
+  function docRow(d,kind,id){
+    var tag=DOC_TAGS[d.cat]||'gray';
+    return '<div class="row">'
+      +'<div class="ic2" style="background:#E7EFEA;color:var(--pine);font-weight:800;font-size:11px">DOC</div>'
+      +'<div class="g"><input value="'+esc(d.name)+'" onchange="docEdit(\''+kind+'\',\''+id+'\',\''+d.id+'\',\'name\',this.value)" style="border:0;background:transparent;font:inherit;font-size:13.5px;font-weight:700;width:100%;color:var(--ink)"/>'
+      +'<input value="'+esc(d.detail||'')+'" onchange="docEdit(\''+kind+'\',\''+id+'\',\''+d.id+'\',\'detail\',this.value)" style="border:0;background:transparent;font:inherit;font-size:12px;color:var(--muted);width:100%"/></div>'
+      +(d.cat?'<span class="tag '+tag+'">'+d.cat+'</span>':'')
+      +'<button class="btn ghost sm" onclick="docView(this)">View</button>'
+      +'<button onclick="docDel(\''+kind+'\',\''+id+'\',\''+d.id+'\')" style="border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:14px" title="Remove">&times;</button>'
+      +'</div>';
+  }
+  function renderDocs(){
+    var el=document.getElementById('docsBody');if(!el)return;var m=members[activeUser];if(!m)return;
+    if(!m.docs)m.docs=defaultPersonalDocs(m);
+    var first=(m.nickname||(m.name||'').split(/\s+/)[0]||'My');
+    var html='';
+    if(docAdult(m)){
+      html+='<div class="card"><h3>Family documents <span class="cta" onclick="docAdd(\'family\')">+ Add</span></h3>'
+        +'<div style="display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--terra);border-radius:20px;padding:5px 11px;font-size:11.5px;font-weight:700;color:#b85a36;margin-bottom:10px">Private — parents &amp; grandparents only</div>';
+      familyDocs.forEach(function(d){html+=docRow(d,'family','');});
+      html+='</div>';
+    }
+    html+='<div class="card"><h3>'+(docAdult(m)?first+"’s documents":'My documents')+' <span class="cta" onclick="docAdd(\'mine\')">+ Add</span></h3>';
+    m.docs.forEach(function(d){html+=docRow(d,'mine',String(activeUser));});
+    if(!docAdult(m))html+='<p class="note" style="text-align:left;margin-top:10px">Family legal &amp; insurance documents are kept private and managed by your parents.</p>';
+    html+='</div>';
+    el.innerHTML=html;
+  }
+  function docList(kind,id){return kind==='family'?familyDocs:(members[Number(id)].docs||[]);}
+  function docEdit(kind,id,did,f,v){var l=docList(kind,id);var d=l.find(function(x){return x.id===did;});if(d)d[f]=v;}
+  function docDel(kind,id,did){if(kind==='family'){familyDocs=familyDocs.filter(function(x){return x.id!==did;});}else{var m=members[Number(id)];m.docs=(m.docs||[]).filter(function(x){return x.id!==did;});}renderDocs();}
+  function docAdd(kind){if(kind==='family'){familyDocs.push({id:bUid(),name:'New document',detail:'',cat:'Personal'});}else{var m=members[activeUser];if(!m.docs)m.docs=[];m.docs.push({id:bUid(),name:'New document',detail:''});}renderDocs();}
+  function docView(b){var o=b.textContent;b.textContent='Opens in app';setTimeout(function(){b.textContent=o;},1400);}
+
   function persist(){
-try{localStorage.setItem('liftoriLifeMock',JSON.stringify({members:members,vitals:vitals,budget:budget}));}catch(e){}}
-  function loadState(){try{var raw=localStorage.getItem('liftoriLifeMock');if(!raw)return;var d=JSON.parse(raw);if(d&&d.members&&d.members.length){members.length=0;d.members.forEach(function(m){members.push(m);});}if(d&&d.vitals&&d.vitals.length){vitals.length=0;d.vitals.forEach(function(v){vitals.push(v);});}if(d&&d.budget){budget=d.budget;}}catch(e){}}
+try{localStorage.setItem('liftoriLifeMock',JSON.stringify({members:members,vitals:vitals,budget:budget,familyDocs:familyDocs}));}catch(e){}}
+  function loadState(){try{var raw=localStorage.getItem('liftoriLifeMock');if(!raw)return;var d=JSON.parse(raw);if(d&&d.members&&d.members.length){members.length=0;d.members.forEach(function(m){members.push(m);});}if(d&&d.vitals&&d.vitals.length){vitals.length=0;d.vitals.forEach(function(v){vitals.push(v);});}if(d&&d.budget){budget=d.budget;}if(d&&d.familyDocs){familyDocs=d.familyDocs;}}catch(e){}}
   function saveAll(btn){persist();if(btn){var o=btn.textContent;btn.textContent='Saved';btn.style.background='var(--pine-soft)';btn.style.color='var(--pine)';setTimeout(function(){btn.textContent=o;btn.style.background='';btn.style.color='';},1700);}}
   loadState();
   renderFamily();
@@ -754,6 +817,7 @@ try{localStorage.setItem('liftoriLifeMock',JSON.stringify({members:members,vital
   renderCareHeader();
   renderChat();
   renderBudget();
+  renderDocs();
   applyView(0);
 
   // ---- Per-user profile & settings ----
