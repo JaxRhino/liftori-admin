@@ -7,6 +7,7 @@ const TABS = [
   { to: '/admin/csc/recurring', label: 'Recurring' },
   { to: '/admin/csc/deficiencies', label: 'Deficiencies' },
   { to: '/admin/csc/invoices', label: 'Invoices' },
+  { to: '/admin/csc/compliance-report', label: 'Reports' },
   { to: '/admin/csc/certificates', label: 'Certificates' },
   { to: '/admin/csc/stickers', label: 'Stickers' },
   { to: '/admin/csc/ahj', label: 'AHJ Map' },
