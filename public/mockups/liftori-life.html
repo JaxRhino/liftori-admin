@@ -522,7 +522,7 @@
   }
   function addMember(){members.push({name:'',role:'Child',birthday:'',email:'',phone:'',color:PALETTE[members.length%PALETTE.length],rent:'',sees:'Kid view',care:false});renderFamily();}
   function removeMember(i){members.splice(i,1);renderFamily();}
-  function toggleCare(i){members[i].care=!members[i].care;renderFamily();}
+  function toggleCare(i){members[i].care=!members[i].care;renderFamily();renderCareHeader();}
   var activeUser=0;
   function applyView(i){
     i=Number(i);var m=members[i];if(!m)return;activeUser=i;
