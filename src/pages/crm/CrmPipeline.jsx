@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useCrmClient } from './_shared';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -35,6 +36,9 @@ const slugify = (s) =>
 
 export default function CrmPipeline() {
   const { client } = useCrmClient();
+  const navigate = useNavigate();
+  const { platformId } = useParams();
+  const openDeal = (deal) => navigate('/crm/' + platformId + '/deals/' + deal.id);
   const [viewMode, setViewMode] = useState('kanban');
   const [deals, setDeals] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -265,10 +269,10 @@ export default function CrmPipeline() {
           <KanbanView stages={activeStages}
             dealsByStage={activeStageFilter ? { [activeStageFilter]: dealsByStage[activeStageFilter] || [] } : dealsByStage}
             temperatureConfig={temperatureConfig} getContactName={getContactName}
-            onEditDeal={handleEditDeal} onMoveStage={handleMoveStage} onDeleteDeal={handleDeleteDeal} />
+            onOpenDeal={openDeal} onMoveStage={handleMoveStage} onDeleteDeal={handleDeleteDeal} />
         ) : (
           <TableView deals={visibleDeals} stages={activeStages} temperatureConfig={temperatureConfig} getContactName={getContactName}
-            onEditDeal={handleEditDeal} onDeleteDeal={handleDeleteDeal}
+            onOpenDeal={openDeal} onEditDeal={handleEditDeal} onDeleteDeal={handleDeleteDeal}
             sortColumn={sortColumn} setSortColumn={setSortColumn} sortDirection={sortDirection} setSortDirection={setSortDirection} />
         )}
 
@@ -324,7 +328,7 @@ function StageStepper({ stages, dealsByStage, activeStage, onSelect }) {
   );
 }
 
-function KanbanView({ stages, dealsByStage, temperatureConfig, getContactName, onEditDeal, onMoveStage, onDeleteDeal }) {
+function KanbanView({ stages, dealsByStage, temperatureConfig, getContactName, onOpenDeal, onMoveStage, onDeleteDeal }) {
   const empty = stages.every(s => (dealsByStage[s.key] || []).length === 0);
   if (empty) return <div className="flex items-center justify-center h-64 text-gray-400">No deals yet. Create your first deal to get started.</div>;
   const shown = stages.filter(s => dealsByStage[s.key] !== undefined);
@@ -343,7 +347,7 @@ function KanbanView({ stages, dealsByStage, temperatureConfig, getContactName, o
               <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 max-h-[600px]">
                 {stageDeal.length > 0 ? stageDeal.map(deal => (
                   <DealCard key={deal.id} deal={deal} stages={stages} temperatureConfig={temperatureConfig} getContactName={getContactName}
-                    onEdit={() => onEditDeal(deal)} onMove={(ns) => onMoveStage(deal.id, ns)} onDelete={() => onDeleteDeal(deal.id)} />
+                    onOpen={() => onOpenDeal(deal)} onMove={(ns) => onMoveStage(deal.id, ns)} onDelete={() => onDeleteDeal(deal.id)} />
                 )) : <div className="text-gray-500 text-sm py-8 text-center">No deals</div>}
               </div>
             </div>
@@ -354,12 +358,12 @@ function KanbanView({ stages, dealsByStage, temperatureConfig, getContactName, o
   );
 }
 
-function DealCard({ deal, stages, temperatureConfig, getContactName, onEdit, onMove, onDelete }) {
+function DealCard({ deal, stages, temperatureConfig, getContactName, onOpen, onMove, onDelete }) {
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
   const tempConfig = temperatureConfig[deal.lead_temperature] || temperatureConfig.warm;
   return (
     <Card className="bg-navy-800 border-navy-700 p-3 cursor-pointer hover:border-brand-blue/50 transition">
-      <div onClick={onEdit} className="mb-2">
+      <div onClick={onOpen} className="mb-2">
         <h4 className="font-semibold text-white truncate text-sm">{deal.title}</h4>
         <p className="text-gray-400 text-xs truncate">{getContactName(deal.contact_id)}</p>
       </div>
@@ -384,7 +388,7 @@ function DealCard({ deal, stages, temperatureConfig, getContactName, onEdit, onM
   );
 }
 
-function TableView({ deals, stages, temperatureConfig, getContactName, onEditDeal, onDeleteDeal, sortColumn, setSortColumn, sortDirection, setSortDirection }) {
+function TableView({ deals, stages, temperatureConfig, getContactName, onOpenDeal, onEditDeal, onDeleteDeal, sortColumn, setSortColumn, sortDirection, setSortDirection }) {
   const stageMap = useMemo(() => Object.fromEntries(stages.map(s => [s.key, s])), [stages]);
   const handleSort = (column) => { if (sortColumn === column) setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc'); else { setSortColumn(column); setSortDirection('asc'); } };
   const sortedDeals = [...deals].sort((a, b) => {
@@ -419,7 +423,7 @@ function TableView({ deals, stages, temperatureConfig, getContactName, onEditDea
               const tempInfo = temperatureConfig[deal.lead_temperature];
               return (
                 <tr key={deal.id} className="border-b border-navy-800 hover:bg-navy-800/50 transition">
-                  <td className="px-4 py-3 text-white font-medium truncate max-w-xs">{deal.title}</td>
+                  <td className="px-4 py-3 text-white font-medium truncate max-w-xs"><button onClick={() => onOpenDeal(deal)} className="hover:text-brand-blue transition text-left truncate max-w-xs">{deal.title}</button></td>
                   <td className="px-4 py-3 text-gray-400">{getContactName(deal.contact_id)}</td>
                   <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5 text-xs text-white px-2 py-1 rounded" style={{ background: (stageInfo?.color || '#475569') }}>{stageInfo?.label || deal.stage}</span></td>
                   <td className="px-4 py-3 text-gray-400">{deal.service_type}</td>
@@ -428,7 +432,8 @@ function TableView({ deals, stages, temperatureConfig, getContactName, onEditDea
                   <td className="px-4 py-3"><div className="flex items-center gap-1"><Dot className={`${tempInfo?.dotColor}`} size={16} /><span className={`${tempInfo?.color} text-xs`}>{tempInfo?.label}</span></div></td>
                   <td className="px-4 py-3 text-gray-400 text-sm">{deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString() : '-'}</td>
                   <td className="px-4 py-3 text-right"><div className="flex gap-2 justify-end">
-                    <button onClick={() => onEditDeal(deal)} className="px-2 py-1 bg-brand-blue/20 hover:bg-brand-blue/30 text-brand-blue rounded text-xs transition">Edit</button>
+                    <button onClick={() => onOpenDeal(deal)} className="px-2 py-1 bg-brand-blue hover:bg-brand-blue/90 text-white rounded text-xs transition">Open</button>
+                    <button onClick={() => onEditDeal(deal)} className="px-2 py-1 bg-navy-700 hover:bg-navy-600 text-gray-200 rounded text-xs transition">Quick edit</button>
                     <button onClick={() => onDeleteDeal(deal.id)} className="px-2 py-1 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded text-xs transition">Delete</button>
                   </div></td>
                 </tr>
