@@ -188,6 +188,13 @@ export default function CrmEstimateDetail() {
     toast.success('Proposal link copied');
   }
 
+  function previewProposal() {
+    if (!groupId) { toast.error('Make this a Good / Better / Best proposal first to preview the customer view'); return; }
+    save();
+    const url = window.location.origin + '/proposal/' + platformId + '/' + groupId;
+    window.open(url, '_blank');
+  }
+
   async function save(nextStatus) {
     try {
       setSaving(true);
@@ -230,6 +237,7 @@ export default function CrmEstimateDetail() {
               <option value="declined">Declined</option>
               <option value="expired">Expired</option>
             </select>
+            <Button onClick={previewProposal} disabled={saving} className="bg-navy-700 hover:bg-navy-600 text-white text-sm flex items-center gap-1"><Eye size={14} /> Preview</Button>
             <Button onClick={() => save()} disabled={saving} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">{saving ? 'Saving...' : 'Save'}</Button>
           </div>
         </div>
