@@ -508,10 +508,36 @@
     <div style="display:grid;gap:10px">
       <div><label class="vl">Relationship</label>
         <select id="arRel" class="vi" onchange="arHint();arRefreshWith()">
-          <option value="child">Child</option>
-          <option value="partner">Partner / spouse / ex</option>
-          <option value="sibling">Sibling</option>
-          <option value="parent">Parent</option>
+          <optgroup label="Child">
+            <option value="child|Son|male|">Son</option>
+            <option value="child|Daughter|female|">Daughter</option>
+            <option value="child|Step-son|male|">Step-son</option>
+            <option value="child|Step-daughter|female|">Step-daughter</option>
+            <option value="child|||">Child (unspecified)</option>
+          </optgroup>
+          <optgroup label="Partner">
+            <option value="partner|Wife|female|Married">Wife</option>
+            <option value="partner|Husband|male|Married">Husband</option>
+            <option value="partner|Fiancee|female|Engaged">Fiancee</option>
+            <option value="partner|Fiance|male|Engaged">Fiance</option>
+            <option value="partner|Partner / co-parent||Partner / co-parent">Partner / co-parent</option>
+            <option value="partner|Ex-wife|female|Divorced">Ex-wife</option>
+            <option value="partner|Ex-husband|male|Divorced">Ex-husband</option>
+          </optgroup>
+          <optgroup label="Parent">
+            <option value="parent|Mother|female|">Mother</option>
+            <option value="parent|Father|male|">Father</option>
+            <option value="parent|Step-mother|female|">Step-mother</option>
+            <option value="parent|Step-father|male|">Step-father</option>
+          </optgroup>
+          <optgroup label="Sibling">
+            <option value="sibling|Brother|male|">Brother</option>
+            <option value="sibling|Sister|female|">Sister</option>
+            <option value="sibling|Half-brother|male|">Half-brother</option>
+            <option value="sibling|Half-sister|female|">Half-sister</option>
+            <option value="sibling|Step-brother|male|">Step-brother</option>
+            <option value="sibling|Step-sister|female|">Step-sister</option>
+          </optgroup>
         </select></div>
       <div><label class="vl">Of (who in the tree)</label><select id="arAnchor" class="vi" onchange="arRefreshWith()"></select></div>
       <div id="arWithWrap" style="display:none"><label class="vl">Other parent of this child</label><select id="arWith" class="vi"></select></div>
@@ -1009,26 +1035,41 @@
   function fitTree(){var vp=document.getElementById('treeViewport');if(!vp)return;var w=vp.getBoundingClientRect().width||340;var z=Math.min(1.3,Math.max(0.3,(w-20)/_treeW));treeZoom=z;treePanX=Math.max(8,(w-_treeW*z)/2);treePanY=12;applyTreeTransform();}
   function ftIsEmpty(){var n=0;for(var k in ftPeople)n++;return n<=1 && Object.keys(ftFams).length===0;}
   var SLOT=120,CW=82,VGAP=150,R0=24;
-  function kidsForUnion(pid,f){
-    var ids=(f.kids||[]).slice(),sp=partnerOf(f,pid);
-    if(sp)spouseFams(sp).forEach(function(pf){if(pf!==f)(pf.kids||[]).forEach(function(k){if(ids.indexOf(k)<0)ids.push(k);});});
-    return ids;
-  }
+  function isExPartner(p){if(!p)return false;var P2=ftPeople[p];if(!P2)return false;return /ex/i.test(P2.rel||'')||P2.marital==='Divorced';}
+  function partnerOwnKids(partner,exclF){var ids=[];spouseFams(partner).forEach(function(pf){if(pf!==exclF)(pf.kids||[]).forEach(function(k){if(ids.indexOf(k)<0)ids.push(k);});});return ids;}
   function descBlock(pid){
-    var fams=spouseFams(pid).filter(function(f){return f.b||(f.kids&&f.kids.length);});
-    if(fams.length===0){return {w:SLOT,ax:SLOT/2,els:[{pid:pid,x:SLOT/2,gen:0}]};}
-    var els=[],x=SLOT,pidX=SLOT/2;els.push({pid:pid,x:pidX,gen:0});
-    fams.forEach(function(f){
-      var sp=partnerOf(f,pid);
-      var kb=kidsForUnion(pid,f).map(function(k){return descBlock(k);});
-      var kidsW=0;kb.forEach(function(b){kidsW+=b.w;});
-      var panelW=Math.max(SLOT,kidsW),base=x;
-      if(sp)els.push({pid:sp,x:base+panelW/2,gen:0});
-      var sx=base+(panelW-kidsW)/2;
-      kb.forEach(function(b){var off=sx;b.els.forEach(function(e){els.push({pid:e.pid,x:e.x+off,gen:e.gen+1});});sx+=b.w;});
-      x=base+panelW+26;
-    });
-    return {w:x,ax:pidX,els:els};
+    var unions=spouseFams(pid).filter(function(f){return f.b||(f.kids&&f.kids.length);});
+    if(unions.length===0){return {w:SLOT,ax:SLOT/2,els:[{pid:pid,x:SLOT/2,gen:0}]};}
+    var blended=unions.length>1||unions.some(function(u){return isExPartner(partnerOf(u,pid));})||unions.some(function(u){var p=partnerOf(u,pid);return p&&partnerOwnKids(p,u).length>0;});
+    if(!blended){
+      var f=unions[0],sp=partnerOf(f,pid);
+      var kb=(f.kids||[]).map(function(k){return descBlock(k);}),kidsW=0;kb.forEach(function(b){kidsW+=b.w;});
+      var coupleW=sp?(SLOT+CW):SLOT,w=Math.max(coupleW,kidsW,SLOT),cx=w/2,els=[],pidX;
+      if(sp){var left=pid,right=sp;if(P(sp).sex==='male'&&P(pid).sex!=='male'){left=sp;right=pid;}else if(P(pid).sex==='female'&&P(sp).sex!=='female'){left=sp;right=pid;}
+        var lxx=cx-CW/2,rxx=cx+CW/2;els.push({pid:left,x:lxx,gen:0});els.push({pid:right,x:rxx,gen:0});pidX=(left===pid?lxx:rxx);}
+      else{els.push({pid:pid,x:cx,gen:0});pidX=cx;}
+      var s0=cx-kidsW/2;kb.forEach(function(b){var off=s0;b.els.forEach(function(e){els.push({pid:e.pid,x:e.x+off,gen:e.gen+1});});s0+=b.w;});
+      return {w:w,ax:pidX,els:els};
+    }
+    var myKidIds=[];unions.forEach(function(u){(u.kids||[]).forEach(function(k){if(myKidIds.indexOf(k)<0)myKidIds.push(k);});});
+    var myKidBlocks=myKidIds.map(function(k){return descBlock(k);}),myW=0;myKidBlocks.forEach(function(b){myW+=b.w;});if(myW<SLOT)myW=SLOT;
+    var curPartner=null,curFam=null,exP=[];
+    unions.forEach(function(u){var p=partnerOf(u,pid);if(!p)return;if(!curPartner&&!isExPartner(p)){curPartner=p;curFam=u;}else exP.push(p);});
+    var els=[],pidX=myW/2;
+    els.push({pid:pid,x:pidX,gen:0});
+    var sx=0;myKidBlocks.forEach(function(b){var off=sx;b.els.forEach(function(e){els.push({pid:e.pid,x:e.x+off,gen:e.gen+1});});sx+=b.w;});
+    var rightX=myW;
+    if(curPartner){
+      var pOwn=partnerOwnKids(curPartner,curFam),pB=pOwn.map(function(k){return descBlock(k);}),pW=0;pB.forEach(function(b){pW+=b.w;});if(pW<SLOT)pW=SLOT;
+      var pBase=rightX+CW,partnerX=pBase+pW/2;els.push({pid:curPartner,x:partnerX,gen:0});
+      var psx=pBase;pB.forEach(function(b){var off=psx;b.els.forEach(function(e){els.push({pid:e.pid,x:e.x+off,gen:e.gen+1});});psx+=b.w;});
+      rightX=pBase+pW;
+    }
+    var lxc=-CW;exP.forEach(function(ep){els.push({pid:ep,x:lxc,gen:0});lxc-=(SLOT+8);});
+    var minX=1e9;els.forEach(function(e){if(e.x<minX)minX=e.x;});
+    if(minX<0){els.forEach(function(e){e.x-=minX;});pidX-=minX;}
+    var maxX=0;els.forEach(function(e){if(e.x>maxX)maxX=e.x;});
+    return {w:maxX+SLOT/2,ax:pidX,els:els};
   }
   function singleNode(pid){return {w:SLOT,ax:SLOT/2,els:[{pid:pid,x:SLOT/2,gen:0}]};}
   function ancBlock(pid,focal,side){
@@ -1166,26 +1207,28 @@
     document.getElementById('addRelModal').style.display='flex';
   }
   function closeAddRel(){document.getElementById('addRelModal').style.display='none';}
-  function arHint(){var rel=document.getElementById('arRel').value,h=document.getElementById('arHint');
-    var m={child:'Adds a child to the person you pick.',partner:'Adds a spouse, ex, or co-parent (a second partner keeps the old one - mark them Ex-wife / Ex-husband).',sibling:'Adds a brother or sister who shares the same parents.',parent:'Adds a parent above the person you pick (add the mother and father as two separate parents).'};
+  function arHint(){var rel=(document.getElementById('arRel').value||'').split('|')[0],h=document.getElementById('arHint');
+    var m={child:'Adds a child under the person you pick. Choose the other parent below if there is one.',partner:'Adds a spouse, fiance(e), ex, or co-parent. Adding a second partner keeps the first.',sibling:'Adds a brother or sister who shares the same parents.',parent:'Adds a parent above the person you pick (add mother and father as two separate parents).'};
     if(h)h.textContent=m[rel]||'';}
   function ensureBirthFam(pid){var bf=birthFam(pid);if(bf)return bf;var f=ensureFam(addPerson({name:'Parent',rel:'Parent'}),null);f.kids=[pid];return f;}
   function addRelSubmit(){
-    var rel=document.getElementById('arRel').value,anchorId=document.getElementById('arAnchor').value,nm=document.getElementById('arName').value.trim();
+    var rv=(document.getElementById('arRel').value||'child').split('|');var rel=rv[0],rLabel=rv[1]||'',rSex=rv[2]||'',rMar=rv[3]||'';
+    var anchorId=document.getElementById('arAnchor').value,nm=document.getElementById('arName').value.trim();
     var X=P(anchorId);if(!X){closeAddRel();return;}var newId=null;
+    function mkp(defName){return addPerson({name:nm||defName,rel:rLabel,sex:rSex,marital:rMar});}
     if(rel==='child'){
       var withEl=document.getElementById('arWith');var withId=withEl?withEl.value:'';var f;if(withId&&withId!=='__none')f=ensureFam(anchorId,withId);else f=spouseFams(anchorId).filter(function(x){return !x.b;})[0]||ensureFam(anchorId,null);
-      var c=addPerson({name:nm||'New child'});f.kids=f.kids||[];f.kids.push(c);newId=c;
+      var c=mkp(rLabel||'New child');f.kids=f.kids||[];f.kids.push(c);newId=c;
     }else if(rel==='partner'){
-      var pp=addPerson({name:nm||'Partner',marital:'Partner / co-parent'});ensureFam(anchorId,pp);newId=pp;
+      var pp=addPerson({name:nm||rLabel||'Partner',rel:rLabel,sex:rSex,marital:rMar||'Partner / co-parent'});ensureFam(anchorId,pp);newId=pp;
     }else if(rel==='parent'){
       var bf=birthFam(anchorId);
-      if(!bf){var pa=addPerson({name:nm||'Parent',rel:'Parent'});var nf=ensureFam(pa,null);nf.kids=[anchorId];newId=pa;}
-      else if(!bf.b){var pb=addPerson({name:nm||'Parent',rel:'Parent'});bf.b=pb;newId=pb;}
-      else if(!bf.a){var pc=addPerson({name:nm||'Parent',rel:'Parent'});bf.a=pc;newId=pc;}
+      if(!bf){var pa=mkp('Parent');var nf=ensureFam(pa,null);nf.kids=[anchorId];newId=pa;}
+      else if(!bf.b){var pb=mkp('Parent');bf.b=pb;newId=pb;}
+      else if(!bf.a){var pc=mkp('Parent');bf.a=pc;newId=pc;}
       else{alert('Both parents are already on the tree. Tap one to edit them.');return;}
     }else if(rel==='sibling'){
-      var bf2=ensureBirthFam(anchorId);var sib=addPerson({name:nm||'New sibling'});bf2.kids.push(sib);newId=sib;
+      var bf2=ensureBirthFam(anchorId);var sib=mkp('New sibling');bf2.kids.push(sib);newId=sib;
     }
     closeAddRel();renderTree();if(newId)setTimeout(function(){openTreeEdit(newId);},30);
   }
@@ -1232,7 +1275,7 @@
   }
   function arRefreshWith(){
     var relEl=document.getElementById('arRel'),anEl=document.getElementById('arAnchor');if(!relEl||!anEl)return;
-    var rel=relEl.value,anchorId=anEl.value;var wrap=document.getElementById('arWithWrap'),sel=document.getElementById('arWith');if(!wrap||!sel)return;
+    var rel=(relEl.value||"").split("|")[0],anchorId=anEl.value;var wrap=document.getElementById('arWithWrap'),sel=document.getElementById('arWith');if(!wrap||!sel)return;
     if(rel!=='child'){wrap.style.display='none';return;}
     var parts=spouseFams(anchorId).map(function(f){return partnerOf(f,anchorId);}).filter(function(p){return p;});
     sel.innerHTML='<option value="__none">New / no second parent</option>'+parts.map(function(p){return '<option value="'+p+'">with '+esc(P(p).name||'partner')+'</option>';}).join('');
