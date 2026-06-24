@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
-  cscSupabase, fmtDate, fmtDateTime, fmtMoney, relTime,
+  cscSupabase, CSC_URL, CSC_ANON, fmtDate, fmtDateTime, fmtMoney, relTime,
   CLEANING_STATUS_TONES, SEVERITY_TONES, QUOTE_STATUS_TONES, INVOICE_STATUS_TONES,
   FREQUENCY_LABELS, COOKING_VOLUME_LABELS,
 } from '../../lib/cscClient'
@@ -84,8 +84,8 @@ export default function CscJobDetail() {
   async function regenerateCert() {
     setRegen(true)
     try {
-      const url = (import.meta.env.VITE_CSC_SUPABASE_URL || 'https://zymgttmngwxkobmdgdia.supabase.co') + '/functions/v1/generate-csc-cert'
-      const anon = (import.meta.env.VITE_CSC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bWd0dG1uZ3d4a29ibWRnZGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NzcxMDMsImV4cCI6MjA5MjI1MzEwM30.rhfz_Io8k1-LzwVIOWjw119G919yqpJLFnLcF7sid9I')
+      const url = CSC_URL + '/functions/v1/generate-csc-cert'
+      const anon = CSC_ANON
       const resp = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anon}` },
