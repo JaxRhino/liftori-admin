@@ -785,9 +785,9 @@ export default function CrmDealDetail() {
             <SectionCard title="Appointments">
               <Field label="Initial Appointment"><Input type="datetime-local" value={form.initial_appointment_at} onChange={e => setForm({ ...form, initial_appointment_at: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Follow Up Appointment"><Input type="datetime-local" value={form.follow_up_appointment_at} onChange={e => setForm({ ...form, follow_up_appointment_at: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
-              <Field label="Inspection Date"><Input type="date" value={form.inspection_date} onChange={e => setForm({ ...form, inspection_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Estimated Close Date"><Input type="date" value={form.expected_close_date} onChange={e => setForm({ ...form, expected_close_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Install Date"><Input type="date" value={form.install_date} onChange={e => setForm({ ...form, install_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Town Inspection Date"><Input type="date" value={form.inspection_date} onChange={e => setForm({ ...form, inspection_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="COC Date"><Input type="date" value={form.coc_date} onChange={e => setForm({ ...form, coc_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Closed Date"><Input type="date" value={form.closed_date} onChange={e => setForm({ ...form, closed_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
             </SectionCard>
