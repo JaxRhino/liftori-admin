@@ -139,7 +139,8 @@
     </div>
     <nav class="nav" id="navd">
       <button data-s="home" class="on"><span class="ic">⌂</span> Home</button>
-      <button data-s="cal"><span class="ic">▦</span> Calendar &amp; Care</button>
+      <button data-s="cal"><span class="ic">▦</span> Calendar</button>
+      <button data-s="care"><span class="ic">✚</span> Care Hub</button>
       <button data-s="money"><span class="ic">◈</span> Money</button>
       <button data-s="lists"><span class="ic">☰</span> Lists &amp; Tasks</button>
       <button data-s="chat"><span class="ic">✦</span> Chat</button>
@@ -213,7 +214,7 @@
             <div class="ev terra"><div class="tm2">2:00p</div><div class="ln"><div class="t">Mom — pharmacy refill ready</div><div class="s">Heart med · auto-reminder set</div></div></div>
           </div>
           <div class="card" style="background:linear-gradient(135deg,#FFF8EE,#F3F0E6);border-color:var(--gold)">
-            <h3>Mom's care</h3>
+            <h3>Mom's care <span class="cta" onclick="go('care')">Open Care Hub</span></h3>
             <div class="row"><div class="ic2" style="background:#fff;color:var(--rose);font-weight:800;font-size:16px">♥</div><div class="g"><div class="t">Next appointment</div><div class="s">Dr. Patel · cardiology · today 9:30a</div></div></div>
             <div class="row"><div class="ic2" style="background:#fff;color:#8a6410;font-weight:800;font-size:13px">Rx</div><div class="g"><div class="t">Medications</div><div class="s">3 active · 1 refill in 3 days</div></div><span class="tag terra">Refill</span></div>
             <div class="row"><div class="ic2" style="background:#fff;color:var(--pine);font-weight:800;font-size:18px">+</div><div class="g"><div class="t">She asked for</div><div class="s">Tea, denture cream, library trip</div></div><span class="tag gold">3 new</span></div>
@@ -296,6 +297,77 @@
         </div>
       </section>
 
+      <!-- CARE HUB (caregivers + care recipient only) -->
+      <section class="screen" id="care">
+        <div class="card" style="background:linear-gradient(135deg,#FFF8EE,#F3F0E6);border-color:var(--gold)">
+          <div style="display:flex;gap:13px;align-items:center">
+            <span class="av" style="width:52px;height:52px;font-size:18px;flex:0 0 52px;background:#E8B04B;color:#5a4310">DD</span>
+            <div style="flex:1">
+              <div style="font-size:19px;font-weight:800;letter-spacing:-.3px">Diane's Care Hub</div>
+              <div style="font-size:12.5px;color:var(--muted);font-weight:600">71 · lives with us · caregivers: Ryan &amp; Vanessa</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--gold);border-radius:20px;padding:5px 11px;font-size:11.5px;font-weight:700;color:#8a6410">Private — visible to caregivers and Diane, not the kids</div>
+        </div>
+
+        <div class="tiles" style="margin:14px 0">
+          <div class="tile"><div class="k">Next appt</div><div class="v">9:30a</div><div class="m warn">Dr. Patel today</div></div>
+          <div class="tile"><div class="k">Meds</div><div class="v">3</div><div class="m warn">1 refill in 3 days</div></div>
+          <div class="tile"><div class="k">Requests</div><div class="v">3</div><div class="m">open errands</div></div>
+          <div class="tile"><div class="k">Last check-in</div><div class="v">BP 128/80</div><div class="m up">this morning</div></div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <h3>Appointments <span class="cta">+ Add</span></h3>
+            <div class="ev terra"><div class="tm2">Today</div><div class="ln"><div class="t">Dr. Patel — Cardiology</div><div class="s">9:30a · Riverside Clinic · Ryan driving · bring med list</div></div></div>
+            <div class="ev sky"><div class="tm2">Jul 2</div><div class="ln"><div class="t">Dr. Lin — Primary care</div><div class="s">11:00a · annual physical</div></div></div>
+            <div class="ev gold"><div class="tm2">Jul 15</div><div class="ln"><div class="t">Dentist — cleaning</div><div class="s">2:00p · needs a ride</div></div></div>
+          </div>
+          <div class="card">
+            <h3>Medications <span class="cta">+ Add</span></h3>
+            <div class="row"><div class="ic2" style="background:#FBEFD2;color:#8a6410;font-weight:800;font-size:12px">Rx</div><div class="g"><div class="t">Lisinopril 10mg</div><div class="s">1 tablet · morning · blood pressure</div></div><span class="tag terra">Refill 3d</span></div>
+            <div class="row"><div class="ic2" style="background:#FBEFD2;color:#8a6410;font-weight:800;font-size:12px">Rx</div><div class="g"><div class="t">Atorvastatin 20mg</div><div class="s">1 tablet · evening · cholesterol</div></div><span class="tag green">Stocked</span></div>
+            <div class="row"><div class="ic2" style="background:#FBEFD2;color:#8a6410;font-weight:800;font-size:12px">Rx</div><div class="g"><div class="t">Metformin 500mg</div><div class="s">2x daily · with meals</div></div><span class="tag green">Stocked</span></div>
+          </div>
+        </div>
+
+        <div class="grid two" style="margin-top:14px">
+          <div class="card">
+            <h3>What Diane asked for <span class="cta">+ Add</span></h3>
+            <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Chamomile tea</div><div class="s">added Mon · from the store</div></div></div>
+            <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Denture cream</div><div class="s">added Mon</div></div></div>
+            <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Ride to the bank</div><div class="s">Thursday · needs a driver</div></div><span class="tag gold">Thu</span></div>
+            <div class="row"><span class="chk done" onclick="this.classList.toggle('done')">✓</span><div class="g"><div class="t">Library trip</div><div class="s">done Sat · Vanessa</div></div></div>
+          </div>
+          <div class="card">
+            <h3>Doctors &amp; records <span class="cta">+ Add</span></h3>
+            <div class="row"><div class="ic2" style="background:#E7EFEA;color:var(--pine);font-weight:800;font-size:15px">♥</div><div class="g"><div class="t">Dr. Patel — Cardiologist</div><div class="s">Riverside Clinic · (904) 555-0301</div></div></div>
+            <div class="row"><div class="ic2" style="background:#E7EFEA;color:var(--pine);font-weight:800;font-size:15px">+</div><div class="g"><div class="t">Dr. Lin — Primary care</div><div class="s">Southside Family Med · (904) 555-0288</div></div></div>
+            <div class="row"><div class="ic2" style="background:#E7EFEA;color:var(--pine);font-weight:800;font-size:13px">Rx</div><div class="g"><div class="t">CVS Pharmacy — Main St</div><div class="s">(904) 555-0410 · auto-refill on</div></div></div>
+            <div class="row"><div class="ic2" style="background:#E7EFEA;color:var(--pine);font-weight:800;font-size:12px">ID</div><div class="g"><div class="t">Humana — Medicare Advantage</div><div class="s">Member #H1234567 · PCP on file</div></div></div>
+          </div>
+        </div>
+
+        <div class="grid side2" style="margin-top:14px">
+          <div class="card">
+            <h3>Care log <span class="cta">+ Note</span></h3>
+            <div class="post"><span class="av" style="background:#D9805A">VM</span><div class="b"><div class="nm">Vanessa <span class="tm">· 7:50a</span></div><div class="tx">BP 128/80 this morning, took meds, ate breakfast. Good mood.</div></div></div>
+            <div class="post"><span class="av" style="background:#2F6B5E">RM</span><div class="b"><div class="nm">Ryan <span class="tm">· Yesterday</span></div><div class="tx">Picked up Lisinopril refill. Cardiology paperwork in the folder.</div></div></div>
+            <div class="post"><span class="av" style="background:#D9805A">VM</span><div class="b"><div class="nm">Vanessa <span class="tm">· Sun</span></div><div class="tx">Slight dizziness standing up — mentioned it to ask Dr. Patel.</div></div></div>
+            <div class="composer"><input placeholder="Add a care note…"/><button>Post</button></div>
+          </div>
+          <div class="card" style="border-color:var(--rose)">
+            <h3 style="color:var(--rose)">Emergency info</h3>
+            <div class="row"><div class="g"><div class="t">Allergies</div><div class="s">Penicillin · shellfish</div></div></div>
+            <div class="row"><div class="g"><div class="t">Blood type</div><div class="s">O positive</div></div></div>
+            <div class="row"><div class="g"><div class="t">Conditions</div><div class="s">Hypertension · type 2 diabetes</div></div></div>
+            <div class="row"><div class="g"><div class="t">Emergency contact</div><div class="s">Ryan March · (904) 555-0142</div></div><button class="btn terra sm">Call</button></div>
+            <button class="btn" style="width:100%;margin-top:12px;background:var(--rose)">Share with EMS</button>
+          </div>
+        </div>
+      </section>
+
       <!-- MANAGE FAMILY (head of household) -->
       <section class="screen" id="family">
         <div class="card" style="background:linear-gradient(135deg,#E7EFEA,#F3F0E6);border-color:var(--pine)">
@@ -312,7 +384,8 @@
     <!-- Bottom tabs (mobile) -->
     <nav class="tabs" id="navm">
       <button data-s="home" class="on"><span class="ic">⌂</span>Home</button>
-      <button data-s="cal"><span class="ic">▦</span>Care</button>
+      <button data-s="cal"><span class="ic">▦</span>Cal</button>
+      <button data-s="care"><span class="ic">✚</span>Care</button>
       <button data-s="money"><span class="ic">◈</span>Money</button>
       <button data-s="lists"><span class="ic">☰</span>Lists</button>
       <button data-s="chat"><span class="ic">✦</span>Chat</button>
@@ -322,7 +395,8 @@
 
 <script>
   var titles={home:['Good morning, Ryan','Tuesday · 5 in the family · 3 things need you today'],
-    cal:['Calendar & Care','Shared schedule + everything Mom needs'],
+    cal:['Calendar','Shared family schedule'],
+    care:['Care Hub',"Diane's care — caregivers only"],
     money:['Money','Rent, budget & family savings'],
     lists:['Lists & Tasks','Shopping list and who owns what'],
     chat:['Chat','Message the family — or video call'],
@@ -339,11 +413,11 @@
   var SEES=['Everything','Hide money','Kid view','Read-only'];
   var PALETTE=['#2F6B5E','#D9805A','#3E7CB1','#C25B6B','#E8B04B','#7A8B99','#9B6B8C','#5B8C5A'];
   var members=[
-    {name:'Ryan March',role:'Head of household',birthday:'1988-06-09',email:'ryan.march@gmail.com',phone:'(904) 555-0142',color:'#2F6B5E',rent:'',sees:'Everything'},
-    {name:'Vanessa Martinez',role:'Parent',birthday:'1990-11-21',email:'vanessa.martinez@gmail.com',phone:'(904) 555-0188',color:'#D9805A',rent:'',sees:'Everything'},
-    {name:'Tyler Martinez',role:'Renter',birthday:'2007-04-12',email:'tyler.martinez@gmail.com',phone:'(904) 555-0119',color:'#3E7CB1',rent:'100',sees:'Hide money'},
-    {name:'Kennedy Martinez',role:'Renter',birthday:'2009-08-23',email:'kennedy.martinez@gmail.com',phone:'(904) 555-0126',color:'#C25B6B',rent:'100',sees:'Kid view'},
-    {name:'Diane Dietrich',role:'Grandparent',birthday:'1955-02-09',email:'diane.dietrich@gmail.com',phone:'(904) 555-0173',color:'#E8B04B',rent:'',sees:'Hide money'}
+    {name:'Ryan March',role:'Head of household',birthday:'1988-06-09',email:'ryan.march@gmail.com',phone:'(904) 555-0142',color:'#2F6B5E',rent:'',sees:'Everything',care:true},
+    {name:'Vanessa Martinez',role:'Parent',birthday:'1990-11-21',email:'vanessa.martinez@gmail.com',phone:'(904) 555-0188',color:'#D9805A',rent:'',sees:'Everything',care:true},
+    {name:'Tyler Martinez',role:'Renter',birthday:'2007-04-12',email:'tyler.martinez@gmail.com',phone:'(904) 555-0119',color:'#3E7CB1',rent:'100',sees:'Hide money',care:false},
+    {name:'Kennedy Martinez',role:'Renter',birthday:'2009-08-23',email:'kennedy.martinez@gmail.com',phone:'(904) 555-0126',color:'#C25B6B',rent:'100',sees:'Kid view',care:false},
+    {name:'Diane Dietrich',role:'Grandparent',birthday:'1955-02-09',email:'diane.dietrich@gmail.com',phone:'(904) 555-0173',color:'#E8B04B',rent:'',sees:'Hide money',care:true}
   ];
   function initials(n){var p=(n||'').trim().split(/\s+/).filter(Boolean);return ((p[0]||'?')[0]+(p[1]?p[1][0]:'')).toUpperCase();}
   function esc(s){return (s||'').replace(/"/g,'&quot;');}
@@ -372,6 +446,10 @@
         +(renter?cell('Rent ($ / week)',inp('rent',i,m.rent,'number','100')):'')
         +cell('Avatar color','<div style="padding-top:5px">'+colorDots(i,m.color)+'</div>')
         +'</div>'
+        +'<div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:12px">'
+        +'<div><div style="font-weight:700;font-size:13px">Care Hub access</div><div style="font-size:11.5px;color:var(--muted)">See Diane\'s appointments, meds &amp; records (caregivers only)</div></div>'
+        +'<button onclick="toggleCare('+i+')" title="Care Hub access" style="border:0;border-radius:999px;width:46px;height:26px;cursor:pointer;flex:0 0 46px;position:relative;background:'+(m.care?'var(--pine)':'#D9CFC2')+'"><span style="position:absolute;top:3px;left:'+(m.care?'23px':'3px')+';width:20px;height:20px;border-radius:50%;background:#fff"></span></button>'
+        +'</div>'
         +'<div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px">'
         +'<button id="pw'+i+'" onclick="resetPw('+i+')" style="border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:700;font-size:12px;padding:8px 12px;border-radius:10px;cursor:pointer">Send password reset</button>'
         +'<span style="font-size:11.5px;color:var(--muted)">Emails them a secure reset link.</span>'
@@ -383,8 +461,9 @@
     if(k==='name'){var a=document.getElementById('av'+i);if(a)a.textContent=initials(val);}
     if(k==='role'||k==='color'){renderFamily();}
   }
-  function addMember(){members.push({name:'',role:'Child',birthday:'',email:'',phone:'',color:PALETTE[members.length%PALETTE.length],rent:'',sees:'Kid view'});renderFamily();}
+  function addMember(){members.push({name:'',role:'Child',birthday:'',email:'',phone:'',color:PALETTE[members.length%PALETTE.length],rent:'',sees:'Kid view',care:false});renderFamily();}
   function removeMember(i){members.splice(i,1);renderFamily();}
+  function toggleCare(i){members[i].care=!members[i].care;renderFamily();}
   function resetPw(i){var b=document.getElementById('pw'+i);if(!b)return;var e=members[i].email;if(!e){var o=b.textContent;b.textContent='Add an email first';setTimeout(function(){b.textContent='Send password reset';},1600);return;}b.textContent='Reset link sent to '+e;b.style.background='var(--pine-soft)';b.style.color='var(--pine)';b.style.borderColor='var(--pine)';setTimeout(function(){b.textContent='Send password reset';b.style.background='var(--bg)';b.style.color='var(--ink)';b.style.borderColor='var(--line)';},2200);}
   renderFamily();
 
