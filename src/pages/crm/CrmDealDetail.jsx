@@ -658,7 +658,7 @@ export default function CrmDealDetail() {
 
         {/* DETAILS */}
         {tab === 'details' && form && (
-          <div className="space-y-5 max-w-3xl">
+          <div className="space-y-5">
             {/* Top line: Job Title + Stage + Lead Temp */}
             <SectionCard title="Job">
               <Field label="Job Title" full><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
