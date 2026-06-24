@@ -25,7 +25,6 @@ import CrmOperationsWorkOrders from './pages/crm/operations/OperationsWorkOrders
 import CrmOperationsProduction from './pages/crm/operations/OperationsProduction'
 import CrmOperationsSubcontractors from './pages/crm/operations/OperationsSubcontractors'
 import CrmOperationsPermits from './pages/crm/operations/OperationsPermits'
-import CrmOperationsStorms from './pages/crm/operations/OperationsStorms'
 import CrmOperationsMaterials from './pages/crm/operations/OperationsMaterials'
 import CrmInsurance from './pages/crm/operations/CrmInsurance'
 import CrmWarranties from './pages/crm/operations/CrmWarranties'
@@ -275,6 +274,7 @@ import CscOverview from './pages/csc/CscOverview'
 import CscCustomers from './pages/csc/CscCustomers'
 import CscJobs from './pages/csc/CscJobs'
 import CscJobDetail from './pages/csc/CscJobDetail'
+import CscRecurring from './pages/csc/CscRecurring'
 // CSC public — Wave D customer portal + AHJ verify
 import CscPublicLayout from './pages/csc-public/CscPublicLayout'
 import CscPortal from './pages/csc-public/CscPortal'
@@ -601,6 +601,7 @@ export default function App() {
               <Route path="customers" element={<CscCustomers />} />
               <Route path="jobs" element={<CscJobs />} />
               <Route path="jobs/:id" element={<CscJobDetail />} />
+              <Route path="recurring" element={<CscRecurring />} />
               <Route path="deficiencies" element={<CscDeficiencies />} />
               <Route path="invoices" element={<CscInvoices />} />
               <Route path="certificates" element={<CscCertificates />} />
@@ -640,6 +641,7 @@ export default function App() {
             <Route path="operations-dashboard" element={<CscOpsDashboard />} />
             <Route path="jobs" element={<CscJobs />} />
             <Route path="jobs/:id" element={<CscJobDetail />} />
+            <Route path="recurring" element={<CscRecurring />} />
             <Route path="deficiencies" element={<CscDeficiencies />} />
             <Route path="certificates" element={<CscCertificates />} />
             <Route path="stickers" element={<CscStickers />} />
@@ -662,7 +664,6 @@ export default function App() {
               <Route path="production" element={<CrmOperationsProduction />} />
               <Route path="subcontractors" element={<CrmOperationsSubcontractors />} />
               <Route path="permits" element={<CrmOperationsPermits />} />
-              <Route path="storms" element={<CrmOperationsStorms />} />
               <Route path="materials" element={<CrmOperationsMaterials />} />
               <Route path="insurance-claims" element={<CrmInsurance />} />
               <Route path="warranties" element={<CrmWarranties />} />
