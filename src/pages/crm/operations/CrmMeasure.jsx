@@ -136,7 +136,7 @@ function solarImageryDate(d) {
   return [m, d.year].filter(Boolean).join(' ')
 }
 
-export default function CrmMeasure({ embedded = false, lockedContactId = null, lockedContactLabel = '', pipelineId = null } = {}) {
+export default function CrmMeasure({ embedded = false, lockedContactId = null, lockedContactLabel = '', pipelineId = null, initialAddress = '', initialTitle = '' } = {}) {
   const { client, platform } = useCrmClient()
   const navigate = useNavigate()
   const { platformId } = useParams()
@@ -166,8 +166,8 @@ export default function CrmMeasure({ embedded = false, lockedContactId = null, l
   const [zoomHint, setZoomHint] = useState('Find an address to begin')
 
   // address search + autocomplete
-  const [addr, setAddr] = useState('')
-  const [title, setTitle] = useState('')
+  const [addr, setAddr] = useState(initialAddress || '')
+  const [title, setTitle] = useState(initialTitle || '')
   const [suggestions, setSuggestions] = useState([])
   const [searching, setSearching] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
