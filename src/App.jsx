@@ -125,6 +125,7 @@ import LiftoriBuild from './pages/LiftoriBuild'
 import SalesPipeline from './pages/SalesPipeline'
 import Investors from './pages/Investors'
 import OpsDashboard from './pages/OpsDashboard'
+import MeasurementRequests, { MeasurementLab } from './pages/crm/MeasurementRequests'
 import WizardBuilder from './pages/WizardBuilder'
 import Team from './pages/Team'
 import Pulse from './pages/Pulse'
@@ -511,6 +512,8 @@ export default function App() {
             <Route path="ops/docs" element={<OpsDocs />} />
             {/* Operations (Liftori internal) */}
             <Route path="ops-dashboard" element={<OpsDashboard />} />
+            <Route path="measurement-requests" element={<MeasurementRequests />} />
+            <Route path="measurement-requests/:id" element={<MeasurementLab />} />
             <Route path="team" element={<Team />} />
             <Route path="pulse" element={<Pulse />} />
             <Route path="work-queue" element={<WorkQueue />} />
