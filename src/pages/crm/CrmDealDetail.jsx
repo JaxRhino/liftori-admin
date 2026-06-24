@@ -1311,11 +1311,15 @@ function QuickLink({ label, onClick }) {
   );
 }
 
-function SectionCard({ title, children }) {
+function SectionCard({ title, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <Card className="bg-navy-900 border-navy-800 p-6">
-      <h3 className="text-sm font-semibold text-white mb-4">{title}</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+    <Card className="bg-navy-900 border-navy-800">
+      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-6 py-4 text-left">
+        <h3 className="text-sm font-semibold text-white">{title}</h3>
+        <svg className={"w-4 h-4 text-gray-400 transition-transform " + (open ? "rotate-180" : "")} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {open && <div className="px-6 pb-6 grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>}
     </Card>
   );
 }
