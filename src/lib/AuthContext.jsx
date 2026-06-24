@@ -28,6 +28,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true
+    let bootstrapped = false
 
     async function fetchProfile(userId, endLoading = false) {
       try {
@@ -52,14 +53,15 @@ export function AuthProvider({ children }) {
         const sessionUser = session?.user ?? null
         setRealUser(sessionUser)
         setToken(session?.access_token ?? null)
-        const isInitial = event === 'INITIAL_SESSION'
-        const isSignIn = event === 'SIGNED_IN'
+        const firstEvent = !bootstrapped
+        bootstrapped = true
         if (sessionUser) {
-          if (isSignIn && !isInitial) setLoading(true)
-          fetchProfile(sessionUser.id, isInitial || isSignIn)
+          // End loading only on the first auth event; never flip it true again
+          // on later SIGNED_IN/TOKEN_REFRESHED events (those would remount the app).
+          fetchProfile(sessionUser.id, firstEvent)
         } else {
           setRealProfile(null)
-          if (isInitial) setLoading(false)
+          if (firstEvent) setLoading(false)
         }
       }
     )
