@@ -6,8 +6,8 @@
 // =====================================================================
 import { createClient } from '@supabase/supabase-js'
 
-const CSC_URL = 'https://spgainjpxualjtbatfmk.supabase.co'
-const CSC_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwZ2FpbmpweHVhbGp0YmF0Zm1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMTMzODYsImV4cCI6MjA5Njc4OTM4Nn0.bQckTNILfG8nz4_TChbiPc7ni78Ity6qx9tJr1AVFcs'
+export const CSC_URL = 'https://spgainjpxualjtbatfmk.supabase.co'
+export const CSC_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwZ2FpbmpweHVhbGp0YmF0Zm1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMTMzODYsImV4cCI6MjA5Njc4OTM4Nn0.bQckTNILfG8nz4_TChbiPc7ni78Ity6qx9tJr1AVFcs'
 
 export const cscSupabase = createClient(CSC_URL, CSC_ANON, {
   auth: { storageKey: 'csc-labos-kec', persistSession: true, autoRefreshToken: true },
