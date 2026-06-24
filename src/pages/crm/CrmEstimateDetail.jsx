@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Badge } from '../../components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Eye, EyeOff, Ruler } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Eye, EyeOff, Ruler, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Base CRM estimate builder. Reads the impersonated tenant's OWN DB via
@@ -49,6 +49,7 @@ export default function CrmEstimateDetail() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
   const [estimate, setEstimate] = useState(null);
   const [customer, setCustomer] = useState(null);
   const [org, setOrg] = useState(null);
@@ -195,6 +196,21 @@ export default function CrmEstimateDetail() {
     window.open(url, '_blank');
   }
 
+  const AI_PROPOSAL_FN = 'https://qlerfkdyslndjbaltkwo.supabase.co/functions/v1/ai-proposal-writer';
+  async function aiDraft() {
+    setAiBusy(true);
+    try {
+      const r = await fetch(AI_PROPOSAL_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform_id: platformId, estimate_id: id }) });
+      const j = await r.json().catch(() => null);
+      if (!j || !j.ok) { toast.error('Could not generate a draft. Add a few line items, then try again.'); return; }
+      const introText = [j.introduction, j.scope_of_work].filter(Boolean).join('\n\n');
+      if (introText) setIntro(introText);
+      if (j.terms) setTerms(j.terms);
+      toast.success('AI draft written \u2014 review and edit, then Save');
+    } catch (e) { console.error(e); toast.error('Could not generate a draft'); }
+    finally { setAiBusy(false); }
+  }
+
   async function save(nextStatus) {
     try {
       setSaving(true);
@@ -284,7 +300,14 @@ export default function CrmEstimateDetail() {
             <Field label="Estimate Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Roof Replacement" /></Field>
             <Field label="Valid Until"><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></Field>
           </div>
-          <div className="mt-3"><Field label="Introduction / About"><Textarea rows={3} value={intro} onChange={(e) => setIntro(e.target.value)} placeholder="A short intro about your company and this proposal..." /></Field></div>
+          <div className="mt-3">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-400">Introduction / About</label>
+              <button type="button" onClick={aiDraft} disabled={aiBusy} className="text-xs font-medium text-brand-blue hover:text-brand-light flex items-center gap-1 disabled:opacity-50"><Sparkles size={13} /> {aiBusy ? 'Writing...' : 'Draft with AI'}</button>
+            </div>
+            <Textarea rows={4} value={intro} onChange={(e) => setIntro(e.target.value)} placeholder="A short intro about your company and this proposal..." />
+            <p className="text-xs text-gray-500 mt-1.5">Draft with AI writes the intro, a plain-language scope summary, and terms from this job's details and line items.</p>
+          </div>
         </Card>
 
         {isRoofing && (
