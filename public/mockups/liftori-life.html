@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Liftori-Life — family OS mockup</title>
+<style>
+  :root{
+    --bg:#FBF7F0; --surface:#FFFFFF; --ink:#2B2622; --muted:#8A8178; --line:#ECE4D8;
+    --pine:#2F6B5E; --pine-soft:#E7EFEA; --terra:#D9805A; --terra-soft:#FbeAe0;
+    --gold:#E8B04B; --sky:#3E7CB1; --rose:#C25B6B;
+    --shadow:0 10px 30px rgba(43,38,34,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .app{display:flex;min-height:100%;}
+  /* ---------- Sidebar (desktop) ---------- */
+  .side{display:none;flex-direction:column;width:236px;flex:0 0 236px;background:var(--surface);border-right:1px solid var(--line);padding:22px 16px;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:10px;padding:0 6px 18px}
+  .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--pine),#3f8a78);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px}
+  .brand b{font-size:17px;letter-spacing:-.2px}
+  .brand small{display:block;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.3px}
+  .nav{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+  .nav button{display:flex;align-items:center;gap:11px;border:0;background:transparent;color:var(--ink);font:inherit;font-weight:600;font-size:14px;padding:10px 12px;border-radius:11px;cursor:pointer;text-align:left;width:100%}
+  .nav button .ic{width:20px;text-align:center;opacity:.85}
+  .nav button:hover{background:var(--bg)}
+  .nav button.on{background:var(--pine-soft);color:var(--pine)}
+  .side .fam{margin-top:auto;border-top:1px solid var(--line);padding-top:14px}
+  .famrow{display:flex;align-items:center;gap:9px;padding:7px 6px;border-radius:10px}
+  .famrow:hover{background:var(--bg)}
+  .av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex:0 0 30px}
+  .famrow small{color:var(--muted);font-size:11px}
+  /* ---------- Main ---------- */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;position:sticky;top:0;background:rgba(251,247,240,.86);backdrop-filter:blur(8px);z-index:5;border-bottom:1px solid var(--line)}
+  .top h1{font-size:19px;letter-spacing:-.3px}
+  .top .sub{color:var(--muted);font-size:12px;font-weight:600;margin-top:1px}
+  .top .mbrand{display:flex;align-items:center;gap:9px}
+  .top .mbrand .logo{width:30px;height:30px;border-radius:9px;font-size:16px}
+  .avs{display:flex}
+  .avs .av{margin-left:-8px;border:2px solid var(--bg)}
+  .bell{width:38px;height:38px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:16px;position:relative}
+  .bell .dot{position:absolute;top:8px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--terra);border:2px solid var(--surface)}
+  .scroll{flex:1;overflow:auto;padding:18px;padding-bottom:96px}
+  .screen{display:none;animation:f .25s ease}
+  .screen.on{display:block}
+  @keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .grid{display:grid;gap:14px}
+  @media(min-width:760px){.grid.two{grid-template-columns:1fr 1fr}.grid.side2{grid-template-columns:1.4fr 1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+  .card h3{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:12px;font-weight:700}
+  .card h3 .cta{float:right;text-transform:none;letter-spacing:0;color:var(--pine);font-size:12px;cursor:pointer}
+  /* message board */
+  .hello{font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:2px}
+  .hello span{color:var(--pine)}
+  .hellosub{color:var(--muted);font-size:13px;font-weight:600;margin-bottom:16px}
+  .board{background:linear-gradient(135deg,#FFF8EE,#FDEEE4);border:1px solid var(--terra-soft)}
+  .post{display:flex;gap:11px;padding:11px 0;border-bottom:1px dashed var(--line)}
+  .post:last-child{border-bottom:0;padding-bottom:0}
+  .post .b{flex:1}
+  .post .nm{font-weight:700;font-size:13.5px}
+  .post .tm{color:var(--muted);font-size:11px;font-weight:600}
+  .post .tx{font-size:13.5px;margin-top:2px;line-height:1.45}
+  .pin{display:inline-block;background:var(--gold);color:#5a4310;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;margin-left:6px;letter-spacing:.3px}
+  .composer{display:flex;gap:8px;margin-top:12px}
+  .composer input{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;font:inherit;font-size:13px}
+  .composer button,.btn{border:0;background:var(--pine);color:#fff;font:inherit;font-weight:700;font-size:13px;padding:10px 14px;border-radius:12px;cursor:pointer}
+  .btn.ghost{background:var(--pine-soft);color:var(--pine)}
+  .btn.terra{background:var(--terra)}
+  .btn.sm{padding:7px 11px;font-size:12px;border-radius:10px}
+  /* stat tiles */
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(min-width:760px){.tiles{grid-template-columns:repeat(4,1fr)}}
+  .tile{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:13px;box-shadow:var(--shadow)}
+  .tile .k{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .tile .v{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-top:5px}
+  .tile .m{font-size:11.5px;font-weight:600;margin-top:3px}
+  .up{color:var(--pine)} .warn{color:var(--terra)}
+  /* list rows */
+  .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .row .ic2{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 36px}
+  .row .g{flex:1;min-width:0}
+  .row .t{font-weight:700;font-size:13.5px}
+  .row .s{color:var(--muted);font-size:12px;margin-top:1px}
+  .tag{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:20px;letter-spacing:.3px;white-space:nowrap}
+  .tag.green{background:var(--pine-soft);color:var(--pine)}
+  .tag.terra{background:var(--terra-soft);color:#b85a36}
+  .tag.gold{background:#FBEFD2;color:#8a6410}
+  .tag.gray{background:#F0ECE4;color:var(--muted)}
+  .chk{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);flex:0 0 22px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:transparent;font-size:13px}
+  .chk.done{background:var(--pine);border-color:var(--pine);color:#fff}
+  .chk.done+.g .t{text-decoration:line-through;color:var(--muted)}
+  /* budget bars */
+  .bar{height:9px;border-radius:8px;background:#F0ECE4;overflow:hidden;margin-top:7px}
+  .bar i{display:block;height:100%;border-radius:8px}
+  .bl{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700}
+  .bl small{color:var(--muted);font-weight:600}
+  .seg{margin-bottom:13px}
+  /* calendar agenda */
+  .day{font-size:12px;font-weight:800;color:var(--pine);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 7px}
+  .ev{display:flex;gap:11px;align-items:flex-start;padding:9px 0}
+  .ev .tm2{font-size:12px;font-weight:800;color:var(--ink);width:62px;flex:0 0 62px}
+  .ev .ln{flex:1;border-left:3px solid var(--pine);padding-left:11px}
+  .ev.terra .ln{border-color:var(--terra)} .ev.gold .ln{border-color:var(--gold)} .ev.sky .ln{border-color:var(--sky)}
+  .ev .t{font-weight:700;font-size:13.5px}
+  .ev .s{color:var(--muted);font-size:12px}
+  /* chat */
+  .thread{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line);align-items:center;cursor:pointer}
+  .thread:last-child{border-bottom:0}
+  .thread .g{flex:1;min-width:0}
+  .thread .t{font-weight:700;font-size:14px}
+  .thread .s{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{background:var(--terra);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:20px;display:flex;align-items:center;justify-content:center;padding:0 6px}
+  .vbtn{margin-left:auto;background:var(--pine-soft);color:var(--pine);border:0;width:34px;height:34px;border-radius:10px;font-size:15px;cursor:pointer}
+  /* bottom tabs (mobile) */
+  .tabs{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);padding:7px 6px calc(7px + env(safe-area-inset-bottom));z-index:9}
+  .tabs button{flex:1;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:10.5px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+  .tabs button .ic{font-size:19px}
+  .tabs button.on{color:var(--pine)}
+  @media(min-width:860px){
+    .side{display:flex}
+    .tabs{display:none}
+    .top .mbrand{display:none}
+    .scroll{padding:22px;padding-bottom:28px}
+    .hello{font-size:26px}
+  }
+  .note{font-size:11.5px;color:var(--muted);margin-top:10px;text-align:center;font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar (desktop) -->
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">L</div>
+      <div><b>Liftori-Life</b><small>THE MARCH FAMILY</small></div>
+    </div>
+    <nav class="nav" id="navd">
+      <button data-s="home" class="on"><span class="ic">⌂</span> Home</button>
+      <button data-s="cal"><span class="ic">▦</span> Calendar &amp; Care</button>
+      <button data-s="money"><span class="ic">◈</span> Money</button>
+      <button data-s="lists"><span class="ic">☰</span> Lists &amp; Tasks</button>
+      <button data-s="chat"><span class="ic">✦</span> Chat</button>
+    </nav>
+    <div class="fam">
+      <div class="famrow"><span class="av" style="background:#2F6B5E">RM</span><div><div style="font-weight:700;font-size:13px">Ryan</div><small>Head of household</small></div></div>
+      <div class="famrow"><span class="av" style="background:#D9805A">VM</span><div><div style="font-weight:700;font-size:13px">Vanessa</div><small>Parent</small></div></div>
+      <div class="famrow"><span class="av" style="background:#3E7CB1">TM</span><div><div style="font-weight:700;font-size:13px">Tyler</div><small>Renter · 19</small></div></div>
+      <div class="famrow"><span class="av" style="background:#C25B6B">MM</span><div><div style="font-weight:700;font-size:13px">Maya</div><small>Teen · 16</small></div></div>
+      <div class="famrow"><span class="av" style="background:#E8B04B;color:#5a4310">CG</span><div><div style="font-weight:700;font-size:13px">Mom (Carol)</div><small>Lives with us</small></div></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="top">
+      <div class="mbrand"><div class="logo">L</div><div><b style="font-size:16px">Liftori-Life</b></div></div>
+      <div style="flex:1"><h1 id="ttl">Good morning, Ryan</h1><div class="sub" id="tsub">Tuesday · 5 in the family · 3 things need you today</div></div>
+      <div class="avs">
+        <span class="av" style="background:#2F6B5E">RM</span>
+        <span class="av" style="background:#D9805A">VM</span>
+        <span class="av" style="background:#E8B04B;color:#5a4310">CG</span>
+      </div>
+    </header>
+
+    <div class="scroll">
+
+      <!-- HOME -->
+      <section class="screen on" id="home">
+        <div class="hello">Good morning, <span>Ryan</span></div>
+        <div class="hellosub">Here's your family at a glance — nothing slips through.</div>
+        <div class="tiles" style="margin-bottom:14px">
+          <div class="tile"><div class="k">Next up</div><div class="v">9:30a</div><div class="m warn">Mom · Dr. Patel</div></div>
+          <div class="tile"><div class="k">Tasks due</div><div class="v">3</div><div class="m up">1 done today</div></div>
+          <div class="tile"><div class="k">Rent</div><div class="v">$650</div><div class="m up">Tyler paid Jun 1</div></div>
+          <div class="tile"><div class="k">Budget left</div><div class="v">$1,240</div><div class="m">of $4,800 · Jun</div></div>
+        </div>
+        <div class="grid side2">
+          <div class="card board">
+            <h3>Family board <span class="cta">View all</span></h3>
+            <div class="post"><span class="av" style="background:#D9805A">VM</span><div class="b"><div class="nm">Vanessa <span class="tm">· 7:42a</span><span class="pin">PINNED</span></div><div class="tx">Tyler's got a ride for Maya after practice 5:30 — I'll grab Mom's prescription on the way home.</div></div></div>
+            <div class="post"><span class="av" style="background:#E8B04B;color:#5a4310">CG</span><div class="b"><div class="nm">Mom <span class="tm">· Yesterday</span></div><div class="tx">Can someone take me to the bank Thursday? And we're out of my tea</div></div></div>
+            <div class="post"><span class="av" style="background:#3E7CB1">TM</span><div class="b"><div class="nm">Tyler <span class="tm">· Yesterday</span></div><div class="tx">Sent rent — lmk if it came through</div></div></div>
+            <div class="composer"><input placeholder="Post to the family…"/><button>Post</button></div>
+          </div>
+          <div class="card">
+            <h3>Quick actions</h3>
+            <div class="row"><div class="ic2" style="background:var(--terra-soft);color:var(--terra);font-weight:800;font-size:13px">⇆</div><div class="g"><div class="t">Request a ride</div><div class="s">Ask the family for a lift</div></div><button class="btn ghost sm">Ask</button></div>
+            <div class="row"><div class="ic2" style="background:var(--pine-soft);color:var(--pine);font-weight:800;font-size:18px">+</div><div class="g"><div class="t">Add to store list</div><div class="s">12 items · Mom added 2</div></div><button class="btn ghost sm">Add</button></div>
+            <div class="row"><div class="ic2" style="background:#FBEFD2;color:#8a6410;font-weight:800;font-size:13px">Rx</div><div class="g"><div class="t">Mom's meds</div><div class="s">1 refill due in 3 days</div></div><span class="tag terra">Refill</span></div>
+            <div class="row"><div class="ic2" style="background:#E7EFEA;color:var(--pine);font-weight:800;font-size:16px">!</div><div class="g"><div class="t">Emergency info</div><div class="s">Contacts · doctors · allergies</div></div><button class="btn ghost sm">Open</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALENDAR & CARE -->
+      <section class="screen" id="cal">
+        <div class="grid side2">
+          <div class="card">
+            <h3>Shared calendar <span class="cta">+ Add event</span></h3>
+            <div class="day">Today · Tue Jun 24</div>
+            <div class="ev terra"><div class="tm2">9:30a</div><div class="ln"><div class="t">Dr. Patel — Mom's cardiology</div><div class="s">Riverside Clinic · Ryan driving · bring med list</div></div></div>
+            <div class="ev sky"><div class="tm2">3:15p</div><div class="ln"><div class="t">Maya — soccer practice</div><div class="s">Pickup 5:30 · Tyler covering</div></div></div>
+            <div class="ev"><div class="tm2">6:30p</div><div class="ln"><div class="t">Family dinner</div><div class="s">Vanessa cooking · everyone home</div></div></div>
+            <div class="day">Thu Jun 26</div>
+            <div class="ev gold"><div class="tm2">11:00a</div><div class="ln"><div class="t">Take Mom to the bank</div><div class="s">She asked Mon · needs a driver</div></div></div>
+            <div class="ev terra"><div class="tm2">2:00p</div><div class="ln"><div class="t">Mom — pharmacy refill ready</div><div class="s">Heart med · auto-reminder set</div></div></div>
+          </div>
+          <div class="card" style="background:linear-gradient(135deg,#FFF8EE,#F3F0E6);border-color:var(--gold)">
+            <h3>Mom's care</h3>
+            <div class="row"><div class="ic2" style="background:#fff;color:var(--rose);font-weight:800;font-size:16px">♥</div><div class="g"><div class="t">Next appointment</div><div class="s">Dr. Patel · cardiology · today 9:30a</div></div></div>
+            <div class="row"><div class="ic2" style="background:#fff;color:#8a6410;font-weight:800;font-size:13px">Rx</div><div class="g"><div class="t">Medications</div><div class="s">3 active · 1 refill in 3 days</div></div><span class="tag terra">Refill</span></div>
+            <div class="row"><div class="ic2" style="background:#fff;color:var(--pine);font-weight:800;font-size:18px">+</div><div class="g"><div class="t">She asked for</div><div class="s">Tea, denture cream, library trip</div></div><span class="tag gold">3 new</span></div>
+            <div class="row"><div class="ic2" style="background:#fff;color:var(--ink);font-weight:800;font-size:16px">≡</div><div class="g"><div class="t">Doctors &amp; records</div><div class="s">Cardiologist · GP · pharmacy · insurance</div></div><button class="btn ghost sm">View</button></div>
+            <button class="btn terra" style="width:100%;margin-top:12px">Log something Mom needs</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- MONEY -->
+      <section class="screen" id="money">
+        <div class="tiles" style="margin-bottom:14px">
+          <div class="tile"><div class="k">Rent collected</div><div class="v">$650</div><div class="m up">Jun · 1 of 2 paid</div></div>
+          <div class="tile"><div class="k">Spent in Jun</div><div class="v">$3,560</div><div class="m">of $4,800 budget</div></div>
+          <div class="tile"><div class="k">Left this month</div><div class="v up">$1,240</div><div class="m">26% remaining</div></div>
+          <div class="tile"><div class="k">Savings goal</div><div class="v">68%</div><div class="m up">Family trip · $3.4k</div></div>
+        </div>
+        <div class="grid two">
+          <div class="card">
+            <h3>Rent &amp; payments <span class="cta">History</span></h3>
+            <div class="row"><span class="av" style="background:#3E7CB1">TM</span><div class="g"><div class="t">Tyler — $650 / mo</div><div class="s">Paid Jun 1 · auto-deposit to checking</div></div><span class="tag green">Paid</span></div>
+            <div class="row"><span class="av" style="background:#C25B6B">MM</span><div class="g"><div class="t">Maya — chores allowance</div><div class="s">$40 due Fri · for completed tasks</div></div><span class="tag gold">Due Fri</span></div>
+            <div class="row"><div class="ic2" style="background:var(--pine-soft)">＋</div><div class="g"><div class="t">Collect rent in-app</div><div class="s">Card, Cash App or bank — straight to your account</div></div><button class="btn sm">Set up</button></div>
+            <div class="note">Payments deposit to the head-of-household account and log automatically.</div>
+          </div>
+          <div class="card">
+            <h3>Family budget — June</h3>
+            <div class="seg"><div class="bl"><span>Groceries</span><small>$820 / $900</small></div><div class="bar"><i style="width:91%;background:var(--terra)"></i></div></div>
+            <div class="seg"><div class="bl"><span>Housing &amp; utilities</span><small>$1,900 / $2,000</small></div><div class="bar"><i style="width:95%;background:var(--pine)"></i></div></div>
+            <div class="seg"><div class="bl"><span>Kids &amp; school</span><small>$340 / $600</small></div><div class="bar"><i style="width:57%;background:var(--sky)"></i></div></div>
+            <div class="seg"><div class="bl"><span>Mom's care</span><small>$260 / $500</small></div><div class="bar"><i style="width:52%;background:var(--gold)"></i></div></div>
+            <div class="seg"><div class="bl"><span>Fun &amp; eating out</span><small>$240 / $400</small></div><div class="bar"><i style="width:60%;background:var(--rose)"></i></div></div>
+            <button class="btn ghost" style="width:100%;margin-top:4px">Open budget tool</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- LISTS & TASKS -->
+      <section class="screen" id="lists">
+        <div class="grid two">
+          <div class="card">
+            <h3>Shopping list <span class="cta">Share</span></h3>
+            <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Mom's tea (chamomile)</div><div class="s">Added by Mom</div></div><span class="tag gold">Mom</span></div>
+            <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Denture cream</div><div class="s">Added by Mom</div></div><span class="tag gold">Mom</span></div>
+            <div class="row"><span class="chk done" onclick="this.classList.toggle('done')">✓</span><div class="g"><div class="t">Milk &amp; eggs</div><div class="s">Vanessa</div></div></div>
+            <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Maya's cleats</div><div class="s">Ryan</div></div></div>
+            <div class="composer"><input placeholder="Add an item…"/><button>Add</button></div>
+          </div>
+          <div class="card">
+            <h3>Tasks &amp; chores <span class="cta">Assign</span></h3>
+            <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Take out trash</div><div class="s">Tyler · tonight</div></div><span class="tag terra">Tyler</span></div>
+            <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Walk the dog</div><div class="s">Maya · 5pm</div></div><span class="tag terra">Maya</span></div>
+            <div class="row"><span class="chk done" onclick="this.classList.toggle('done')">✓</span><div class="g"><div class="t">Pick up Mom's Rx</div><div class="s">Vanessa</div></div></div>
+            <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Mow the lawn</div><div class="s">Tyler · Sat · $15</div></div><span class="tag gold">Paid chore</span></div>
+            <div class="note">Assign chores to the kids — completed paid chores feed their allowance.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHAT -->
+      <section class="screen" id="chat">
+        <div class="grid side2">
+          <div class="card">
+            <h3>Family chat <span class="cta">New</span></h3>
+            <div class="thread"><span class="av" style="background:#2F6B5E;font-size:11px">All</span><div class="g"><div class="t">Everyone</div><div class="s">Vanessa: I'll grab Mom's prescription…</div></div><span class="badge">3</span></div>
+            <div class="thread"><span class="av" style="background:#D9805A">VM</span><div class="g"><div class="t">Vanessa</div><div class="s">You: sounds good, love you</div></div><button class="vbtn" title="Video call" style="font-size:10px;font-weight:800">Call</button></div>
+            <div class="thread"><span class="av" style="background:#3E7CB1">TM</span><div class="g"><div class="t">Tyler</div><div class="s">Tyler: rent sent</div></div><button class="vbtn" title="Video call" style="font-size:10px;font-weight:800">Call</button></div>
+            <div class="thread"><span class="av" style="background:#E8B04B;color:#5a4310">CG</span><div class="g"><div class="t">Mom</div><div class="s">Mom: thank you sweetheart</div></div><button class="vbtn" title="Video call" style="font-size:10px;font-weight:800">Call</button></div>
+            <div class="thread"><span class="av" style="background:#8A8178">EF</span><div class="g"><div class="t">Extended family</div><div class="s">Aunt Deb: miss you all! photos?</div></div><span class="badge">7</span></div>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column">
+            <h3>Everyone</h3>
+            <div style="flex:1;display:flex;flex-direction:column;gap:9px;font-size:13.5px">
+              <div style="align-self:flex-start;background:var(--bg);border:1px solid var(--line);padding:9px 12px;border-radius:14px;border-bottom-left-radius:4px;max-width:80%"><b style="color:var(--terra);font-size:12px">Vanessa</b><br>Tyler's got Maya after practice 5:30</div>
+              <div style="align-self:flex-start;background:var(--bg);border:1px solid var(--line);padding:9px 12px;border-radius:14px;border-bottom-left-radius:4px;max-width:80%"><b style="color:#5a4310;font-size:12px">Mom</b><br>Out of my tea again</div>
+              <div style="align-self:flex-end;background:var(--pine);color:#fff;padding:9px 12px;border-radius:14px;border-bottom-right-radius:4px;max-width:80%">On it — adding to the store list now</div>
+            </div>
+            <div class="composer" style="margin-top:12px"><input placeholder="Message everyone…"/><button>Send</button><button class="btn terra sm" title="Video call">Video</button></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Bottom tabs (mobile) -->
+    <nav class="tabs" id="navm">
+      <button data-s="home" class="on"><span class="ic">⌂</span>Home</button>
+      <button data-s="cal"><span class="ic">▦</span>Care</button>
+      <button data-s="money"><span class="ic">◈</span>Money</button>
+      <button data-s="lists"><span class="ic">☰</span>Lists</button>
+      <button data-s="chat"><span class="ic">✦</span>Chat</button>
+    </nav>
+  </div>
+</div>
+
+<script>
+  var titles={home:['Good morning, Ryan','Tuesday · 5 in the family · 3 things need you today'],
+    cal:['Calendar & Care','Shared schedule + everything Mom needs'],
+    money:['Money','Rent, budget & family savings'],
+    lists:['Lists & Tasks','Shopping list and who owns what'],
+    chat:['Chat','Message the family — or video call']};
+  function go(s){
+    document.querySelectorAll('.screen').forEach(function(e){e.classList.toggle('on',e.id===s)});
+    document.querySelectorAll('#navd button,#navm button').forEach(function(b){b.classList.toggle('on',b.dataset.s===s)});
+    if(titles[s]){document.getElementById('ttl').textContent=titles[s][0];document.getElementById('tsub').textContent=titles[s][1];}
+    document.querySelector('.scroll').scrollTop=0;
+  }
+  document.querySelectorAll('#navd button,#navm button').forEach(function(b){b.addEventListener('click',function(){go(b.dataset.s)})});
+</script>
+</body>
+</html>
