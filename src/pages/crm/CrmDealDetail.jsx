@@ -55,6 +55,20 @@ const statusTone = (s) => {
 
 const tempTone = (t) => ({ hot: 'bg-red-500/20 text-red-300', warm: 'bg-amber-500/20 text-amber-300', cold: 'bg-blue-500/20 text-blue-300' }[t] || 'bg-blue-500/20 text-blue-300');
 
+// Job Details dropdown options
+const JOB_TYPES = ['Repair', 'Full Replacement', 'New Construction', 'Inspection', 'Maintenance', 'Insurance Claim', 'Gutters'];
+const ROOF_TYPES = ['Asphalt Shingle', 'Metal', 'Tile', 'Flat / TPO', 'Flat / EPDM', 'Cedar Shake', 'Slate', 'Modified Bitumen'];
+const PITCHES = ['Flat', 'Low Slope', '3/12', '4/12', '5/12', '6/12', '7/12', '8/12', '9/12', '10/12', '11/12', '12/12+'];
+
+// datetime-local <-> ISO helpers
+const toLocalInput = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 export default function CrmDealDetail() {
   const { platformId, id } = useParams();
   const navigate = useNavigate();
@@ -67,6 +81,8 @@ export default function CrmDealDetail() {
   const [contact, setContact] = useState(null);
   const [team, setTeam] = useState([]);
   const [form, setForm] = useState(null);
+  const [contactForm, setContactForm] = useState(null);
+  const [stages, setStages] = useState([]);
   const [saving, setSaving] = useState(false);
 
   // Lazy per-tab data. Each tab loads once on first activation, scoped by pipeline_id.
@@ -105,7 +121,8 @@ export default function CrmDealDetail() {
         .single();
       if (error) throw error;
       setDeal(data);
-      setContact(data.customer_contacts || null);
+      const c = data.customer_contacts || null;
+      setContact(c);
       setForm({
         title: data.title || '', description: data.description || '',
         stage: data.stage || '', deal_value: data.deal_value ?? '',
@@ -113,7 +130,23 @@ export default function CrmDealDetail() {
         service_type: data.service_type || '', status: data.status || '',
         expected_close_date: data.expected_close_date || '', assigned_to: data.assigned_to || '',
         tags: (data.tags || []).join(', '), notes: data.notes || '',
+        job_address: data.job_address || '', job_type: data.job_type || '',
+        roof_type: data.roof_type || '', sq_count: data.sq_count ?? '', pitch: data.pitch || '',
+        initial_appointment_at: toLocalInput(data.initial_appointment_at),
+        follow_up_appointment_at: toLocalInput(data.follow_up_appointment_at),
+        install_date: data.install_date || '', project_manager: data.project_manager || '',
+        default_estimate_id: data.default_estimate_id || '',
+        insurance_carrier: data.insurance_carrier || '', claim_number: data.claim_number || '',
+        policy_number: data.policy_number || '', date_of_loss: data.date_of_loss || '',
+        adjuster_name: data.adjuster_name || '', adjuster_phone: data.adjuster_phone || '',
+        adjuster_email: data.adjuster_email || '',
+        claim_amount: data.claim_amount ?? '', deductible: data.deductible ?? '',
       });
+      setContactForm({
+        first_name: (c && c.first_name) || '', last_name: (c && c.last_name) || '',
+        email: (c && c.email) || '', phone: (c && c.phone) || '',
+      });
+      loadStages(data.pipeline_definition_id);
       client.from('org_team_members').select('user_id, first_name, last_name, role').not('user_id', 'is', null)
         .then(({ data: tm }) => setTeam(tm || [])).catch(() => {});
     } catch (e) {
@@ -122,6 +155,20 @@ export default function CrmDealDetail() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Load stage options for this deal's pipeline (falls back to the default pipeline).
+  async function loadStages(pdid) {
+    try {
+      let pid = pdid;
+      if (!pid) {
+        const { data: defs } = await client.from('pipeline_definitions').select('id, is_default').order('is_default', { ascending: false }).limit(1);
+        pid = defs && defs[0] ? defs[0].id : null;
+      }
+      if (!pid) { setStages([]); return; }
+      const { data: sd } = await client.from('pipeline_stage_definitions').select('key, label, stage_order').eq('pipeline_id', pid).order('stage_order', { ascending: true });
+      setStages(sd || []);
+    } catch { setStages([]); }
   }
 
   // ---- lazy tab loaders (all scoped by pipeline_id = id) ----
@@ -169,17 +216,63 @@ export default function CrmDealDetail() {
       const patch = {
         title: form.title, description: form.description, stage: form.stage,
         deal_value: parseFloat(form.deal_value) || 0, probability: parseInt(form.probability) || 0,
-        lead_temperature: form.lead_temperature, service_type: form.service_type, status: form.status || null,
-        expected_close_date: form.expected_close_date || null, assigned_to: form.assigned_to || null,
+        lead_temperature: form.lead_temperature, status: form.status || null,
+        job_address: form.job_address || null, job_type: form.job_type || null,
+        roof_type: form.roof_type || null, pitch: form.pitch || null,
+        sq_count: form.sq_count === '' || form.sq_count == null ? null : parseFloat(form.sq_count),
+        initial_appointment_at: form.initial_appointment_at ? new Date(form.initial_appointment_at).toISOString() : null,
+        follow_up_appointment_at: form.follow_up_appointment_at ? new Date(form.follow_up_appointment_at).toISOString() : null,
+        install_date: form.install_date || null,
+        expected_close_date: form.expected_close_date || null,
+        assigned_to: form.assigned_to || null, project_manager: form.project_manager || null,
+        insurance_carrier: form.insurance_carrier || null, claim_number: form.claim_number || null,
+        policy_number: form.policy_number || null, date_of_loss: form.date_of_loss || null,
+        adjuster_name: form.adjuster_name || null, adjuster_phone: form.adjuster_phone || null,
+        adjuster_email: form.adjuster_email || null,
+        claim_amount: form.claim_amount === '' || form.claim_amount == null ? null : parseFloat(form.claim_amount),
+        deductible: form.deductible === '' || form.deductible == null ? null : parseFloat(form.deductible),
         tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         notes: form.notes, updated_at: new Date().toISOString(), last_activity_at: new Date().toISOString(),
       };
       const { error } = await client.from('customer_pipeline').update(patch).eq('id', id);
       if (error) throw error;
+      if (contactForm && deal && deal.contact_id) {
+        const cpatch = {
+          first_name: contactForm.first_name || null, last_name: contactForm.last_name || null,
+          email: contactForm.email || null, phone: contactForm.phone || null,
+          updated_at: new Date().toISOString(),
+        };
+        const { error: cerr } = await client.from('customer_contacts').update(cpatch).eq('id', deal.contact_id);
+        if (cerr) throw cerr;
+        setContact(prev => (prev ? { ...prev, ...cpatch } : prev));
+      }
       setDeal(prev => (prev ? { ...prev, ...patch } : prev));
       toast.success('Deal updated');
       loadDeal();
     } catch (e) { console.error(e); toast.error('Save failed'); } finally { setSaving(false); }
+  }
+
+  // ---- Estimates: mark one estimate as the job's default (drives Job Value) ----
+  async function setDefaultEstimate(est) {
+    try {
+      const turningOff = !!est.is_default;
+      // Only one default per job: clear all first.
+      await client.from('customer_estimates').update({ is_default: false }).eq('pipeline_id', id);
+      if (turningOff) {
+        await client.from('customer_pipeline').update({ default_estimate_id: null, updated_at: new Date().toISOString() }).eq('id', id);
+        setForm(f => (f ? { ...f, default_estimate_id: '' } : f));
+        setDeal(d => (d ? { ...d, default_estimate_id: null } : d));
+        toast.success('Default estimate cleared');
+      } else {
+        await client.from('customer_estimates').update({ is_default: true }).eq('id', est.id);
+        const total = Number(est.total) || 0;
+        await client.from('customer_pipeline').update({ default_estimate_id: est.id, deal_value: total, updated_at: new Date().toISOString() }).eq('id', id);
+        setForm(f => (f ? { ...f, default_estimate_id: est.id, deal_value: total } : f));
+        setDeal(d => (d ? { ...d, default_estimate_id: est.id, deal_value: total } : d));
+        toast.success('Set as default estimate - Job Value updated');
+      }
+      reload('estimates');
+    } catch (e) { console.error(e); toast.error('Could not update default estimate'); }
   }
 
   // ---- Estimates: create draft tagged pipeline_id + contact_id ----
@@ -495,7 +588,7 @@ export default function CrmDealDetail() {
                 )}
                 {deal.stage && <Badge className={`${statusTone(deal.stage)} text-xs`}>{deal.stage}</Badge>}
                 {deal.status && <Badge className={`${statusTone(deal.status)} text-xs`}>{deal.status}</Badge>}
-                {deal.service_type && <span>- {deal.service_type}</span>}
+                {(deal.job_type || deal.service_type) && <span>- {deal.job_type || deal.service_type}</span>}
                 <span className="text-white font-medium">{money(deal.deal_value)}</span>
               </div>
             </div>
@@ -527,7 +620,7 @@ export default function CrmDealDetail() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Panel title="Deal Summary">
                 <KV k="Customer" v={contact ? contactLabel(contact) : '-'} />
-                <KV k="Service Type" v={deal.service_type} />
+                <KV k="Job Type" v={deal.job_type || deal.service_type} />
                 <KV k="Status" v={deal.status} />
                 <KV k="Expected Close" v={date(deal.expected_close_date)} />
                 <KV k="Assigned To" v={teamName(team, deal.assigned_to)} />
@@ -563,34 +656,126 @@ export default function CrmDealDetail() {
 
         {/* DETAILS */}
         {tab === 'details' && form && (
-          <Card className="bg-navy-900 border-navy-800 p-6 max-w-3xl">
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Title" full><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
-              <Field label="Description" full><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-navy-800 border-navy-700 text-white min-h-24" /></Field>
-              <Field label="Stage"><Input value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
-              <Field label="Status"><Input value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
-              <Field label="Deal Value ($)"><Input type="number" value={form.deal_value} onChange={e => setForm({ ...form, deal_value: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
-              <Field label={`Probability - ${form.probability}%`}><input type="range" min="0" max="100" value={form.probability} onChange={e => setForm({ ...form, probability: e.target.value })} className="w-full h-2 bg-navy-800 rounded cursor-pointer" /></Field>
+          <div className="space-y-5 max-w-3xl">
+            {/* Top line: Job Title + Stage + Lead Temp */}
+            <SectionCard title="Job">
+              <Field label="Job Title" full><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Stage">
+                <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                  <option value="">-</option>
+                  {stages.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  {form.stage && !stages.some(s => s.key === form.stage) && <option value={form.stage}>{form.stage}</option>}
+                </select>
+              </Field>
               <Field label="Lead Temperature">
                 <select value={form.lead_temperature} onChange={e => setForm({ ...form, lead_temperature: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
                   {['cold', 'warm', 'hot'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </Field>
-              <Field label="Service Type"><Input value={form.service_type} onChange={e => setForm({ ...form, service_type: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
-              <Field label="Expected Close Date"><Input type="date" value={form.expected_close_date} onChange={e => setForm({ ...form, expected_close_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
-              <Field label="Assigned Rep">
+            </SectionCard>
+
+            {/* Customer */}
+            <SectionCard title="Customer">
+              <Field label="First Name"><Input value={contactForm?.first_name || ''} onChange={e => setContactForm({ ...contactForm, first_name: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Last Name"><Input value={contactForm?.last_name || ''} onChange={e => setContactForm({ ...contactForm, last_name: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Phone"><Input value={contactForm?.phone || ''} onChange={e => setContactForm({ ...contactForm, phone: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Email"><Input type="email" value={contactForm?.email || ''} onChange={e => setContactForm({ ...contactForm, email: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+            </SectionCard>
+
+            {/* Job Details */}
+            <SectionCard title="Job Details">
+              <Field label="Job Address" full><Input value={form.job_address} onChange={e => setForm({ ...form, job_address: e.target.value })} placeholder={contact ? [contact.property_address, contact.property_city, contact.property_state, contact.property_zip].filter(Boolean).join(', ') : ''} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Job Type">
+                <select value={form.job_type} onChange={e => setForm({ ...form, job_type: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                  <option value="">-</option>
+                  {JOB_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  {form.job_type && !JOB_TYPES.includes(form.job_type) && <option value={form.job_type}>{form.job_type}</option>}
+                </select>
+              </Field>
+              {isRoofing && (
+                <Field label="Roof Type">
+                  <select value={form.roof_type} onChange={e => setForm({ ...form, roof_type: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                    <option value="">-</option>
+                    {ROOF_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    {form.roof_type && !ROOF_TYPES.includes(form.roof_type) && <option value={form.roof_type}>{form.roof_type}</option>}
+                  </select>
+                </Field>
+              )}
+              {isRoofing && (
+                <Field label="Sq Count"><Input type="number" value={form.sq_count} onChange={e => setForm({ ...form, sq_count: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              )}
+              {isRoofing && (
+                <Field label="Pitch">
+                  <select value={form.pitch} onChange={e => setForm({ ...form, pitch: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                    <option value="">-</option>
+                    {PITCHES.map(t => <option key={t} value={t}>{t}</option>)}
+                    {form.pitch && !PITCHES.includes(form.pitch) && <option value={form.pitch}>{form.pitch}</option>}
+                  </select>
+                </Field>
+              )}
+              <Field label="Job Value">
+                {form.default_estimate_id ? (
+                  <div className="flex items-center justify-between gap-2 bg-navy-800 border border-navy-700 rounded px-3 py-2">
+                    <span className="text-white font-medium">{money(form.deal_value)}</span>
+                    <button type="button" onClick={() => setTab('estimates')} className="text-xs text-brand-blue hover:text-brand-cyan">from default estimate</button>
+                  </div>
+                ) : (
+                  <div>
+                    <Input type="number" value={form.deal_value} onChange={e => setForm({ ...form, deal_value: e.target.value })} className="bg-navy-800 border-navy-700 text-white" />
+                    <p className="text-xs text-gray-500 mt-1">Mark an estimate as default in the Estimates tab to auto-fill this.</p>
+                  </div>
+                )}
+              </Field>
+            </SectionCard>
+
+            {/* Appointments */}
+            <SectionCard title="Appointments">
+              <Field label="Initial Appointment"><Input type="datetime-local" value={form.initial_appointment_at} onChange={e => setForm({ ...form, initial_appointment_at: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Follow Up Appointment"><Input type="datetime-local" value={form.follow_up_appointment_at} onChange={e => setForm({ ...form, follow_up_appointment_at: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Estimated Close Date"><Input type="date" value={form.expected_close_date} onChange={e => setForm({ ...form, expected_close_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Install Date"><Input type="date" value={form.install_date} onChange={e => setForm({ ...form, install_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+            </SectionCard>
+
+            {/* Assigned */}
+            <SectionCard title="Assigned">
+              <Field label="Sales Rep">
                 <select value={form.assigned_to} onChange={e => setForm({ ...form, assigned_to: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
                   <option value="">Unassigned</option>
                   {team.map(m => <option key={m.user_id} value={m.user_id}>{`${m.first_name || ''} ${m.last_name || ''}`.trim()}{m.role ? ` - ${m.role}` : ''}</option>)}
                 </select>
               </Field>
+              <Field label="Project Manager">
+                <select value={form.project_manager} onChange={e => setForm({ ...form, project_manager: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                  <option value="">Unassigned</option>
+                  {team.map(m => <option key={m.user_id} value={m.user_id}>{`${m.first_name || ''} ${m.last_name || ''}`.trim()}{m.role ? ` - ${m.role}` : ''}</option>)}
+                </select>
+              </Field>
+            </SectionCard>
+
+            {/* Insurance Claim Information */}
+            <SectionCard title="Insurance Claim Information">
+              <Field label="Insurance Carrier"><Input value={form.insurance_carrier} onChange={e => setForm({ ...form, insurance_carrier: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Claim Number"><Input value={form.claim_number} onChange={e => setForm({ ...form, claim_number: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Policy Number"><Input value={form.policy_number} onChange={e => setForm({ ...form, policy_number: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Date of Loss"><Input type="date" value={form.date_of_loss} onChange={e => setForm({ ...form, date_of_loss: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Adjuster Name"><Input value={form.adjuster_name} onChange={e => setForm({ ...form, adjuster_name: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Adjuster Phone"><Input value={form.adjuster_phone} onChange={e => setForm({ ...form, adjuster_phone: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Adjuster Email"><Input type="email" value={form.adjuster_email} onChange={e => setForm({ ...form, adjuster_email: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Claim Amount ($)"><Input type="number" value={form.claim_amount} onChange={e => setForm({ ...form, claim_amount: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Deductible ($)"><Input type="number" value={form.deductible} onChange={e => setForm({ ...form, deductible: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+            </SectionCard>
+
+            {/* Additional */}
+            <SectionCard title="Additional">
+              <Field label="Description" full><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-navy-800 border-navy-700 text-white min-h-24" /></Field>
               <Field label="Tags (comma separated)" full><Input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Notes" full><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="bg-navy-800 border-navy-700 text-white min-h-24" /></Field>
-            </div>
-            <div className="flex justify-end mt-5">
+            </SectionCard>
+
+            <div className="flex justify-end">
               <Button onClick={saveDetails} disabled={saving} className="bg-brand-blue hover:bg-brand-blue/90 text-white">{saving ? 'Saving...' : 'Save Changes'}</Button>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* MEASUREMENTS - embed Roof Measure pre-locked to this deal */}
@@ -616,8 +801,14 @@ export default function CrmDealDetail() {
               <Button onClick={createEstimate} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm flex items-center gap-1"><Plus size={15} /> New estimate</Button>
             </div>
             <ListTable onRowClick={(i) => navigate('/crm/' + platformId + '/estimates/' + estimates[i].id)} empty="No estimates for this job."
-              cols={['Estimate #', 'Title', 'Status', 'Total', 'Valid Until', 'Created']}
-              rows={estimates.map(e => [e.estimate_number, e.title, <Badge className={`${statusTone(e.status)} text-xs`}>{e.status}</Badge>, money(e.total), date(e.valid_until), date(e.created_at)])} />
+              cols={['Estimate #', 'Title', 'Status', 'Total', 'Default', 'Created']}
+              rows={estimates.map(e => [
+                e.estimate_number, e.title,
+                <Badge className={`${statusTone(e.status)} text-xs`}>{e.status}</Badge>,
+                money(e.total),
+                <button onClick={(ev) => { ev.stopPropagation(); setDefaultEstimate(e); }} className={`text-xs px-2 py-1 rounded font-medium ${e.is_default ? 'bg-emerald-500/20 text-emerald-300' : 'border border-navy-700 text-gray-400 hover:text-white'}`}>{e.is_default ? 'Default' : 'Set default'}</button>,
+                date(e.created_at),
+              ])} />
           </div>
         )}
 
@@ -885,9 +1076,18 @@ function QuickLink({ label, onClick }) {
   );
 }
 
+function SectionCard({ title, children }) {
+  return (
+    <Card className="bg-navy-900 border-navy-800 p-6">
+      <h3 className="text-sm font-semibold text-white mb-4">{title}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+    </Card>
+  );
+}
+
 function Field({ label, full, children }) {
   return (
-    <div className={full ? 'col-span-2' : ''}>
+    <div className={full ? 'md:col-span-2' : ''}>
       <label className="block text-sm font-medium text-gray-400 mb-2">{label}</label>
       {children}
     </div>
