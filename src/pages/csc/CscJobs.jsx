@@ -20,7 +20,7 @@ export default function CscJobs() {
     setLoading(true)
     const { data } = await cscSupabase
       .from('csc_cleanings')
-      .select('*, restaurant:csc_restaurants(name, city, state, frequency_tier, chain:csc_chain_groups(name)), certificate:csc_certificates(cert_number)')
+      .select('*, restaurant:csc_restaurants(name, city, state, frequency_tier, chain:csc_chain_groups(name)), certificate:csc_certificates!csc_cleanings_certificate_fkey(cert_number)')
       .order('scheduled_at', { ascending: false })
     setJobs(data || [])
     setLoading(false)

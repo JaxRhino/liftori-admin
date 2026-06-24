@@ -17,7 +17,7 @@ export default function CscDeficiencies() {
     setLoading(true)
     const { data } = await cscSupabase
       .from('csc_deficiencies')
-      .select('*, restaurant:csc_restaurants(name, city, state), cleaning:csc_cleanings(scheduled_at, completed_at)')
+      .select('*, restaurant:csc_restaurants(name, city, state), cleaning:csc_cleanings!csc_deficiencies_cleaning_id_fkey(scheduled_at, completed_at)')
       .order('created_at', { ascending: false })
     setItems(data || [])
     setLoading(false)
