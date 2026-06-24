@@ -107,11 +107,14 @@ function EstimatePricingTab({ client }) {
   const [settings, setSettings] = useState(null)
   const [products, setProducts] = useState([])
   const [deletedIds, setDeletedIds] = useState([])
-  const [typeFilter, setTypeFilter] = useState('all')
+  const [sectionFilter, setSectionFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  const SECTIONS = ['Roof Preparation', 'Roof Work', 'Materials', 'Fees']
+  const PITCHES = [['flat', 'Flat 0-2/12'], ['low', 'Low 3-4/12'], ['standard', 'Std 5-7/12'], ['steep', 'Steep 8-9/12'], ['very_steep', 'V.Steep 10-12'], ['extreme', 'Extreme 12+']]
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [])
 
@@ -128,20 +131,25 @@ function EstimatePricingTab({ client }) {
   }
 
   function setS(k, v) { setSaved(false); setSettings(s => ({ ...s, [k]: v })) }
+  function setLBP(pitch, v) { setSaved(false); setSettings(s => ({ ...s, labor_by_pitch: { ...(s.labor_by_pitch || {}), [pitch]: v } })) }
   const keyOf = (p) => p.id || p._tmp
   function setP(key, k, v) { setSaved(false); setProducts(ps => ps.map(p => keyOf(p) === key ? { ...p, [k]: v } : p)) }
-  function addP() { setSaved(false); const t = typeFilter === 'labor' ? 'labor' : 'material'; setProducts(ps => [...ps, { _tmp: Math.random().toString(36).slice(2, 10), name: '', item_type: t, cost: 0, markup_percent: 0, unit: 'ea', in_default_template: false, is_active: true }]) }
+  function addP() { setSaved(false); const sec = sectionFilter === 'all' ? 'Materials' : sectionFilter; setProducts(ps => [...ps, { _tmp: Math.random().toString(36).slice(2, 10), name: '', item_type: 'material', section: sec, cost: 0, markup_percent: 0, unit: 'SQ', per_square: false, pitch_based: false, in_default_template: true, is_active: true }]) }
   function removeP(key) { setSaved(false); setProducts(ps => { const t = ps.find(p => keyOf(p) === key); if (t && t.id) setDeletedIds(d => [...d, t.id]); return ps.filter(p => keyOf(p) !== key) }) }
 
   async function save() {
     if (!settings) return
     try {
       setSaving(true)
+      const lbp = {}
+      PITCHES.forEach(([k]) => { lbp[k] = Number((settings.labor_by_pitch || {})[k]) || 0 })
       await client.from('estimate_settings').update({
         default_gross_margin: Number(settings.default_gross_margin) || 0,
         minimum_price: Number(settings.minimum_price) || 0,
         default_tax_rate: Number(settings.default_tax_rate) || 0,
         labor_rate: Number(settings.labor_rate) || 0,
+        max_discount_pct: Number(settings.max_discount_pct) || 0,
+        labor_by_pitch: lbp,
         updated_at: new Date().toISOString(),
       }).eq('id', settings.id)
 
@@ -151,6 +159,8 @@ function EstimatePricingTab({ client }) {
         id: p.id, name: p.name || '', description: p.description || null,
         item_type: p.item_type === 'labor' ? 'labor' : 'material', cost: Number(p.cost) || 0,
         markup_percent: Number(p.markup_percent) || 0, unit: p.unit || null,
+        section: SECTIONS.includes(p.section) ? p.section : 'Materials',
+        per_square: !!p.per_square, pitch_based: !!p.pitch_based,
         in_default_template: !!p.in_default_template, is_active: p.is_active !== false,
         sort_order: idx, updated_at: new Date().toISOString(),
       }))
@@ -165,42 +175,50 @@ function EstimatePricingTab({ client }) {
 
   if (loading || !settings) return <div className="text-gray-400 text-sm py-8">Loading…</div>
 
-  const fmt = (v) => '$' + (Number(v) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const price = (p) => (Number(p.cost) || 0) * (1 + (Number(p.markup_percent) || 0) / 100)
   const inputCls = "w-full bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500"
   const labelCls = "block text-xs text-gray-400 mb-1"
   const q = search.trim().toLowerCase()
-  const visible = products.filter(p => (typeFilter === 'all' || (typeFilter === 'labor' ? p.item_type === 'labor' : p.item_type !== 'labor')) && (!q || (p.name || '').toLowerCase().includes(q)))
-  const filterBtn = (val, lbl) => (
-    <button onClick={() => setTypeFilter(val)} className={'px-3 py-1 rounded-full text-xs border ' + (typeFilter === val ? 'border-brand-blue text-brand-blue bg-brand-blue/10' : 'border-navy-700 text-gray-400 hover:text-white')}>{lbl}</button>
+  const visible = products.filter(p => (sectionFilter === 'all' || (p.section || 'Materials') === sectionFilter) && (!q || (p.name || '').toLowerCase().includes(q)))
+  const filterBtn = (val, lbl, n) => (
+    <button onClick={() => setSectionFilter(val)} className={'px-3 py-1 rounded-full text-xs border ' + (sectionFilter === val ? 'border-brand-blue text-brand-blue bg-brand-blue/10' : 'border-navy-700 text-gray-400 hover:text-white')}>{lbl}{n != null ? ' (' + n + ')' : ''}</button>
   )
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="max-w-5xl space-y-5">
       <div className="bg-navy-900 border border-navy-800 rounded-xl p-5">
         <h3 className="text-white font-semibold mb-3">Defaults</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div><label className={labelCls}>Default Gross Margin (%)</label><input type="number" value={settings.default_gross_margin ?? ''} onChange={(e) => setS('default_gross_margin', e.target.value)} className={inputCls} /></div>
           <div><label className={labelCls}>Company Minimum ($)</label><input type="number" value={settings.minimum_price ?? ''} onChange={(e) => setS('minimum_price', e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>Max Discount (%)</label><input type="number" value={settings.max_discount_pct ?? ''} onChange={(e) => setS('max_discount_pct', e.target.value)} className={inputCls} /></div>
           <div><label className={labelCls}>Labor Rate ($/hr)</label><input type="number" value={settings.labor_rate ?? ''} onChange={(e) => setS('labor_rate', e.target.value)} className={inputCls} /></div>
           <div><label className={labelCls}>Default Tax Rate (%)</label><input type="number" value={settings.default_tax_rate ?? ''} onChange={(e) => setS('default_tax_rate', e.target.value)} className={inputCls} /></div>
         </div>
       </div>
 
       <div className="bg-navy-900 border border-navy-800 rounded-xl p-5">
+        <h3 className="text-white font-semibold">Labor by Pitch ($ / square)</h3>
+        <p className="text-gray-400 text-xs mb-3">Install labor cost per square at each roof pitch. Any "Pitch-based" labor line in the price book auto-uses these from the estimate's measured pitch.</p>
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+          {PITCHES.map(([k, lbl]) => (
+            <div key={k}><label className={labelCls}>{lbl}</label><input type="number" value={(settings.labor_by_pitch || {})[k] ?? ''} onChange={(e) => setLBP(k, e.target.value)} className={inputCls} /></div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-navy-900 border border-navy-800 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
           <div>
-            <h3 className="text-white font-semibold">Products & Services</h3>
-            <p className="text-gray-400 text-xs">Your price book. Set cost + markup to get price. Check Default to include an item on every new estimate.</p>
+            <h3 className="text-white font-semibold">Price List</h3>
+            <p className="text-gray-400 text-xs">All line items, grouped by section. "Default" items auto-populate (checked) on new estimates — the rep unchecks to hide. "/sq" auto-fills quantity from measured squares; "Pitch" labor uses the rates above.</p>
           </div>
           <button onClick={addP} className="text-xs text-brand-blue hover:text-brand-light">+ Add item</button>
         </div>
 
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          {filterBtn('all', 'All (' + products.length + ')')}
-          {filterBtn('material', 'Materials (' + products.filter(p => p.item_type !== 'labor').length + ')')}
-          {filterBtn('labor', 'Labor / Services (' + products.filter(p => p.item_type === 'labor').length + ')')}
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search items…" className="ml-auto bg-navy-950 border border-navy-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 w-48" />
+          {filterBtn('all', 'All', products.length)}
+          {SECTIONS.map(sec => filterBtn(sec, sec, products.filter(p => (p.section || 'Materials') === sec).length))}
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search items…" className="ml-auto bg-navy-950 border border-navy-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 w-44" />
         </div>
 
         {visible.length === 0 && <div className="text-gray-500 text-sm py-4">{products.length === 0 ? 'No items yet. Add your first one.' : 'No items match.'}</div>}
@@ -208,21 +226,26 @@ function EstimatePricingTab({ client }) {
         {visible.length > 0 && (
           <div className="space-y-2">
             <div className="hidden md:grid grid-cols-12 gap-2 text-[11px] text-gray-500 px-1">
-              <span className="col-span-3">Name</span><span className="col-span-2">Type</span><span className="col-span-1">Unit</span><span className="col-span-2 text-right">Cost</span><span className="col-span-1 text-right">Markup %</span><span className="col-span-2 text-right">Price</span><span className="col-span-1 text-center">Default</span>
+              <span className="col-span-3">Name</span><span className="col-span-2">Section</span><span className="col-span-2">Type</span><span className="col-span-1">Unit</span><span className="col-span-2 text-right">Cost</span><span className="col-span-2 text-center">/sq · Pitch · Default</span>
             </div>
-            {visible.map(p => { const key = keyOf(p); return (
+            {visible.map(p => { const key = keyOf(p); const isLabor = p.item_type === 'labor'; return (
               <div key={key} className="grid grid-cols-12 gap-2 items-center">
                 <input value={p.name} onChange={(e) => setP(key, 'name', e.target.value)} placeholder="Item name" className="col-span-3 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white placeholder-gray-500" />
+                <select value={p.section || 'Materials'} onChange={(e) => setP(key, 'section', e.target.value)} className="col-span-2 bg-navy-950 border border-navy-700 rounded-lg px-1 py-1.5 text-sm text-white">{SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select>
                 <div className="col-span-2 flex gap-1">
-                  <button onClick={() => setP(key, 'item_type', 'material')} className={'flex-1 px-2 py-1.5 rounded text-xs ' + (p.item_type !== 'labor' ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400')}>Material</button>
-                  <button onClick={() => setP(key, 'item_type', 'labor')} className={'flex-1 px-2 py-1.5 rounded text-xs ' + (p.item_type === 'labor' ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400')}>Labor</button>
+                  <button onClick={() => setP(key, 'item_type', 'material')} className={'flex-1 px-2 py-1.5 rounded text-xs ' + (!isLabor ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400')}>Material</button>
+                  <button onClick={() => { setP(key, 'item_type', 'labor') }} className={'flex-1 px-2 py-1.5 rounded text-xs ' + (isLabor ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-400')}>Labor</button>
                 </div>
                 <select value={p.unit || ''} onChange={(e) => setP(key, 'unit', e.target.value)} className="col-span-1 bg-navy-950 border border-navy-700 rounded-lg px-1 py-1.5 text-sm text-white"><option value="">—</option>{UNIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}{p.unit && !UNIT_OPTIONS.includes(p.unit) ? <option value={p.unit}>{p.unit}</option> : null}</select>
-                <input type="number" value={p.cost ?? ''} onChange={(e) => setP(key, 'cost', e.target.value)} className="col-span-2 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white text-right" />
-                <input type="number" value={p.markup_percent ?? ''} onChange={(e) => setP(key, 'markup_percent', e.target.value)} className="col-span-1 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white text-right" />
-                <span className="col-span-2 text-right text-sm text-white font-medium">{fmt(price(p))}</span>
-                <div className="col-span-1 flex items-center justify-center gap-2">
-                  <input type="checkbox" checked={!!p.in_default_template} onChange={(e) => setP(key, 'in_default_template', e.target.checked)} className="accent-brand-blue" title="Add to default estimate template" />
+                {p.pitch_based ? (
+                  <div className="col-span-2 bg-navy-800 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-brand-blue text-right" title="Cost comes from Labor by Pitch">by pitch</div>
+                ) : (
+                  <input type="number" value={p.cost ?? ''} onChange={(e) => setP(key, 'cost', e.target.value)} className="col-span-2 bg-navy-950 border border-navy-700 rounded-lg px-2 py-1.5 text-sm text-white text-right" />
+                )}
+                <div className="col-span-2 flex items-center justify-center gap-1.5">
+                  <button onClick={() => setP(key, 'per_square', !p.per_square)} title="Quantity auto-fills from measured squares" className={'px-1.5 py-1 rounded text-[10px] font-medium border ' + (p.per_square ? 'bg-brand-blue/20 border-brand-blue text-brand-blue' : 'border-navy-700 text-gray-500')}>/sq</button>
+                  <button onClick={() => isLabor && setP(key, 'pitch_based', !p.pitch_based)} disabled={!isLabor} title="Labor cost from Labor-by-Pitch" className={'px-1.5 py-1 rounded text-[10px] font-medium border ' + (p.pitch_based ? 'bg-brand-blue/20 border-brand-blue text-brand-blue' : 'border-navy-700 text-gray-500') + (!isLabor ? ' opacity-30' : '')}>Pitch</button>
+                  <input type="checkbox" checked={!!p.in_default_template} onChange={(e) => setP(key, 'in_default_template', e.target.checked)} className="accent-brand-blue" title="Checked by default on new estimates" />
                   <button onClick={() => removeP(key)} className="text-gray-500 hover:text-red-400 text-sm">✕</button>
                 </div>
               </div>
