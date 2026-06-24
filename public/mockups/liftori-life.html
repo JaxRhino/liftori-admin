@@ -257,7 +257,7 @@
             <div class="seg"><div class="bl"><span>Kids &amp; school</span><small>$340 / $600</small></div><div class="bar"><i style="width:57%;background:var(--sky)"></i></div></div>
             <div class="seg"><div class="bl"><span>Mom's care</span><small>$260 / $500</small></div><div class="bar"><i style="width:52%;background:var(--gold)"></i></div></div>
             <div class="seg"><div class="bl"><span>Fun &amp; eating out</span><small>$240 / $400</small></div><div class="bar"><i style="width:60%;background:var(--rose)"></i></div></div>
-            <button class="btn ghost" style="width:100%;margin-top:4px">Open budget tool</button>
+            <button class="btn ghost" style="width:100%;margin-top:4px" onclick="go('budget')">Open budget tool</button>
           </div>
         </div>
       </section>
@@ -392,6 +392,14 @@
         </div>
       </section>
 
+      <!-- FAMILY BUDGET (run like a business) -->
+      <section class="screen" id="budget">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <button class="btn ghost sm" onclick="go('money')">&lsaquo; Money</button>
+          <button class="btn sm" onclick="saveAll(this)">Save changes</button>
+        </div>
+        <div id="budgetBody" style="display:grid;gap:14px;margin-top:12px"></div>
+      </section>
       <!-- PROFILE & SETTINGS (per user) -->
       <section class="screen" id="settings">
         <div id="settingsBody" style="display:grid;gap:14px"></div>
@@ -450,12 +458,14 @@
     lists:['Lists & Tasks','Shopping list and who owns what'],
     chat:['Chat','Message the family — or video call'],
     family:['Manage family','Add members, set roles, control what each person sees'],
-    settings:['Profile & settings','Your account, password and notifications']};
+    settings:['Profile & settings','Your account, password and notifications'],
+    budget:['Family Budget','Run the household like a business']};
   function go(s){
     document.querySelectorAll('.screen').forEach(function(e){e.classList.toggle('on',e.id===s)});
     document.querySelectorAll('#navd button,#navm button').forEach(function(b){b.classList.toggle('on',b.dataset.s===s)});
     if(s==='settings')renderSettings();
     if(s==='chat')renderChat();
+    if(s==='budget')renderBudget();
     if(titles[s]){document.getElementById('ttl').textContent=titles[s][0];document.getElementById('tsub').textContent=titles[s][1];}
     document.querySelector('.scroll').scrollTop=0;
   }
@@ -631,14 +641,119 @@
     var ci=document.getElementById('chatInput');if(ci)ci.placeholder='Message '+(activeChat==='everyone'?'everyone':c.name)+'…';
   }
   function openChat(k){activeChat=k;renderChat();}
-  function persist(){try{localStorage.setItem('liftoriLifeMock',JSON.stringify({members:members,vitals:vitals}));}catch(e){}}
-  function loadState(){try{var raw=localStorage.getItem('liftoriLifeMock');if(!raw)return;var d=JSON.parse(raw);if(d&&d.members&&d.members.length){members.length=0;d.members.forEach(function(m){members.push(m);});}if(d&&d.vitals&&d.vitals.length){vitals.length=0;d.vitals.forEach(function(v){vitals.push(v);});}}catch(e){}}
+  // ---- Family Budget (run like a business) ----
+  function bUid(){return 'b'+Math.random().toString(16).slice(2,8);}
+  function m$(n){n=Math.round(+n||0);return (n<0?'-$':'$')+Math.abs(n).toLocaleString();}
+  var budget={
+    month:'June 2026',
+    cashflow:[{m:'Jan',inc:9800,exp:8600},{m:'Feb',inc:9600,exp:8900},{m:'Mar',inc:10100,exp:8400},{m:'Apr',inc:9900,exp:9100},{m:'May',inc:10300,exp:8700},{m:'Jun',inc:10468,exp:6703}],
+    income:[{id:'i1',source:'Ryan — salary',amount:5200},{id:'i2',source:'Vanessa — salary',amount:4100},{id:'i3',source:'Tyler — rent',amount:434},{id:'i4',source:'Kennedy — rent',amount:434},{id:'i5',source:'Side income',amount:300}],
+    categories:[
+      {id:'c1',name:'Housing (mortgage)',budget:2000,actual:1900,color:'#2F6B5E'},
+      {id:'c2',name:'Utilities',budget:520,actual:498,color:'#3E7CB1'},
+      {id:'c3',name:'Groceries',budget:900,actual:820,color:'#D9805A'},
+      {id:'c4',name:'Transportation',budget:650,actual:610,color:'#E8B04B'},
+      {id:'c5',name:'Insurance',budget:480,actual:480,color:'#7A8B99'},
+      {id:'c6',name:'Kids & school',budget:600,actual:340,color:'#9B6B8C'},
+      {id:'c7',name:"Mom's care",budget:500,actual:260,color:'#C25B6B'},
+      {id:'c8',name:'Debt & loans',budget:700,actual:700,color:'#5B8C5A'},
+      {id:'c9',name:'Fun & dining',budget:400,actual:295,color:'#D98C5A'},
+      {id:'c10',name:'Savings',budget:800,actual:800,color:'#2F6B5E'}
+    ],
+    accounts:[{id:'a1',name:'Checking',balance:6240},{id:'a2',name:'Savings',balance:14800},{id:'a3',name:'Emergency fund',balance:9500},{id:'a4',name:'Credit card',balance:-2150}],
+    bills:[{id:'p1',name:'Mortgage',amount:1900,due:'1st',paid:true},{id:'p2',name:'Electric',amount:180,due:'12th',paid:true},{id:'p3',name:'Car payment',amount:430,due:'15th',paid:false},{id:'p4',name:'Phone & internet',amount:160,due:'18th',paid:false},{id:'p5',name:'Insurance',amount:480,due:'22nd',paid:false}],
+    goals:[{id:'g1',name:'Family trip',target:5000,saved:3400},{id:'g2',name:'Emergency fund',target:15000,saved:9500},{id:'g3',name:'New car',target:8000,saved:2100}],
+    txns:[{id:'t1',date:'2026-06-24',desc:'Publix',cat:'Groceries',amount:-86},{id:'t2',date:'2026-06-23',desc:'Tyler rent',cat:'Income',amount:100},{id:'t3',date:'2026-06-22',desc:'Shell gas',cat:'Transportation',amount:-52},{id:'t4',date:'2026-06-21',desc:'Electric bill',cat:'Utilities',amount:-180},{id:'t5',date:'2026-06-20',desc:'Payroll — Ryan',cat:'Income',amount:2600}]
+  };
+  function budCat(id,f,v){var c=budget.categories.find(function(x){return x.id===id;});if(c){c[f]=(f==='name')?v:(+v||0);}renderBudget();}
+  function budInc(id,f,v){var c=budget.income.find(function(x){return x.id===id;});if(c){c[f]=(f==='amount')?(+v||0):v;}renderBudget();}
+  function budAcct(id,v){var c=budget.accounts.find(function(x){return x.id===id;});if(c)c.balance=(+v||0);renderBudget();}
+  function budBill(id){var c=budget.bills.find(function(x){return x.id===id;});if(c)c.paid=!c.paid;renderBudget();}
+  function budAddCat(){budget.categories.push({id:bUid(),name:'New category',budget:0,actual:0,color:'#7A8B99'});renderBudget();}
+  function budDelCat(id){budget.categories=budget.categories.filter(function(x){return x.id!==id;});renderBudget();}
+  function budAddInc(){budget.income.push({id:bUid(),source:'New income',amount:0});renderBudget();}
+  function budAddGoal(){budget.goals.push({id:bUid(),name:'New goal',target:1000,saved:0});renderBudget();}
+  function budGoal(id,f,v){var g=budget.goals.find(function(x){return x.id===id;});if(g)g[f]=(f==='name')?v:(+v||0);renderBudget();}
+  function budAddTxn(){var d=new Date().toISOString().slice(0,10);budget.txns.unshift({id:bUid(),date:d,desc:'New transaction',cat:'Misc',amount:0});renderBudget();}
+  function budTxn(id,f,v){var t=budget.txns.find(function(x){return x.id===id;});if(t)t[f]=(f==='amount')?(+v||0):v;renderBudget();}
+  function renderBudget(){
+    var el=document.getElementById('budgetBody');if(!el)return;var b=budget;
+    var inc=b.income.reduce(function(s,x){return s+(+x.amount||0);},0);
+    var bud=b.categories.reduce(function(s,c){return s+(+c.budget||0);},0);
+    var act=b.categories.reduce(function(s,c){return s+(+c.actual||0);},0);
+    var net=inc-act;var rate=inc?Math.round((net>0?net:0)/inc*100):0;
+    var nw=b.accounts.reduce(function(s,a){return s+(+a.balance||0);},0);
+    var billsDue=b.bills.filter(function(x){return !x.paid;}).reduce(function(s,x){return s+(+x.amount||0);},0);
+    // P&L tiles
+    var tiles='<div class="tiles">'
+      +'<div class="tile"><div class="k">Income</div><div class="v">'+m$(inc)+'</div><div class="m">'+b.month+'</div></div>'
+      +'<div class="tile"><div class="k">Expenses</div><div class="v">'+m$(act)+'</div><div class="m">'+(bud?Math.round(act/bud*100):0)+'% of plan</div></div>'
+      +'<div class="tile"><div class="k">Net (surplus)</div><div class="v '+(net>=0?'up':'warn')+'">'+m$(net)+'</div><div class="m '+(net>=0?'up':'warn')+'">'+rate+'% saved</div></div>'
+      +'<div class="tile"><div class="k">Net worth</div><div class="v">'+m$(nw)+'</div><div class="m">assets - debt</div></div>'
+      +'</div>';
+    // cashflow chart (income vs expense bars)
+    var cw=320,ch=120,cl=6,cb=18,cph=ch-cb-6,n=b.cashflow.length;
+    var maxv=Math.max.apply(null,b.cashflow.map(function(d){return Math.max(d.inc,d.exp);}))||1;
+    var gw=(cw-cl*2)/n;
+    var bars='';
+    b.cashflow.forEach(function(d,i){
+      var x0=cl+i*gw;var bw=gw*0.34;
+      var ih=cph*(d.inc/maxv),eh=cph*(d.exp/maxv);
+      bars+='<rect x="'+(x0+gw*0.14).toFixed(1)+'" y="'+(6+cph-ih).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+ih.toFixed(1)+'" fill="#2F6B5E" rx="1.5"/>';
+      bars+='<rect x="'+(x0+gw*0.14+bw+2).toFixed(1)+'" y="'+(6+cph-eh).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+eh.toFixed(1)+'" fill="#D9805A" rx="1.5"/>';
+      bars+='<text x="'+(x0+gw*0.5).toFixed(1)+'" y="'+(ch-5)+'" font-size="8" fill="#8A8178" text-anchor="middle">'+d.m+'</text>';
+    });
+    var chart='<div class="card"><h3>Cash flow <span style="float:right;font-weight:600;text-transform:none;letter-spacing:0;font-size:11.5px;color:var(--muted)"><span style="color:#2F6B5E">&#9632;</span> Income  <span style="color:#D9805A">&#9632;</span> Spent</span></h3><svg viewBox="0 0 '+cw+' '+ch+'" preserveAspectRatio="none" style="width:100%;height:120px;display:block">'+bars+'</svg></div>';
+    // income
+    var income='<div class="card"><h3>Income <span class="cta" onclick="budAddInc()">+ Add</span></h3>';
+    b.income.forEach(function(x){income+='<div class="row"><input value="'+esc(x.source)+'" onchange="budInc(\''+x.id+'\',\'source\',this.value)" style="flex:1;border:0;border-bottom:1px solid var(--line);background:transparent;font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);padding:4px 2px"/><div style="display:flex;align-items:center;gap:2px"><span style="color:var(--muted)">$</span><input type="number" value="'+(x.amount||0)+'" onchange="budInc(\''+x.id+'\',\'amount\',this.value)" style="width:80px;border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;font-size:13px;text-align:right"/></div></div>';});
+    income+='<div class="row" style="border-top:2px solid var(--line)"><div class="g"><div class="t">Total monthly income</div></div><div style="font-weight:800;color:var(--pine)">'+m$(inc)+'</div></div></div>';
+    // budget vs actual
+    var cats='<div class="card"><h3>Budget vs actual <span class="cta" onclick="budAddCat()">+ Category</span></h3>';
+    b.categories.forEach(function(c){
+      var pct=c.budget?Math.min(100,Math.round(c.actual/c.budget*100)):0;var over=c.actual>c.budget;var rem=(+c.budget||0)-(+c.actual||0);
+      cats+='<div style="margin-bottom:14px">'
+        +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+        +'<span style="width:9px;height:9px;border-radius:50%;background:'+c.color+';flex:0 0 9px"></span>'
+        +'<input value="'+esc(c.name)+'" onchange="budCat(\''+c.id+'\',\'name\',this.value)" style="flex:1;border:0;background:transparent;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);min-width:0"/>'
+        +'<span style="display:flex;align-items:center;gap:1px;font-size:12px"><span style="color:var(--muted)">$</span><input type="number" value="'+(c.actual||0)+'" onchange="budCat(\''+c.id+'\',\'actual\',this.value)" title="Actual" style="width:62px;border:1px solid var(--line);border-radius:7px;padding:5px;font:inherit;font-size:12px;text-align:right"/></span>'
+        +'<span style="color:var(--muted);font-size:12px">/</span>'
+        +'<span style="display:flex;align-items:center;gap:1px;font-size:12px"><span style="color:var(--muted)">$</span><input type="number" value="'+(c.budget||0)+'" onchange="budCat(\''+c.id+'\',\'budget\',this.value)" title="Budget" style="width:62px;border:1px solid var(--line);border-radius:7px;padding:5px;font:inherit;font-size:12px;text-align:right"/></span>'
+        +'<button onclick="budDelCat(\''+c.id+'\')" style="border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:14px" title="Remove">&times;</button>'
+        +'</div>'
+        +'<div class="bar"><i style="width:'+pct+'%;background:'+(over?'#C25B6B':c.color)+'"></i></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-top:4px"><span style="color:'+(over?'#C25B6B':'var(--muted)')+'">'+pct+'% used</span><span style="color:'+(over?'#C25B6B':'var(--pine)')+'">'+(over?m$(rem)+' over':m$(rem)+' left')+'</span></div>'
+        +'</div>';
+    });
+    cats+='<div class="row" style="border-top:2px solid var(--line)"><div class="g"><div class="t">Total</div><div class="s">'+m$(act)+' spent of '+m$(bud)+' budgeted</div></div><div style="text-align:right"><div style="font-weight:800;color:'+(act>bud?'#C25B6B':'var(--pine)')+'">'+m$(bud-act)+'</div><div style="font-size:11px;color:var(--muted)">left to spend</div></div></div></div>';
+    // accounts
+    var accts='<div class="card"><h3>Accounts &amp; net worth</h3>';
+    b.accounts.forEach(function(a){var neg=a.balance<0;accts+='<div class="row"><div class="g"><div class="t">'+esc(a.name)+'</div></div><div style="display:flex;align-items:center;gap:2px"><span style="color:var(--muted)">$</span><input type="number" value="'+a.balance+'" onchange="budAcct(\''+a.id+'\',this.value)" style="width:96px;border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;font-size:13px;text-align:right;color:'+(neg?'#C25B6B':'var(--ink)')+'"/></div></div>';});
+    accts+='<div class="row" style="border-top:2px solid var(--line)"><div class="g"><div class="t">Net worth</div></div><div style="font-weight:800;color:'+(nw>=0?'var(--pine)':'#C25B6B')+'">'+m$(nw)+'</div></div></div>';
+    // bills
+    var bills='<div class="card"><h3>Recurring bills <span style="float:right;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:700;color:var(--terra)">'+m$(billsDue)+' due</span></h3>';
+    b.bills.forEach(function(p){bills+='<div class="row"><button onclick="budBill(\''+p.id+'\')" class="chk'+(p.paid?' done':'')+'" style="flex:0 0 22px">'+(p.paid?'✓':'')+'</button><div class="g"><div class="t">'+esc(p.name)+'</div><div class="s">Due the '+p.due+'</div></div><div style="display:flex;align-items:center;gap:8px"><span style="font-weight:700;font-size:13.5px">'+m$(p.amount)+'</span><span class="tag '+(p.paid?'green':'terra')+'">'+(p.paid?'Paid':'Due')+'</span></div></div>';});
+    bills+='</div>';
+    // goals
+    var goals='<div class="card"><h3>Savings goals <span class="cta" onclick="budAddGoal()">+ Add</span></h3>';
+    b.goals.forEach(function(g){var pct=g.target?Math.min(100,Math.round(g.saved/g.target*100)):0;goals+='<div style="margin-bottom:13px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><input value="'+esc(g.name)+'" onchange="budGoal(\''+g.id+'\',\'name\',this.value)" style="flex:1;border:0;background:transparent;font:inherit;font-size:13.5px;font-weight:700;min-width:0"/><span style="font-size:12px;color:var(--muted)">'+m$(g.saved)+' / </span><span style="display:flex;align-items:center;gap:1px;font-size:12px"><span style="color:var(--muted)">$</span><input type="number" value="'+g.target+'" onchange="budGoal(\''+g.id+'\',\'target\',this.value)" style="width:70px;border:1px solid var(--line);border-radius:7px;padding:5px;font:inherit;font-size:12px;text-align:right"/></span></div><div class="bar"><i style="width:'+pct+'%;background:var(--gold)"></i></div><div style="font-size:11px;font-weight:700;color:var(--gold);margin-top:4px">'+pct+'% funded</div></div>';});
+    goals+='</div>';
+    // transactions
+    var txns='<div class="card"><h3>Transactions <span class="cta" onclick="budAddTxn()">+ Add</span></h3><div style="display:grid;gap:2px">';
+    b.txns.forEach(function(t){var neg=t.amount<0;txns+='<div class="row"><div class="g"><input value="'+esc(t.desc)+'" onchange="budTxn(\''+t.id+'\',\'desc\',this.value)" style="border:0;background:transparent;font:inherit;font-size:13.5px;font-weight:600;width:100%;color:var(--ink)"/><div class="s">'+fmtD(t.date)+' · '+esc(t.cat)+'</div></div><div style="display:flex;align-items:center;gap:1px"><span style="color:var(--muted)">$</span><input type="number" value="'+t.amount+'" onchange="budTxn(\''+t.id+'\',\'amount\',this.value)" style="width:84px;border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;font-size:13px;text-align:right;font-weight:700;color:'+(neg?'#C25B6B':'var(--pine)')+'"/></div></div>';});
+    txns+='</div></div>';
+    el.innerHTML=tiles+chart+income+cats+accts+bills+goals+txns;
+  }
+  function persist(){
+try{localStorage.setItem('liftoriLifeMock',JSON.stringify({members:members,vitals:vitals,budget:budget}));}catch(e){}}
+  function loadState(){try{var raw=localStorage.getItem('liftoriLifeMock');if(!raw)return;var d=JSON.parse(raw);if(d&&d.members&&d.members.length){members.length=0;d.members.forEach(function(m){members.push(m);});}if(d&&d.vitals&&d.vitals.length){vitals.length=0;d.vitals.forEach(function(v){vitals.push(v);});}if(d&&d.budget){budget=d.budget;}}catch(e){}}
   function saveAll(btn){persist();if(btn){var o=btn.textContent;btn.textContent='Saved';btn.style.background='var(--pine-soft)';btn.style.color='var(--pine)';setTimeout(function(){btn.textContent=o;btn.style.background='';btn.style.color='';},1700);}}
   loadState();
   renderFamily();
   renderVitals();
   renderCareHeader();
   renderChat();
+  renderBudget();
   applyView(0);
 
   // ---- Per-user profile & settings ----
