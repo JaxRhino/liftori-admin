@@ -471,8 +471,8 @@
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div style="grid-column:1/-1"><label class="vl">Full name</label><input id="teName" class="vi" placeholder="First Last"/></div>
-      <div style="grid-column:1/-1"><label class="vl">Relationship to you</label><input id="teRel" class="vi" list="relOptions" placeholder="Mother, Brother, Aunt, Daughter..."/>
-        <datalist id="relOptions"><option>Me</option><option>Spouse</option><option>Partner</option><option>Mother</option><option>Father</option><option>Son</option><option>Daughter</option><option>Brother</option><option>Sister</option><option>Grandmother</option><option>Grandfather</option><option>Grandson</option><option>Granddaughter</option><option>Aunt</option><option>Uncle</option><option>Cousin</option><option>Niece</option><option>Nephew</option><option>Mother-in-law</option><option>Father-in-law</option><option>Son-in-law</option><option>Daughter-in-law</option></datalist></div>
+      <div style="grid-column:1/-1"><label class="vl">Relationship to you</label><input id="teRel" class="vi" list="relOptions" placeholder="Mother, Brother, Ex-wife, Step-son..."/>
+        <datalist id="relOptions"><option>Me</option><option>Wife</option><option>Husband</option><option>Spouse</option><option>Partner</option><option>Ex-wife</option><option>Ex-husband</option><option>Ex-partner</option><option>Mother</option><option>Father</option><option>Son</option><option>Daughter</option><option>Brother</option><option>Sister</option><option>Half-brother</option><option>Half-sister</option><option>Step-mother</option><option>Step-father</option><option>Step-son</option><option>Step-daughter</option><option>Step-brother</option><option>Step-sister</option><option>Grandmother</option><option>Grandfather</option><option>Grandson</option><option>Granddaughter</option><option>Aunt</option><option>Uncle</option><option>Cousin</option><option>Niece</option><option>Nephew</option><option>Mother-in-law</option><option>Father-in-law</option><option>Son-in-law</option><option>Daughter-in-law</option></datalist></div>
       <div><label class="vl">Prefix</label><input id="tePrefix" class="vi" placeholder="Dr., Rev."/></div>
       <div><label class="vl">Suffix</label><select id="teSuffix" class="vi"><option value="">&mdash;</option><option>Sr.</option><option>Jr.</option><option>II</option><option>III</option><option>IV</option></select></div>
       <div><label class="vl">Sex</label><select id="teSex" class="vi" onchange="toggleSexFields()"><option value="">&mdash;</option><option value="female">Female</option><option value="male">Male</option></select></div>
@@ -508,7 +508,7 @@
       <div><label class="vl">Relationship</label>
         <select id="arRel" class="vi" onchange="arHint()">
           <option value="child">Child</option>
-          <option value="partner">Partner / co-parent</option>
+          <option value="partner">Partner / spouse / ex</option>
           <option value="sibling">Sibling</option>
           <option value="parent">Parent</option>
         </select></div>
@@ -892,13 +892,12 @@
   function docView(b){var o=b.textContent;b.textContent='Opens in app';setTimeout(function(){b.textContent=o;},1400);}
 
   // ---- Family tree (generational, editable, with ancestors) ----
-  var familyTree={root:{id:'n_root',child:{id:'p_me',name:'You',ini:'YO',color:'#2F6B5E',sex:'',rel:'Me'},partner:null,children:[]}};
+  var familyTree={root:{id:'n_root',child:{id:'p_me',name:'You',ini:'YO',color:'#2F6B5E',sex:'',rel:'Me'},unions:[]}};
   var treeCollapsed={},treeZoom=1,treePanX=0,treePanY=0,_treeFitDone=false,_treeDrag=null,_treeMoved=false,_treeW=360,_editPid=null,_editColor='#2F6B5E';
-  function eachNode(cb){(function w(n){if(!n)return;cb(n);(n.children||[]).forEach(w);})(familyTree.root);}
-  function eachPerson(cb){eachNode(function(n){cb(n.child,n,'child');if(n.partner)cb(n.partner,n,'partner');});}
-  function personCtx(id){var r=null;eachPerson(function(p,n,role){if(p&&p.id===id)r={p:p,node:n,role:role};});return r;}
-  function parentNodeOf(t){var r=null;eachNode(function(n){(n.children||[]).forEach(function(c){if(c===t)r=n;});});return r;}
-  function nodeById(id){var r=null;eachNode(function(n){if(n.id===id)r=n;});return r;}
+  function eachNode(cb){(function w(n){if(!n)return;cb(n);(n.unions||[]).forEach(function(u){(u.children||[]).forEach(w);});})(familyTree.root);}
+  function eachPerson(cb){eachNode(function(n){cb(n.child,n,'child',null);(n.unions||[]).forEach(function(u){if(u.partner)cb(u.partner,n,'partner',u);});});}
+  function personCtx(id){var r=null;eachPerson(function(p,n,role,u){if(p&&p.id===id)r={p:p,node:n,role:role,union:u};});return r;}
+  function parentOf(t){var r=null;eachNode(function(n){(n.unions||[]).forEach(function(u){(u.children||[]).forEach(function(c){if(c===t)r={node:n,union:u};});});});return r;}
   function ftFullName(p){return (p.prefix?p.prefix+' ':'')+(p.name||'')+(p.suffix?' '+p.suffix:'');}
   function ftDeceased(p){return !!p.passed;}
   function ftWrap(txt,max){var w=(txt||'').split(' '),lines=[],cur='';for(var i=0;i<w.length;i++){var t=cur?cur+' '+w[i]:w[i];if(t.length>max&&cur){lines.push(cur);cur=w[i];}else cur=t;}if(cur)lines.push(cur);if(lines.length>2){lines=[lines[0],lines.slice(1).join(' ')];if(lines[1].length>max+2)lines[1]=lines[1].slice(0,max)+'...';}return lines;}
@@ -927,46 +926,67 @@
   function toggleCollapse(id){treeCollapsed[id]=!treeCollapsed[id];renderTree();}
   function renderTree(){
     var host=document.getElementById('treeBody');if(!host)return;
-    var R=24,NW=112,CW=78,CW2=180,VGAP=152,TOP=48,M=28,LH=46;
-    function wd(n){var cw=n.partner?CW2:NW;if(treeCollapsed[n.id]){n._w=cw;return cw;}var k=n.children||[],s=0;k.forEach(function(c){s+=wd(c);});n._w=Math.max(cw,s);return n._w;}
+    var R=24,NW=112,CW=78,VGAP=152,TOP=48,M=28,LH=46,GAPm=22;
+    function partnered(n){return (n.unions||[]).filter(function(u){return u.partner;});}
+    function wd(n){
+      var unions=n.unions||[],P=partnered(n),col=treeCollapsed[n.id];
+      unions.forEach(function(u){var s=0;if(!col)(u.children||[]).forEach(function(c){s+=wd(c);});u._kw=s;});
+      var w;
+      if(P.length===0){var u0=unions[0];w=Math.max(NW,u0?u0._kw:0);}
+      else if(P.length===1){w=Math.max(NW+CW,P[0]._kw,NW);}
+      else{var w0=P[0]._kw,w1=P[1]._kw;var off0=Math.max(CW,w0/2+NW/2+GAPm),off1=Math.max(CW,w1/2+NW/2+GAPm);
+        var lext=off0+Math.max(NW/2,w0/2),rext=off1+Math.max(NW/2,w1/2),extra=0;
+        for(var i=2;i<P.length;i++){extra+=Math.max(NW,P[i]._kw)+GAPm;}
+        w=lext+rext+extra+NW;}
+      n._w=Math.max(w,NW);return n._w;
+    }
     wd(familyTree.root);
     var W=Math.max(360,familyTree.root._w+M*2),maxD=0;
+    function layoutKids(u,centerX,depth){var k=u.children||[],s=0;k.forEach(function(c){s+=c._w;});var sx=centerX-s/2;k.forEach(function(c){var ccx=sx+c._w/2;sx+=c._w;place(c,ccx,depth+1);});}
     function place(n,cx,depth){
       if(depth>maxD)maxD=depth;n._cx=cx;n._y=TOP+depth*VGAP;n._posOf={};
-      var a=n.child,b=n.partner;
-      if(b){var left=a,right=b;if(b.sex==='male'&&a.sex!=='male'){left=b;right=a;}else if(a.sex==='female'&&b.sex!=='female'){left=b;right=a;}
-        n._posOf[left.id]=cx-CW/2;n._posOf[right.id]=cx+CW/2;n._childX=n._posOf[a.id];
-      }else{n._posOf[a.id]=cx;n._childX=cx;}
-      if(!treeCollapsed[n.id]){var k=n.children||[],s=0;k.forEach(function(c){s+=c._w;});var sx=cx-s/2;k.forEach(function(c){var ccx=sx+c._w/2;sx+=c._w;place(c,ccx,depth+1);});}
+      var unions=n.unions||[],P=partnered(n),a=n.child,col=treeCollapsed[n.id];
+      if(P.length===0){n._posOf[a.id]=cx;n._childX=cx;var u0=unions[0];if(u0){u0._mid=cx;if(!col)layoutKids(u0,cx,depth);}}
+      else if(P.length===1){var u=P[0],b=u.partner,left=a,right=b;
+        if(b.sex==='male'&&a.sex!=='male'){left=b;right=a;}else if(a.sex==='female'&&b.sex!=='female'){left=b;right=a;}
+        n._posOf[left.id]=cx-CW/2;n._posOf[right.id]=cx+CW/2;n._childX=n._posOf[a.id];u._mid=cx;if(!col)layoutKids(u,cx,depth);}
+      else{n._posOf[a.id]=cx;n._childX=cx;var u0=P[0],u1=P[1];
+        var off0=Math.max(CW,u0._kw/2+NW/2+GAPm),off1=Math.max(CW,u1._kw/2+NW/2+GAPm);
+        var p0x=cx-off0,p1x=cx+off1;n._posOf[u0.partner.id]=p0x;n._posOf[u1.partner.id]=p1x;
+        u0._mid=(cx+p0x)/2;u1._mid=(cx+p1x)/2;if(!col){layoutKids(u0,u0._mid,depth);layoutKids(u1,u1._mid,depth);}
+        var cursor=p1x+off1;for(var i=2;i<P.length;i++){var u=P[i],bw=Math.max(NW,u._kw),bc=cursor+bw/2;n._posOf[u.partner.id]=bc;u._mid=bc;if(!col)layoutKids(u,bc,depth);cursor+=bw+GAPm;}}
     }
     place(familyTree.root,W/2,0);
     var H=TOP+(maxD+1)*VGAP+30;_treeW=W;
     var L='',N='';
     function hl(x1,y1,x2,y2,dash){return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="#C9BEB0" stroke-width="2"'+(dash?' stroke-dasharray="4 4"':'')+'/>';}
     function draw(n){
-      var y=n._y,a=n.child,b=n.partner;
-      if(b){var ax=n._posOf[a.id],bx=n._posOf[b.id],lx=Math.min(ax,bx),rx=Math.max(ax,bx);
-        var married=(a.marital==='Married'||b.marital==='Married');
-        L+=hl(lx+R,y,rx-R,y,!married);
-        if(!married)L+='<text x="'+n._cx+'" y="'+(y-6)+'" text-anchor="middle" font-size="9.5" fill="var(--muted)">co-parents</text>';
-      }
+      var y=n._y,a=n.child,unions=n.unions||[],P=partnered(n),col=treeCollapsed[n.id];
+      unions.forEach(function(u){
+        if(u.partner){
+          var ax=n._posOf[a.id],bx=n._posOf[u.partner.id],lx=Math.min(ax,bx),rx=Math.max(ax,bx);
+          var married=(u.partner.marital==='Married'||a.marital==='Married');
+          var ex=/ex/i.test(u.partner.rel||'')||u.partner.marital==='Divorced'||u.partner.marital==='Widowed';
+          L+=hl(lx+R,y,rx-R,y,!married);
+          var tag=ex?'former':(!married?'co-parents':'');
+          if(tag)L+='<text x="'+((ax+bx)/2)+'" y="'+(y-6)+'" text-anchor="middle" font-size="9.5" fill="var(--muted)">'+tag+'</text>';
+        }
+        var kids=u.children||[];
+        if(kids.length&&!col){
+          var mid=u._mid!==undefined?u._mid:n._cx;
+          var busY=y+Math.round(VGAP/2)+8,trunkTop=u.partner?(y+R+12):(y+R+LH);
+          L+=hl(mid,trunkTop,mid,busY,false);
+          var cxs=kids.map(function(c){return c._childX;});
+          var bl=Math.min.apply(null,cxs.concat([mid])),br=Math.max.apply(null,cxs.concat([mid]));
+          L+=hl(bl,busY,br,busY,false);
+          kids.forEach(function(c){L+=hl(c._childX,busY,c._childX,c._y-R-4,false);draw(c);});
+        }
+      });
       N+=ftNode(a,n._posOf[a.id],y);
-      if(b)N+=ftNode(b,n._posOf[b.id],y);
-      var kids=n.children||[],hasK=kids.length>0;
-      var trunkTop=n.partner?(y+R+12):(y+R+LH);
-      if(hasK&&!treeCollapsed[n.id]){
-        var busY=y+Math.round(VGAP/2)+8;
-        L+=hl(n._cx,trunkTop,n._cx,busY,false);
-        var cxs=kids.map(function(c){return c._childX;});
-        var bl=Math.min.apply(null,cxs.concat([n._cx])),br=Math.max.apply(null,cxs.concat([n._cx]));
-        L+=hl(bl,busY,br,busY,false);
-        kids.forEach(function(c){L+=hl(c._childX,busY,c._childX,c._y-R-4,false);draw(c);});
-      }
-      if(hasK){
-        var chipY=treeCollapsed[n.id]?(trunkTop+8):(trunkTop+10);
-        var lab=treeCollapsed[n.id]?('+'+kids.length):'-';
-        N+='<g onclick="toggleCollapse(\''+n.id+'\')" style="cursor:pointer"><circle cx="'+n._cx+'" cy="'+chipY+'" r="11" fill="var(--surface)" stroke="#C9BEB0" stroke-width="1.5"/><text x="'+n._cx+'" y="'+(chipY+4)+'" text-anchor="middle" font-size="13" font-weight="800" fill="var(--ink)">'+lab+'</text></g>';
-      }
+      unions.forEach(function(u){if(u.partner)N+=ftNode(u.partner,n._posOf[u.partner.id],y);});
+      var anyKids=unions.some(function(u){return (u.children||[]).length;});
+      if(anyKids){var chipY=y+R+(P.length?12:LH)+(col?0:8);var lab=col?'+':'-';
+        N+='<g onclick="toggleCollapse(\''+n.id+'\')" style="cursor:pointer"><circle cx="'+n._cx+'" cy="'+chipY+'" r="11" fill="var(--surface)" stroke="#C9BEB0" stroke-width="1.5"/><text x="'+n._cx+'" y="'+(chipY+4)+'" text-anchor="middle" font-size="13" font-weight="800" fill="var(--ink)">'+lab+'</text></g>';}
     }
     draw(familyTree.root);
     var svg='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="display:block;font-family:inherit">'+L+N+'</svg>';
@@ -984,7 +1004,7 @@
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
       +'<button onclick="openAddRel(\'\')" class="btn">+ Add a relative</button>'
       +'</div>'
-      +'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Tap a person to edit or add a relative. Fathers sit left, mothers right. Dashed links are co-parents. Deceased show their years; a red ring means no-contact.</div>';
+      +'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Tap a person to edit or add a relative. Fathers sit left, mothers right. A "former" dashed link is a past marriage or co-parent; new partners grow a new branch. Deceased show their years; a red ring means no-contact.</div>';
     var vp=document.getElementById('treeViewport');
     vp.onpointerdown=function(e){_treeDrag={x:e.clientX,y:e.clientY,px:treePanX,py:treePanY};_treeMoved=false;vp.style.cursor='grabbing';};
     vp.onpointermove=function(e){if(!_treeDrag)return;var dx=e.clientX-_treeDrag.x,dy=e.clientY-_treeDrag.y;if(Math.abs(dx)+Math.abs(dy)>4)_treeMoved=true;treePanX=_treeDrag.px+dx;treePanY=_treeDrag.py+dy;applyTreeTransform();};
@@ -1021,12 +1041,15 @@
   }
   function removePerson(){var ctx=personCtx(_editPid);if(!ctx){closeTreeEdit();return;}var p=ctx.p,node=ctx.node,role=ctx.role,nm=p.name||'this person';
     if(p.id==='p_me'){alert('You cannot remove yourself from the tree.');return;}
-    if(role==='partner'){if(!confirm('Remove '+nm+' from the tree?'))return;node.partner=null;closeTreeEdit();renderTree();return;}
+    if(role==='partner'){var u=ctx.union;var hasK=u&&u.children&&u.children.length;
+      if(!confirm(hasK?('Remove '+nm+'? Their children stay on the tree under '+(node.child.name||'their parent')+'.'):('Remove '+nm+' from the tree?')))return;
+      if(hasK){u.partner=null;}else{var ui=node.unions.indexOf(u);if(ui>-1)node.unions.splice(ui,1);}
+      closeTreeEdit();renderTree();return;}
     if(node===familyTree.root){alert('This is the top of the tree. Remove the people below first, then this one.');return;}
-    var M=parentNodeOf(node);if(!M){closeTreeEdit();return;}
-    var msg=(node.children&&node.children.length)?('Remove '+nm+' and everyone below them from the tree?'):('Remove '+nm+' from the tree?');
+    var pp=parentOf(node);if(!pp){closeTreeEdit();return;}
+    var msg=(node.unions&&node.unions.some(function(u){return (u.children||[]).length;}))?('Remove '+nm+' and everyone below them from the tree?'):('Remove '+nm+' from the tree?');
     if(!confirm(msg))return;
-    var i=M.children.indexOf(node);if(i>-1)M.children.splice(i,1);
+    var i=pp.union.children.indexOf(node);if(i>-1)pp.union.children.splice(i,1);
     closeTreeEdit();renderTree();
   }
   function buildPeopleList(){var arr=[];eachPerson(function(p){arr.push({id:p.id,name:p.name||'(unnamed)',rel:p.rel||''});});return arr;}
@@ -1041,37 +1064,43 @@
   }
   function closeAddRel(){document.getElementById('addRelModal').style.display='none';}
   function arHint(){var rel=document.getElementById('arRel').value,h=document.getElementById('arHint');
-    var m={child:'Adds a child under the person you pick. The child can later get their own partner and children.',partner:'Adds a spouse or co-parent beside the person you pick (fathers show on the left, mothers on the right).',sibling:'Adds a brother or sister who shares the same parents as the person you pick.',parent:'Adds a parent above the person you pick. Add the mother and father as two separate parents.'};
+    var m={child:'Adds a child to the person you pick. Pick a partner to attach the child to that specific relationship.',partner:'Adds a spouse, ex, or co-parent. Adding a second partner starts a new branch and keeps the old one (mark the old partner as Ex-wife / Ex-husband).',sibling:'Adds a brother or sister who shares the same parents as the person you pick.',parent:'Adds a parent above the person you pick. Add the mother and father as two separate parents.'};
     if(h)h.textContent=m[rel]||'';}
   function addRelSubmit(){
     var rel=document.getElementById('arRel').value,anchorId=document.getElementById('arAnchor').value,nm=document.getElementById('arName').value.trim();
     var ctx=personCtx(anchorId);if(!ctx){closeAddRel();return;}
     var p=ctx.p,node=ctx.node,role=ctx.role,newId=null;
     function mk(def){var n=nm||def;return {id:'p_'+bUid(),name:n,ini:initials(n),color:PALETTE[Math.floor(Math.random()*PALETTE.length)],sex:'',rel:''};}
+    function newUnion(partner){return {id:'u_'+bUid(),partner:partner||null,children:[]};}
     if(rel==='child'){
-      var c=mk('New child');node.children=node.children||[];node.children.push({id:'n_'+bUid(),child:c,partner:null,children:[]});treeCollapsed[node.id]=false;newId=c.id;
+      var u;
+      if(role==='partner'&&ctx.union){u=ctx.union;}
+      else{node.unions=node.unions||[];u=node.unions.length?node.unions[node.unions.length-1]:null;if(!u){u=newUnion(null);node.unions.push(u);}}
+      var c=mk('New child');u.children.push({id:'n_'+bUid(),child:c,unions:[]});treeCollapsed[node.id]=false;newId=c.id;
     }else if(rel==='partner'){
-      if(node.partner){alert((node.child.name||'They')+' already has a partner here. Tap that partner to edit them.');return;}
-      var pp=mk('Partner');pp.marital='Partner / co-parent';node.partner=pp;newId=pp.id;
+      node.unions=node.unions||[];var slot=null;for(var k=0;k<node.unions.length;k++){if(!node.unions[k].partner){slot=node.unions[k];break;}}
+      var pp=mk('Partner');pp.marital='Partner / co-parent';
+      if(slot){slot.partner=pp;}else{node.unions.push(newUnion(pp));}
+      newId=pp.id;
     }else if(rel==='parent'){
       if(role!=='child'){alert('Add a parent to the blood relative (the one connected upward), then add the other parent as their partner.');return;}
-      var M=parentNodeOf(node);
-      if(!M){var par=mk('Parent');familyTree.root={id:'n_'+bUid(),child:par,partner:null,children:[node]};newId=par.id;}
-      else if(!M.partner){var par2=mk('Parent');M.partner=par2;newId=par2.id;}
+      var M=parentOf(node);
+      if(!M){var par=mk('Parent');familyTree.root={id:'n_'+bUid(),child:par,unions:[newUnion(null)]};familyTree.root.unions[0].children=[node];newId=par.id;}
+      else if(!M.union.partner){var par2=mk('Parent');M.union.partner=par2;newId=par2.id;}
       else{alert('Both parents are already on the tree. Tap one to edit them.');return;}
     }else if(rel==='sibling'){
       if(role!=='child'){alert('Pick the blood relative to add a sibling to.');return;}
-      var sib=mk('New sibling'),sibNode={id:'n_'+bUid(),child:sib,partner:null,children:[]};
-      var M2=parentNodeOf(node);
-      if(M2){M2.children.push(sibNode);}
-      else{var par3=mk('Parent');familyTree.root={id:'n_'+bUid(),child:par3,partner:null,children:[node,sibNode]};}
+      var sib=mk('New sibling'),sibNode={id:'n_'+bUid(),child:sib,unions:[]};
+      var M2=parentOf(node);
+      if(M2){M2.union.children.push(sibNode);}
+      else{var par3=mk('Parent'),u3=newUnion(null);u3.children=[node,sibNode];familyTree.root={id:'n_'+bUid(),child:par3,unions:[u3]};}
       newId=sib.id;
     }
     closeAddRel();renderTree();if(newId)setTimeout(function(){openTreeEdit(newId);},30);
   }
   function addRelative(uid){openAddRel(uid||'');}
   function blockables(){var out=[],seen={},skip={};if(typeof familyTree==='undefined'||!familyTree.root)return out;
-    eachNode(function(n){if(n.child&&n.child.id==='p_me'){skip[n.child.id]=1;if(n.partner)skip[n.partner.id]=1;}});
+    eachNode(function(n){if(n.child&&n.child.id==='p_me'){skip[n.child.id]=1;(n.unions||[]).forEach(function(u){if(u.partner)skip[u.partner.id]=1;});}});
     eachPerson(function(p){if(!p||!p.name||skip[p.id]||seen[p.name])return;seen[p.name]=1;out.push({name:p.name,rel:p.rel||'Family'});});
     return out;}
 
