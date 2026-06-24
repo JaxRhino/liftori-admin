@@ -203,6 +203,7 @@
           <div class="card">
             <h3>Quick actions</h3>
             <div class="row" id="qaVitals"><div class="ic2" style="background:#E7EFEA;color:var(--pine);font-weight:800;font-size:14px">+</div><div class="g"><div class="t">Record vitals</div><div class="s">Weight, glucose, blood pressure</div></div><button class="btn ghost sm" onclick="openVitals()">Record</button></div>
+            <div class="row" id="qaMyBudget"><div class="ic2" style="background:var(--pine-soft);color:var(--pine);font-weight:800;font-size:13px">$</div><div class="g"><div class="t">My budget</div><div class="s">Track your allowance, rent &amp; savings</div></div><button class="btn ghost sm" onclick="openMyBudget()">Open</button></div>
             <div class="row"><div class="ic2" style="background:var(--terra-soft);color:var(--terra);font-weight:800;font-size:13px">⇆</div><div class="g"><div class="t">Request a ride</div><div class="s">Ask the family for a lift</div></div><button class="btn ghost sm">Ask</button></div>
             <div class="row"><div class="ic2" style="background:var(--pine-soft);color:var(--pine);font-weight:800;font-size:18px">+</div><div class="g"><div class="t">Add to store list</div><div class="s">12 items · Mom added 2</div></div><button class="btn ghost sm">Add</button></div>
             <div class="row"><div class="ic2" style="background:#FBEFD2;color:#8a6410;font-weight:800;font-size:13px">Rx</div><div class="g"><div class="t">Mom's meds</div><div class="s">1 refill due in 3 days</div></div><span class="tag terra">Refill</span></div>
@@ -258,7 +259,7 @@
             <div class="seg"><div class="bl"><span>Kids &amp; school</span><small>$340 / $600</small></div><div class="bar"><i style="width:57%;background:var(--sky)"></i></div></div>
             <div class="seg"><div class="bl"><span>Mom's care</span><small>$260 / $500</small></div><div class="bar"><i style="width:52%;background:var(--gold)"></i></div></div>
             <div class="seg"><div class="bl"><span>Fun &amp; eating out</span><small>$240 / $400</small></div><div class="bar"><i style="width:60%;background:var(--rose)"></i></div></div>
-            <button class="btn ghost" style="width:100%;margin-top:4px" onclick="go('budget')">Open budget tool</button>
+            <button class="btn ghost" style="width:100%;margin-top:4px" onclick="openFamilyBudget()">Open budget tool</button>
           </div>
         </div>
       </section>
@@ -400,7 +401,7 @@
       <!-- FAMILY BUDGET (run like a business) -->
       <section class="screen" id="budget">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <button class="btn ghost sm" onclick="go('money')">&lsaquo; Money</button>
+          <button class="btn ghost sm" id="budgetBackBtn" onclick="budgetBack()">&lsaquo; Money</button>
           <button class="btn sm" onclick="saveAll(this)">Save changes</button>
         </div>
         <div id="budgetBody" style="display:grid;gap:14px;margin-top:12px"></div>
@@ -559,6 +560,7 @@
     document.querySelectorAll('[data-s="money"]').forEach(function(x){x.style.display=canMoney?'':'none';});
     var mb=document.getElementById('manageBtn');if(mb)mb.style.display=canManage?'':'none';
     var qv=document.getElementById('qaVitals');if(qv)qv.style.display=canCare?'':'none';
+    var qmb=document.getElementById('qaMyBudget');if(qmb)qmb.style.display=canMoney?'none':'';
     var tr=document.getElementById('tileRent');if(tr)tr.style.display=canMoney?'':'none';
     var tb=document.getElementById('tileBudget');if(tb)tb.style.display=canMoney?'':'none';
     var hn=document.getElementById('helloName');if(hn)hn.textContent=(m.nickname||first);
@@ -673,19 +675,34 @@
     goals:[{id:'g1',name:'Family trip',target:5000,saved:3400},{id:'g2',name:'Emergency fund',target:15000,saved:9500},{id:'g3',name:'New car',target:8000,saved:2100}],
     txns:[{id:'t1',date:'2026-06-24',desc:'Publix',cat:'Groceries',amount:-86},{id:'t2',date:'2026-06-23',desc:'Tyler rent',cat:'Income',amount:100},{id:'t3',date:'2026-06-22',desc:'Shell gas',cat:'Transportation',amount:-52},{id:'t4',date:'2026-06-21',desc:'Electric bill',cat:'Utilities',amount:-180},{id:'t5',date:'2026-06-20',desc:'Payroll — Ryan',cat:'Income',amount:2600}]
   };
-  function budCat(id,f,v){var c=budget.categories.find(function(x){return x.id===id;});if(c){c[f]=(f==='name')?v:(+v||0);}renderBudget();}
-  function budInc(id,f,v){var c=budget.income.find(function(x){return x.id===id;});if(c){c[f]=(f==='amount')?(+v||0):v;}renderBudget();}
-  function budAcct(id,v){var c=budget.accounts.find(function(x){return x.id===id;});if(c)c.balance=(+v||0);renderBudget();}
-  function budBill(id){var c=budget.bills.find(function(x){return x.id===id;});if(c)c.paid=!c.paid;renderBudget();}
-  function budAddCat(){budget.categories.push({id:bUid(),name:'New category',budget:0,actual:0,color:'#7A8B99'});renderBudget();}
-  function budDelCat(id){budget.categories=budget.categories.filter(function(x){return x.id!==id;});renderBudget();}
-  function budAddInc(){budget.income.push({id:bUid(),source:'New income',amount:0});renderBudget();}
-  function budAddGoal(){budget.goals.push({id:bUid(),name:'New goal',target:1000,saved:0});renderBudget();}
-  function budGoal(id,f,v){var g=budget.goals.find(function(x){return x.id===id;});if(g)g[f]=(f==='name')?v:(+v||0);renderBudget();}
-  function budAddTxn(){var d=new Date().toISOString().slice(0,10);budget.txns.unshift({id:bUid(),date:d,desc:'New transaction',cat:'Misc',amount:0});renderBudget();}
-  function budTxn(id,f,v){var t=budget.txns.find(function(x){return x.id===id;});if(t)t[f]=(f==='amount')?(+v||0):v;renderBudget();}
+  function budCat(id,f,v){var c=curBud().categories.find(function(x){return x.id===id;});if(c){c[f]=(f==='name')?v:(+v||0);}renderBudget();}
+  function budInc(id,f,v){var c=curBud().income.find(function(x){return x.id===id;});if(c){c[f]=(f==='amount')?(+v||0):v;}renderBudget();}
+  function budAcct(id,v){var c=curBud().accounts.find(function(x){return x.id===id;});if(c)c.balance=(+v||0);renderBudget();}
+  function budBill(id){var c=curBud().bills.find(function(x){return x.id===id;});if(c)c.paid=!c.paid;renderBudget();}
+  function budAddCat(){curBud().categories.push({id:bUid(),name:'New category',budget:0,actual:0,color:'#7A8B99'});renderBudget();}
+  function budDelCat(id){curBud().categories=curBud().categories.filter(function(x){return x.id!==id;});renderBudget();}
+  function budAddInc(){curBud().income.push({id:bUid(),source:'New income',amount:0});renderBudget();}
+  function budAddGoal(){curBud().goals.push({id:bUid(),name:'New goal',target:1000,saved:0});renderBudget();}
+  function budGoal(id,f,v){var g=curBud().goals.find(function(x){return x.id===id;});if(g)g[f]=(f==='name')?v:(+v||0);renderBudget();}
+  function budAddTxn(){var d=new Date().toISOString().slice(0,10);curBud().txns.unshift({id:bUid(),date:d,desc:'New transaction',cat:'Misc',amount:0});renderBudget();}
+  function budTxn(id,f,v){var t=curBud().txns.find(function(x){return x.id===id;});if(t)t[f]=(f==='amount')?(+v||0):v;renderBudget();}
+  var budgetView='family';
+  function defaultPersonalBudget(m){return {month:'June 2026',
+    cashflow:[{m:'Mar',inc:520,exp:380},{m:'Apr',inc:540,exp:410},{m:'May',inc:560,exp:300},{m:'Jun',inc:580,exp:445}],
+    income:[{id:bUid(),source:'Allowance',amount:160},{id:bUid(),source:'Part-time job',amount:420}],
+    categories:[{id:bUid(),name:'Rent to family',budget:434,actual:434,color:'#C25B6B'},{id:bUid(),name:'Savings',budget:120,actual:120,color:'#2F6B5E'},{id:bUid(),name:'Phone',budget:45,actual:45,color:'#3E7CB1'},{id:bUid(),name:'Gas',budget:80,actual:62,color:'#E8B04B'},{id:bUid(),name:'Subscriptions',budget:25,actual:25,color:'#9B6B8C'},{id:bUid(),name:'Eating out & fun',budget:120,actual:95,color:'#D9805A'}],
+    accounts:[{id:bUid(),name:'Cash / checking',balance:340},{id:bUid(),name:'Savings',balance:1250}],
+    bills:[{id:bUid(),name:'Phone plan',amount:45,due:'5th',paid:true},{id:bUid(),name:'Rent to family',amount:434,due:'1st',paid:true},{id:bUid(),name:'Streaming',amount:25,due:'14th',paid:false}],
+    goals:[{id:bUid(),name:'New phone',target:900,saved:380},{id:bUid(),name:'First car',target:4000,saved:1250}],
+    txns:[{id:bUid(),date:'2026-06-23',desc:'Rent to family',cat:'Rent',amount:-100},{id:bUid(),date:'2026-06-22',desc:'Paycheck',cat:'Income',amount:210},{id:bUid(),date:'2026-06-21',desc:'Gas',cat:'Gas',amount:-32},{id:bUid(),date:'2026-06-20',desc:'Movies',cat:'Fun',amount:-28}]
+  };}
+  function curBud(){if(budgetView==='personal'){var m=members[activeUser];if(!m.pbudget)m.pbudget=defaultPersonalBudget(m);return m.pbudget;}return budget;}
+  function openFamilyBudget(){budgetView='family';titles.budget=['Family Budget','Run the household like a business'];go('budget');}
+  function openMyBudget(){budgetView='personal';var m=members[activeUser];var f=(m.nickname||(m.name||'').split(/\s+/)[0]||'My');titles.budget=['My Budget',f+", manage your own money"];go('budget');}
+  function budgetBack(){go(budgetView==='personal'?'home':'money');}
   function renderBudget(){
-    var el=document.getElementById('budgetBody');if(!el)return;var b=budget;
+
+    var el=document.getElementById('budgetBody');if(!el)return;var b=curBud();
     var inc=b.income.reduce(function(s,x){return s+(+x.amount||0);},0);
     var bud=b.categories.reduce(function(s,c){return s+(+c.budget||0);},0);
     var act=b.categories.reduce(function(s,c){return s+(+c.actual||0);},0);
@@ -751,6 +768,7 @@
     b.txns.forEach(function(t){var neg=t.amount<0;txns+='<div class="row"><div class="g"><input value="'+esc(t.desc)+'" onchange="budTxn(\''+t.id+'\',\'desc\',this.value)" style="border:0;background:transparent;font:inherit;font-size:13.5px;font-weight:600;width:100%;color:var(--ink)"/><div class="s">'+fmtD(t.date)+' · '+esc(t.cat)+'</div></div><div style="display:flex;align-items:center;gap:1px"><span style="color:var(--muted)">$</span><input type="number" value="'+t.amount+'" onchange="budTxn(\''+t.id+'\',\'amount\',this.value)" style="width:84px;border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;font-size:13px;text-align:right;font-weight:700;color:'+(neg?'#C25B6B':'var(--pine)')+'"/></div></div>';});
     txns+='</div></div>';
     el.innerHTML=tiles+chart+income+cats+accts+bills+goals+txns;
+    var bb=document.getElementById('budgetBackBtn');if(bb)bb.innerHTML=(budgetView==='personal'?'&lsaquo; Home':'&lsaquo; Money');
   }
   // ---- Documents (permission-aware) ----
   var familyDocs=[
