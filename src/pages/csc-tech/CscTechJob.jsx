@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { cscSupabase, fmtDateTime, fmtDate, fmtMoney, SEVERITY_TONES, QUOTE_STATUS_TONES, CLEANING_STATUS_TONES } from '../../lib/cscClient'
+import { cscSupabase, CSC_URL, CSC_ANON, fmtDateTime, fmtDate, fmtMoney, SEVERITY_TONES, QUOTE_STATUS_TONES, CLEANING_STATUS_TONES } from '../../lib/cscClient'
 
 const CHECKLIST = [
   { key: 'canopy_cleaned', label: 'Canopy cleaned' },
@@ -186,8 +186,8 @@ export default function CscTechJob() {
       }
 
       // 3. Call the cert engine to generate the PDF
-      const fnUrl = (import.meta.env.VITE_CSC_SUPABASE_URL || 'https://zymgttmngwxkobmdgdia.supabase.co') + '/functions/v1/generate-csc-cert'
-      const anon = (import.meta.env.VITE_CSC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bWd0dG1uZ3d4a29ibWRnZGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NzcxMDMsImV4cCI6MjA5MjI1MzEwM30.rhfz_Io8k1-LzwVIOWjw119G919yqpJLFnLcF7sid9I')
+      const fnUrl = CSC_URL + '/functions/v1/generate-csc-cert'
+      const anon = CSC_ANON
       const resp = await fetch(fnUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anon}` },
