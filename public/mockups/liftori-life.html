@@ -307,7 +307,7 @@
           <div style="display:flex;gap:13px;align-items:center">
             <span class="av" style="width:52px;height:52px;font-size:18px;flex:0 0 52px;background:#E8B04B;color:#5a4310">DD</span>
             <div style="flex:1">
-              <div style="font-size:19px;font-weight:800;letter-spacing:-.3px">Diane's Care Hub</div>
+              <div id="careTitle" style="font-size:19px;font-weight:800;letter-spacing:-.3px">Diane's Care Hub</div>
               <div style="font-size:12.5px;color:var(--muted);font-weight:600">71 · lives with us · caregivers: Ryan &amp; Vanessa</div>
             </div>
           </div>
@@ -338,7 +338,7 @@
 
         <div class="grid two" style="margin-top:14px">
           <div class="card">
-            <h3>What Diane asked for <span class="cta">+ Add</span></h3>
+            <h3 id="careAskedH">What Diane asked for <span class="cta">+ Add</span></h3>
             <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Chamomile tea</div><div class="s">added Mon · from the store</div></div></div>
             <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Denture cream</div><div class="s">added Mon</div></div></div>
             <div class="row"><span class="chk" onclick="this.classList.toggle('done')"></span><div class="g"><div class="t">Ride to the bank</div><div class="s">Thursday · needs a driver</div></div><span class="tag gold">Thu</span></div>
@@ -484,6 +484,11 @@
     var hn=document.getElementById('helloName');if(hn)hn.textContent=first;
     var me=document.getElementById('meAv');if(me){me.style.background=m.color;me.style.color=dark?'#5a4310':'#fff';me.textContent=initials(m.name);}
     titles.home=['Good morning, '+first, owner?'Tuesday · 5 in the family · 3 things need you today':(m.role+" · you're viewing "+first+"'s Liftori-Life")];
+    var recip=null;for(var r=0;r<members.length;r++){if(members[r].role==='Grandparent'){recip=members[r];break;}}
+    if(!recip)recip=members[members.length-1];
+    var rf=((recip&&recip.name)||'Diane').split(/\s+/)[0]||'Diane';var self=(m===recip);
+    var ct=document.getElementById('careTitle');if(ct)ct.textContent=self?'My Care Hub':(rf+"'s Care Hub");
+    var ca=document.getElementById('careAskedH');if(ca)ca.innerHTML=(self?'What I asked for':'What '+rf+' asked for')+' <span class="cta">+ Add</span>';
     go('home');
   }
   function resetPw(i){var b=document.getElementById('pw'+i);if(!b)return;var e=members[i].email;if(!e){var o=b.textContent;b.textContent='Add an email first';setTimeout(function(){b.textContent='Send password reset';},1600);return;}b.textContent='Reset link sent to '+e;b.style.background='var(--pine-soft)';b.style.color='var(--pine)';b.style.borderColor='var(--pine)';setTimeout(function(){b.textContent='Send password reset';b.style.background='var(--bg)';b.style.color='var(--ink)';b.style.borderColor='var(--line)';},2200);}
