@@ -136,6 +136,7 @@ function LabosShell() {
     { key: 'ahj', label: 'AHJ Map', path: 'ahj', icon: CalendarIcon },
     { key: 'customers', label: 'Customers', path: 'customers', icon: SalesIcon },
     { key: 'invoices', label: 'Invoices', path: 'invoices', icon: FinanceIcon },
+    { key: 'reports', label: 'Reports', path: 'compliance-report', icon: NotesIcon },
   ]
   // E-commerce industry tenants (e.g. VJ Thrift Finds) get a curated
   // retail nav: shop hubs first, then the base hubs minus the
