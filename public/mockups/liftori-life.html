@@ -999,7 +999,7 @@
   // ---- Family tree (generational, editable, with ancestors) ----
   var ftPeople={p_me:{id:'p_me',name:'You',ini:'YO',color:'#2F6B5E',sex:'',rel:'Me'}};
   var ftFams={};var _fid=0,_pid=0;
-  var treeCollapsed={},treeZoom=1,treePanX=0,treePanY=0,_treeFitDone=false,_treeDrag=null,_treeMoved=false,_treeW=360,_editPid=null,_editColor='#2F6B5E';
+  var treeCollapsed={},treeZoom=1,treePanX=0,treePanY=0,_treeFitDone=false,_treeDrag=null,_treeMoved=false,_treeW=360,_editPid=null,_editColor='#2F6B5E',treeRoot='p_me',_moreSet={},_miniBox=null;
   function P(id){return ftPeople[id];}
   function newPid(){_pid++;return 'p_'+_pid+'_'+(Date.now()%100000);}
   function newFid(){_fid++;return 'f_'+_fid;}
@@ -1027,9 +1027,10 @@
     var yy=ny+lines.length*13;
     if(p.rel){g+='<text x="'+cx+'" y="'+yy+'" text-anchor="middle" font-size="10" font-weight="600" fill="#2F6B5E">'+esc(p.rel)+'</text>';yy+=12;}
     if(dec&&(p.born||p.passed)){var dt=(p.born?p.born:'')+'&ndash;'+(p.passed||'');g+='<text x="'+cx+'" y="'+yy+'" text-anchor="middle" font-size="10.5" fill="var(--muted)">'+dt+'</text>';}
+    if(_moreSet[p.id]&&p.id!==treeRoot){var ix=cx+R-1,iy=cy+R-1,col=(p.color||'#7A8B99');g+='<g onclick="event.stopPropagation();pivotTo(\''+p.id+'\')" style="cursor:pointer"><title>View '+esc((p.name||'their').split(' ')[0])+'&#39;s family</title><circle cx="'+ix+'" cy="'+iy+'" r="9" fill="#fff" stroke="'+col+'" stroke-width="1.6"/><line x1="'+ix+'" y1="'+(iy-4)+'" x2="'+ix+'" y2="'+(iy+1)+'" stroke="'+col+'" stroke-width="1.4"/><line x1="'+ix+'" y1="'+(iy+1)+'" x2="'+(ix-3)+'" y2="'+(iy+4)+'" stroke="'+col+'" stroke-width="1.4"/><line x1="'+ix+'" y1="'+(iy+1)+'" x2="'+(ix+3)+'" y2="'+(iy+4)+'" stroke="'+col+'" stroke-width="1.4"/></g>';}
     g+='</g>';return g;
   }
-  function applyTreeTransform(){var st=document.getElementById('treeStage');if(st)st.style.transform='translate('+treePanX+'px,'+treePanY+'px) scale('+treeZoom+')';}
+  function applyTreeTransform(){var st=document.getElementById('treeStage');if(st)st.style.transform='translate('+treePanX+'px,'+treePanY+'px) scale('+treeZoom+')';updateMiniRect();}
   function zoomAround(f,ox,oy){var nz=Math.min(2.6,Math.max(0.3,treeZoom*f));treePanX=ox-((ox-treePanX)/treeZoom)*nz;treePanY=oy-((oy-treePanY)/treeZoom)*nz;treeZoom=nz;applyTreeTransform();}
   function zoomTree(f){var vp=document.getElementById('treeViewport');if(!vp)return;var r=vp.getBoundingClientRect();zoomAround(f,r.width/2,r.height/2);}
   function fitTree(){var vp=document.getElementById('treeViewport');if(!vp)return;var w=vp.getBoundingClientRect().width||340;var z=Math.min(1.3,Math.max(0.3,(w-20)/_treeW));treeZoom=z;treePanX=Math.max(8,(w-_treeW*z)/2);treePanY=12;applyTreeTransform();}
@@ -1102,19 +1103,21 @@
     return {w:maxX+SLOT/2,ax:pidX,els:flat};
   }
   function buildChart(){
-    var blk=ancBlock('p_me',true);
+    var blk=ancBlock(treeRoot,true);
     var pos={},minG=0,maxG=0;
     blk.els.forEach(function(e){pos[e.pid]={x:e.x,gen:e.gen};if(e.gen<minG)minG=e.gen;if(e.gen>maxG)maxG=e.gen;});
+    for(var _pk in pos){if(!P(_pk))delete pos[_pk];}
     var W=0;blk.els.forEach(function(e){if(e.x>W)W=e.x;});var PAD=66;for(var pp in pos)pos[pp].x+=PAD;W+=SLOT/2+2*PAD;
+    _moreSet={};for(var mk0 in pos){if(hasMore(mk0,pos))_moreSet[mk0]=1;}
     var TOP=40;
     function Y(gen){return TOP+(gen-minG)*VGAP;}
     var H=Y(maxG)+98;
     var L='',N='';
     function hl(x1,y1,x2,y2,dash){return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="#C9BEB0" stroke-width="2"'+(dash?' stroke-dasharray="4 4"':'')+'/>';}
     for(var fk in ftFams){var f=ftFams[fk];var pa=pos[f.a],pb2=f.b?pos[f.b]:null;
-      var adj=pb2&&Math.abs(pa.x-pb2.x)<=(SLOT+CW+12);
-      if(pa&&pb2&&pa.gen===pb2.gen){var y=Y(pa.gen),lx=Math.min(pa.x,pb2.x),rx=Math.max(pa.x,pb2.x);
-        var aP=P(f.a),bP=P(f.b);
+      var adj=pa&&pb2&&Math.abs(pa.x-pb2.x)<=(SLOT+CW+12);
+      var aP=P(f.a),bP=P(f.b);
+      if(pa&&pb2&&aP&&bP&&pa.gen===pb2.gen){var y=Y(pa.gen),lx=Math.min(pa.x,pb2.x),rx=Math.max(pa.x,pb2.x);
         var solid=(aP.marital==='Married'||bP.marital==='Married'||aP.marital==='Engaged'||bP.marital==='Engaged');
         var eng=(aP.marital==='Engaged'||bP.marital==='Engaged');
         var ex=/ex/i.test((aP.rel||''))||/ex/i.test((bP.rel||''))||aP.marital==='Divorced'||bP.marital==='Divorced';
@@ -1127,8 +1130,8 @@
       if(kids.length){
         var kxs=kids.map(function(k){return pos[k].x;});
         var cen=kxs.reduce(function(a,b){return a+b;},0)/kxs.length;
-        var anchorX=adj?((pa.x+pb2.x)/2):(pb2?(Math.abs(pa.x-cen)<=Math.abs(pb2.x-cen)?pa.x:pb2.x):(pa?pa.x:cen));
-        var py=pa?Y(pa.gen):Y(pos[kids[0]].gen)-VGAP;var ky=Y(pos[kids[0]].gen);var busY=(py+ky)/2;
+        var anchorX;if(pa&&pb2)anchorX=adj?((pa.x+pb2.x)/2):(Math.abs(pa.x-cen)<=Math.abs(pb2.x-cen)?pa.x:pb2.x);else anchorX=(pa?pa.x:(pb2?pb2.x:cen));
+        var py=(pa||pb2)?Y((pa||pb2).gen):Y(pos[kids[0]].gen)-VGAP;var ky=Y(pos[kids[0]].gen);var busY=(py+ky)/2;
         L+=hl(anchorX,py+R0,anchorX,busY,false);
         var bl=Math.min.apply(null,kxs.concat([anchorX])),br=Math.max.apply(null,kxs.concat([anchorX]));
         L+=hl(bl,busY,br,busY,false);
@@ -1136,7 +1139,7 @@
       }
     }
     for(var pk in pos){N+=ftNode(P(pk),pos[pk].x,Y(pos[pk].gen));}
-    _treeW=Math.max(360,W);
+    _treeW=Math.max(360,W);_miniBox={pos:{},W:_treeW,H:H};for(var mk in pos)_miniBox.pos[mk]={x:pos[mk].x,y:Y(pos[mk].gen)};
     return {svg:'<svg width="'+_treeW+'" height="'+H+'" viewBox="0 0 '+_treeW+' '+H+'" style="display:block;font-family:inherit">'+L+N+'</svg>'};
   }
   function renderTree(){
@@ -1146,15 +1149,15 @@
     var setupBtn=ftIsEmpty()?'<button onclick="openSetup()" class="btn" style="margin-bottom:12px;width:100%">Set up my family</button>':'';
     host.innerHTML=''
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
-      +'<div><div style="font-size:17px;font-weight:800">Family tree</div><div style="font-size:12px;color:var(--muted)">'+active+' living - tap a person to edit or add a relative - drag to move</div></div>'
+      +'<div><div style="font-size:17px;font-weight:800">'+(treeRoot==='p_me'?'Family tree':esc(((P(treeRoot)&&P(treeRoot).name)||'Family').split(' ')[0])+'&#39;s tree')+'</div><div style="font-size:12px;color:var(--muted)">'+(treeRoot==='p_me'?(active+' living - tap a person, or the small circle to open their tree'):'A connected branch - tap the small circle on anyone to keep exploring')+'</div></div>'
       +'<div style="display:flex;gap:6px;align-items:center">'
       +'<button onclick="zoomTree(0.83)" class="btn ghost" style="width:36px;height:36px;padding:0;font-size:18px;font-weight:700">&#8722;</button>'
       +'<button onclick="zoomTree(1.2)" class="btn ghost" style="width:36px;height:36px;padding:0;font-size:18px;font-weight:700">+</button>'
-      +'<button onclick="fitTree()" class="btn ghost" style="height:36px;padding:0 12px;font-size:12px;font-weight:700">Fit</button>'
+      +(treeRoot!=='p_me'?'<button onclick="goHome()" class="btn" style="height:36px;padding:0 12px;font-size:12px;font-weight:700">&#8962; My tree</button>':'')+'<button onclick="fitTree()" class="btn ghost" style="height:36px;padding:0 12px;font-size:12px;font-weight:700">Fit</button>'
       +'</div></div>'
       +setupBtn
       +'<div id="treeViewport" style="overflow:hidden;position:relative;height:440px;border:1px solid var(--line);border-radius:14px;background:var(--bg);touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none">'
-      +'<div id="treeStage" style="position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform">'+chart.svg+'</div></div>'
+      +'<div id="treeStage" style="position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform">'+chart.svg+'</div><div id="treeMini" style="position:absolute;right:8px;bottom:8px;background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:8px;padding:2px;pointer-events:none;box-shadow:0 1px 4px rgba(43,38,34,.12)"></div></div>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
       +'<button onclick="openAddRel(\'\')" class="btn">+ Add a relative</button>'
       +'</div>'
@@ -1164,7 +1167,7 @@
     vp.onpointermove=function(e){if(!_treeDrag)return;var dx=e.clientX-_treeDrag.x,dy=e.clientY-_treeDrag.y;if(Math.abs(dx)+Math.abs(dy)>4)_treeMoved=true;treePanX=_treeDrag.px+dx;treePanY=_treeDrag.py+dy;applyTreeTransform();};
     vp.onpointerup=vp.onpointercancel=vp.onpointerleave=function(){_treeDrag=null;vp.style.cursor='grab';};
     vp.onwheel=function(e){e.preventDefault();var r=vp.getBoundingClientRect();zoomAround(e.deltaY<0?1.12:0.9,e.clientX-r.left,e.clientY-r.top);};
-    if(!_treeFitDone){_treeFitDone=true;setTimeout(fitTree,0);}else applyTreeTransform();
+    drawMinimap();if(!_treeFitDone){_treeFitDone=true;setTimeout(fitTree,0);}else applyTreeTransform();
   }
   function toggleSexFields(){var s=document.getElementById('teSex').value,ff=document.getElementById('teFemaleFields');if(ff)ff.style.display=(s==='male')?'none':'grid';}
   function openTreeEdit(id){if(_treeMoved){_treeMoved=false;return;}var p=P(id);if(!p)return;_editPid=id;
@@ -1283,6 +1286,12 @@
     wrap.style.display='block';
     if(dl)dl.innerHTML=buildPeopleList().filter(function(x){return x.id!==anchorId;}).map(function(x){return '<option value="'+esc(x.name)+'">'+(x.rel?esc(x.rel):'')+'</option>';}).join('');
   }
+  function ftNeighbors(pid){var n=[];var bf=birthFam(pid);if(bf){if(bf.a&&bf.a!==pid)n.push(bf.a);if(bf.b&&bf.b!==pid)n.push(bf.b);(bf.kids||[]).forEach(function(k){if(k!==pid)n.push(k);});}spouseFams(pid).forEach(function(f){var sp=partnerOf(f,pid);if(sp)n.push(sp);(f.kids||[]).forEach(function(k){n.push(k);});});return n;}
+  function hasMore(pid,pos){var nb=ftNeighbors(pid);for(var i=0;i<nb.length;i++){if(!pos[nb[i]])return true;}return false;}
+  function pivotTo(pid){if(!P(pid))return;treeRoot=pid;_treeFitDone=false;renderTree();}
+  function goHome(){treeRoot='p_me';_treeFitDone=false;renderTree();}
+  function drawMinimap(){var el=document.getElementById('treeMini');if(!el||!_miniBox)return;var d=_miniBox,bw=132,bh=92,pad=6;var sc=Math.min((bw-2*pad)/Math.max(1,d.W),(bh-2*pad)/Math.max(1,d.H));var dots='';for(var k in d.pos){var mx=(pad+d.pos[k].x*sc).toFixed(1),my=(pad+d.pos[k].y*sc).toFixed(1);var foc=(k===treeRoot);dots+='<circle cx="'+mx+'" cy="'+my+'" r="'+(foc?3.6:1.9)+'" fill="'+(foc?'#D9805A':((P(k)&&P(k).color)||'#B9AE9F'))+'"'+(foc?' stroke="#fff" stroke-width="1"':'')+'/>';}el.innerHTML='<svg width="'+bw+'" height="'+bh+'" viewBox="0 0 '+bw+' '+bh+'" style="display:block"><rect x="0" y="0" width="'+bw+'" height="'+bh+'" fill="transparent"/>'+dots+'<rect id="treeMiniRect" x="0" y="0" width="0" height="0" fill="rgba(47,107,94,.10)" stroke="#2F6B5E" stroke-width="1.3"/></svg>';updateMiniRect();}
+  function updateMiniRect(){var r=document.getElementById('treeMiniRect');var vp=document.getElementById('treeViewport');if(!r||!vp||!_miniBox)return;var d=_miniBox,bw=132,bh=92,pad=6;var sc=Math.min((bw-2*pad)/Math.max(1,d.W),(bh-2*pad)/Math.max(1,d.H));var rect=vp.getBoundingClientRect();var vx=(-treePanX)/treeZoom,vy=(-treePanY)/treeZoom,vw=rect.width/treeZoom,vh=rect.height/treeZoom;r.setAttribute('x',(pad+vx*sc).toFixed(1));r.setAttribute('y',(pad+vy*sc).toFixed(1));r.setAttribute('width',Math.max(2,vw*sc).toFixed(1));r.setAttribute('height',Math.max(2,vh*sc).toFixed(1));}
   function isBlocked(m,name){return !!m&&(m.blocked||[]).indexOf(name)>=0;}
   function toggleBlock(name){var m=members[activeUser];if(!m.blocked)m.blocked=[];var i=m.blocked.indexOf(name);if(i>=0)m.blocked.splice(i,1);else m.blocked.push(name);renderSettings();if(typeof renderTree==='function')renderTree();}
   function buildSafetyCard(m){var list=blockables();var blocked=(m.blocked||[]);
