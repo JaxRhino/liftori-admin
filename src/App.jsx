@@ -603,7 +603,6 @@ export default function App() {
               <Route path="jobs" element={<CscJobs />} />
               <Route path="jobs/:id" element={<CscJobDetail />} />
               <Route path="recurring" element={<CscRecurring />} />
-            <Route path="compliance-report" element={<CscReports />} />
               <Route path="compliance-report" element={<CscReports />} />
               <Route path="deficiencies" element={<CscDeficiencies />} />
               <Route path="invoices" element={<CscInvoices />} />
@@ -645,6 +644,7 @@ export default function App() {
             <Route path="jobs" element={<CscJobs />} />
             <Route path="jobs/:id" element={<CscJobDetail />} />
             <Route path="recurring" element={<CscRecurring />} />
+            <Route path="compliance-report" element={<CscReports />} />
             <Route path="deficiencies" element={<CscDeficiencies />} />
             <Route path="certificates" element={<CscCertificates />} />
             <Route path="stickers" element={<CscStickers />} />
