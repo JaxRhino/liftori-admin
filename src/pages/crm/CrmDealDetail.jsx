@@ -127,7 +127,7 @@ export default function CrmDealDetail() {
         title: data.title || '', description: data.description || '',
         stage: data.stage || '', deal_value: data.deal_value ?? '',
         probability: data.probability ?? 50, lead_temperature: data.lead_temperature || 'warm',
-        service_type: data.service_type || '', status: data.status || '',
+        service_type: data.service_type || '',
         expected_close_date: data.expected_close_date || '', assigned_to: data.assigned_to || '',
         tags: (data.tags || []).join(', '), notes: data.notes || '',
         job_address: data.job_address || '', job_type: data.job_type || '',
@@ -216,7 +216,7 @@ export default function CrmDealDetail() {
       const patch = {
         title: form.title, description: form.description, stage: form.stage,
         deal_value: parseFloat(form.deal_value) || 0, probability: parseInt(form.probability) || 0,
-        lead_temperature: form.lead_temperature, status: form.status || null,
+        lead_temperature: form.lead_temperature,
         job_address: form.job_address || null, job_type: form.job_type || null,
         roof_type: form.roof_type || null, pitch: form.pitch || null,
         sq_count: form.sq_count === '' || form.sq_count == null ? null : parseFloat(form.sq_count),
