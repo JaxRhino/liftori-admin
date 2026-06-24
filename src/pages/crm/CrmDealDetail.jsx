@@ -59,6 +59,7 @@ const tempTone = (t) => ({ hot: 'bg-red-500/20 text-red-300', warm: 'bg-amber-50
 const JOB_TYPES = ['Repair', 'Full Replacement', 'New Construction', 'Inspection', 'Maintenance', 'Insurance Claim', 'Gutters'];
 const ROOF_TYPES = ['Asphalt Shingle', 'Metal', 'Tile', 'Flat / TPO', 'Flat / EPDM', 'Cedar Shake', 'Slate', 'Modified Bitumen'];
 const PITCHES = ['Flat', 'Low Slope', '3/12', '4/12', '5/12', '6/12', '7/12', '8/12', '9/12', '10/12', '11/12', '12/12+'];
+const MANUFACTURERS = ['GAF', 'Owens Corning', 'CertainTeed', 'IKO', 'Atlas', 'TAMKO', 'Malarkey'];
 
 // datetime-local <-> ISO helpers
 const toLocalInput = (iso) => {
@@ -136,6 +137,12 @@ export default function CrmDealDetail() {
         follow_up_appointment_at: toLocalInput(data.follow_up_appointment_at),
         install_date: data.install_date || '', project_manager: data.project_manager || '',
         gate_instructions: data.gate_instructions || '', property_stories: data.property_stories || '', appointment_notes: data.appointment_notes || '',
+        material_manufacturer: data.material_manufacturer || '', material_color: data.material_color || '', layers_to_tear_off: data.layers_to_tear_off || '',
+        decking_type: data.decking_type || '', ventilation_type: data.ventilation_type || '', gutters_notes: data.gutters_notes || '',
+        site_access_notes: data.site_access_notes || '', skylights_chimneys: data.skylights_chimneys || '', drip_edge_color: data.drip_edge_color || '',
+        inspection_date: data.inspection_date || '', coc_date: data.coc_date || '', closed_date: data.closed_date || '',
+        job_foreman: data.job_foreman || '', crew_name: data.crew_name || '',
+        public_adjuster_name: data.public_adjuster_name || '', public_adjuster_contact: data.public_adjuster_contact || '', public_adjuster_phone: data.public_adjuster_phone || '', public_adjuster_email: data.public_adjuster_email || '',
         default_estimate_id: data.default_estimate_id || '',
         insurance_carrier: data.insurance_carrier || '', claim_number: data.claim_number || '',
         policy_number: data.policy_number || '', date_of_loss: data.date_of_loss || '',
@@ -225,6 +232,12 @@ export default function CrmDealDetail() {
         follow_up_appointment_at: form.follow_up_appointment_at ? new Date(form.follow_up_appointment_at).toISOString() : null,
         install_date: form.install_date || null,
         gate_instructions: form.gate_instructions || null, property_stories: form.property_stories || null, appointment_notes: form.appointment_notes || null,
+        material_manufacturer: form.material_manufacturer || null, material_color: form.material_color || null, layers_to_tear_off: form.layers_to_tear_off || null,
+        decking_type: form.decking_type || null, ventilation_type: form.ventilation_type || null, gutters_notes: form.gutters_notes || null,
+        site_access_notes: form.site_access_notes || null, skylights_chimneys: form.skylights_chimneys || null, drip_edge_color: form.drip_edge_color || null,
+        inspection_date: form.inspection_date || null, coc_date: form.coc_date || null, closed_date: form.closed_date || null,
+        job_foreman: form.job_foreman || null, crew_name: form.crew_name || null,
+        public_adjuster_name: form.public_adjuster_name || null, public_adjuster_contact: form.public_adjuster_contact || null, public_adjuster_phone: form.public_adjuster_phone || null, public_adjuster_email: form.public_adjuster_email || null,
         expected_close_date: form.expected_close_date || null,
         assigned_to: form.assigned_to || null, project_manager: form.project_manager || null,
         insurance_carrier: form.insurance_carrier || null, claim_number: form.claim_number || null,
@@ -694,6 +707,13 @@ export default function CrmDealDetail() {
                   {form.job_type && !JOB_TYPES.includes(form.job_type) && <option value={form.job_type}>{form.job_type}</option>}
                 </select>
               </Field>
+              <Field label="Stories">
+                <select value={form.property_stories} onChange={e => setForm({ ...form, property_stories: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                  <option value="">-</option>
+                  {['1', '2', '3', '4+'].map(t => <option key={t} value={t}>{t}</option>)}
+                  {form.property_stories && !['1', '2', '3', '4+'].includes(form.property_stories) && <option value={form.property_stories}>{form.property_stories}</option>}
+                </select>
+              </Field>
               {isRoofing && (
                 <Field label="Roof Type">
                   <select value={form.roof_type} onChange={e => setForm({ ...form, roof_type: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
@@ -704,16 +724,46 @@ export default function CrmDealDetail() {
                 </Field>
               )}
               {isRoofing && (
-                <Field label="Sq Count"><Input type="number" value={form.sq_count} onChange={e => setForm({ ...form, sq_count: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
-              )}
-              {isRoofing && (
-                <Field label="Pitch">
+                <Field label="Predominant Pitch">
                   <select value={form.pitch} onChange={e => setForm({ ...form, pitch: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
                     <option value="">-</option>
                     {PITCHES.map(t => <option key={t} value={t}>{t}</option>)}
                     {form.pitch && !PITCHES.includes(form.pitch) && <option value={form.pitch}>{form.pitch}</option>}
                   </select>
                 </Field>
+              )}
+              {isRoofing && (
+                <Field label="Sq Count"><Input type="number" value={form.sq_count} onChange={e => setForm({ ...form, sq_count: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              )}
+              {isRoofing && (
+                <Field label="Layers to Tear Off"><Input value={form.layers_to_tear_off} onChange={e => setForm({ ...form, layers_to_tear_off: e.target.value })} placeholder="e.g. 1, 2, unknown" className="bg-navy-800 border-navy-700 text-white" /></Field>
+              )}
+              {isRoofing && (
+                <Field label="Material Manufacturer">
+                  <select value={form.material_manufacturer} onChange={e => setForm({ ...form, material_manufacturer: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                    <option value="">-</option>
+                    {MANUFACTURERS.map(t => <option key={t} value={t}>{t}</option>)}
+                    {form.material_manufacturer && !MANUFACTURERS.includes(form.material_manufacturer) && <option value={form.material_manufacturer}>{form.material_manufacturer}</option>}
+                  </select>
+                </Field>
+              )}
+              {isRoofing && (
+                <Field label="Color"><Input value={form.material_color} onChange={e => setForm({ ...form, material_color: e.target.value })} placeholder="Shingle color" className="bg-navy-800 border-navy-700 text-white" /></Field>
+              )}
+              {isRoofing && (
+                <Field label="Decking Type / Condition"><Input value={form.decking_type} onChange={e => setForm({ ...form, decking_type: e.target.value })} placeholder="Plywood / plank, re-deck?" className="bg-navy-800 border-navy-700 text-white" /></Field>
+              )}
+              {isRoofing && (
+                <Field label="Ventilation Type"><Input value={form.ventilation_type} onChange={e => setForm({ ...form, ventilation_type: e.target.value })} placeholder="Ridge vent, turbines, box, etc." className="bg-navy-800 border-navy-700 text-white" /></Field>
+              )}
+              {isRoofing && (
+                <Field label="Drip Edge Color"><Input value={form.drip_edge_color} onChange={e => setForm({ ...form, drip_edge_color: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              )}
+              {isRoofing && (
+                <Field label="Gutters (size / color / guards)"><Input value={form.gutters_notes} onChange={e => setForm({ ...form, gutters_notes: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              )}
+              {isRoofing && (
+                <Field label="Skylights / Chimneys"><Input value={form.skylights_chimneys} onChange={e => setForm({ ...form, skylights_chimneys: e.target.value })} placeholder="Counts / notes" className="bg-navy-800 border-navy-700 text-white" /></Field>
               )}
               <Field label="Job Value">
                 {form.default_estimate_id ? (
@@ -728,14 +778,18 @@ export default function CrmDealDetail() {
                   </div>
                 )}
               </Field>
+              <Field label="Dumpster & Site Access Notes" full><Textarea value={form.site_access_notes} onChange={e => setForm({ ...form, site_access_notes: e.target.value })} placeholder="Driveway, material drop spot, dumpster placement" className="bg-navy-800 border-navy-700 text-white min-h-20" /></Field>
             </SectionCard>
 
             {/* Appointments */}
             <SectionCard title="Appointments">
               <Field label="Initial Appointment"><Input type="datetime-local" value={form.initial_appointment_at} onChange={e => setForm({ ...form, initial_appointment_at: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Follow Up Appointment"><Input type="datetime-local" value={form.follow_up_appointment_at} onChange={e => setForm({ ...form, follow_up_appointment_at: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Inspection Date"><Input type="date" value={form.inspection_date} onChange={e => setForm({ ...form, inspection_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Estimated Close Date"><Input type="date" value={form.expected_close_date} onChange={e => setForm({ ...form, expected_close_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Install Date"><Input type="date" value={form.install_date} onChange={e => setForm({ ...form, install_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="COC Date"><Input type="date" value={form.coc_date} onChange={e => setForm({ ...form, coc_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Closed Date"><Input type="date" value={form.closed_date} onChange={e => setForm({ ...form, closed_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
             </SectionCard>
 
             {/* Initial Appointment Instructions */}
@@ -765,6 +819,13 @@ export default function CrmDealDetail() {
                   {team.map(m => <option key={m.user_id} value={m.user_id}>{`${m.first_name || ''} ${m.last_name || ''}`.trim()}{m.role ? ` - ${m.role}` : ''}</option>)}
                 </select>
               </Field>
+              <Field label="Job Foreman">
+                <select value={form.job_foreman} onChange={e => setForm({ ...form, job_foreman: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                  <option value="">Unassigned</option>
+                  {team.map(m => <option key={m.user_id} value={m.user_id}>{((m.first_name || '') + ' ' + (m.last_name || '')).trim()}{m.role ? ' - ' + m.role : ''}</option>)}
+                </select>
+              </Field>
+              <Field label="Crew"><Input value={form.crew_name} onChange={e => setForm({ ...form, crew_name: e.target.value })} placeholder="Crew name / assignment" className="bg-navy-800 border-navy-700 text-white" /></Field>
             </SectionCard>
 
             {/* Insurance Claim Information */}
@@ -778,6 +839,10 @@ export default function CrmDealDetail() {
               <Field label="Adjuster Email"><Input type="email" value={form.adjuster_email} onChange={e => setForm({ ...form, adjuster_email: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Claim Amount ($)"><Input type="number" value={form.claim_amount} onChange={e => setForm({ ...form, claim_amount: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Deductible ($)"><Input type="number" value={form.deductible} onChange={e => setForm({ ...form, deductible: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Public Adjuster"><Input value={form.public_adjuster_name} onChange={e => setForm({ ...form, public_adjuster_name: e.target.value })} placeholder="Firm / adjuster assigned" className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Public Adjuster Contact"><Input value={form.public_adjuster_contact} onChange={e => setForm({ ...form, public_adjuster_contact: e.target.value })} placeholder="Contact name" className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Public Adjuster Phone"><Input value={form.public_adjuster_phone} onChange={e => setForm({ ...form, public_adjuster_phone: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Public Adjuster Email"><Input type="email" value={form.public_adjuster_email} onChange={e => setForm({ ...form, public_adjuster_email: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
             </SectionCard>
 
             {/* Additional */}
