@@ -12,6 +12,7 @@ import CrmSalesTraining from './pages/crm/CrmSalesTraining'
 import CrmOpsPipeline from './pages/crm/CrmOpsPipeline'
 import CrmCustomers from './pages/crm/CrmCustomers'
 import CrmCustomerDetail from './pages/crm/CrmCustomerDetail'
+import CrmDealDetail from './pages/crm/CrmDealDetail'
 import CrmEstimateDetail from './pages/crm/CrmEstimateDetail'
 import CrmCallCenter from './pages/crm/CrmCallCenter'
 import CrmOperations from './pages/crm/CrmOperations'
@@ -615,6 +616,7 @@ export default function App() {
             <Route path="sales" element={<CrmPipeline />} />
             <Route path="measure" element={<CrmMeasure />} />
             <Route path="pipeline" element={<CrmPipeline />} />
+            <Route path="deals/:id" element={<CrmDealDetail />} />
             <Route path="lead-sources" element={<CrmLeadSources />} />
             <Route path="commissions" element={<CrmCommissions />} />
             <Route path="sequences" element={<CrmSequences />} />
