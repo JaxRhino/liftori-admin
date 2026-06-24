@@ -135,6 +135,7 @@ export default function CrmDealDetail() {
         initial_appointment_at: toLocalInput(data.initial_appointment_at),
         follow_up_appointment_at: toLocalInput(data.follow_up_appointment_at),
         install_date: data.install_date || '', project_manager: data.project_manager || '',
+        gate_instructions: data.gate_instructions || '', property_stories: data.property_stories || '', appointment_notes: data.appointment_notes || '',
         default_estimate_id: data.default_estimate_id || '',
         insurance_carrier: data.insurance_carrier || '', claim_number: data.claim_number || '',
         policy_number: data.policy_number || '', date_of_loss: data.date_of_loss || '',
@@ -223,6 +224,7 @@ export default function CrmDealDetail() {
         initial_appointment_at: form.initial_appointment_at ? new Date(form.initial_appointment_at).toISOString() : null,
         follow_up_appointment_at: form.follow_up_appointment_at ? new Date(form.follow_up_appointment_at).toISOString() : null,
         install_date: form.install_date || null,
+        gate_instructions: form.gate_instructions || null, property_stories: form.property_stories || null, appointment_notes: form.appointment_notes || null,
         expected_close_date: form.expected_close_date || null,
         assigned_to: form.assigned_to || null, project_manager: form.project_manager || null,
         insurance_carrier: form.insurance_carrier || null, claim_number: form.claim_number || null,
@@ -734,6 +736,19 @@ export default function CrmDealDetail() {
               <Field label="Follow Up Appointment"><Input type="datetime-local" value={form.follow_up_appointment_at} onChange={e => setForm({ ...form, follow_up_appointment_at: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Estimated Close Date"><Input type="date" value={form.expected_close_date} onChange={e => setForm({ ...form, expected_close_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Install Date"><Input type="date" value={form.install_date} onChange={e => setForm({ ...form, install_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+            </SectionCard>
+
+            {/* Initial Appointment Instructions */}
+            <SectionCard title="Initial Appointment Instructions">
+              <Field label="Gate Instructions" full><Input value={form.gate_instructions} onChange={e => setForm({ ...form, gate_instructions: e.target.value })} placeholder="Gate code, access notes, etc." className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Property Stories">
+                <select value={form.property_stories} onChange={e => setForm({ ...form, property_stories: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                  <option value="">-</option>
+                  {['1', '2', '3', '4+'].map(t => <option key={t} value={t}>{t}</option>)}
+                  {form.property_stories && !['1', '2', '3', '4+'].includes(form.property_stories) && <option value={form.property_stories}>{form.property_stories}</option>}
+                </select>
+              </Field>
+              <Field label="Appointment Notes" full><Textarea value={form.appointment_notes} onChange={e => setForm({ ...form, appointment_notes: e.target.value })} className="bg-navy-800 border-navy-700 text-white min-h-24" /></Field>
             </SectionCard>
 
             {/* Assigned */}
