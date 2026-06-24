@@ -62,6 +62,13 @@ const ROOF_TYPES = ['Asphalt Shingle', 'Metal', 'Tile', 'Flat / TPO', 'Flat / EP
 const PITCHES = ['Flat', 'Low Slope', '3/12', '4/12', '5/12', '6/12', '7/12', '8/12', '9/12', '10/12', '11/12', '12/12+'];
 const MANUFACTURERS = ['GAF', 'Owens Corning', 'CertainTeed', 'IKO', 'Atlas', 'TAMKO', 'Malarkey'];
 
+const INTEGRATION_PROVIDERS = [
+  { key: 'eagleview', label: 'EagleView', order_url: 'https://www.eagleview.com/order/', blurb: 'Order an EagleView roof report, then import the squares, pitch and facets here.' },
+  { key: 'hover', label: 'Hover', order_url: 'https://hover.to/', blurb: 'Capture a Hover 3D model, then import its measurements into this job.' },
+  { key: 'roofr', label: 'Roofr', order_url: 'https://app.roofr.com/', blurb: 'Order a Roofr report and import its measurements into this job.' },
+  { key: 'gaf_quickmeasure', label: 'GAF QuickMeasure', order_url: 'https://www.gaf.com/en-us/roofing-products/quickmeasure', blurb: 'Pull a GAF QuickMeasure report and import its measurements here.' },
+];
+
 // datetime-local <-> ISO helpers
 const toLocalInput = (iso) => {
   if (!iso) return '';
@@ -89,6 +96,10 @@ export default function CrmDealDetail() {
   const [reportRequests, setReportRequests] = useState([]);
   const [reqForm, setReqForm] = useState(null);
   const [reqSubmitting, setReqSubmitting] = useState(false);
+  const [providers, setProviders] = useState([]);
+  const [provEditor, setProvEditor] = useState(null);
+  const [importForm, setImportForm] = useState(null);
+  const [importSaving, setImportSaving] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Lazy per-tab data. Each tab loads once on first activation, scoped by pipeline_id.
@@ -232,6 +243,7 @@ export default function CrmDealDetail() {
     (async () => {
       if (tab === 'measurements') {
         setMeasurements(await safe(client.from('ops_measurements').select('*').eq('pipeline_id', id).eq('template_type', 'aerial_roof').order('created_at', { ascending: false })));
+        loadProviders();
       } else if (tab === 'estimates') {
         setEstimates(await safe(client.from('customer_estimates').select('*').eq('pipeline_id', id).order('created_at', { ascending: false })));
       } else if (tab === 'documents') {
@@ -357,6 +369,125 @@ export default function CrmDealDetail() {
       const { data, error } = await client.from('customer_estimates').insert({
         contact_id: deal.contact_id || null, pipeline_id: id, estimate_number: en,
         title: 'New Estimate', status: 'draft', sections: seed, gross_margin: margin,
+      }).select().single();
+      if (error) throw error;
+      navigate('/crm/' + platformId + '/estimates/' + data.id);
+    } catch (e) { console.error(e); toast.error('Could not create estimate'); }
+  }
+
+  // ---- rf18 Aerial measurement integration: providers + universal import ----
+  async function loadProviders() {
+    try { const { data } = await client.from('measurement_providers').select('*'); setProviders(data || []); }
+    catch (e) { /* table optional */ }
+  }
+
+  async function saveProvider() {
+    if (!provEditor) return;
+    try {
+      const row = {
+        provider: provEditor.provider,
+        display_name: provEditor.display_name,
+        category: 'aerial',
+        connected: !!(provEditor.account_email || provEditor.api_key),
+        account_email: provEditor.account_email || null,
+        api_key: provEditor.api_key || null,
+        order_url: provEditor.order_url || null,
+        notes: provEditor.notes || null,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await client.from('measurement_providers').upsert(row, { onConflict: 'provider' });
+      if (error) throw error;
+      setProvEditor(null);
+      await loadProviders();
+      toast.success(row.connected ? (row.display_name + ' connected') : 'Saved');
+    } catch (e) { console.error(e); toast.error('Could not save provider'); }
+  }
+
+  function openImport(provider) {
+    const p = providers.find(x => x.provider === provider) || INTEGRATION_PROVIDERS.find(x => x.key === provider);
+    setImportForm({
+      provider: provider || '',
+      provider_label: p ? (p.display_name || p.label) : 'Manual / other',
+      title: '', squares: '', pitch: '', waste: '10', facet_count: '',
+      ridge: '', hip: '', valley: '', eave: '', rake: '', step: '', report_url: '',
+    });
+  }
+
+  async function saveImport() {
+    if (!importForm) return;
+    const sq = num(importForm.squares);
+    if (sq <= 0) { toast.error('Enter the total squares from the report'); return; }
+    setImportSaving(true);
+    try {
+      const segments = [
+        ['ridge', importForm.ridge], ['hip', importForm.hip], ['valley', importForm.valley],
+        ['eave', importForm.eave], ['rake', importForm.rake], ['step', importForm.step],
+      ].filter(([, v]) => num(v) > 0).map(([type, v]) => ({ type, length_ft: num(v) }));
+      const summary = {
+        squares: sq,
+        area_ft2: round2(sq * 100),
+        waste_pct: num(importForm.waste),
+        predominant_pitch: importForm.pitch || null,
+        facet_count: num(importForm.facet_count),
+        segments,
+        provider: importForm.provider_label,
+        source: 'import',
+        used_for_area: true,
+      };
+      const userRes = await client.auth.getUser().catch(() => null);
+      const uid = (userRes && userRes.data && userRes.data.user && userRes.data.user.id) || null;
+      const { error } = await client.from('ops_measurements').insert({
+        title: importForm.title.trim() || (importForm.provider_label + ' report'),
+        template_type: 'aerial_roof',
+        status: 'measured',
+        address: form.job_address || (contact ? contact.property_address : null) || null,
+        contact_id: deal.contact_id || null,
+        pipeline_id: id,
+        measurements: { imported: true, provider: importForm.provider_label, report_url: importForm.report_url || null },
+        summary,
+        photos: [], diagrams: [],
+        measured_by: uid,
+        measured_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      setImportForm(null);
+      await reload('measurements');
+      setMeasSub('saved');
+      toast.success('Measurement imported');
+    } catch (e) { console.error(e); toast.error('Import failed: ' + (e.message || '')); }
+    finally { setImportSaving(false); }
+  }
+
+  async function createEstimateFromMeasurement(m) {
+    try {
+      const sm = m.summary || {};
+      const en = 'EST-' + Date.now().toString().slice(-6);
+      const rid2 = () => Math.random().toString(36).slice(2, 10);
+      const seed = [
+        { id: rid2(), title: 'Materials', enabled: true, items: [] },
+        { id: rid2(), title: 'Labor', enabled: true, items: [] },
+        { id: rid2(), title: 'Fees', enabled: true, items: [] },
+      ];
+      let margin = 50;
+      try {
+        const { data: st } = await client.from('estimate_settings').select('default_gross_margin').limit(1).maybeSingle();
+        if (st && st.default_gross_margin != null) margin = st.default_gross_margin;
+        const { data: prods } = await client.from('estimate_products').select('*').eq('is_active', true).eq('in_default_template', true).order('name', { ascending: true });
+        (prods || []).forEach(pr => {
+          const item = { id: rid2(), description: pr.name, qty: 1, unit: pr.unit || '', unit_cost: Number(pr.cost) || 0 };
+          (pr.item_type === 'labor' ? seed[1] : seed[0]).items.push(item);
+        });
+      } catch (seedErr) { console.error(seedErr); }
+      const meas = {
+        squares: num(sm.squares),
+        waste_pct: sm.waste_pct != null ? num(sm.waste_pct) : 10,
+        pitch: sm.predominant_pitch || '',
+        layers: 1, stories: 1,
+      };
+      const { data, error } = await client.from('customer_estimates').insert({
+        contact_id: deal.contact_id || null, pipeline_id: id, estimate_number: en,
+        title: (sm.provider ? sm.provider + ' estimate' : 'New Estimate'), status: 'draft',
+        sections: seed, gross_margin: margin, measurements: meas,
       }).select().single();
       if (error) throw error;
       navigate('/crm/' + platformId + '/estimates/' + data.id);
@@ -935,11 +1066,16 @@ export default function CrmDealDetail() {
                 <div>
                   <h3 className="text-sm font-semibold text-white mb-2">Roof Measure Saves</h3>
                   <ListTable empty="No saved roof measurements for this job yet."
-                    cols={['Title', 'Saved', 'Open']}
+                    cols={['Title', 'Source', 'Squares', 'Saved', '']}
                     rows={measurements.map(m => [
-                      (m.measurements && m.measurements.title) || m.template_type || 'Roof measurement',
+                      m.title || (m.measurements && m.measurements.title) || m.template_type || 'Roof measurement',
+                      (m.summary && m.summary.provider) || (m.measurements && m.measurements.imported ? 'Imported' : 'Roof Measure'),
+                      (m.summary && m.summary.squares != null) ? (m.summary.squares + ' sq') : '-',
                       date(m.created_at),
-                      <button onClick={() => setMeasSub('measure')} className="text-brand-blue hover:text-brand-cyan">View</button>,
+                      <div className="flex items-center justify-end gap-3">
+                        <button onClick={() => createEstimateFromMeasurement(m)} className="text-brand-blue hover:text-brand-cyan">Create estimate</button>
+                        {!(m.measurements && m.measurements.imported) && <button onClick={() => setMeasSub('measure')} className="text-gray-400 hover:text-white">Open</button>}
+                      </div>,
                     ])} />
                 </div>
               </div>
@@ -1006,18 +1142,117 @@ export default function CrmDealDetail() {
             )}
 
             {measSub === 'integrations' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
-                <Card className="bg-navy-900 border-navy-800 p-6">
-                  <h3 className="text-white font-semibold">Hover</h3>
-                  <p className="text-sm text-gray-400 mt-1">Connect a Hover account to pull 3D measurements directly into this job.</p>
-                  <Button disabled className="bg-navy-700 text-gray-400 mt-4 cursor-not-allowed">Connect (coming soon)</Button>
-                </Card>
-                <Card className="bg-navy-900 border-navy-800 p-6">
-                  <h3 className="text-white font-semibold">Roofr</h3>
-                  <p className="text-sm text-gray-400 mt-1">Connect Roofr to import roof reports and measurements for this job.</p>
-                  <Button disabled className="bg-navy-700 text-gray-400 mt-4 cursor-not-allowed">Connect (coming soon)</Button>
-                </Card>
+              <div className="space-y-5 max-w-4xl">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Measurement Sources</h3>
+                    <p className="text-sm text-gray-400 mt-1 max-w-xl">Choose where this job's roof measurements come from. Use Liftori's built-in tools, or connect an outside provider and import its report - the squares, pitch and facets flow straight into the estimate.</p>
+                  </div>
+                  <Button onClick={() => openImport('')} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm flex items-center gap-1 whitespace-nowrap"><Upload size={15} /> Import a report</Button>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Liftori tools</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="bg-navy-900 border-navy-800 p-5">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-white font-semibold">Liftori Roof Measure</h4>
+                        <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">Built in</Badge>
+                      </div>
+                      <p className="text-sm text-gray-400 mt-1">Trace the roof on satellite imagery - squares, pitch and linear feet, no third party.</p>
+                      <Button onClick={() => setMeasSub('measure')} className="bg-navy-700 hover:bg-navy-600 text-white text-sm mt-4">Open Roof Measure</Button>
+                    </Card>
+                    <Card className="bg-navy-900 border-navy-800 p-5">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-white font-semibold">Liftori Roof Report</h4>
+                        <Badge className="bg-blue-500/20 text-blue-300 text-xs">$15 / 6 hr</Badge>
+                      </div>
+                      <p className="text-sm text-gray-400 mt-1">Order a Liftori-built report - we measure it and deliver a branded PDF.</p>
+                      <Button onClick={() => setMeasSub('request')} className="bg-navy-700 hover:bg-navy-600 text-white text-sm mt-4">Request a report</Button>
+                    </Card>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Outside providers</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {INTEGRATION_PROVIDERS.map(p => {
+                      const row = providers.find(x => x.provider === p.key);
+                      const connected = !!(row && row.connected);
+                      const orderUrl = (row && row.order_url) || p.order_url;
+                      return (
+                        <Card key={p.key} className="bg-navy-900 border-navy-800 p-5">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-white font-semibold">{p.label}</h4>
+                            <Badge className={(connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-navy-700 text-gray-400') + ' text-xs'}>{connected ? 'Connected' : 'Not connected'}</Badge>
+                          </div>
+                          <p className="text-sm text-gray-400 mt-1">{p.blurb}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-4">
+                            <Button onClick={() => setProvEditor({ provider: p.key, display_name: p.label, account_email: (row && row.account_email) || '', api_key: (row && row.api_key) || '', order_url: orderUrl, notes: (row && row.notes) || '' })} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">{connected ? 'Manage' : 'Connect'}</Button>
+                            {orderUrl && <a href={orderUrl} target="_blank" rel="noreferrer" className="text-sm text-gray-300 hover:text-white px-3 py-2 rounded-lg border border-navy-700">Order at {p.label}</a>}
+                            <button onClick={() => openImport(p.key)} className="text-sm text-brand-blue hover:text-brand-cyan ml-auto">Import report</button>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
+            )}
+
+            {provEditor && (
+              <Modal title={'Connect ' + provEditor.display_name} onClose={() => setProvEditor(null)}>
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-400">Save your {provEditor.display_name} account so the team knows it's available for this tenant. Order reports at the provider, then use Import to bring the numbers in.</p>
+                  <Field label="Account email"><Input value={provEditor.account_email} onChange={e => setProvEditor(f => ({ ...f, account_email: e.target.value }))} placeholder="you@company.com" className="bg-navy-800 border-navy-700 text-white" /></Field>
+                  <Field label="API key / token (optional)"><Input value={provEditor.api_key} onChange={e => setProvEditor(f => ({ ...f, api_key: e.target.value }))} placeholder="Paste if you have API access" className="bg-navy-800 border-navy-700 text-white" /></Field>
+                  <Field label="Order URL"><Input value={provEditor.order_url} onChange={e => setProvEditor(f => ({ ...f, order_url: e.target.value }))} className="bg-navy-800 border-navy-700 text-white" /></Field>
+                  <Field label="Notes"><Textarea value={provEditor.notes} onChange={e => setProvEditor(f => ({ ...f, notes: e.target.value }))} className="bg-navy-800 border-navy-700 text-white" rows={2} /></Field>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button onClick={() => setProvEditor(null)} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button>
+                    <Button onClick={saveProvider} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Save</Button>
+                  </div>
+                </div>
+              </Modal>
+            )}
+
+            {importForm && (
+              <Modal title="Import roof measurement" onClose={() => setImportForm(null)} wide>
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-400">Enter the numbers from your {importForm.provider_label !== 'Manual / other' ? importForm.provider_label + ' ' : ''}report. Squares and pitch auto-fill into any estimate you build for this job.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Field label="Source">
+                      <select value={importForm.provider} onChange={e => { const v = e.target.value; const p = INTEGRATION_PROVIDERS.find(x => x.key === v); setImportForm(f => ({ ...f, provider: v, provider_label: p ? p.label : 'Manual / other' })); }} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                        <option value="">Manual / other</option>
+                        {INTEGRATION_PROVIDERS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Report title"><Input value={importForm.title} onChange={e => setImportForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. EagleView - 29 Sawgrass Ct" className="bg-navy-800 border-navy-700 text-white" /></Field>
+                    <Field label="Total squares *"><Input type="number" value={importForm.squares} onChange={e => setImportForm(f => ({ ...f, squares: e.target.value }))} placeholder="0" className="bg-navy-800 border-navy-700 text-white" /></Field>
+                    <Field label="Predominant pitch">
+                      <select value={importForm.pitch} onChange={e => setImportForm(f => ({ ...f, pitch: e.target.value }))} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                        <option value="">-</option>
+                        {PITCHES.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Waste %"><Input type="number" value={importForm.waste} onChange={e => setImportForm(f => ({ ...f, waste: e.target.value }))} className="bg-navy-800 border-navy-700 text-white" /></Field>
+                    <Field label="Facet count"><Input type="number" value={importForm.facet_count} onChange={e => setImportForm(f => ({ ...f, facet_count: e.target.value }))} placeholder="0" className="bg-navy-800 border-navy-700 text-white" /></Field>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-400 mb-2">Linear feet (optional)</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {[['ridge','Ridge'],['hip','Hip'],['valley','Valley'],['eave','Eave'],['rake','Rake'],['step','Step flash']].map(([k,l]) => (
+                        <Field key={k} label={l}><Input type="number" value={importForm[k]} onChange={e => setImportForm(f => ({ ...f, [k]: e.target.value }))} placeholder="ft" className="bg-navy-800 border-navy-700 text-white" /></Field>
+                      ))}
+                    </div>
+                  </div>
+                  <Field label="Report link (optional)" full><Input value={importForm.report_url} onChange={e => setImportForm(f => ({ ...f, report_url: e.target.value }))} placeholder="https://..." className="bg-navy-800 border-navy-700 text-white" /></Field>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button onClick={() => setImportForm(null)} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button>
+                    <Button onClick={saveImport} disabled={importSaving} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">{importSaving ? 'Saving...' : 'Import measurement'}</Button>
+                  </div>
+                </div>
+              </Modal>
             )}
           </div>
         )}
