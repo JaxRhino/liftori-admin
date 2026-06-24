@@ -58,7 +58,8 @@ const tempTone = (t) => ({ hot: 'bg-red-500/20 text-red-300', warm: 'bg-amber-50
 export default function CrmDealDetail() {
   const { platformId, id } = useParams();
   const navigate = useNavigate();
-  const { client } = useCrmClient();
+  const { client, platform } = useCrmClient();
+  const isRoofing = String((platform && platform.industry) || '').toLowerCase().includes('roof');
 
   const [tab, setTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -175,6 +176,7 @@ export default function CrmDealDetail() {
       };
       const { error } = await client.from('customer_pipeline').update(patch).eq('id', id);
       if (error) throw error;
+      setDeal(prev => (prev ? { ...prev, ...patch } : prev));
       toast.success('Deal updated');
       loadDeal();
     } catch (e) { console.error(e); toast.error('Save failed'); } finally { setSaving(false); }
@@ -505,7 +507,7 @@ export default function CrmDealDetail() {
 
         {/* Tabs */}
         <div className="flex items-center gap-1 mb-5 border-b border-navy-800 overflow-x-auto">
-          {TABS.map(t => (
+          {TABS.filter(t => t.key !== 'measurements' || isRoofing).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t.key ? 'border-brand-blue text-brand-blue' : 'border-transparent text-gray-400 hover:text-white'}`}>
               {t.label}{counts[t.key] ? <span className="ml-1.5 text-xs text-gray-500">{counts[t.key]}</span> : null}
@@ -547,7 +549,7 @@ export default function CrmDealDetail() {
               </Panel>
               <Panel title="Quick Links">
                 <div className="flex flex-wrap gap-2">
-                  <QuickLink label="Measurements" onClick={() => setTab('measurements')} />
+                  {isRoofing && <QuickLink label="Measurements" onClick={() => setTab('measurements')} />}
                   <QuickLink label="Photos" onClick={() => setTab('photos')} />
                   <QuickLink label="Estimates" onClick={() => setTab('estimates')} />
                   <QuickLink label="Finance" onClick={() => setTab('finance')} />
