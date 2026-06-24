@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
-import { ArrowLeft, Plus, Download, FileText, Upload, MessageSquare, CheckCircle2, Circle } from 'lucide-react';
+import { ArrowLeft, Plus, Download, FileText, Upload, MessageSquare, CheckCircle2, Circle, Trash2, DollarSign, Send, Mail, Phone, StickyNote, X, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import CrmMeasure from './operations/CrmMeasure';
 import CustomerPhotos from '../../components/crm/CustomerPhotos';
@@ -26,6 +26,11 @@ const money = (v) => '$' + (Number(v) || 0).toLocaleString(undefined, { maximumF
 const date = (d) => d ? new Date(d).toLocaleDateString() : '-';
 const fileSize = (b) => { const n = Number(b) || 0; if (!n) return '-'; if (n < 1024) return n + ' B'; if (n < 1048576) return (n / 1024).toFixed(0) + ' KB'; return (n / 1048576).toFixed(1) + ' MB'; };
 const contactLabel = (c) => c ? (c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Customer') : '';
+const genInvoiceNumber = () => 'INV-' + Date.now().toString().slice(-6) + '-' + Math.floor(100 + Math.random() * 899);
+const genPaymentNumber = () => 'PMT-' + Date.now().toString().slice(-6) + '-' + Math.floor(100 + Math.random() * 899);
+const rid = () => Math.random().toString(36).slice(2, 10);
+const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const round2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
 
 const TABS = [
   { key: 'overview',       label: 'Overview' },
@@ -72,6 +77,20 @@ export default function CrmDealDetail() {
   const [conversations, setConversations] = useState([]);
   const [notes, setNotes] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [payments, setPayments] = useState({});         // { [invoiceId]: [payment rows] }
+
+  // Finance tab UI state
+  const [invEditor, setInvEditor] = useState(null);     // editing/new invoice draft object | null
+  const [invSaving, setInvSaving] = useState(false);
+  const [milestoneOpen, setMilestoneOpen] = useState(false);
+  const [payFor, setPayFor] = useState(null);           // invoice we are recording a payment on | null
+
+  // Communications tab UI state
+  const [activeConv, setActiveConv] = useState(null);   // selected conversation | null
+  const [messages, setMessages] = useState([]);
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [msgDraft, setMsgDraft] = useState('');
+  const [newConvOpen, setNewConvOpen] = useState(false);
 
   useEffect(() => { if (client && id) loadDeal(); /* eslint-disable-next-line */ }, [client, id]);
 
@@ -118,7 +137,7 @@ export default function CrmDealDetail() {
       } else if (tab === 'documents') {
         setDocuments(await safe(client.from('documents').select('*').eq('pipeline_id', id).order('created_at', { ascending: false })));
       } else if (tab === 'finance') {
-        setInvoices(await safe(client.from('finance_invoices').select('*').eq('pipeline_id', id).order('invoice_date', { ascending: false })));
+        await loadFinance();
       } else if (tab === 'communications') {
         setConversations(await safe(client.from('comms_conversations').select('*').eq('pipeline_id', id).order('last_message_at', { ascending: false, nullsFirst: false })));
       } else if (tab === 'notes') {
@@ -136,7 +155,7 @@ export default function CrmDealDetail() {
     if (tabKey === 'measurements') setMeasurements(await safe(client.from('ops_measurements').select('*').eq('pipeline_id', id).eq('template_type', 'aerial_roof').order('created_at', { ascending: false })));
     if (tabKey === 'estimates') setEstimates(await safe(client.from('customer_estimates').select('*').eq('pipeline_id', id).order('created_at', { ascending: false })));
     if (tabKey === 'documents') setDocuments(await safe(client.from('documents').select('*').eq('pipeline_id', id).order('created_at', { ascending: false })));
-    if (tabKey === 'finance') setInvoices(await safe(client.from('finance_invoices').select('*').eq('pipeline_id', id).order('invoice_date', { ascending: false })));
+    if (tabKey === 'finance') await loadFinance();
     if (tabKey === 'communications') setConversations(await safe(client.from('comms_conversations').select('*').eq('pipeline_id', id).order('last_message_at', { ascending: false, nullsFirst: false })));
     if (tabKey === 'notes') setNotes(await safe(client.from('admin_notes').select('*').eq('pipeline_id', id).order('created_at', { ascending: false })));
     if (tabKey === 'tasks') setTasks(await safe(client.from('admin_tasks').select('*').eq('pipeline_id', id).order('created_at', { ascending: false })));
@@ -224,32 +243,191 @@ export default function CrmDealDetail() {
     } catch (e) { console.error(e); toast.error('Could not open file'); }
   }
 
-  // ---- Finance: minimal draft invoice tagged pipeline_id ----
-  async function createInvoice() {
-    try {
-      const num = 'INV-' + Date.now().toString().slice(-6);
-      const { data, error } = await client.from('finance_invoices').insert({
-        invoice_number: num, customer_id: deal.contact_id || null, customer_name: contact ? contactLabel(contact) : null,
-        pipeline_id: id, invoice_date: new Date().toISOString().slice(0, 10), status: 'draft',
-        subtotal: 0, total_amount: 0, amount_paid: 0, balance_due: 0, notes: deal.title || null,
-      }).select().single();
-      if (error) throw error;
-      toast.success('Draft invoice created');
-      reload('finance');
-    } catch (e) { console.error(e); toast.error('Could not create invoice'); }
+  // ---- Finance: per-job invoice builder (all scoped pipeline_id = id) ----
+  async function loadFinance() {
+    const safe = (p) => p.then(r => r.data || []).catch(() => []);
+    const inv = await safe(client.from('finance_invoices').select('*').eq('pipeline_id', id).order('invoice_date', { ascending: false }));
+    setInvoices(inv);
+    const ids = inv.map(i => i.id).filter(Boolean);
+    if (ids.length) {
+      const pays = await safe(client.from('finance_payments').select('*').in('invoice_id', ids).order('payment_date', { ascending: false }));
+      const byInv = {};
+      pays.forEach(p => { (byInv[p.invoice_id] = byInv[p.invoice_id] || []).push(p); });
+      setPayments(byInv);
+    } else {
+      setPayments({});
+    }
   }
 
-  // ---- Communications: log/start a conversation tagged pipeline_id ----
-  async function startConversation() {
+  function blankInvoice() {
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      id: null, invoice_number: genInvoiceNumber(),
+      invoice_date: today, due_date: today, status: 'draft',
+      line_items: [{ _k: rid(), description: '', qty: 1, unit_price: 0, amount: 0 }],
+      tax_rate: 0, amount_paid: 0, notes: deal.title || '', terms: '',
+    };
+  }
+
+  function openInvoiceEditor(inv) {
+    if (!inv) { setInvEditor(blankInvoice()); return; }
+    const items = Array.isArray(inv.line_items) && inv.line_items.length
+      ? inv.line_items.map(li => ({ _k: rid(), description: li.description || li.name || '', qty: num(li.qty ?? li.quantity ?? 1), unit_price: num(li.unit_price), amount: num(li.amount) }))
+      : [{ _k: rid(), description: '', qty: 1, unit_price: 0, amount: 0 }];
+    setInvEditor({
+      id: inv.id, invoice_number: inv.invoice_number || genInvoiceNumber(),
+      invoice_date: (inv.invoice_date || '').slice(0, 10) || new Date().toISOString().slice(0, 10),
+      due_date: (inv.due_date || '').slice(0, 10) || '', status: inv.status || 'draft',
+      line_items: items, tax_rate: num(inv.tax_rate), amount_paid: num(inv.amount_paid),
+      notes: inv.notes || '', terms: inv.terms || '',
+    });
+  }
+
+  function invTotals(ed) {
+    const items = (ed.line_items || []).map(li => ({ ...li, amount: round2(num(li.qty) * num(li.unit_price)) }));
+    const subtotal = round2(items.reduce((s, li) => s + li.amount, 0));
+    const tax_amount = round2(subtotal * (num(ed.tax_rate) / 100));
+    const total_amount = round2(subtotal + tax_amount);
+    const balance_due = round2(total_amount - num(ed.amount_paid));
+    return { items, subtotal, tax_amount, total_amount, balance_due };
+  }
+
+  async function saveInvoice() {
+    if (!invEditor) return;
+    setInvSaving(true);
     try {
-      const { error } = await client.from('comms_conversations').insert({
-        channel_type: 'note', subject: deal.title || 'Job conversation', status: 'open',
-        contact_id: deal.contact_id || null, pipeline_id: id, unread_count: 0,
-        last_message_at: new Date().toISOString(), last_message_preview: 'Conversation logged from job page.',
-      });
+      const t = invTotals(invEditor);
+      const line_items = t.items.map(({ _k, ...li }) => li);
+      const row = {
+        invoice_number: invEditor.invoice_number,
+        customer_id: deal.contact_id || null,
+        customer_name: contact ? contactLabel(contact) : null,
+        pipeline_id: id, project_name: deal.title || null,
+        invoice_date: invEditor.invoice_date || null,
+        due_date: invEditor.due_date || null,
+        status: invEditor.status || 'draft',
+        line_items, subtotal: t.subtotal, tax_rate: num(invEditor.tax_rate),
+        tax_amount: t.tax_amount, total_amount: t.total_amount,
+        amount_paid: num(invEditor.amount_paid), balance_due: t.balance_due,
+        notes: invEditor.notes || null, terms: invEditor.terms || null,
+        updated_at: new Date().toISOString(),
+      };
+      let error;
+      if (invEditor.id) {
+        ({ error } = await client.from('finance_invoices').update(row).eq('id', invEditor.id));
+      } else {
+        ({ error } = await client.from('finance_invoices').insert(row));
+      }
       if (error) throw error;
+      toast.success(invEditor.id ? 'Invoice updated' : 'Invoice created');
+      setInvEditor(null);
+      await loadFinance();
+    } catch (e) { console.error(e); toast.error('Could not save invoice'); }
+    finally { setInvSaving(false); }
+  }
+
+  async function generateMilestones(splits, baseAmount) {
+    try {
+      const total = num(baseAmount);
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = (splits || []).filter(sp => num(sp.pct) > 0).map(sp => {
+        const amount = round2(total * (num(sp.pct) / 100));
+        return {
+          invoice_number: genInvoiceNumber(),
+          customer_id: deal.contact_id || null,
+          customer_name: contact ? contactLabel(contact) : null,
+          pipeline_id: id, project_name: deal.title || null,
+          invoice_date: today, due_date: today, status: 'draft',
+          line_items: [{ description: `${sp.label} - ${deal.title || 'job'}`, qty: 1, unit_price: amount, amount }],
+          subtotal: amount, tax_rate: 0, tax_amount: 0, total_amount: amount,
+          amount_paid: 0, balance_due: amount, terms: `${sp.label} (${sp.pct}%)`,
+          notes: deal.title || null,
+        };
+      });
+      if (!rows.length) { toast.error('Add at least one milestone with a percent.'); return; }
+      const { error } = await client.from('finance_invoices').insert(rows);
+      if (error) throw error;
+      toast.success(rows.length + ' draft invoices created');
+      setMilestoneOpen(false);
+      await loadFinance();
+    } catch (e) { console.error(e); toast.error('Could not generate milestones'); }
+  }
+
+  async function recordPayment(invoice, { amount, payment_method, payment_date, reference_number, notes }) {
+    try {
+      const payAmt = num(amount);
+      if (payAmt <= 0) { toast.error('Enter a payment amount.'); return; }
+      const payRow = {
+        payment_number: genPaymentNumber(), invoice_id: invoice.id,
+        customer_id: invoice.customer_id || deal.contact_id || null,
+        customer_name: invoice.customer_name || (contact ? contactLabel(contact) : null),
+        amount: payAmt, payment_date: payment_date || new Date().toISOString().slice(0, 10),
+        payment_method: payment_method || 'card', reference_number: reference_number || null,
+        status: 'completed', notes: notes || null,
+      };
+      const { error: pe } = await client.from('finance_payments').insert(payRow);
+      if (pe) throw pe;
+      const newPaid = round2(num(invoice.amount_paid) + payAmt);
+      const newBalance = round2(Math.max(0, num(invoice.total_amount) - newPaid));
+      const newStatus = newBalance <= 0 ? 'paid' : 'partial';
+      const { error: ie } = await client.from('finance_invoices')
+        .update({ amount_paid: newPaid, balance_due: newBalance, status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', invoice.id);
+      if (ie) throw ie;
+      toast.success('Payment recorded');
+      setPayFor(null);
+      await loadFinance();
+    } catch (e) { console.error(e); toast.error('Could not record payment'); }
+  }
+
+  // ---- Communications: per-job conversation threads (scoped pipeline_id = id) ----
+  async function openConversation(conv) {
+    setActiveConv(conv);
+    setMsgDraft('');
+    setMsgLoading(true);
+    try {
+      const { data } = await client.from('comms_messages').select('*')
+        .eq('conversation_id', conv.id).order('created_at', { ascending: true });
+      setMessages(data || []);
+    } catch (e) { console.error(e); setMessages([]); }
+    finally { setMsgLoading(false); }
+  }
+
+  async function sendMessage() {
+    if (!activeConv || !msgDraft.trim()) return;
+    const body = msgDraft.trim();
+    try {
+      const { data, error } = await client.from('comms_messages').insert({
+        conversation_id: activeConv.id, channel_type: activeConv.channel_type || 'note',
+        direction: 'outbound', sender_type: 'user', sender_name: 'You', body,
+      }).select().single();
+      if (error) throw error;
+      setMessages(prev => [...prev, data]);
+      setMsgDraft('');
+      const nowIso = new Date().toISOString();
+      await client.from('comms_conversations').update({
+        last_message_at: nowIso, last_message_preview: body.slice(0, 120), updated_at: nowIso,
+      }).eq('id', activeConv.id);
+      setConversations(prev => prev.map(c => c.id === activeConv.id
+        ? { ...c, last_message_at: nowIso, last_message_preview: body.slice(0, 120) } : c));
+    } catch (e) { console.error(e); toast.error('Could not send message'); }
+  }
+
+  async function createConversation({ channel_type, subject }) {
+    try {
+      const { data, error } = await client.from('comms_conversations').insert({
+        channel_type: channel_type || 'note', subject: subject || (deal.title || 'Job conversation'),
+        status: 'open', contact_id: deal.contact_id || null,
+        contact_name: contact ? contactLabel(contact) : null,
+        contact_email: contact?.email || null, contact_phone: contact?.phone || null,
+        pipeline_id: id, unread_count: 0, last_message_at: new Date().toISOString(),
+        last_message_preview: '', is_starred: false,
+      }).select().single();
+      if (error) throw error;
+      setNewConvOpen(false);
+      await reload('communications');
+      if (data) openConversation(data);
       toast.success('Conversation started');
-      reload('communications');
     } catch (e) { console.error(e); toast.error('Could not start conversation'); }
   }
 
@@ -456,44 +634,152 @@ export default function CrmDealDetail() {
           </div>
         )}
 
-        {/* FINANCE */}
+        {/* FINANCE - per-job invoice builder */}
         {tab === 'finance' && (
-          <div className="space-y-3">
-            <div className="flex justify-end gap-2">
-              <Button onClick={() => navigate(`/crm/${platformId}/finance`)} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Open Finance hub</Button>
-              <Button onClick={createInvoice} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm flex items-center gap-1"><Plus size={15} /> New invoice</Button>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard label="Invoiced" value={money(invoices.reduce((s, i) => s + num(i.total_amount), 0))} />
+              <StatCard label="Collected" value={money(invoices.reduce((s, i) => s + num(i.amount_paid), 0))} />
+              <StatCard label="Outstanding" value={money(invoices.filter(i => !['paid', 'void'].includes((i.status || '').toLowerCase())).reduce((s, i) => s + num(i.balance_due), 0))} />
+              <StatCard label="Invoices" value={String(invoices.length)} />
             </div>
-            <ListTable empty="No invoices for this job yet." cols={['Invoice #', 'Date', 'Due', 'Status', 'Total', 'Paid', 'Balance']}
-              rows={invoices.map(i => [i.invoice_number, date(i.invoice_date), date(i.due_date), <Badge className={`${statusTone(i.status)} text-xs`}>{i.status}</Badge>, money(i.total_amount), money(i.amount_paid), money(i.balance_due)])} />
+            <div className="flex justify-end gap-2 flex-wrap">
+              <Button onClick={() => navigate(`/crm/${platformId}/finance`)} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Open Finance hub</Button>
+              <Button onClick={() => setMilestoneOpen(true)} className="bg-navy-700 hover:bg-navy-600 text-white text-sm flex items-center gap-1"><Layers size={15} /> From amount</Button>
+              <Button onClick={() => openInvoiceEditor(null)} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm flex items-center gap-1"><Plus size={15} /> New invoice</Button>
+            </div>
+
+            {invoices.length === 0 ? (
+              <Card className="bg-navy-900 border-navy-800 p-10 text-center text-gray-400">No invoices for this job yet.</Card>
+            ) : (
+              <div className="space-y-3">
+                {invoices.map(inv => (
+                  <Card key={inv.id} className="bg-navy-900 border-navy-800 p-4">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-semibold">{inv.invoice_number}</span>
+                          <Badge className={`${statusTone(inv.status)} text-xs`}>{inv.status}</Badge>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">Issued {date(inv.invoice_date)} - Due {date(inv.due_date)}</div>
+                      </div>
+                      <div className="flex items-center gap-5 text-right">
+                        <div><div className="text-[11px] text-gray-500">Total</div><div className="text-white font-medium">{money(inv.total_amount)}</div></div>
+                        <div><div className="text-[11px] text-gray-500">Paid</div><div className="text-emerald-300 font-medium">{money(inv.amount_paid)}</div></div>
+                        <div><div className="text-[11px] text-gray-500">Balance</div><div className="text-amber-300 font-medium">{money(inv.balance_due)}</div></div>
+                      </div>
+                    </div>
+                    {(payments[inv.id] || []).length > 0 && (
+                      <div className="mt-3 border-t border-navy-800 pt-2 space-y-1">
+                        {(payments[inv.id] || []).map(pmt => (
+                          <div key={pmt.id} className="flex items-center justify-between text-xs text-gray-400">
+                            <span>{pmt.payment_number} - {pmt.payment_method || 'payment'} - {date(pmt.payment_date)}</span>
+                            <span className="text-emerald-300">{money(pmt.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex justify-end gap-2 mt-3">
+                      <Button onClick={() => openInvoiceEditor(inv)} className="bg-navy-700 hover:bg-navy-600 text-white text-xs">Edit</Button>
+                      {num(inv.balance_due) > 0 && (inv.status || '').toLowerCase() !== 'void' && (
+                        <Button onClick={() => setPayFor(inv)} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-xs flex items-center gap-1"><DollarSign size={13} /> Record payment</Button>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* COMMUNICATIONS */}
+        {invEditor && (
+          <InvoiceEditor
+            editor={invEditor} setEditor={setInvEditor} totals={invTotals(invEditor)}
+            onSave={saveInvoice} saving={invSaving} onClose={() => setInvEditor(null)}
+          />
+        )}
+        {milestoneOpen && (
+          <MilestoneModal defaultAmount={num(deal.deal_value)} onGenerate={generateMilestones} onClose={() => setMilestoneOpen(false)} />
+        )}
+        {payFor && (
+          <PaymentModal invoice={payFor} onSave={(p) => recordPayment(payFor, p)} onClose={() => setPayFor(null)} />
+        )}
+
+        {/* COMMUNICATIONS - per-job thread */}
         {tab === 'communications' && (
           <div className="space-y-3">
             <div className="flex justify-end">
-              <Button onClick={startConversation} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm flex items-center gap-1"><MessageSquare size={15} /> Log conversation</Button>
+              <Button onClick={() => setNewConvOpen(true)} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm flex items-center gap-1"><Plus size={15} /> New conversation</Button>
             </div>
-            {conversations.length === 0 ? (
-              <Card className="bg-navy-900 border-navy-800 p-10 text-center text-gray-400">No conversations logged for this job yet.</Card>
-            ) : (
-              <Card className="bg-navy-900 border-navy-800 divide-y divide-navy-800">
-                {conversations.map(c => (
-                  <div key={c.id} className="px-5 py-3 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-navy-800 flex items-center justify-center text-gray-300 flex-shrink-0"><MessageSquare size={15} /></div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-white truncate">{c.subject || 'Conversation'}</span>
-                        <span className="text-[10px] uppercase tracking-wide text-gray-500">{c.channel_type || 'note'}</span>
-                      </div>
-                      {c.last_message_preview && <div className="text-xs text-gray-500 truncate">{c.last_message_preview}</div>}
-                    </div>
-                    {c.last_message_at && <span className="text-[11px] text-gray-500 flex-shrink-0">{new Date(c.last_message_at).toLocaleDateString()}</span>}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Conversation list */}
+              <Card className="bg-navy-900 border-navy-800 lg:col-span-1 overflow-hidden">
+                {conversations.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400 text-sm">No conversations logged for this job yet.</div>
+                ) : (
+                  <div className="divide-y divide-navy-800 max-h-[560px] overflow-y-auto">
+                    {conversations.map(c => (
+                      <button key={c.id} onClick={() => openConversation(c)}
+                        className={`w-full text-left px-4 py-3 flex items-start gap-3 transition ${activeConv?.id === c.id ? 'bg-navy-800' : 'hover:bg-navy-800/50'}`}>
+                        <div className="w-8 h-8 rounded-lg bg-navy-800 flex items-center justify-center text-gray-300 flex-shrink-0"><ChannelIcon type={c.channel_type} /></div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-white truncate">{c.subject || 'Conversation'}</span>
+                            <span className="text-[10px] uppercase tracking-wide text-gray-500">{c.channel_type || 'note'}</span>
+                          </div>
+                          {c.last_message_preview && <div className="text-xs text-gray-500 truncate">{c.last_message_preview}</div>}
+                          {c.last_message_at && <div className="text-[10px] text-gray-600 mt-0.5">{new Date(c.last_message_at).toLocaleString()}</div>}
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                ))}
+                )}
               </Card>
-            )}
+
+              {/* Thread */}
+              <Card className="bg-navy-900 border-navy-800 lg:col-span-2 flex flex-col min-h-[420px]">
+                {!activeConv ? (
+                  <div className="flex-1 flex items-center justify-center text-gray-500 text-sm p-10">Select a conversation to view the thread.</div>
+                ) : (
+                  <>
+                    <div className="px-5 py-3 border-b border-navy-800 flex items-center gap-2">
+                      <ChannelIcon type={activeConv.channel_type} />
+                      <span className="text-sm font-semibold text-white truncate">{activeConv.subject || 'Conversation'}</span>
+                      <span className="text-[10px] uppercase tracking-wide text-gray-500 ml-auto">{activeConv.channel_type || 'note'}</span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[440px]">
+                      {msgLoading ? (
+                        <div className="text-center text-gray-500 text-sm py-8">Loading...</div>
+                      ) : messages.length === 0 ? (
+                        <div className="text-center text-gray-500 text-sm py-8">No messages yet. Start the thread below.</div>
+                      ) : messages.map(m => {
+                        const out = (m.direction || 'outbound') === 'outbound';
+                        return (
+                          <div key={m.id} className={`flex ${out ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[78%] rounded-2xl px-4 py-2 ${out ? 'bg-brand-blue text-white' : 'bg-navy-800 text-gray-200'}`}>
+                              <div className="text-[11px] opacity-70 mb-0.5">{m.sender_name || (out ? 'You' : 'Contact')}</div>
+                              <div className="text-sm whitespace-pre-wrap break-words">{m.body}</div>
+                              <div className="text-[10px] opacity-60 mt-1 text-right">{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="border-t border-navy-800 p-3 flex gap-2">
+                      <Input value={msgDraft} onChange={e => setMsgDraft(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                        placeholder="Type a message..." className="bg-navy-800 border-navy-700 text-white" />
+                      <Button onClick={sendMessage} disabled={!msgDraft.trim()} className="bg-brand-blue hover:bg-brand-blue/90 text-white flex items-center gap-1"><Send size={15} /></Button>
+                    </div>
+                  </>
+                )}
+              </Card>
+            </div>
           </div>
+        )}
+
+        {newConvOpen && (
+          <NewConversationModal onCreate={createConversation} onClose={() => setNewConvOpen(false)} defaultSubject={deal.title || ''} />
         )}
 
         {/* NOTES */}
@@ -628,4 +914,195 @@ function ListTable({ cols, rows, empty, onRowClick }) {
       </div>
     </Card>
   );
+}
+
+
+// =====================================================================
+// Finance + Communications sub-components (per-job, scoped pipeline_id)
+// =====================================================================
+const moneyFull = (v) => '$' + (Number(v) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function Modal({ title, onClose, children, wide }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className={`bg-navy-900 border border-navy-800 rounded-2xl shadow-xl w-full ${wide ? 'max-w-3xl' : 'max-w-md'} max-h-[90vh] overflow-y-auto`}>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-navy-800 sticky top-0 bg-navy-900">
+          <h3 className="text-sm font-semibold text-white">{title}</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={18} /></button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+const INV_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue', 'void'];
+
+function InvoiceEditor({ editor, setEditor, totals, onSave, saving, onClose }) {
+  const set = (patch) => setEditor(prev => ({ ...prev, ...patch }));
+  const setItem = (k, patch) => set({ line_items: editor.line_items.map(li => li._k === k ? { ...li, ...patch } : li) });
+  const addRow = () => set({ line_items: [...editor.line_items, { _k: Math.random().toString(36).slice(2, 10), description: '', qty: 1, unit_price: 0, amount: 0 }] });
+  const rmRow = (k) => set({ line_items: editor.line_items.filter(li => li._k !== k) });
+  return (
+    <Modal wide title={editor.id ? 'Edit invoice' : 'New invoice'} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Field label="Invoice #"><Input value={editor.invoice_number} onChange={e => set({ invoice_number: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+          <Field label="Status">
+            <select value={editor.status} onChange={e => set({ status: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm">
+              {INV_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </Field>
+          <Field label="Invoice date"><Input type="date" value={editor.invoice_date || ''} onChange={e => set({ invoice_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+          <Field label="Due date"><Input type="date" value={editor.due_date || ''} onChange={e => set({ due_date: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-400">Line items</label>
+            <Button onClick={addRow} className="bg-navy-700 hover:bg-navy-600 text-white text-xs flex items-center gap-1"><Plus size={13} /> Add row</Button>
+          </div>
+          <div className="space-y-2">
+            {editor.line_items.map(li => {
+              const lineAmt = (Number(li.qty) || 0) * (Number(li.unit_price) || 0);
+              return (
+                <div key={li._k} className="flex items-center gap-2">
+                  <Input value={li.description} onChange={e => setItem(li._k, { description: e.target.value })} placeholder="Description" className="bg-navy-800 border-navy-700 text-white flex-1" />
+                  <Input type="number" value={li.qty} onChange={e => setItem(li._k, { qty: e.target.value })} placeholder="Qty" className="bg-navy-800 border-navy-700 text-white w-20" />
+                  <Input type="number" value={li.unit_price} onChange={e => setItem(li._k, { unit_price: e.target.value })} placeholder="Unit $" className="bg-navy-800 border-navy-700 text-white w-28" />
+                  <div className="w-24 text-right text-sm text-gray-300">{moneyFull(lineAmt)}</div>
+                  <button onClick={() => rmRow(li._k)} className="text-gray-500 hover:text-red-400 flex-shrink-0"><Trash2 size={16} /></button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Field label="Tax rate (%)"><Input type="number" value={editor.tax_rate} onChange={e => set({ tax_rate: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+            <Field label="Terms"><Input value={editor.terms} onChange={e => set({ terms: e.target.value })} className="bg-navy-800 border-navy-700 text-white" /></Field>
+            <Field label="Notes"><Textarea value={editor.notes} onChange={e => set({ notes: e.target.value })} className="bg-navy-800 border-navy-700 text-white min-h-16" /></Field>
+          </div>
+          <div className="bg-navy-800/50 rounded-lg p-4 space-y-2 text-sm self-start">
+            <Row k="Subtotal" v={moneyFull(totals.subtotal)} />
+            <Row k={`Tax (${Number(editor.tax_rate) || 0}%)`} v={moneyFull(totals.tax_amount)} />
+            <Row k="Total" v={moneyFull(totals.total_amount)} bold />
+            <Row k="Paid" v={moneyFull(editor.amount_paid)} />
+            <Row k="Balance due" v={moneyFull(totals.balance_due)} bold />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button onClick={onClose} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button>
+          <Button onClick={onSave} disabled={saving} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">{saving ? 'Saving...' : 'Save invoice'}</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function Row({ k, v, bold }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-gray-400">{k}</span>
+      <span className={bold ? 'text-white font-semibold' : 'text-gray-200'}>{v}</span>
+    </div>
+  );
+}
+
+function MilestoneModal({ defaultAmount, onGenerate, onClose }) {
+  const [amount, setAmount] = useState(defaultAmount || 0);
+  const [splits, setSplits] = useState([
+    { label: 'Deposit', pct: 30 },
+    { label: 'Progress', pct: 40 },
+    { label: 'Final', pct: 30 },
+  ]);
+  const setPct = (i, v) => setSplits(prev => prev.map((s, idx) => idx === i ? { ...s, pct: v } : s));
+  const setLabel = (i, v) => setSplits(prev => prev.map((s, idx) => idx === i ? { ...s, label: v } : s));
+  const total = Number(amount) || 0;
+  const pctSum = splits.reduce((s, x) => s + (Number(x.pct) || 0), 0);
+  return (
+    <Modal title="Generate milestone invoices" onClose={onClose}>
+      <div className="space-y-4">
+        <Field label="Amount to split ($)"><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="bg-navy-800 border-navy-700 text-white" /></Field>
+        <div className="space-y-2">
+          {splits.map((sp, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input value={sp.label} onChange={e => setLabel(i, e.target.value)} className="bg-navy-800 border-navy-700 text-white flex-1" />
+              <Input type="number" value={sp.pct} onChange={e => setPct(i, e.target.value)} className="bg-navy-800 border-navy-700 text-white w-20" />
+              <span className="text-gray-500 text-xs">%</span>
+              <div className="w-24 text-right text-sm text-gray-300">{moneyFull(total * (Number(sp.pct) || 0) / 100)}</div>
+            </div>
+          ))}
+        </div>
+        <div className={`text-xs ${pctSum === 100 ? 'text-gray-500' : 'text-amber-300'}`}>Percentages total {pctSum}%{pctSum !== 100 ? ' (should be 100%)' : ''}.</div>
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button>
+          <Button onClick={() => onGenerate(splits, amount)} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Create drafts</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+const PAY_METHODS = ['card', 'check', 'cash', 'ach', 'wire', 'other'];
+
+function PaymentModal({ invoice, onSave, onClose }) {
+  const [amount, setAmount] = useState(invoice.balance_due || '');
+  const [method, setMethod] = useState('card');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [reference, setReference] = useState('');
+  const [notes, setNotes] = useState('');
+  return (
+    <Modal title={`Record payment - ${invoice.invoice_number}`} onClose={onClose}>
+      <div className="space-y-3">
+        <div className="text-xs text-gray-500">Balance due {moneyFull(invoice.balance_due)} of {moneyFull(invoice.total_amount)}.</div>
+        <Field label="Amount ($)"><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="bg-navy-800 border-navy-700 text-white" /></Field>
+        <Field label="Method">
+          <select value={method} onChange={e => setMethod(e.target.value)} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm">
+            {PAY_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </Field>
+        <Field label="Payment date"><Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="bg-navy-800 border-navy-700 text-white" /></Field>
+        <Field label="Reference #"><Input value={reference} onChange={e => setReference(e.target.value)} className="bg-navy-800 border-navy-700 text-white" /></Field>
+        <Field label="Notes"><Textarea value={notes} onChange={e => setNotes(e.target.value)} className="bg-navy-800 border-navy-700 text-white min-h-16" /></Field>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button onClick={onClose} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button>
+          <Button onClick={() => onSave({ amount, payment_method: method, payment_date: paymentDate, reference_number: reference, notes })} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Record payment</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+const CHANNELS = ['note', 'email', 'sms', 'call'];
+
+function NewConversationModal({ onCreate, onClose, defaultSubject }) {
+  const [channel, setChannel] = useState('note');
+  const [subject, setSubject] = useState(defaultSubject || '');
+  return (
+    <Modal title="New conversation" onClose={onClose}>
+      <div className="space-y-3">
+        <Field label="Channel">
+          <select value={channel} onChange={e => setChannel(e.target.value)} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm">
+            {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+        <Field label="Subject"><Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Conversation subject" className="bg-navy-800 border-navy-700 text-white" /></Field>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button onClick={onClose} className="bg-navy-700 hover:bg-navy-600 text-white text-sm">Cancel</Button>
+          <Button onClick={() => onCreate({ channel_type: channel, subject })} className="bg-brand-blue hover:bg-brand-blue/90 text-white text-sm">Start</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ChannelIcon({ type }) {
+  const t = (type || 'note').toLowerCase();
+  if (t === 'email') return <Mail size={15} />;
+  if (t === 'sms') return <MessageSquare size={15} />;
+  if (t === 'call') return <Phone size={15} />;
+  return <StickyNote size={15} />;
 }
