@@ -567,24 +567,28 @@
   function renderVitalsChart(){
     var el=document.getElementById('vitalsChart');if(!el)return;
     var data=vitals.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
-    var series;
-    if(chartMetric==='sys'){series=[{key:'sys',color:'#C25B6B',label:'Systolic'},{key:'dia',color:'#3E7CB1',label:'Diastolic'}];var unit='mmHg';}
-    else if(chartMetric==='glucose'){series=[{key:'glucose',color:'#D9805A',label:'Glucose'}];var unit='mg/dL';}
-    else {series=[{key:'weight',color:'#2F6B5E',label:'Weight'}];var unit='lb';}
+    var series,unit;
+    if(chartMetric==='sys'){series=[{key:'sys',color:'#C25B6B',label:'Systolic',fill:false},{key:'dia',color:'#3E7CB1',label:'Diastolic',fill:false}];unit='mmHg';}
+    else if(chartMetric==='glucose'){series=[{key:'glucose',color:'#D9805A',label:'Glucose',fill:true}];unit='mg/dL';}
+    else{series=[{key:'weight',color:'#2F6B5E',label:'Weight',fill:true}];unit='lb';}
     var all=[];series.forEach(function(sr){sr.pts=data.map(function(d){var v=parseFloat(d[sr.key]);return isNaN(v)?null:{date:d.date,v:v};}).filter(Boolean);sr.pts.forEach(function(p){all.push(p.v);});});
     if(!all.length){el.innerHTML='<p class="note">No data for this metric yet.</p>';return;}
-    var mn=Math.min.apply(null,all),mx=Math.max.apply(null,all);if(mn===mx){mn-=1;mx+=1;}var sp=mx-mn;mn-=sp*0.12;mx+=sp*0.12;sp=mx-mn;
-    var W=320,H=150,L=10,Rr=10,T=14,B=22,pw=W-L-Rr,ph=H-T-B,n=data.length;
+    var mn=Math.min.apply(null,all),mx=Math.max.apply(null,all);if(mn===mx){mn-=1;mx+=1;}var sp=mx-mn,lo=mn-sp*0.2,hi=mx+sp*0.2,rng=hi-lo;
+    var W=320,H=104,L=3,Rr=3,T=8,B=8,pw=W-L-Rr,ph=H-T-B,n=data.length;
     function X(i){return n<=1?L+pw/2:L+pw*(i/(n-1));}
-    function Y(v){return T+ph*(1-(v-mn)/sp);}
-    function idxOf(dt){for(var k=0;k<data.length;k++){if(data[k].date===dt)return k;}return 0;}
-    var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">';
-    svg+='<line x1="'+L+'" y1="'+T+'" x2="'+L+'" y2="'+(T+ph)+'" stroke="#ECE4D8"/>';
-    svg+='<line x1="'+L+'" y1="'+(T+ph)+'" x2="'+(W-Rr)+'" y2="'+(T+ph)+'" stroke="#ECE4D8"/>';
-    series.forEach(function(sr){if(!sr.pts.length)return;var ps=sr.pts.map(function(p){return X(idxOf(p.date))+','+Y(p.v);}).join(' ');svg+='<polyline points="'+ps+'" fill="none" stroke="'+sr.color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';sr.pts.forEach(function(p){svg+='<circle cx="'+X(idxOf(p.date))+'" cy="'+Y(p.v)+'" r="3" fill="'+sr.color+'"/>';});});
+    function Y(v){return T+ph*(1-(v-lo)/rng);}
+    function ix(dt){for(var k=0;k<data.length;k++){if(data[k].date===dt)return k;}return 0;}
+    var svg='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:104px;display:block">';
+    series.forEach(function(sr){
+      if(!sr.pts.length)return;
+      var c=sr.pts.map(function(p){return [X(ix(p.date)),Y(p.v)];});
+      var line=c.map(function(pt,i){return (i?'L':'M')+pt[0].toFixed(1)+' '+pt[1].toFixed(1);}).join(' ');
+      if(sr.fill&&c.length>1){svg+='<path d="'+line+' L'+c[c.length-1][0].toFixed(1)+' '+(T+ph)+' L'+c[0][0].toFixed(1)+' '+(T+ph)+' Z" fill="'+sr.color+'" opacity="0.10"/>';}
+      svg+='<path d="'+line+'" fill="none" stroke="'+sr.color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
+    });
     svg+='</svg>';
-    var legend=series.map(function(sr){return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--ink)"><span style="width:10px;height:10px;border-radius:50%;background:'+sr.color+'"></span>'+sr.label+'</span>';}).join('  ');
-    el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="display:flex;gap:12px;flex-wrap:wrap">'+legend+'</div><span style="font-size:11px;color:var(--muted);font-weight:700">'+unit+'</span></div>'+svg+'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-weight:600;margin-top:3px"><span>'+fmtD(data[0].date)+'</span><span>'+fmtD(data[data.length-1].date)+'</span></div>';
+    var legend=series.map(function(sr){var lv=sr.pts.length?sr.pts[sr.pts.length-1].v:'-';return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--ink)"><span style="width:9px;height:9px;border-radius:50%;background:'+sr.color+'"></span>'+sr.label+' <b style="font-weight:800">'+lv+'</b></span>';}).join('');
+    el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px"><div style="display:flex;gap:14px;flex-wrap:wrap">'+legend+'</div><span style="font-size:11px;color:var(--muted);font-weight:700">'+unit+'</span></div>'+svg+'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-weight:600;margin-top:4px"><span>'+fmtD(data[0].date)+'</span><span>'+fmtD(data[data.length-1].date)+'</span></div>';
   }
   function openVitals(){var d=document.getElementById('vDate');if(d&&!d.value)d.value=new Date().toISOString().slice(0,10);var by=document.getElementById('vBy');if(by&&!by.value)by.value=(members[activeUser]&&members[activeUser].name)?members[activeUser].name.split(/\s+/)[0]:'You';document.getElementById('vitalsModal').style.display='flex';}
   function closeVitals(){document.getElementById('vitalsModal').style.display='none';}
