@@ -130,6 +130,8 @@ import WizardBuilder from './pages/WizardBuilder'
 import Team from './pages/Team'
 import Pulse from './pages/Pulse'
 import WorkQueue from './pages/WorkQueue'
+import FeatureLibrary from './pages/FeatureLibrary'
+import DevLabDashboard from './pages/DevLabDashboard'
 import CompanyDocs from './pages/CompanyDocs'
 import HRHub from './pages/HRHub'
 import LeadershipQC from './pages/LeadershipQC'
@@ -517,6 +519,8 @@ export default function App() {
             <Route path="team" element={<Team />} />
             <Route path="pulse" element={<Pulse />} />
             <Route path="work-queue" element={<WorkQueue />} />
+            <Route path="dev-lab" element={<DevLabDashboard />} />
+            <Route path="feature-library" element={<FeatureLibrary />} />
             <Route path="company-docs" element={<CompanyDocs />} />
             <Route path="hr-hub" element={<HRHub />} />
             <Route path="leadership-qc" element={<LeadershipQC />} />
