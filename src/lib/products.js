@@ -296,6 +296,26 @@ export const PRODUCTS = [
     notes: 'No tenant DB yet. Provision via New Tenant when a customer signs.',
     app: null,
   },
+  {
+    slug: 'liftori-life',
+    name: 'Liftori-Life',
+    tagline: 'The family operating system — calendar, care, money & messaging in one',
+    category: 'Web + App',
+    status: 'planned',
+    stage: 'planned',
+    systemLabel: null,
+    systemUrl: null,
+    liveSite: null,
+    stack: ['React + Vite (web)', 'Expo / React Native (iOS + Android)', 'Supabase — multi-user auth + per-family RLS', 'Stripe / ACH — rent & allowance', 'Vercel'],
+    description:
+      'Liftori-Life is the operating system for a busy, multi-generational household. One shared place for the whole family to stay on top of each other: a calendar everyone can see, care coordination for aging parents (appointments, medications, errands), kids\' rent and allowance that deposit straight to the head-of-household account, a genuinely powerful family budget, shared lists, ride requests, emergency and medical info, and full family messaging with video. Built so nothing — an appointment, a med refill, a thing Mom needs from the store — slips through the cracks.',
+    whatsBuilt: [],
+    scope:
+      'Multi-user family accounts with roles (head of household, parent, renter, teen, extended family) and per-person visibility. Core modules: shared calendar + reminders; care hub (appointments, medications, doctor/insurance records, errands requested); money (in-app rent + allowance collection with auto-deposit and history, plus a full family budget/expense tracker); lists and assignable chores; family message board + 1:1 and group chat with video; ride requests; emergency and medical info vault. Web app + native mobile on one shared Supabase backend with strict per-family RLS.',
+    notes:
+      'Founder concept (Ryan, Jun 2026). Born from real pain: work-life balance and running a household with kids paying rent and a mother who moved in needing care coordination. Planned consumer SaaS, multi-user family accounts. See the Mockup tab for the interactive concept.',
+    app: null,
+  },
 ]
 
 export const STAGES = [
@@ -324,6 +344,7 @@ export function getProduct(slug) {
 
 export const CATEGORY_TINT = {
   'CRM + App': 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
+  'Web + App': 'bg-teal-500/10 text-teal-400 border-teal-500/20',
   CRM: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
   'Mobile App': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   'E-Commerce': 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
