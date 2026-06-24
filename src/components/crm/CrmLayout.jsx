@@ -60,7 +60,6 @@ const HUB_CHILDREN = {
     { label: 'Materials',         path: 'operations/materials' },
     { label: 'Insurance Claims',  path: 'operations/insurance-claims' },
     { label: 'Warranties',        path: 'operations/warranties' },
-    { label: 'Storm Center',      path: 'operations/storms' },
     { label: 'Schedule',          path: 'operations/schedule' },
     { label: 'Crews',             path: 'operations/crews' },
     { label: 'Crew Availability', path: 'operations/crew-availability' },
@@ -130,6 +129,7 @@ function LabosShell() {
   const CSC_HUB_DEFS = [
     { key: 'overview', label: 'Overview', path: 'overview', icon: DashboardIcon },
     { key: 'jobs', label: 'Jobs', path: 'jobs', icon: OpsIcon },
+    { key: 'recurring', label: 'Recurring', path: 'recurring', icon: CalendarIcon },
     { key: 'deficiencies', label: 'Deficiencies', path: 'deficiencies', icon: NotificationsIcon },
     { key: 'certificates', label: 'Certificates', path: 'certificates', icon: NotesIcon },
     { key: 'stickers', label: 'Stickers', path: 'stickers', icon: TasksIcon },
@@ -195,7 +195,7 @@ function LabosShell() {
             let children = HUB_CHILDREN[hub.key]
             // Roofing-only Operations children (insurance claims, warranties) stay hidden for other industries.
             if (children && hub.key === 'operations' && !String(platform?.industry || '').toLowerCase().includes('roof')) {
-              children = children.filter(ch => ch.path !== 'operations/insurance-claims' && ch.path !== 'operations/warranties' && ch.path !== 'operations/storms')
+              children = children.filter(ch => ch.path !== 'operations/insurance-claims' && ch.path !== 'operations/warranties')
             }
             if (children) {
               const groupActive = children.some(ch => location.pathname.startsWith(`/crm/${platformId}/${ch.path}`)) || location.pathname === `/crm/${platformId}/${hub.path}`
