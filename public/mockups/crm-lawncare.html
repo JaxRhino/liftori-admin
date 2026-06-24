@@ -1,0 +1,149 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GreenEdge Lawn & Landscape — CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--a:#16a34a;--a2:#15803d;--ink:#0c2417}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:#f4f6f8;color:#1c2430;-webkit-font-smoothing:antialiased}
+.app{display:flex;min-height:100vh}
+.side{width:226px;background:var(--ink);color:#cdd7df;display:flex;flex-direction:column;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:11px;padding:20px 18px;border-bottom:1px solid rgba(255,255,255,.07)}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}
+.brand b{color:#fff;font-size:15px;font-weight:600;line-height:1.1;display:block}
+.brand small{color:#8a98a5;font-size:11px}
+.nav{display:flex;align-items:center;gap:12px;width:calc(100% - 16px);margin:1px 8px;padding:10px 12px;border:0;background:transparent;color:#aab6c2;font:inherit;font-size:13.5px;font-weight:500;border-radius:9px;cursor:pointer;text-align:left}
+.nav i{width:18px;height:18px;display:block;opacity:.85}.nav i svg{width:18px;height:18px}
+.nav:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav.active{background:var(--a);color:#fff}
+.nav.active i{opacity:1}
+.side .navwrap{padding:12px 0;flex:1}
+.side .who{padding:14px 18px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.av{width:30px;height:30px;border-radius:50%;background:var(--a2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.who small{display:block;color:#8a98a5;font-size:11px}.who b{font-size:12.5px;color:#e7edf2;font-weight:600}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;background:#fff;border-bottom:1px solid #e6eaee}
+.top h1{font-size:18px;font-weight:700}.top .tag{font-size:12px;color:#7b8794;font-weight:500}
+.search{display:flex;align-items:center;gap:8px;background:#f1f4f6;border:1px solid #e3e8ec;border-radius:9px;padding:8px 12px;color:#8a96a2;font-size:13px;min-width:240px}
+.actions{display:flex;align-items:center;gap:10px}
+.btn{background:var(--a);color:#fff;border:0;border-radius:9px;padding:9px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.btn.ghost{background:#fff;color:#33414f;border:1px solid #dde3e8}
+.wrap{padding:24px 28px;flex:1}
+.view{display:none}.view.show{display:block;animation:f .25s ease}
+@keyframes f{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.kpi{background:#fff;border:1px solid #e6eaee;border-radius:13px;padding:17px 18px}
+.kpi-l{font-size:12px;color:#7b8794;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.kpi-v{font-size:25px;font-weight:700;margin:7px 0 3px;color:#15202b}
+.kpi-h{font-size:12px;color:var(--a);font-weight:600}
+.grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:18px}
+.card{background:#fff;border:1px solid #e6eaee;border-radius:13px;overflow:hidden}
+.card-h{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid #eef1f4}
+.card-h h2{font-size:14.5px;font-weight:700}.card-h a{font-size:12.5px;color:var(--a);font-weight:600;text-decoration:none;cursor:pointer}
+.board{display:flex;gap:12px;padding:16px 18px;overflow-x:auto}
+.stage{min-width:150px;flex:1}
+.stage-h{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:700;color:#3a4756}
+.pill{background:#eef1f4;color:#5a6776;font-size:11px;font-weight:700;border-radius:20px;padding:1px 8px}
+.stage-sum{font-size:12px;color:var(--a);font-weight:600;margin:3px 0 9px}
+.mini{background:#f7f9fb;border:1px solid #eaeef1;border-left:3px solid var(--a);border-radius:7px;padding:9px;margin-bottom:8px}
+.mini-t{height:7px;width:78%;background:#dde4ea;border-radius:4px;margin-bottom:6px}
+.mini-s{height:6px;width:46%;background:#e7edf1;border-radius:4px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#8995a2;font-weight:700;padding:11px 18px;border-bottom:1px solid #eef1f4;background:#fafbfc}
+td{padding:13px 18px;font-size:13.5px;border-bottom:1px solid #f1f4f6;color:#42505e}
+tr:last-child td{border-bottom:0}
+.jt{font-weight:600;color:#1f2c39}
+.num{font-weight:700;color:#1f2c39;font-variant-numeric:tabular-nums}
+.badge{font-size:11.5px;font-weight:700;border-radius:20px;padding:3px 10px}
+.badge.ok{background:#e6f6ec;color:#147a3c}
+.badge.go{background:#e7f1fb;color:#1d63b8}
+.badge.warn{background:#fdf2e3;color:#b6731a}
+.badge.idle{background:#eef1f4;color:#5a6776}
+.chart{padding:18px}
+.bars{display:flex;align-items:flex-end;gap:14px;height:140px;padding-top:8px}
+.barwrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;justify-content:flex-end}
+.bar{width:100%;max-width:34px;background:linear-gradient(var(--a),var(--a2));border-radius:6px 6px 0 0}
+.barwrap span{font-size:11px;color:#8995a2;font-weight:600}
+.types{display:flex;flex-wrap:wrap;gap:8px;padding:16px 18px}
+.chip{background:#f1f5f8;border:1px solid #e4eaee;color:#41505e;font-size:12.5px;font-weight:600;border-radius:8px;padding:6px 11px}
+.sched-row{display:grid;grid-template-columns:60px 1fr 90px;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid #f1f4f6}
+.sched-row:last-child{border-bottom:0}
+.sched-day{font-weight:700;font-size:12px;color:#fff;background:var(--a);border-radius:7px;padding:6px 0;text-align:center}
+.sched-job{font-size:13.5px;color:#2a3744;font-weight:500}
+.sched-crew{font-size:12px;color:#7b8794;font-weight:600;text-align:right}
+.mt{margin-top:18px}
+.foot{padding:14px 28px;color:#9aa6b1;font-size:11.5px;border-top:1px solid #e6eaee;background:#fff;display:flex;justify-content:space-between}
+.foot b{color:var(--a);font-weight:700}
+@media(max-width:880px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+</style></head>
+<body><div class="app">
+  <aside class="side">
+    <div class="brand"><div class="logo">G</div><div><b>GreenEdge Lawn</b><small>Lawn Care & Landscaping</small></div></div>
+    <div class="navwrap"><button class="nav active" data-view="dashboard"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg></i><span>Dashboard</span></button><button class="nav " data-view="leads"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg></i><span>Leads</span></button><button class="nav " data-view="jobs"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v1H8V3a1 1 0 0 1 1-1z"/><path d="M16 4h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></i><span>Jobs</span></button><button class="nav " data-view="schedule"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></i><span>Schedule</span></button><button class="nav " data-view="estimates"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></i><span>Estimates</span></button><button class="nav " data-view="reports"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></i><span>Reports</span></button><button class="nav " data-view="settings"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.3 1a7 7 0 0 0-1.7-1l-.3-2.5h-4l-.3 2.5a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.6a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.6a7 7 0 0 0 .1-1z"/></svg></i><span>Settings</span></button></div>
+    <div class="who"><div class="av">RM</div><div><b>Ryan M.</b><small>Owner / Admin</small></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div><h1 id="vt">Dashboard</h1><div class="tag">GreenEdge Lawn & Landscape</div></div>
+      <div class="actions"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span>Search customers, jobs…</span></div><button class="btn ghost">Import</button><button class="btn">New job</button></div>
+    </header>
+    <div class="wrap">
+
+      <section class="view show" data-v="dashboard">
+        <div class="kpis"><div class="kpi"><div class="kpi-l">Routes today</div><div class="kpi-v">6</div><div class="kpi-h">142 stops</div></div><div class="kpi"><div class="kpi-l">Active accounts</div><div class="kpi-v">318</div><div class="kpi-h">274 recurring</div></div><div class="kpi"><div class="kpi-l">Recurring revenue</div><div class="kpi-v">$41,600 / mo</div><div class="kpi-h">+12 accounts (mo)</div></div><div class="kpi"><div class="kpi-l">Crews running</div><div class="kpi-v">5</div><div class="kpi-h">on schedule</div></div></div>
+        <div class="grid2">
+          <div class="card"><div class="card-h"><h2>Pipeline</h2><a data-view="leads">View all</a></div><div class="board"><div class="stage"><div class="stage-h"><span>Lead</span><span class="pill">9</span></div><div class="stage-sum">$3.1k</div><div class="stage-cards"><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div></div></div><div class="stage"><div class="stage-h"><span>Walkthrough</span><span class="pill">6</span></div><div class="stage-sum">$4.4k</div><div class="stage-cards"><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div></div></div><div class="stage"><div class="stage-h"><span>Quoted</span><span class="pill">7</span></div><div class="stage-sum">$5.8k</div><div class="stage-cards"><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div></div></div><div class="stage"><div class="stage-h"><span>Won</span><span class="pill">12</span></div><div class="stage-sum">$9.2k</div><div class="stage-cards"><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div></div></div><div class="stage"><div class="stage-h"><span>Recurring</span><span class="pill">274</span></div><div class="stage-sum">$41.6k/mo</div><div class="stage-cards"><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div></div></div></div></div>
+          <div class="card"><div class="card-h"><h2>Revenue — last 6 months</h2></div><div class="chart"><div class="bars"><div class="barwrap"><div class="bar" style="height:64px"></div><span>Jan</span></div><div class="barwrap"><div class="bar" style="height:70px"></div><span>Feb</span></div><div class="barwrap"><div class="bar" style="height:95px"></div><span>Mar</span></div><div class="barwrap"><div class="bar" style="height:108px"></div><span>Apr</span></div><div class="barwrap"><div class="bar" style="height:114px"></div><span>May</span></div><div class="barwrap"><div class="bar" style="height:120px"></div><span>Jun</span></div></div></div></div>
+        </div>
+        <div class="card mt"><div class="card-h"><h2>Recent jobs</h2><a data-view="jobs">Open jobs</a></div>
+          <table><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th>Value</th><th>Crew</th></tr></thead><tbody><tr><td><span class="jt">Weekly mow — Maple Dr route</span></td><td>42 accounts</td><td><span class="badge ok">Recurring</span></td><td class="num">$2,520</td><td>Crew 1</td></tr><tr><td><span class="jt">Fertilization — round 3</span></td><td>Oakmont HOA</td><td><span class="badge ok">Won</span></td><td class="num">$3,400</td><td>Crew 2</td></tr><tr><td><span class="jt">Spring cleanup</span></td><td>D. Farrow</td><td><span class="badge warn">Quoted</span></td><td class="num">$680</td><td>—</td></tr><tr><td><span class="jt">Aeration + overseed</span></td><td>Cedar Ridge</td><td><span class="badge warn">Walkthrough</span></td><td class="num">$1,240</td><td>—</td></tr><tr><td><span class="jt">Mulch install (18 yd)</span></td><td>S. Adeyemi</td><td><span class="badge ok">Won</span></td><td class="num">$2,150</td><td>Crew 3</td></tr><tr><td><span class="jt">Hedge + bed trim</span></td><td>Lang residence</td><td><span class="badge ok">Recurring</span></td><td class="num">$180</td><td>Crew 1</td></tr></tbody></table>
+        </div>
+      </section>
+
+      <section class="view" data-v="jobs">
+        <div class="card"><div class="card-h"><h2>All jobs</h2><button class="btn">New job</button></div>
+          <table><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th>Value</th><th>Crew</th></tr></thead><tbody><tr><td><span class="jt">Weekly mow — Maple Dr route</span></td><td>42 accounts</td><td><span class="badge ok">Recurring</span></td><td class="num">$2,520</td><td>Crew 1</td></tr><tr><td><span class="jt">Fertilization — round 3</span></td><td>Oakmont HOA</td><td><span class="badge ok">Won</span></td><td class="num">$3,400</td><td>Crew 2</td></tr><tr><td><span class="jt">Spring cleanup</span></td><td>D. Farrow</td><td><span class="badge warn">Quoted</span></td><td class="num">$680</td><td>—</td></tr><tr><td><span class="jt">Aeration + overseed</span></td><td>Cedar Ridge</td><td><span class="badge warn">Walkthrough</span></td><td class="num">$1,240</td><td>—</td></tr><tr><td><span class="jt">Mulch install (18 yd)</span></td><td>S. Adeyemi</td><td><span class="badge ok">Won</span></td><td class="num">$2,150</td><td>Crew 3</td></tr><tr><td><span class="jt">Hedge + bed trim</span></td><td>Lang residence</td><td><span class="badge ok">Recurring</span></td><td class="num">$180</td><td>Crew 1</td></tr><tr><td><span class="jt">Weekly mow — Maple Dr route</span></td><td>42 accounts</td><td><span class="badge ok">Recurring</span></td><td class="num">$2,520</td><td>Crew 1</td></tr><tr><td><span class="jt">Fertilization — round 3</span></td><td>Oakmont HOA</td><td><span class="badge ok">Won</span></td><td class="num">$3,400</td><td>Crew 2</td></tr><tr><td><span class="jt">Spring cleanup</span></td><td>D. Farrow</td><td><span class="badge warn">Quoted</span></td><td class="num">$680</td><td>—</td></tr><tr><td><span class="jt">Aeration + overseed</span></td><td>Cedar Ridge</td><td><span class="badge warn">Walkthrough</span></td><td class="num">$1,240</td><td>—</td></tr><tr><td><span class="jt">Mulch install (18 yd)</span></td><td>S. Adeyemi</td><td><span class="badge ok">Won</span></td><td class="num">$2,150</td><td>Crew 3</td></tr><tr><td><span class="jt">Hedge + bed trim</span></td><td>Lang residence</td><td><span class="badge ok">Recurring</span></td><td class="num">$180</td><td>Crew 1</td></tr></tbody></table></div>
+        <div class="card mt"><div class="card-h"><h2>Service types</h2></div><div class="types"><span class="chip">Mowing</span><span class="chip">Fertilization</span><span class="chip">Aeration</span><span class="chip">Cleanup</span><span class="chip">Mulch</span><span class="chip">Landscaping</span><span class="chip">Irrigation</span></div></div>
+      </section>
+
+      <section class="view" data-v="leads">
+        <div class="card"><div class="card-h"><h2>Sales pipeline</h2><button class="btn">New lead</button></div><div class="board"><div class="stage"><div class="stage-h"><span>Lead</span><span class="pill">9</span></div><div class="stage-sum">$3.1k</div><div class="stage-cards"><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div></div></div><div class="stage"><div class="stage-h"><span>Walkthrough</span><span class="pill">6</span></div><div class="stage-sum">$4.4k</div><div class="stage-cards"><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div></div></div><div class="stage"><div class="stage-h"><span>Quoted</span><span class="pill">7</span></div><div class="stage-sum">$5.8k</div><div class="stage-cards"><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div></div></div><div class="stage"><div class="stage-h"><span>Won</span><span class="pill">12</span></div><div class="stage-sum">$9.2k</div><div class="stage-cards"><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div></div></div><div class="stage"><div class="stage-h"><span>Recurring</span><span class="pill">274</span></div><div class="stage-sum">$41.6k/mo</div><div class="stage-cards"><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div><div class="mini"><div class="mini-t"></div><div class="mini-s"></div></div></div></div></div></div>
+      </section>
+
+      <section class="view" data-v="schedule">
+        <div class="card"><div class="card-h"><h2>This week</h2><a>Calendar</a></div><div class="sched-row"><div class="sched-day">Mon</div><div class="sched-job">Maple Dr route — 42 stops</div><div class="sched-crew">Crew 1</div></div><div class="sched-row"><div class="sched-day">Tue</div><div class="sched-job">Oakmont fert — round 3</div><div class="sched-crew">Crew 2</div></div><div class="sched-row"><div class="sched-day">Wed</div><div class="sched-job">Cedar Ridge aeration</div><div class="sched-crew">Crew 3</div></div><div class="sched-row"><div class="sched-day">Thu</div><div class="sched-job">Adeyemi mulch install</div><div class="sched-crew">Crew 3</div></div><div class="sched-row"><div class="sched-day">Fri</div><div class="sched-job">Highland route — 38 stops</div><div class="sched-crew">Crew 1</div></div></div>
+      </section>
+
+      <section class="view" data-v="estimates">
+        <div class="card"><div class="card-h"><h2>Estimates</h2><button class="btn">New estimate</button></div>
+          <table><thead><tr><th>#</th><th>Customer</th><th>Scope</th><th>Total</th><th>Status</th></tr></thead><tbody><tr><td>EST-4120</td><td>42 accounts</td><td><span class="jt">Weekly mow — Maple Dr route</span></td><td class="num">$2,520</td><td><span class="badge ok">Recurring</span></td></tr><tr><td>EST-4121</td><td>Oakmont HOA</td><td><span class="jt">Fertilization — round 3</span></td><td class="num">$3,400</td><td><span class="badge ok">Won</span></td></tr><tr><td>EST-4122</td><td>D. Farrow</td><td><span class="jt">Spring cleanup</span></td><td class="num">$680</td><td><span class="badge warn">Quoted</span></td></tr><tr><td>EST-4123</td><td>Cedar Ridge</td><td><span class="jt">Aeration + overseed</span></td><td class="num">$1,240</td><td><span class="badge warn">Walkthrough</span></td></tr><tr><td>EST-4124</td><td>S. Adeyemi</td><td><span class="jt">Mulch install (18 yd)</span></td><td class="num">$2,150</td><td><span class="badge ok">Won</span></td></tr></tbody></table></div>
+      </section>
+
+      <section class="view" data-v="reports">
+        <div class="kpis"><div class="kpi"><div class="kpi-l">Routes today</div><div class="kpi-v">6</div><div class="kpi-h">142 stops</div></div><div class="kpi"><div class="kpi-l">Active accounts</div><div class="kpi-v">318</div><div class="kpi-h">274 recurring</div></div><div class="kpi"><div class="kpi-l">Recurring revenue</div><div class="kpi-v">$41,600 / mo</div><div class="kpi-h">+12 accounts (mo)</div></div><div class="kpi"><div class="kpi-l">Crews running</div><div class="kpi-v">5</div><div class="kpi-h">on schedule</div></div></div>
+        <div class="card"><div class="card-h"><h2>Revenue trend</h2></div><div class="chart"><div class="bars"><div class="barwrap"><div class="bar" style="height:64px"></div><span>Jan</span></div><div class="barwrap"><div class="bar" style="height:70px"></div><span>Feb</span></div><div class="barwrap"><div class="bar" style="height:95px"></div><span>Mar</span></div><div class="barwrap"><div class="bar" style="height:108px"></div><span>Apr</span></div><div class="barwrap"><div class="bar" style="height:114px"></div><span>May</span></div><div class="barwrap"><div class="bar" style="height:120px"></div><span>Jun</span></div></div></div></div>
+      </section>
+
+      <section class="view" data-v="settings">
+        <div class="card"><div class="card-h"><h2>Company settings</h2></div><div class="types"><span class="chip">Mowing</span><span class="chip">Fertilization</span><span class="chip">Aeration</span><span class="chip">Cleanup</span><span class="chip">Mulch</span><span class="chip">Landscaping</span><span class="chip">Irrigation</span><span class="chip">Crews & roles</span><span class="chip">Pricebook</span><span class="chip">Branding</span><span class="chip">Notifications</span></div></div>
+      </section>
+
+    </div>
+    <div class="foot"><span>GreenEdge Lawn & Landscape — built on <b>Liftori CRM</b></span><span>Mockup preview</span></div>
+  </div>
+</div>
+<script>
+(function(){
+  var labels={dashboard:'Dashboard',jobs:'Jobs',leads:'Leads',schedule:'Schedule',estimates:'Estimates',reports:'Reports',settings:'Settings'};
+  function go(v){
+    document.querySelectorAll('.view').forEach(function(s){s.classList.toggle('show',s.dataset.v===v)});
+    document.querySelectorAll('.nav').forEach(function(n){n.classList.toggle('active',n.dataset.view===v)});
+    var vt=document.getElementById('vt'); if(vt&&labels[v]) vt.textContent=labels[v];
+    window.scrollTo(0,0);
+  }
+  document.addEventListener('click',function(e){
+    var el=e.target.closest('[data-view]'); if(!el) return; var v=el.dataset.view; if(labels[v]){e.preventDefault();go(v);}
+  });
+})();
+</script>
+</body></html>
