@@ -639,6 +639,7 @@
   renderVitals();
   renderCareHeader();
   renderChat();
+  applyView(0);
 
   // ---- Per-user profile & settings ----
   function settingsColorDots(v){return PALETTE.map(function(c){return '<button onclick="updSelf(\'color\',\''+c+'\')" style="width:24px;height:24px;border-radius:50%;border:'+(c===v?'2px solid var(--ink)':'2px solid #fff')+';box-shadow:0 0 0 1px var(--line);background:'+c+';cursor:pointer;margin-right:6px"></button>';}).join('');}
