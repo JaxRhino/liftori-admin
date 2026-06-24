@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCrmClient } from './_shared';
 import { Card } from '../../components/ui/card';
@@ -196,7 +196,7 @@ export default function CrmDealDetail() {
     try {
       const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(reqForm.address));
       const j = await r.json();
-      if (j && j[0]) { setReqForm(f => ({ ...f, lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon), located: true, confirmed: false, address: j[0].display_name || f.address })); toast.success('Location found - confirm it is correct'); }
+      if (j && j[0]) { setReqForm(f => ({ ...f, lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon), located: true, confirmed: false, geoV: (f.geoV || 0) + 1, address: j[0].display_name || f.address })); toast.success('Location found - drag the pin onto the house'); }
       else toast.error('Address not found');
     } catch { toast.error('Location lookup failed'); }
   }
@@ -743,7 +743,7 @@ export default function CrmDealDetail() {
 
             {/* Job Details */}
             <SectionCard title="Job Details">
-              <Field label="Job Address" full><Input value={form.job_address} onChange={e => setForm({ ...form, job_address: e.target.value })} placeholder={contact ? [contact.property_address, contact.property_city, contact.property_state, contact.property_zip].filter(Boolean).join(', ') : ''} className="bg-navy-800 border-navy-700 text-white" /></Field>
+              <Field label="Job Address" full><AddressAutocomplete value={form.job_address} onChange={v => setForm({ ...form, job_address: v })} placeholder={contact ? [contact.property_address, contact.property_city, contact.property_state, contact.property_zip].filter(Boolean).join(', ') : 'Start typing an address...'} className="bg-navy-800 border-navy-700 text-white" /></Field>
               <Field label="Job Type">
                 <select value={form.job_type} onChange={e => setForm({ ...form, job_type: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
                   <option value="">-</option>
@@ -958,10 +958,14 @@ export default function CrmDealDetail() {
                       <Button onClick={geocodeReqAddress} className="bg-navy-700 hover:bg-navy-600 text-white whitespace-nowrap">Find</Button>
                     </div>
                     {reqForm.located && (
-                      <label className="flex items-center gap-2 mt-2 text-xs text-gray-300">
-                        <input type="checkbox" checked={!!reqForm.confirmed} onChange={e => setReqForm(f => ({ ...f, confirmed: e.target.checked }))} />
-                        Confirm this location is correct ({reqForm.lat != null ? reqForm.lat.toFixed(5) : '?'}, {reqForm.lng != null ? reqForm.lng.toFixed(5) : '?'})
-                      </label>
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs text-gray-400">Drag the pin (or click the map) onto the correct roof - the report is built on this exact spot.</p>
+                        <RequestMap key={'reqmap-' + (reqForm.geoV || 0)} lat={reqForm.lat} lng={reqForm.lng} onMove={(la, ln) => setReqForm(f => ({ ...f, lat: la, lng: ln }))} />
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input type="checkbox" checked={!!reqForm.confirmed} onChange={e => setReqForm(f => ({ ...f, confirmed: e.target.checked }))} />
+                          Pin is on the correct house ({reqForm.lat != null ? reqForm.lat.toFixed(5) : '?'}, {reqForm.lng != null ? reqForm.lng.toFixed(5) : '?'})
+                        </label>
+                      </div>
                     )}
                   </Field>
                   <Field label="Measurement Title"><Input value={reqForm.title} onChange={e => setReqForm(f => ({ ...f, title: e.target.value }))} className="bg-navy-800 border-navy-700 text-white" /></Field>
@@ -1314,6 +1318,70 @@ function SectionCard({ title, children }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
     </Card>
   );
+}
+
+const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js';
+const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css';
+const RRR_MAP_STYLE = { version: 8, sources: { esri: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, attribution: 'Imagery (c) Esri' } }, layers: [{ id: 'esri', type: 'raster', source: 'esri' }] };
+function rrrLoadCss(href) { if (document.querySelector('link[data-cdn="' + href + '"]')) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; l.dataset.cdn = href; document.head.appendChild(l); }
+function rrrLoadScript(src) { return new Promise((resolve, reject) => { const ex = document.querySelector('script[data-cdn="' + src + '"]'); if (ex) { if (ex.dataset.loaded === '1') return resolve(); ex.addEventListener('load', () => resolve()); ex.addEventListener('error', () => reject(new Error('load fail'))); return; } const sc = document.createElement('script'); sc.src = src; sc.async = true; sc.dataset.cdn = src; sc.addEventListener('load', () => { sc.dataset.loaded = '1'; resolve(); }); sc.addEventListener('error', () => reject(new Error('load fail'))); document.head.appendChild(sc); }); }
+async function rrrEnsureMap() { rrrLoadCss(MAPLIBRE_CSS); if (!window.maplibregl) await rrrLoadScript(MAPLIBRE_JS); }
+
+function AddressAutocomplete({ value, onChange, placeholder, className }) {
+  const [q, setQ] = useState(value || '');
+  const [sugs, setSugs] = useState([]);
+  const [open, setOpen] = useState(false);
+  const tRef = useRef(null);
+  useEffect(() => { setQ(value || ''); }, [value]);
+  function onType(v) {
+    setQ(v); onChange(v); setOpen(true);
+    if (tRef.current) clearTimeout(tRef.current);
+    if (!v || v.length < 4) { setSugs([]); return; }
+    tRef.current = setTimeout(async () => {
+      try {
+        const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&countrycodes=us&q=' + encodeURIComponent(v));
+        const j = await r.json();
+        setSugs(Array.isArray(j) ? j : []);
+      } catch (e) { setSugs([]); }
+    }, 350);
+  }
+  function pick(s) { onChange(s.display_name); setQ(s.display_name); setSugs([]); setOpen(false); }
+  return (
+    <div className="relative">
+      <Input value={q} onChange={e => onType(e.target.value)} onFocus={() => { if (q) setOpen(true); }} onBlur={() => setTimeout(() => setOpen(false), 150)} placeholder={placeholder} className={className} />
+      {open && sugs.length > 0 && (
+        <div className="absolute z-30 left-0 right-0 mt-1 bg-navy-800 border border-navy-700 rounded-lg max-h-56 overflow-auto shadow-xl">
+          {sugs.map((s, i) => (
+            <button key={i} type="button" onMouseDown={e => { e.preventDefault(); pick(s); }} className="block w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-navy-700 border-b border-navy-700/50 last:border-0">{s.display_name}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RequestMap({ lat, lng, onMove }) {
+  const ref = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await rrrEnsureMap();
+        if (cancelled || !ref.current || mapRef.current) return;
+        const mlg = window.maplibregl;
+        const map = new mlg.Map({ container: ref.current, style: RRR_MAP_STYLE, center: [lng, lat], zoom: 20 });
+        map.addControl(new mlg.NavigationControl({ showCompass: false }), 'top-left');
+        const marker = new mlg.Marker({ color: '#2f6df6', draggable: true }).setLngLat([lng, lat]).addTo(map);
+        marker.on('dragend', () => { const p = marker.getLngLat(); onMove(p.lat, p.lng); });
+        map.on('click', (e) => { marker.setLngLat(e.lngLat); onMove(e.lngLat.lat, e.lngLat.lng); });
+        mapRef.current = map; markerRef.current = marker;
+      } catch (e) { /* map is best-effort */ }
+    })();
+    return () => { cancelled = true; if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
+  }, []);
+  return <div ref={ref} className="w-full h-80 rounded-lg overflow-hidden border border-navy-700" />;
 }
 
 function Field({ label, full, children }) {
