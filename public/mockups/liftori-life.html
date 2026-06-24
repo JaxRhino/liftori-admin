@@ -1093,6 +1093,9 @@
     var rowStart=coupleMid-rowW/2;
     var pidX=null,sx=rowStart;
     rowUnits.forEach(function(u){var off=sx;u.els.forEach(function(e){flat.push({pid:e.pid,x:e.x+off,gen:e.gen});});if(u===unit)pidX=u.ax+off;sx+=u.w;});
+    if(focal){var _sm=null,_sd=null;spouseFams(fa).forEach(function(f2){if(f2!==bf&&!_sm){var s=partnerOf(f2,fa);if(s&&s!==mo)_sm=s;}});if(mo)spouseFams(mo).forEach(function(f2){if(f2!==bf&&!_sd){var s=partnerOf(f2,mo);if(s&&s!==fa)_sd=s;}});
+      if(_sm){var _lm=1e9;flat.forEach(function(e){if(e.gen===-1&&e.x<_lm)_lm=e.x;});flat.push({pid:_sm,x:_lm-CW-12,gen:-1});}
+      if(_sd){var _rm=-1e9;flat.forEach(function(e){if(e.gen===-1&&e.x>_rm)_rm=e.x;});flat.push({pid:_sd,x:_rm+CW+12,gen:-1});}}
     var minX=1e9;flat.forEach(function(e){if(e.x<minX)minX=e.x;});
     if(minX<0){flat.forEach(function(e){e.x-=minX;});pidX-=minX;}
     var maxX=0;flat.forEach(function(e){if(e.x>maxX)maxX=e.x;});
