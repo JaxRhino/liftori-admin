@@ -9,7 +9,7 @@ const CATEGORIES = ['aerial', 'damage', 'before', 'progress', 'after', 'completi
 const CAT_LABEL = { aerial: 'Aerial', damage: 'Damage', before: 'Before', progress: 'Progress', after: 'After', completion: 'Completion', measurement: 'Measurement', vent: 'Vents', roof: 'Roof', general: 'General' }
 const lbl = (c) => CAT_LABEL[c] || (c ? c.charAt(0).toUpperCase() + c.slice(1) : 'General')
 
-export default function CustomerPhotos({ contactId, workOrderId = null }) {
+export default function CustomerPhotos({ contactId, workOrderId = null, pipelineId = null }) {
   const { client } = useCrm()
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -18,14 +18,14 @@ export default function CustomerPhotos({ contactId, workOrderId = null }) {
   const [filter, setFilter] = useState('all')
   const fileRef = useRef(null)
 
-  useEffect(() => { if (contactId) load() }, [contactId])
+  useEffect(() => { if (contactId || pipelineId) load() }, [contactId, pipelineId])
 
   async function load() {
     setLoading(true)
-    const { data } = await client
-      .from('customer_photos')
-      .select('*')
-      .eq('contact_id', contactId)
+    let q = client.from('customer_photos').select('*')
+    if (pipelineId) q = q.eq('pipeline_id', pipelineId)
+    else q = q.eq('contact_id', contactId)
+    const { data } = await q
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false })
     const rows = data || []
@@ -44,13 +44,14 @@ export default function CustomerPhotos({ contactId, workOrderId = null }) {
     setUploading(true)
     for (const file of files) {
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
-      const path = contactId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext
+      const path = (contactId || pipelineId || 'job') + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext
       const { error: upErr } = await client.storage
         .from('customer-photos')
         .upload(path, file, { upsert: false, contentType: file.type || 'image/jpeg' })
       if (upErr) { console.error('photo upload failed', upErr); continue }
       await client.from('customer_photos').insert({
-        contact_id: contactId,
+        contact_id: contactId || null,
+        pipeline_id: pipelineId || null,
         work_order_id: workOrderId,
         storage_path: path,
         caption: '',
