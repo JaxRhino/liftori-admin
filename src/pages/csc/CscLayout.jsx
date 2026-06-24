@@ -4,6 +4,7 @@ const TABS = [
   { to: '/admin/csc', label: 'Overview', end: true },
   { to: '/admin/csc/customers', label: 'Customers' },
   { to: '/admin/csc/jobs', label: 'Jobs' },
+  { to: '/admin/csc/recurring', label: 'Recurring' },
   { to: '/admin/csc/deficiencies', label: 'Deficiencies' },
   { to: '/admin/csc/invoices', label: 'Invoices' },
   { to: '/admin/csc/certificates', label: 'Certificates' },
