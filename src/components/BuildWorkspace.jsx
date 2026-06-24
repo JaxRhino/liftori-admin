@@ -25,6 +25,7 @@ const featCount = (arr, s) => (arr || []).filter((x) => x.status === s).length
 export const WORKSPACE_TABS = [
   { key: 'details', label: 'Project Details' },
   { key: 'design', label: 'Design' },
+  { key: 'mockup', label: 'Mockup' },
   { key: 'features', label: 'Features' },
   { key: 'scope', label: 'Scope' },
   { key: 'timeline', label: 'Timeline' },
@@ -39,6 +40,7 @@ export const WORKSPACE_TAB_KEYS = WORKSPACE_TABS.map(t => t.key)
 
 export function wsTabBadge(ws, key) {
   const w = ws || {}
+  if (key === 'mockup') { const m = w.mockup || {}; return ((m.html && m.html.trim()) || (m.url && m.url.trim())) ? 'ready' : null }
   if (key === 'features' && (w.features || []).length) return (w.features || []).length
   if (key === 'tasks' && (w.tasks || []).length) return `${(w.tasks || []).filter(t => t.done).length}/${(w.tasks || []).length}`
   if (key === 'documents' && (w.documents || []).length) return (w.documents || []).length
@@ -69,6 +71,8 @@ export function WorkspaceTabBody({ tab, ws, onSave, productType }) {
       )
     case 'design':
       return <DesignFields ws={w} onSave={onSave} />
+    case 'mockup':
+      return <MockupTab ws={w} onSave={onSave} />
     case 'scope':
       return <Narrative title="Scope of All Features" value={w.scope} onSave={v => patchWs('scope', v)} placeholder="Everything in scope - and explicitly what is out of scope..." />
     case 'plan':
@@ -498,6 +502,92 @@ function TasksEditor({ ws, onSave }) {
         </div>
       ))}
       <button onClick={() => patch([...tasks, { id: uid(), title: '', done: false }])} className="mt-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors">+ Add Task</button>
+    </div>
+  )
+}
+
+// Mockup tab: preview an inline-HTML mockup (srcDoc) or a hosted URL in a
+// device frame, so a build can be visualized before it's coded. Shared across
+// every product / project / custom build via the workspace jsonb (w.mockup).
+const MOCKUP_DEVICES = [
+  { key: 'phone', label: 'Phone', w: 390, h: 760 },
+  { key: 'tablet', label: 'Tablet', w: 834, h: 700 },
+  { key: 'desktop', label: 'Desktop', w: 0, h: 720 },
+]
+
+function MockupTab({ ws, onSave }) {
+  const w = ws || {}
+  const m = w.mockup || {}
+  const [device, setDevice] = useState(m.device || 'phone')
+  const [editing, setEditing] = useState(false)
+  const [urlDraft, setUrlDraft] = useState(m.url || '')
+  const [htmlDraft, setHtmlDraft] = useState(m.html || '')
+  useEffect(() => { setUrlDraft(m.url || ''); setHtmlDraft(m.html || '') }, [m.url, m.html])
+  const hasHtml = !!(m.html && m.html.trim())
+  const hasUrl = !!(m.url && m.url.trim())
+  const hasMockup = hasHtml || hasUrl
+  const dev = MOCKUP_DEVICES.find((d) => d.key === device) || MOCKUP_DEVICES[0]
+  const saveMockup = (patch) => onSave({ ...w, mockup: { ...m, ...patch } })
+  const popOut = () => {
+    if (hasUrl) { window.open(m.url, '_blank'); return }
+    if (hasHtml) { const blob = new Blob([m.html], { type: 'text/html' }); window.open(URL.createObjectURL(blob), '_blank') }
+  }
+  const frameStyle = device === 'desktop'
+    ? { width: '100%', height: dev.h }
+    : { width: dev.w, height: dev.h, maxWidth: '100%' }
+  const rounded = device === 'desktop' ? 'rounded-xl' : 'rounded-[2rem]'
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border border-navy-700/60 bg-navy-800 p-0.5">
+          {MOCKUP_DEVICES.map((d) => (
+            <button key={d.key} onClick={() => { setDevice(d.key); saveMockup({ device: d.key }) }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${device === d.key ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-white'}`}>{d.label}</button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          {hasMockup && <button onClick={popOut} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-navy-700/60 bg-navy-800 text-slate-200 hover:bg-navy-700">Open full screen</button>}
+          <button onClick={() => setEditing((e) => !e)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-500 hover:bg-sky-600 text-white">{editing ? 'Close editor' : (hasMockup ? 'Edit mockup' : 'Add mockup')}</button>
+        </div>
+      </div>
+
+      {editing && (
+        <div className="space-y-4 bg-navy-800 border border-navy-700/50 rounded-lg p-5">
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Hosted mockup URL</label>
+            <div className="flex items-center gap-2">
+              <input value={urlDraft} onChange={(e) => setUrlDraft(e.target.value)} placeholder="https://... (Vercel preview, Figma embed, etc.)" className="flex-1 bg-navy-900 border border-navy-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-sky-500" />
+              <button onClick={() => saveMockup({ url: urlDraft.trim() })} className="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-medium">Save URL</button>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-500">A URL takes priority over inline HTML when both are set.</p>
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Inline HTML mockup</label>
+            <textarea value={htmlDraft} onChange={(e) => setHtmlDraft(e.target.value)} spellCheck={false} placeholder="Paste a self-contained HTML page — it renders in the frame below. No hosting needed." className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-sky-500 h-48 resize-y leading-relaxed" />
+            <div className="mt-2 flex items-center gap-2">
+              <button onClick={() => saveMockup({ html: htmlDraft })} className="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-medium">Save HTML</button>
+              {hasHtml && <button onClick={() => { setHtmlDraft(''); saveMockup({ html: '' }) }} className="px-3 py-1.5 text-xs text-slate-400 hover:text-red-400">Clear HTML</button>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {hasMockup ? (
+        <div className="flex justify-center bg-navy-900/40 border border-navy-700/40 rounded-xl p-4 sm:p-6 overflow-auto">
+          <div className={`bg-white ${rounded} overflow-hidden shadow-2xl ${device === 'desktop' ? 'w-full border border-navy-700/40' : 'border-[6px] border-navy-700'}`} style={frameStyle}>
+            {hasUrl
+              ? <iframe src={m.url} title="Mockup preview" className="w-full h-full bg-white" />
+              : <iframe srcDoc={m.html} title="Mockup preview" sandbox="allow-scripts allow-same-origin" className="w-full h-full bg-white" />}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-navy-700/60 bg-navy-900/40 p-10 text-center">
+          <p className="text-sm text-slate-300 font-medium">No mockup yet</p>
+          <p className="mt-1 text-sm text-slate-500">See the idea before it's built. Add a hosted URL or paste a self-contained HTML mockup.</p>
+          <button onClick={() => setEditing(true)} className="mt-4 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium">Add a mockup</button>
+        </div>
+      )}
     </div>
   )
 }
