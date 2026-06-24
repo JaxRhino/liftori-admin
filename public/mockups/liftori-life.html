@@ -149,6 +149,7 @@
       <button data-s="lists"><span class="ic">☰</span> Lists &amp; Tasks</button>
       <button data-s="chat"><span class="ic">✦</span> Chat</button>
       <button data-s="docs"><span class="ic">▤</span> Documents</button>
+      <button data-s="tree"><span class="ic">❖</span> Family tree</button>
       <button data-s="settings"><span class="ic">⊙</span> Settings</button>
     </nav>
     <div class="fam">
@@ -394,6 +395,10 @@
         </div>
       </section>
 
+      <!-- FAMILY TREE (branches / network) -->
+      <section class="screen" id="tree">
+        <div id="treeBody" style="display:grid;gap:14px"></div>
+      </section>
       <!-- DOCUMENTS (family docs for adults; personal for everyone) -->
       <section class="screen" id="docs">
         <div id="docsBody" style="display:grid;gap:14px"></div>
@@ -415,6 +420,7 @@
         <div class="card" style="background:linear-gradient(135deg,#E7EFEA,#F3F0E6);border-color:var(--pine)">
           <h3 style="color:var(--pine)">You're the head of household</h3>
           <p style="font-size:13.5px;color:var(--ink);line-height:1.5;margin-top:-4px">Add or remove family members, set each person's role and details, and choose what they can see. Renters get a weekly rent; kids get a limited view.</p>
+          <button class="btn ghost" style="margin-top:12px" onclick="go('tree')">View family tree</button>
         </div>
         <div id="familyList" style="display:grid;gap:14px;margin-top:14px"></div>
         <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
@@ -467,7 +473,8 @@
     family:['Manage family','Add members, set roles, control what each person sees'],
     settings:['Profile & settings','Your account, password and notifications'],
     budget:['Family Budget','Run the household like a business'],
-    docs:['Documents','Wills, insurance & important family records']};
+    docs:['Documents','Wills, insurance & important family records'],
+    tree:['Family Tree','See how your family connects — and grows']};
   function go(s){
     document.querySelectorAll('.screen').forEach(function(e){e.classList.toggle('on',e.id===s)});
     document.querySelectorAll('#navd button,#navm button').forEach(function(b){b.classList.toggle('on',b.dataset.s===s)});
@@ -475,6 +482,7 @@
     if(s==='chat')renderChat();
     if(s==='budget')renderBudget();
     if(s==='docs')renderDocs();
+    if(s==='tree')renderTree();
     if(titles[s]){document.getElementById('ttl').textContent=titles[s][0];document.getElementById('tsub').textContent=titles[s][1];}
     document.querySelector('.scroll').scrollTop=0;
   }
@@ -825,6 +833,52 @@
   function docAdd(kind){if(kind==='family'){familyDocs.push({id:bUid(),name:'New document',detail:'',cat:'Personal'});}else{var m=members[activeUser];if(!m.docs)m.docs=[];m.docs.push({id:bUid(),name:'New document',detail:''});}renderDocs();}
   function docView(b){var o=b.textContent;b.textContent='Opens in app';setTimeout(function(){b.textContent=o;},1400);}
 
+  // ---- Family tree / branches ----
+  var tree={
+    center:{name:'Your household',rel:'Martinez–March',members:['RM','VM','TM','KM','DD'],color:'#2F6B5E',status:'you'},
+    branches:[
+      {id:'br1',name:"Aunt Deb's family",rel:"Vanessa's sister",members:['DB','MB','LB'],color:'#3E7CB1',status:'active'},
+      {id:'br2',name:"Uncle Mike's family",rel:"Ryan's brother",members:['ML','SL','JL','AL'],color:'#5B8C5A',status:'active'},
+      {id:'br3',name:'The Dietrich side',rel:"Diane's family",members:['ED','RD'],color:'#C25B6B',status:'active'},
+      {id:'br4',name:'Grandpa Joe',rel:"Diane's brother",members:['JD'],color:'#E8B04B',status:'invited'},
+      {id:'br5',name:'Cousin Sara',rel:"Vanessa's cousin",members:['SC'],color:'#9B6B8C',status:'invite'},
+      {id:'br6',name:'Grandma Rose',rel:"Ryan's grandma",members:['GR'],color:'#D98C5A',status:'invite'}
+    ]
+  };
+  function treeNode(x,y,n){
+    var w=158,h=88,rx=x-w/2,ry=y-h/2;
+    var sc={you:'#2F6B5E',active:'#2F6B5E',invited:'#C99A2E',invite:'#8A8178'}[n.status];
+    var lab={you:'Your family',active:'Active',invited:'Invited',invite:'Tap to invite'}[n.status];
+    var fill=n.status==='you'?'#E7EFEA':'#fff';
+    var click=(n.status==='invite'||n.status==='invited')?' style="cursor:pointer" onclick="inviteBranch(\''+n.id+'\')"':'';
+    var g='<g'+click+'>';
+    g+='<rect x="'+rx+'" y="'+ry+'" width="'+w+'" height="'+h+'" rx="13" fill="'+fill+'" stroke="'+(n.status==='you'?'#2F6B5E':'#E2D8C8')+'" stroke-width="'+(n.status==='you'?2:1.2)+'"/>';
+    g+='<text x="'+x+'" y="'+(ry+20)+'" text-anchor="middle" font-size="12" font-weight="700" fill="#2B2622">'+n.name+'</text>';
+    g+='<text x="'+x+'" y="'+(ry+33)+'" text-anchor="middle" font-size="9" fill="#8A8178">'+(n.rel||'')+'</text>';
+    var av=(n.members||[]).slice(0,5),tw=av.length*16,ax=x-tw/2+8;
+    av.forEach(function(ini,i){g+='<circle cx="'+(ax+i*16)+'" cy="'+(ry+52)+'" r="8" fill="'+(n.color||'#2F6B5E')+'"/><text x="'+(ax+i*16)+'" y="'+(ry+55)+'" text-anchor="middle" font-size="7" font-weight="700" fill="#fff">'+ini+'</text>';});
+    g+='<circle cx="'+(x-(lab.length*2.6))+'" cy="'+(ry+71)+'" r="3.2" fill="'+sc+'"/>';
+    g+='<text x="'+(x-(lab.length*2.6)+8)+'" y="'+(ry+74)+'" font-size="9.5" font-weight="700" fill="'+sc+'">'+lab+'</text>';
+    g+='</g>';
+    return g;
+  }
+  function renderTree(){
+    var el=document.getElementById('treeBody');if(!el)return;
+    var W=700,H=560,cx=350,cy=280,R=200,b=tree.branches,n=b.length;
+    var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">';
+    b.forEach(function(br,i){var a=(-90+i*(360/n))*Math.PI/180,x=cx+R*Math.cos(a),y=cy+R*Math.sin(a);br._x=x;br._y=y;var sc=br.status==='active'?'#2F6B5E':(br.status==='invited'?'#C99A2E':'#C9BEB0');var dash=br.status==='active'?'':' stroke-dasharray="5 5"';svg+='<line x1="'+cx+'" y1="'+cy+'" x2="'+x.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="'+sc+'" stroke-width="2"'+dash+'/>';});
+    svg+=treeNode(cx,cy,tree.center);
+    b.forEach(function(br){svg+=treeNode(br._x,br._y,br);});
+    svg+='</svg>';
+    var active=b.filter(function(x){return x.status==='active';}).length+1;
+    el.innerHTML='<div class="card" style="padding:11px 14px"><div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;font-weight:700;align-items:center"><span style="color:#2F6B5E">Active branch</span><span style="color:#C99A2E">Invited</span><span style="color:#8A8178">Tap a faded one to invite</span><span style="margin-left:auto;color:var(--muted)">'+active+' households on Liftori-Life</span></div></div>'
+      +'<div class="card" style="overflow:auto">'+svg+'</div>'
+      +'<button class="btn" onclick="inviteRelative()">+ Invite a relative to start their branch</button>'
+      +'<p class="note" style="text-align:left">Every relative who joins can build their own household — and invite theirs. That is how the family grows.</p>';
+  }
+  function inviteBranch(id){var br=tree.branches.find(function(x){return x.id===id;});if(!br)return;if(br.status==='invite')br.status='invited';else if(br.status==='invited')br.status='active';renderTree();}
+  function inviteRelative(){tree.branches.push({id:bUid(),name:'New relative',rel:'invite sent',members:['?'],color:'#7A8B99',status:'invited'});renderTree();}
+
   function persist(){
 try{localStorage.setItem('liftoriLifeMock',JSON.stringify({members:members,vitals:vitals,budget:budget,familyDocs:familyDocs}));}catch(e){}}
   function loadState(){try{var raw=localStorage.getItem('liftoriLifeMock');if(!raw)return;var d=JSON.parse(raw);if(d&&d.members&&d.members.length){members.length=0;d.members.forEach(function(m){members.push(m);});}if(d&&d.vitals&&d.vitals.length){vitals.length=0;d.vitals.forEach(function(v){vitals.push(v);});}if(d&&d.budget){budget=d.budget;}if(d&&d.familyDocs){familyDocs=d.familyDocs;}}catch(e){}}
@@ -836,6 +890,7 @@ try{localStorage.setItem('liftoriLifeMock',JSON.stringify({members:members,vital
   renderChat();
   renderBudget();
   renderDocs();
+  renderTree();
   applyView(0);
 
   // ---- Per-user profile & settings ----
