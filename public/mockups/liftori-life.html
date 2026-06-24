@@ -1038,9 +1038,18 @@
   var SLOT=120,CW=82,VGAP=150,R0=24;
   function isExPartner(p){if(!p)return false;var P2=ftPeople[p];if(!P2)return false;return /ex/i.test(P2.rel||'')||P2.marital==='Divorced';}
   function partnerOwnKids(partner,exclF){var ids=[];spouseFams(partner).forEach(function(pf){if(pf!==exclF)(pf.kids||[]).forEach(function(k){if(ids.indexOf(k)<0)ids.push(k);});});return ids;}
-  function descBlock(pid){
+  function descBlock(pid,simple){
     var unions=spouseFams(pid).filter(function(f){return f.b||(f.kids&&f.kids.length);});
     if(unions.length===0){return {w:SLOT,ax:SLOT/2,els:[{pid:pid,x:SLOT/2,gen:0}]};}
+    if(simple){
+      var sKids=[];unions.forEach(function(u){(u.kids||[]).forEach(function(k){if(sKids.indexOf(k)<0)sKids.push(k);});});
+      var sBlocks=sKids.map(function(k){return descBlock(k,true);}),sW=0;sBlocks.forEach(function(b){sW+=b.w;});if(sW<SLOT)sW=SLOT;
+      var sCur=null;unions.forEach(function(u){var p=partnerOf(u,pid);if(p&&!sCur&&!isExPartner(p))sCur=p;});
+      var sEls=[],sPidX=sW/2;sEls.push({pid:pid,x:sPidX,gen:0});
+      var ssx=0;sBlocks.forEach(function(b){var off=ssx;b.els.forEach(function(e){sEls.push({pid:e.pid,x:e.x+off,gen:e.gen+1});});ssx+=b.w;});
+      var sWid=sW;if(sCur){sEls.push({pid:sCur,x:sW+CW,gen:0});sWid=sW+CW+SLOT/2;}
+      return {w:sWid,ax:sPidX,els:sEls};
+    }
     var blended=unions.length>1||unions.some(function(u){return isExPartner(partnerOf(u,pid));})||unions.some(function(u){var p=partnerOf(u,pid);return p&&partnerOwnKids(p,u).length>0;});
     if(!blended){
       var f=unions[0],sp=partnerOf(f,pid);
@@ -1077,7 +1086,7 @@
     var bf=birthFam(pid);
     var sibs=bf?(bf.kids||[]).filter(function(k){return k!==pid;}):[];
     var unit=focal?descBlock(pid):singleNode(pid);
-    var sibUnits=sibs.map(focal?descBlock:singleNode);
+    var sibUnits=sibs.map(function(sb){return focal?descBlock(sb,true):singleNode(sb);});
     if(!bf){
       var ord=(side==='left')?sibUnits.concat([unit]):[unit].concat(sibUnits);
       var flat=[],x=0,pidX=0;ord.forEach(function(bl){if(bl===unit)pidX=x+unit.ax;bl.els.forEach(function(e){flat.push({pid:e.pid,x:e.x+x,gen:e.gen});});x+=bl.w;});
