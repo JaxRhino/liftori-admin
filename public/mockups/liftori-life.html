@@ -472,7 +472,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div style="grid-column:1/-1"><label class="vl">Full name</label><input id="teName" class="vi" placeholder="First Last"/></div>
       <div style="grid-column:1/-1"><label class="vl">Relationship to you</label><input id="teRel" class="vi" list="relOptions" placeholder="Mother, Brother, Ex-wife, Step-son..."/>
-        <datalist id="relOptions"><option>Me</option><option>Wife</option><option>Husband</option><option>Spouse</option><option>Partner</option><option>Ex-wife</option><option>Ex-husband</option><option>Ex-partner</option><option>Mother</option><option>Father</option><option>Son</option><option>Daughter</option><option>Brother</option><option>Sister</option><option>Half-brother</option><option>Half-sister</option><option>Step-mother</option><option>Step-father</option><option>Step-son</option><option>Step-daughter</option><option>Step-brother</option><option>Step-sister</option><option>Grandmother</option><option>Grandfather</option><option>Grandson</option><option>Granddaughter</option><option>Aunt</option><option>Uncle</option><option>Cousin</option><option>Niece</option><option>Nephew</option><option>Mother-in-law</option><option>Father-in-law</option><option>Son-in-law</option><option>Daughter-in-law</option></datalist></div>
+        <datalist id="relOptions"><option>Me</option><option>Wife</option><option>Husband</option><option>Spouse</option><option>Partner</option><option>Ex-wife</option><option>Ex-husband</option><option>Ex-partner</option><option>Mother</option><option>Father</option><option>Son</option><option>Daughter</option><option>Brother</option><option>Sister</option><option>Half-brother</option><option>Half-sister</option><option>Step-mother</option><option>Step-father</option><option>Step-son</option><option>Step-daughter</option><option>Step-brother</option><option>Step-sister</option><option>Grandmother</option><option>Grandfather</option><option>Great-grandmother</option><option>Great-grandfather</option><option>Grandson</option><option>Granddaughter</option><option>Aunt</option><option>Uncle</option><option>Great-aunt</option><option>Great-uncle</option><option>Cousin</option><option>Niece</option><option>Nephew</option><option>Mother-in-law</option><option>Father-in-law</option><option>Son-in-law</option><option>Daughter-in-law</option></datalist></div>
       <div><label class="vl">Prefix</label><input id="tePrefix" class="vi" placeholder="Dr., Rev."/></div>
       <div><label class="vl">Suffix</label><select id="teSuffix" class="vi"><option value="">&mdash;</option><option>Sr.</option><option>Jr.</option><option>II</option><option>III</option><option>IV</option></select></div>
       <div><label class="vl">Sex</label><select id="teSex" class="vi" onchange="toggleSexFields()"><option value="">&mdash;</option><option value="female">Female</option><option value="male">Male</option></select></div>
@@ -482,7 +482,7 @@
         <div><label class="vl">Married name</label><input id="teMarried" class="vi"/></div>
       </div>
       <div><label class="vl">Birth place</label><input id="teBirthplace" class="vi"/></div>
-      <div><label class="vl">Lives with us</label><select id="teStatus" class="vi"><option value="active">In the family</option><option value="invited">Invited</option></select></div>
+      <div><label class="vl">Lives with us</label><select id="teStatus" class="vi"><option value="active">In the family</option><option value="lives">Lives with us</option><option value="invited">Invited</option></select></div>
       <div><label class="vl">Born (year)</label><input id="teBorn" class="vi" inputmode="numeric" placeholder="e.g. 1985"/></div>
       <div><label class="vl">Passed (year)</label><input id="tePassed" class="vi" inputmode="numeric" placeholder="if deceased"/></div>
       <div><label class="vl">Email</label><input id="teEmail" class="vi"/></div>
@@ -512,12 +512,87 @@
           <option value="sibling">Sibling</option>
           <option value="parent">Parent</option>
         </select></div>
-      <div><label class="vl">Of (who in the tree)</label>
-        <select id="arAnchor" class="vi"></select></div>
+      <div><label class="vl">Of (who in the tree)</label><select id="arAnchor" class="vi"></select></div>
       <div><label class="vl">Name (optional)</label><input id="arName" class="vi" placeholder="You can fill in the rest after"/></div>
       <div id="arHint" style="font-size:12px;color:var(--muted)"></div>
     </div>
     <button onclick="addRelSubmit()" class="btn" style="width:100%;margin-top:14px">Add to tree</button>
+  </div>
+</div>
+
+<div id="setupModal" style="position:fixed;inset:0;background:rgba(43,38,34,.5);display:none;align-items:center;justify-content:center;padding:14px;z-index:90">
+  <div style="background:var(--surface);border-radius:18px;max-width:640px;width:100%;max-height:94%;overflow:auto;box-shadow:0 24px 60px rgba(43,38,34,.35);padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:19px;font-weight:800">Set up my family</div>
+      <button onclick="closeSetup()" style="border:0;background:transparent;font-size:24px;cursor:pointer;color:var(--muted);line-height:1">&times;</button>
+    </div>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:16px">Fill in whoever you can &mdash; skip the rest. This builds the bones of your tree; you can tap any person afterward to add details or more relatives.</div>
+
+    <div style="font-size:13px;font-weight:800;color:#2F6B5E;margin:6px 0 8px;text-transform:uppercase;letter-spacing:.4px">You</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+      <div><label class="vl">Your name</label><input id="suName" class="vi" placeholder="Your full name"/></div>
+      <div><label class="vl">Sex</label><select id="suSex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:800;color:#2F6B5E;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">Your partner &amp; children</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px">
+      <div><label class="vl">Partner / spouse</label><input id="suPartnerName" class="vi" placeholder="Name"/></div>
+      <div><label class="vl">Sex</label><select id="suPartnerSex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div><label class="vl">Status</label><select id="suPartnerStatus" class="vi"><option>Married</option><option>Partner / co-parent</option><option>Ex-spouse</option></select></div>
+    </div>
+    <input type="hidden" id="suPartnerRel" value="Spouse"/>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:8px">
+      <div><label class="vl">Child 1</label><input id="suKid1" class="vi" placeholder="Name"/></div><div><label class="vl">Sex</label><select id="suKid1Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div><label class="vl">Child 2</label><input id="suKid2" class="vi" placeholder="Name"/></div><div><label class="vl">Sex</label><select id="suKid2Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div><label class="vl">Child 3</label><input id="suKid3" class="vi" placeholder="Name"/></div><div><label class="vl">Sex</label><select id="suKid3Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div><label class="vl">Child 4</label><input id="suKid4" class="vi" placeholder="Name"/></div><div><label class="vl">Sex</label><select id="suKid4Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:800;color:#2F6B5E;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">Your parents</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label class="vl">Father</label><input id="suFatherName" class="vi" placeholder="Name"/></div>
+      <div><label class="vl">Mother</label><input id="suMotherName" class="vi" placeholder="Name"/></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--ink)"><input type="checkbox" id="suParentsDivorced"/> My parents are divorced / separated</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+      <div><label class="vl">Father remarried to (step-mother)</label><input id="suStepMotherName" class="vi" placeholder="Name (optional)"/></div>
+      <div><label class="vl">Mother remarried to (step-father)</label><input id="suStepFatherName" class="vi" placeholder="Name (optional)"/></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:800;color:#2F6B5E;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">Your siblings</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+      <div><label class="vl">Sibling 1</label><input id="suSib1" class="vi" placeholder="Name"/></div><div><label class="vl">Sex</label><select id="suSib1Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div><label class="vl">Sibling 2</label><input id="suSib2" class="vi" placeholder="Name"/></div><div><label class="vl">Sex</label><select id="suSib2Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div><label class="vl">Sibling 3</label><input id="suSib3" class="vi" placeholder="Name"/></div><div><label class="vl">Sex</label><select id="suSib3Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div><label class="vl">Sibling 4</label><input id="suSib4" class="vi" placeholder="Name"/></div><div><label class="vl">Sex</label><select id="suSib4Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:800;color:#2F6B5E;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">Father's side (paternal)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label class="vl">Grandfather</label><input id="suPGFName" class="vi" placeholder="Name"/></div>
+      <div><label class="vl">Grandmother</label><input id="suPGMName" class="vi" placeholder="Name"/></div>
+      <div><label class="vl">Great-grandfather</label><input id="suPGGFName" class="vi" placeholder="optional"/></div>
+      <div><label class="vl">Great-grandmother</label><input id="suPGGMName" class="vi" placeholder="optional"/></div>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:8px">
+      <div><label class="vl">Aunt / uncle 1</label><input id="suPatAunt1" class="vi" placeholder="Father's sibling"/></div><div><label class="vl">Sex</label><select id="suPatAunt1Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div><label class="vl">Aunt / uncle 2</label><input id="suPatAunt2" class="vi" placeholder="Father's sibling"/></div><div><label class="vl">Sex</label><select id="suPatAunt2Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:800;color:#2F6B5E;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">Mother's side (maternal)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label class="vl">Grandfather</label><input id="suMGFName" class="vi" placeholder="Name"/></div>
+      <div><label class="vl">Grandmother</label><input id="suMGMName" class="vi" placeholder="Name"/></div>
+      <div><label class="vl">Great-grandfather</label><input id="suMGGFName" class="vi" placeholder="optional"/></div>
+      <div><label class="vl">Great-grandmother</label><input id="suMGGMName" class="vi" placeholder="optional"/></div>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:8px">
+      <div><label class="vl">Aunt / uncle 1</label><input id="suMatAunt1" class="vi" placeholder="Mother's sibling"/></div><div><label class="vl">Sex</label><select id="suMatAunt1Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div><label class="vl">Aunt / uncle 2</label><input id="suMatAunt2" class="vi" placeholder="Mother's sibling"/></div><div><label class="vl">Sex</label><select id="suMatAunt2Sex" class="vi"><option value="">&mdash;</option><option value="male">Male</option><option value="female">Female</option></select></div>
+    </div>
+
+    <button onclick="setupSubmit()" class="btn" style="width:100%;margin-top:20px;padding:13px;font-size:15px">Build my family tree</button>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:8px;text-align:center">Tap any person afterward to add their household, kids, exes, or set who lives with you.</div>
   </div>
 </div>
 
@@ -892,12 +967,18 @@
   function docView(b){var o=b.textContent;b.textContent='Opens in app';setTimeout(function(){b.textContent=o;},1400);}
 
   // ---- Family tree (generational, editable, with ancestors) ----
-  var familyTree={root:{id:'n_root',child:{id:'p_me',name:'You',ini:'YO',color:'#2F6B5E',sex:'',rel:'Me'},unions:[]}};
+  var ftPeople={p_me:{id:'p_me',name:'You',ini:'YO',color:'#2F6B5E',sex:'',rel:'Me'}};
+  var ftFams={};var _fid=0,_pid=0;
   var treeCollapsed={},treeZoom=1,treePanX=0,treePanY=0,_treeFitDone=false,_treeDrag=null,_treeMoved=false,_treeW=360,_editPid=null,_editColor='#2F6B5E';
-  function eachNode(cb){(function w(n){if(!n)return;cb(n);(n.unions||[]).forEach(function(u){(u.children||[]).forEach(w);});})(familyTree.root);}
-  function eachPerson(cb){eachNode(function(n){cb(n.child,n,'child',null);(n.unions||[]).forEach(function(u){if(u.partner)cb(u.partner,n,'partner',u);});});}
-  function personCtx(id){var r=null;eachPerson(function(p,n,role,u){if(p&&p.id===id)r={p:p,node:n,role:role,union:u};});return r;}
-  function parentOf(t){var r=null;eachNode(function(n){(n.unions||[]).forEach(function(u){(u.children||[]).forEach(function(c){if(c===t)r={node:n,union:u};});});});return r;}
+  function P(id){return ftPeople[id];}
+  function newPid(){_pid++;return 'p_'+_pid+'_'+(Date.now()%100000);}
+  function newFid(){_fid++;return 'f_'+_fid;}
+  function addPerson(o){var id=o.id||newPid();ftPeople[id]={id:id,name:o.name||'',ini:o.ini||initials(o.name||'?'),color:o.color||PALETTE[Math.floor(Math.random()*PALETTE.length)],sex:o.sex||'',rel:o.rel||'',marital:o.marital||''};return id;}
+  function spouseFams(pid){var r=[];for(var k in ftFams){var f=ftFams[k];if(f.a===pid||f.b===pid)r.push(f);}return r;}
+  function birthFam(pid){for(var k in ftFams){var f=ftFams[k];if((f.kids||[]).indexOf(pid)>=0)return f;}return null;}
+  function partnerOf(f,pid){return f.a===pid?f.b:f.a;}
+  function ensureFam(a,b){for(var k in ftFams){var f=ftFams[k];if((f.a===a&&f.b===b)||(f.a===b&&f.b===a))return f;}var id=newFid();ftFams[id]={id:id,a:a,b:b||null,kids:[],status:''};return ftFams[id];}
+  function eachPerson(cb){for(var k in ftPeople)cb(ftPeople[k]);}
   function ftFullName(p){return (p.prefix?p.prefix+' ':'')+(p.name||'')+(p.suffix?' '+p.suffix:'');}
   function ftDeceased(p){return !!p.passed;}
   function ftWrap(txt,max){var w=(txt||'').split(' '),lines=[],cur='';for(var i=0;i<w.length;i++){var t=cur?cur+' '+w[i]:w[i];if(t.length>max&&cur){lines.push(cur);cur=w[i];}else cur=t;}if(cur)lines.push(cur);if(lines.length>2){lines=[lines[0],lines.slice(1).join(' ')];if(lines[1].length>max+2)lines[1]=lines[1].slice(0,max)+'...';}return lines;}
@@ -918,79 +999,94 @@
     if(dec){var dt=(p.born?p.born:'')+'&ndash;'+(p.passed||'');g+='<text x="'+cx+'" y="'+yy+'" text-anchor="middle" font-size="10.5" fill="var(--muted)">'+dt+'</text>';}
     g+='</g>';return g;
   }
-  function avatarSVG(cx,cy,p){return ftNode(p,cx,cy);}
   function applyTreeTransform(){var st=document.getElementById('treeStage');if(st)st.style.transform='translate('+treePanX+'px,'+treePanY+'px) scale('+treeZoom+')';}
   function zoomAround(f,ox,oy){var nz=Math.min(2.6,Math.max(0.3,treeZoom*f));treePanX=ox-((ox-treePanX)/treeZoom)*nz;treePanY=oy-((oy-treePanY)/treeZoom)*nz;treeZoom=nz;applyTreeTransform();}
   function zoomTree(f){var vp=document.getElementById('treeViewport');if(!vp)return;var r=vp.getBoundingClientRect();zoomAround(f,r.width/2,r.height/2);}
   function fitTree(){var vp=document.getElementById('treeViewport');if(!vp)return;var w=vp.getBoundingClientRect().width||340;var z=Math.min(1.3,Math.max(0.3,(w-20)/_treeW));treeZoom=z;treePanX=Math.max(8,(w-_treeW*z)/2);treePanY=12;applyTreeTransform();}
-  function toggleCollapse(id){treeCollapsed[id]=!treeCollapsed[id];renderTree();}
-  function renderTree(){
-    var host=document.getElementById('treeBody');if(!host)return;
-    var R=24,NW=112,CW=78,VGAP=152,TOP=48,M=28,LH=46,GAPm=22;
-    function partnered(n){return (n.unions||[]).filter(function(u){return u.partner;});}
-    function wd(n){
-      var unions=n.unions||[],P=partnered(n),col=treeCollapsed[n.id];
-      unions.forEach(function(u){var s=0;if(!col)(u.children||[]).forEach(function(c){s+=wd(c);});u._kw=s;});
-      var w;
-      if(P.length===0){var u0=unions[0];w=Math.max(NW,u0?u0._kw:0);}
-      else if(P.length===1){w=Math.max(NW+CW,P[0]._kw,NW);}
-      else{var w0=P[0]._kw,w1=P[1]._kw;var off0=Math.max(CW,w0/2+NW/2+GAPm),off1=Math.max(CW,w1/2+NW/2+GAPm);
-        var lext=off0+Math.max(NW/2,w0/2),rext=off1+Math.max(NW/2,w1/2),extra=0;
-        for(var i=2;i<P.length;i++){extra+=Math.max(NW,P[i]._kw)+GAPm;}
-        w=lext+rext+extra+NW;}
-      n._w=Math.max(w,NW);return n._w;
+  function ftIsEmpty(){var n=0;for(var k in ftPeople)n++;return n<=1 && Object.keys(ftFams).length===0;}
+  var SLOT=120,CW=82,VGAP=150,R0=24;
+  function descBlock(pid){
+    var fams=spouseFams(pid).filter(function(f){return f.b||(f.kids&&f.kids.length);});
+    if(fams.length===0){return {w:SLOT,ax:SLOT/2,els:[{pid:pid,x:SLOT/2,gen:0}]};}
+    var f=fams[0],sp=partnerOf(f,pid);
+    var kidBlocks=(f.kids||[]).map(function(k){return descBlock(k);});
+    var kidsW=0;kidBlocks.forEach(function(b){kidsW+=b.w;});
+    var coupleW=sp?(SLOT+CW):SLOT;
+    var w=Math.max(coupleW,kidsW,SLOT);
+    var els=[];
+    var cx=w/2;
+    var pidX,spX;
+    if(sp){var left=pid,right=sp;if(P(sp).sex==='male'&&P(pid).sex!=='male'){left=sp;right=pid;}else if(P(pid).sex==='female'&&P(sp).sex!=='female'){left=sp;right=pid;}
+      var lx=cx-CW/2,rx=cx+CW/2;els.push({pid:left,x:lx,gen:0});els.push({pid:right,x:rx,gen:0});pidX=(left===pid?lx:rx);spX=(left===pid?rx:lx);}
+    else{els.push({pid:pid,x:cx,gen:0});pidX=cx;}
+    var sx=cx-kidsW/2;
+    kidBlocks.forEach(function(b){var off=sx;b.els.forEach(function(e){els.push({pid:e.pid,x:e.x+off,gen:e.gen+1});});sx+=b.w;});
+    return {w:w,ax:pidX,els:els,fam:f};
+  }
+  function singleNode(pid){return {w:SLOT,ax:SLOT/2,els:[{pid:pid,x:SLOT/2,gen:0}]};}
+  function ancBlock(pid,focal){
+    var bf=birthFam(pid);
+    var sibs=bf?(bf.kids||[]).filter(function(k){return k!==pid;}):[];
+    var unit=focal?descBlock(pid):singleNode(pid);
+    var sibUnits=sibs.map(singleNode);
+    if(!bf){
+      var els=[],x=0;els.push({block:unit,off:0});x=unit.w;
+      sibUnits.forEach(function(su){els.push({block:su,off:x});x+=su.w;});
+      var flat=[],pidX=unit.ax;els.forEach(function(it){it.block.els.forEach(function(e){flat.push({pid:e.pid,x:e.x+it.off,gen:e.gen});});});
+      return {w:x,ax:pidX,els:flat};
     }
-    wd(familyTree.root);
-    var W=Math.max(360,familyTree.root._w+M*2),maxD=0;
-    function layoutKids(u,centerX,depth){var k=u.children||[],s=0;k.forEach(function(c){s+=c._w;});var sx=centerX-s/2;k.forEach(function(c){var ccx=sx+c._w/2;sx+=c._w;place(c,ccx,depth+1);});}
-    function place(n,cx,depth){
-      if(depth>maxD)maxD=depth;n._cx=cx;n._y=TOP+depth*VGAP;n._posOf={};
-      var unions=n.unions||[],P=partnered(n),a=n.child,col=treeCollapsed[n.id];
-      if(P.length===0){n._posOf[a.id]=cx;n._childX=cx;var u0=unions[0];if(u0){u0._mid=cx;if(!col)layoutKids(u0,cx,depth);}}
-      else if(P.length===1){var u=P[0],b=u.partner,left=a,right=b;
-        if(b.sex==='male'&&a.sex!=='male'){left=b;right=a;}else if(a.sex==='female'&&b.sex!=='female'){left=b;right=a;}
-        n._posOf[left.id]=cx-CW/2;n._posOf[right.id]=cx+CW/2;n._childX=n._posOf[a.id];u._mid=cx;if(!col)layoutKids(u,cx,depth);}
-      else{n._posOf[a.id]=cx;n._childX=cx;var u0=P[0],u1=P[1];
-        var off0=Math.max(CW,u0._kw/2+NW/2+GAPm),off1=Math.max(CW,u1._kw/2+NW/2+GAPm);
-        var p0x=cx-off0,p1x=cx+off1;n._posOf[u0.partner.id]=p0x;n._posOf[u1.partner.id]=p1x;
-        u0._mid=(cx+p0x)/2;u1._mid=(cx+p1x)/2;if(!col){layoutKids(u0,u0._mid,depth);layoutKids(u1,u1._mid,depth);}
-        var cursor=p1x+off1;for(var i=2;i<P.length;i++){var u=P[i],bw=Math.max(NW,u._kw),bc=cursor+bw/2;n._posOf[u.partner.id]=bc;u._mid=bc;if(!col)layoutKids(u,bc,depth);cursor+=bw+GAPm;}}
-    }
-    place(familyTree.root,W/2,0);
-    var H=TOP+(maxD+1)*VGAP+30;_treeW=W;
+    var fa=bf.a,mo=bf.b;
+    var pb=ancBlock(fa,false),mb=mo?ancBlock(mo,false):null;
+    var flat=[];
+    pb.els.forEach(function(e){flat.push({pid:e.pid,x:e.x,gen:e.gen-1});});
+    var faX=pb.ax,moX=null,rightOff=0;
+    if(mb){rightOff=pb.w+40;mb.els.forEach(function(e){flat.push({pid:e.pid,x:e.x+rightOff,gen:e.gen-1});});moX=mb.ax+rightOff;}
+    var coupleMid=moX!=null?(faX+moX)/2:faX;
+    var rowUnits=[unit].concat(sibUnits);var rowW=0;rowUnits.forEach(function(u){rowW+=u.w;});
+    var rowStart=coupleMid-rowW/2;
+    var pidX=null,sx=rowStart;
+    rowUnits.forEach(function(u){var off=sx;u.els.forEach(function(e){flat.push({pid:e.pid,x:e.x+off,gen:e.gen});});if(u===unit)pidX=u.ax+off;sx+=u.w;});
+    var minX=1e9;flat.forEach(function(e){if(e.x<minX)minX=e.x;});
+    if(minX<0){flat.forEach(function(e){e.x-=minX;});pidX-=minX;}
+    var maxX=0;flat.forEach(function(e){if(e.x>maxX)maxX=e.x;});
+    return {w:maxX+SLOT/2,ax:pidX,els:flat};
+  }
+  function buildChart(){
+    var blk=ancBlock('p_me',true);
+    var pos={},minG=0,maxG=0;
+    blk.els.forEach(function(e){pos[e.pid]={x:e.x,gen:e.gen};if(e.gen<minG)minG=e.gen;if(e.gen>maxG)maxG=e.gen;});
+    var W=0;blk.els.forEach(function(e){if(e.x>W)W=e.x;});W+=SLOT/2;
+    var TOP=40;
+    function Y(gen){return TOP+(gen-minG)*VGAP;}
+    var H=Y(maxG)+90;
     var L='',N='';
     function hl(x1,y1,x2,y2,dash){return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="#C9BEB0" stroke-width="2"'+(dash?' stroke-dasharray="4 4"':'')+'/>';}
-    function draw(n){
-      var y=n._y,a=n.child,unions=n.unions||[],P=partnered(n),col=treeCollapsed[n.id];
-      unions.forEach(function(u){
-        if(u.partner){
-          var ax=n._posOf[a.id],bx=n._posOf[u.partner.id],lx=Math.min(ax,bx),rx=Math.max(ax,bx);
-          var married=(u.partner.marital==='Married'||a.marital==='Married');
-          var ex=/ex/i.test(u.partner.rel||'')||u.partner.marital==='Divorced'||u.partner.marital==='Widowed';
-          L+=hl(lx+R,y,rx-R,y,!married);
-          var tag=ex?'former':(!married?'co-parents':'');
-          if(tag)L+='<text x="'+((ax+bx)/2)+'" y="'+(y-6)+'" text-anchor="middle" font-size="9.5" fill="var(--muted)">'+tag+'</text>';
-        }
-        var kids=u.children||[];
-        if(kids.length&&!col){
-          var mid=u._mid!==undefined?u._mid:n._cx;
-          var busY=y+Math.round(VGAP/2)+8,trunkTop=u.partner?(y+R+12):(y+R+LH);
-          L+=hl(mid,trunkTop,mid,busY,false);
-          var cxs=kids.map(function(c){return c._childX;});
-          var bl=Math.min.apply(null,cxs.concat([mid])),br=Math.max.apply(null,cxs.concat([mid]));
-          L+=hl(bl,busY,br,busY,false);
-          kids.forEach(function(c){L+=hl(c._childX,busY,c._childX,c._y-R-4,false);draw(c);});
-        }
-      });
-      N+=ftNode(a,n._posOf[a.id],y);
-      unions.forEach(function(u){if(u.partner)N+=ftNode(u.partner,n._posOf[u.partner.id],y);});
-      var anyKids=unions.some(function(u){return (u.children||[]).length;});
-      if(anyKids){var chipY=y+R+(P.length?12:LH)+(col?0:8);var lab=col?'+':'-';
-        N+='<g onclick="toggleCollapse(\''+n.id+'\')" style="cursor:pointer"><circle cx="'+n._cx+'" cy="'+chipY+'" r="11" fill="var(--surface)" stroke="#C9BEB0" stroke-width="1.5"/><text x="'+n._cx+'" y="'+(chipY+4)+'" text-anchor="middle" font-size="13" font-weight="800" fill="var(--ink)">'+lab+'</text></g>';}
+    for(var fk in ftFams){var f=ftFams[fk];var pa=pos[f.a],pb2=f.b?pos[f.b]:null;
+      if(pa&&pb2&&pa.gen===pb2.gen){var lx=Math.min(pa.x,pb2.x),rx=Math.max(pa.x,pb2.x),y=Y(pa.gen);
+        var aP=P(f.a),bP=P(f.b);var married=(aP.marital==='Married'||bP.marital==='Married');
+        var ex=/ex/i.test((aP.rel||''))||/ex/i.test((bP.rel||''))||aP.marital==='Divorced'||bP.marital==='Divorced';
+        L+=hl(lx+R0,y,rx-R0,y,!married);
+        if(ex)L+='<text x="'+((lx+rx)/2)+'" y="'+(y-6)+'" text-anchor="middle" font-size="9.5" fill="var(--muted)">former</text>';
+      }
+      var kids=(f.kids||[]).filter(function(k){return pos[k];});
+      if(kids.length){var midX=pb2?((pa.x+pb2.x)/2):(pa?pa.x:0);var py=pa?Y(pa.gen):0;
+        var ky=Y(pos[kids[0]].gen);var busY=(py+ky)/2;
+        L+=hl(midX,py+R0+(pb2?6:40),midX,busY,false);
+        var kxs=kids.map(function(k){return pos[k].x;});
+        var bl=Math.min.apply(null,kxs.concat([midX])),br=Math.max.apply(null,kxs.concat([midX]));
+        L+=hl(bl,busY,br,busY,false);
+        kids.forEach(function(k){L+=hl(pos[k].x,busY,pos[k].x,ky-R0-4,false);});
+      }
     }
-    draw(familyTree.root);
-    var svg='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="display:block;font-family:inherit">'+L+N+'</svg>';
+    for(var pk in pos){N+=ftNode(P(pk),pos[pk].x,Y(pos[pk].gen));}
+    _treeW=Math.max(360,W);
+    return {svg:'<svg width="'+_treeW+'" height="'+H+'" viewBox="0 0 '+_treeW+' '+H+'" style="display:block;font-family:inherit">'+L+N+'</svg>'};
+  }
+  function renderTree(){
+    var host=document.getElementById('treeBody');if(!host)return;
+    var chart=buildChart();
     var active=0;eachPerson(function(p){if(p&&!ftDeceased(p))active++;});
+    var setupBtn=ftIsEmpty()?'<button onclick="openSetup()" class="btn" style="margin-bottom:12px;width:100%">Set up my family</button>':'';
     host.innerHTML=''
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
       +'<div><div style="font-size:17px;font-weight:800">Family tree</div><div style="font-size:12px;color:var(--muted)">'+active+' living - tap a person to edit or add a relative - drag to move</div></div>'
@@ -999,12 +1095,13 @@
       +'<button onclick="zoomTree(1.2)" class="btn ghost" style="width:36px;height:36px;padding:0;font-size:18px;font-weight:700">+</button>'
       +'<button onclick="fitTree()" class="btn ghost" style="height:36px;padding:0 12px;font-size:12px;font-weight:700">Fit</button>'
       +'</div></div>'
+      +setupBtn
       +'<div id="treeViewport" style="overflow:hidden;position:relative;height:440px;border:1px solid var(--line);border-radius:14px;background:var(--bg);touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none">'
-      +'<div id="treeStage" style="position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform">'+svg+'</div></div>'
+      +'<div id="treeStage" style="position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform">'+chart.svg+'</div></div>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
       +'<button onclick="openAddRel(\'\')" class="btn">+ Add a relative</button>'
       +'</div>'
-      +'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Tap a person to edit or add a relative. Fathers sit left, mothers right. A "former" dashed link is a past marriage or co-parent; new partners grow a new branch. Deceased show their years; a red ring means no-contact.</div>';
+      +'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Your descendants grow downward; parents, grandparents and both sides of the family grow upward. A "former" dashed link is a past marriage. Tap a person to edit or add to them.</div>';
     var vp=document.getElementById('treeViewport');
     vp.onpointerdown=function(e){_treeDrag={x:e.clientX,y:e.clientY,px:treePanX,py:treePanY};_treeMoved=false;vp.style.cursor='grabbing';};
     vp.onpointermove=function(e){if(!_treeDrag)return;var dx=e.clientX-_treeDrag.x,dy=e.clientY-_treeDrag.y;if(Math.abs(dx)+Math.abs(dy)>4)_treeMoved=true;treePanX=_treeDrag.px+dx;treePanY=_treeDrag.py+dy;applyTreeTransform();};
@@ -1013,7 +1110,7 @@
     if(!_treeFitDone){_treeFitDone=true;setTimeout(fitTree,0);}else applyTreeTransform();
   }
   function toggleSexFields(){var s=document.getElementById('teSex').value,ff=document.getElementById('teFemaleFields');if(ff)ff.style.display=(s==='male')?'none':'grid';}
-  function openTreeEdit(id){if(_treeMoved){_treeMoved=false;return;}var ctx=personCtx(id);if(!ctx)return;_editPid=id;var p=ctx.p;
+  function openTreeEdit(id){if(_treeMoved){_treeMoved=false;return;}var p=P(id);if(!p)return;_editPid=id;
     var V=function(k,v){var e=document.getElementById(k);if(e)e.value=(v===undefined||v===null)?'':v;};
     document.getElementById('teTitle').textContent='Edit '+(p.name||'family member');
     V('teName',p.name);V('teRel',p.rel);V('tePrefix',p.prefix);V('teSuffix',p.suffix);V('teSex',p.sex);V('teMarital',p.marital);
@@ -1030,7 +1127,7 @@
   function renderEditColors(){var el=document.getElementById('teColors');if(!el)return;el.innerHTML=PALETTE.map(function(c){return '<button onclick="setEditColor(\''+c+'\')" style="width:26px;height:26px;border-radius:50%;border:'+(c===_editColor?'2px solid var(--ink)':'2px solid #fff')+';box-shadow:0 0 0 1px var(--line);background:'+c+';cursor:pointer"></button>';}).join('');}
   function setEditColor(c){_editColor=c;renderEditColors();}
   function closeTreeEdit(){document.getElementById('treeEditModal').style.display='none';}
-  function saveTreeEdit(){var ctx=personCtx(_editPid);if(!ctx){closeTreeEdit();return;}var p=ctx.p;
+  function saveTreeEdit(){var p=P(_editPid);if(!p){closeTreeEdit();return;}
     var V=function(id){var e=document.getElementById(id);return e?e.value.trim():'';};
     var nm=V('teName');if(nm){p.name=nm;p.ini=initials(nm);}
     p.rel=V('teRel');p.prefix=V('tePrefix');p.suffix=V('teSuffix');p.sex=V('teSex');p.marital=V('teMarital');
@@ -1039,17 +1136,12 @@
     var b=V('teBorn'),d=V('tePassed');p.born=b?(+b):null;p.passed=d?(+d):null;p.color=_editColor;
     closeTreeEdit();renderTree();
   }
-  function removePerson(){var ctx=personCtx(_editPid);if(!ctx){closeTreeEdit();return;}var p=ctx.p,node=ctx.node,role=ctx.role,nm=p.name||'this person';
+  function removePerson(){var p=P(_editPid);if(!p){closeTreeEdit();return;}
     if(p.id==='p_me'){alert('You cannot remove yourself from the tree.');return;}
-    if(role==='partner'){var u=ctx.union;var hasK=u&&u.children&&u.children.length;
-      if(!confirm(hasK?('Remove '+nm+'? Their children stay on the tree under '+(node.child.name||'their parent')+'.'):('Remove '+nm+' from the tree?')))return;
-      if(hasK){u.partner=null;}else{var ui=node.unions.indexOf(u);if(ui>-1)node.unions.splice(ui,1);}
-      closeTreeEdit();renderTree();return;}
-    if(node===familyTree.root){alert('This is the top of the tree. Remove the people below first, then this one.');return;}
-    var pp=parentOf(node);if(!pp){closeTreeEdit();return;}
-    var msg=(node.unions&&node.unions.some(function(u){return (u.children||[]).length;}))?('Remove '+nm+' and everyone below them from the tree?'):('Remove '+nm+' from the tree?');
-    if(!confirm(msg))return;
-    var i=pp.union.children.indexOf(node);if(i>-1)pp.union.children.splice(i,1);
+    if(!confirm('Remove '+(p.name||'this person')+' from the tree?'))return;
+    for(var k in ftFams){var f=ftFams[k];if(f.a===p.id)f.a=null;if(f.b===p.id)f.b=null;if(f.kids)f.kids=f.kids.filter(function(x){return x!==p.id;});
+      if(!f.a&&!f.b&&(!f.kids||f.kids.length<=1))delete ftFams[k];}
+    delete ftPeople[p.id];
     closeTreeEdit();renderTree();
   }
   function buildPeopleList(){var arr=[];eachPerson(function(p){arr.push({id:p.id,name:p.name||'(unnamed)',rel:p.rel||''});});return arr;}
@@ -1057,53 +1149,71 @@
     var sel=document.getElementById('arAnchor');
     sel.innerHTML=buildPeopleList().map(function(x){return '<option value="'+x.id+'">'+esc(x.name+(x.rel?' - '+x.rel:''))+'</option>';}).join('');
     if(anchorId)sel.value=anchorId;
-    document.getElementById('arRel').value='child';
-    document.getElementById('arName').value='';
-    arHint();
+    document.getElementById('arRel').value='child';document.getElementById('arName').value='';arHint();
     document.getElementById('addRelModal').style.display='flex';
   }
   function closeAddRel(){document.getElementById('addRelModal').style.display='none';}
   function arHint(){var rel=document.getElementById('arRel').value,h=document.getElementById('arHint');
-    var m={child:'Adds a child to the person you pick. Pick a partner to attach the child to that specific relationship.',partner:'Adds a spouse, ex, or co-parent. Adding a second partner starts a new branch and keeps the old one (mark the old partner as Ex-wife / Ex-husband).',sibling:'Adds a brother or sister who shares the same parents as the person you pick.',parent:'Adds a parent above the person you pick. Add the mother and father as two separate parents.'};
+    var m={child:'Adds a child to the person you pick.',partner:'Adds a spouse, ex, or co-parent (a second partner keeps the old one - mark them Ex-wife / Ex-husband).',sibling:'Adds a brother or sister who shares the same parents.',parent:'Adds a parent above the person you pick (add the mother and father as two separate parents).'};
     if(h)h.textContent=m[rel]||'';}
+  function ensureBirthFam(pid){var bf=birthFam(pid);if(bf)return bf;var f=ensureFam(addPerson({name:'Parent',rel:'Parent'}),null);f.kids=[pid];return f;}
   function addRelSubmit(){
     var rel=document.getElementById('arRel').value,anchorId=document.getElementById('arAnchor').value,nm=document.getElementById('arName').value.trim();
-    var ctx=personCtx(anchorId);if(!ctx){closeAddRel();return;}
-    var p=ctx.p,node=ctx.node,role=ctx.role,newId=null;
-    function mk(def){var n=nm||def;return {id:'p_'+bUid(),name:n,ini:initials(n),color:PALETTE[Math.floor(Math.random()*PALETTE.length)],sex:'',rel:''};}
-    function newUnion(partner){return {id:'u_'+bUid(),partner:partner||null,children:[]};}
+    var X=P(anchorId);if(!X){closeAddRel();return;}var newId=null;
     if(rel==='child'){
-      var u;
-      if(role==='partner'&&ctx.union){u=ctx.union;}
-      else{node.unions=node.unions||[];u=node.unions.length?node.unions[node.unions.length-1]:null;if(!u){u=newUnion(null);node.unions.push(u);}}
-      var c=mk('New child');u.children.push({id:'n_'+bUid(),child:c,unions:[]});treeCollapsed[node.id]=false;newId=c.id;
+      var fams=spouseFams(anchorId);var f=fams[0]||ensureFam(anchorId,null);
+      var c=addPerson({name:nm||'New child'});f.kids=f.kids||[];f.kids.push(c);newId=c;
     }else if(rel==='partner'){
-      node.unions=node.unions||[];var slot=null;for(var k=0;k<node.unions.length;k++){if(!node.unions[k].partner){slot=node.unions[k];break;}}
-      var pp=mk('Partner');pp.marital='Partner / co-parent';
-      if(slot){slot.partner=pp;}else{node.unions.push(newUnion(pp));}
-      newId=pp.id;
+      var pp=addPerson({name:nm||'Partner',marital:'Partner / co-parent'});ensureFam(anchorId,pp);newId=pp;
     }else if(rel==='parent'){
-      if(role!=='child'){alert('Add a parent to the blood relative (the one connected upward), then add the other parent as their partner.');return;}
-      var M=parentOf(node);
-      if(!M){var par=mk('Parent');familyTree.root={id:'n_'+bUid(),child:par,unions:[newUnion(null)]};familyTree.root.unions[0].children=[node];newId=par.id;}
-      else if(!M.union.partner){var par2=mk('Parent');M.union.partner=par2;newId=par2.id;}
+      var bf=birthFam(anchorId);
+      if(!bf){var pa=addPerson({name:nm||'Parent',rel:'Parent'});var nf=ensureFam(pa,null);nf.kids=[anchorId];newId=pa;}
+      else if(!bf.b){var pb=addPerson({name:nm||'Parent',rel:'Parent'});bf.b=pb;newId=pb;}
+      else if(!bf.a){var pc=addPerson({name:nm||'Parent',rel:'Parent'});bf.a=pc;newId=pc;}
       else{alert('Both parents are already on the tree. Tap one to edit them.');return;}
     }else if(rel==='sibling'){
-      if(role!=='child'){alert('Pick the blood relative to add a sibling to.');return;}
-      var sib=mk('New sibling'),sibNode={id:'n_'+bUid(),child:sib,unions:[]};
-      var M2=parentOf(node);
-      if(M2){M2.union.children.push(sibNode);}
-      else{var par3=mk('Parent'),u3=newUnion(null);u3.children=[node,sibNode];familyTree.root={id:'n_'+bUid(),child:par3,unions:[u3]};}
-      newId=sib.id;
+      var bf2=ensureBirthFam(anchorId);var sib=addPerson({name:nm||'New sibling'});bf2.kids.push(sib);newId=sib;
     }
     closeAddRel();renderTree();if(newId)setTimeout(function(){openTreeEdit(newId);},30);
   }
   function addRelative(uid){openAddRel(uid||'');}
-  function blockables(){var out=[],seen={},skip={};if(typeof familyTree==='undefined'||!familyTree.root)return out;
-    eachNode(function(n){if(n.child&&n.child.id==='p_me'){skip[n.child.id]=1;(n.unions||[]).forEach(function(u){if(u.partner)skip[u.partner.id]=1;});}});
+  function blockables(){var out=[],seen={},skip={p_me:1};
+    spouseFams('p_me').forEach(function(f){var sp=partnerOf(f,'p_me');if(sp)skip[sp]=1;});
     eachPerson(function(p){if(!p||!p.name||skip[p.id]||seen[p.name])return;seen[p.name]=1;out.push({name:p.name,rel:p.rel||'Family'});});
     return out;}
-
+  function openSetup(){document.getElementById('setupModal').style.display='flex';}
+  function closeSetup(){document.getElementById('setupModal').style.display='none';}
+  function setupSubmit(){
+    var V=function(id){var e=document.getElementById(id);return e?e.value.trim():'';};
+    var me=P('p_me');var youN=V('suName');if(youN){me.name=youN;me.ini=initials(youN);}me.sex=V('suSex')||me.sex;me.rel='Me';
+    function mk(name,sex,rel,mar){if(!name)return null;return addPerson({name:name,sex:sex||'',rel:rel||'',marital:mar||''});}
+    // partner + kids
+    var partner=mk(V('suPartnerName'),V('suPartnerSex'),V('suPartnerRel')||'Spouse',V('suPartnerStatus')||'Married');
+    var meFam=null;if(partner){meFam=ensureFam('p_me',partner);}
+    ['suKid1','suKid2','suKid3','suKid4'].forEach(function(kf){var n=V(kf);if(n){var k=mk(n,V(kf+'Sex'),'',''); if(!meFam)meFam=ensureFam('p_me',null);meFam.kids.push(k);}});
+    // parents
+    var fa=mk(V('suFatherName'),'male','Father',''),mo=mk(V('suMotherName'),'female','Mother','');
+    var parFam=null;
+    if(fa||mo){parFam=ensureFam(fa||'p_me',mo);if(fa&&mo){var div=document.getElementById('suParentsDivorced');if(div&&div.checked){P(fa).marital='Divorced';P(mo).marital='Divorced';}else{P(fa).marital='Married';P(mo).marital='Married';}}
+      if(!fa)parFam.a=null;parFam.kids=parFam.kids||[];if(parFam.kids.indexOf('p_me')<0)parFam.kids.push('p_me');}
+    // step-parents
+    var stepDad=mk(V('suStepFatherName'),'male','Step-father','');if(stepDad&&mo)ensureFam(mo,stepDad);
+    var stepMom=mk(V('suStepMotherName'),'female','Step-mother','');if(stepMom&&fa)ensureFam(fa,stepMom);
+    // siblings
+    if((fa||mo)){['suSib1','suSib2','suSib3','suSib4'].forEach(function(sf){var n=V(sf);if(n){var s=mk(n,V(sf+'Sex'),'','');parFam.kids.push(s);}});}
+    // grandparents
+    var pgf=mk(V('suPGFName'),'male','Grandfather',''),pgm=mk(V('suPGMName'),'female','Grandmother','');
+    if((pgf||pgm)&&fa){var pf=ensureFam(pgf||fa,pgm);if(!pgf)pf.a=null;pf.kids=pf.kids||[];pf.kids.push(fa);
+      ['suPatAunt1','suPatAunt2'].forEach(function(af){var n=V(af);if(n)pf.kids.push(mk(n,V(af+'Sex'),'',''));});
+      var pggf=mk(V('suPGGFName'),'male','Great-grandfather',''),pggm=mk(V('suPGGMName'),'female','Great-grandmother','');
+      if((pggf||pggm)&&pgf){var ggf=ensureFam(pggf||pgf,pggm);if(!pggf)ggf.a=null;ggf.kids=ggf.kids||[];ggf.kids.push(pgf);}}
+    var mgf=mk(V('suMGFName'),'male','Grandfather',''),mgm=mk(V('suMGMName'),'female','Grandmother','');
+    if((mgf||mgm)&&mo){var mf=ensureFam(mgf||mo,mgm);if(!mgf)mf.a=null;mf.kids=mf.kids||[];mf.kids.push(mo);
+      ['suMatAunt1','suMatAunt2'].forEach(function(af){var n=V(af);if(n)mf.kids.push(mk(n,V(af+'Sex'),'',''));});
+      var mggf=mk(V('suMGGFName'),'male','Great-grandfather',''),mggm=mk(V('suMGGMName'),'female','Great-grandmother','');
+      if((mggf||mggm)&&mgf){var mggfam=ensureFam(mggf||mgf,mggm);if(!mggf)mggfam.a=null;mggfam.kids=mggfam.kids||[];mggfam.kids.push(mgf);}}
+    closeSetup();_treeFitDone=false;renderTree();
+  }
   function isBlocked(m,name){return !!m&&(m.blocked||[]).indexOf(name)>=0;}
   function toggleBlock(name){var m=members[activeUser];if(!m.blocked)m.blocked=[];var i=m.blocked.indexOf(name);if(i>=0)m.blocked.splice(i,1);else m.blocked.push(name);renderSettings();if(typeof renderTree==='function')renderTree();}
   function buildSafetyCard(m){var list=blockables();var blocked=(m.blocked||[]);
