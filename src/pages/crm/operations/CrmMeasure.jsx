@@ -136,10 +136,14 @@ function solarImageryDate(d) {
   return [m, d.year].filter(Boolean).join(' ')
 }
 
-export default function CrmMeasure() {
+export default function CrmMeasure({ embedded = false, lockedContactId = null, lockedContactLabel = '', pipelineId = null } = {}) {
   const { client, platform } = useCrmClient()
   const navigate = useNavigate()
   const { platformId } = useParams()
+  // Embed mode: pre-locked to a single deal's contact + pipeline. The customer
+  // picker is hidden, saves/estimates are tagged with lockedContactId + pipelineId,
+  // and the saved list is scoped to this deal's pipeline_id.
+  const locked = !!embedded && !!lockedContactId
 
   const mapEl = useRef(null)
   const mapRef = useRef(null)
@@ -171,10 +175,11 @@ export default function CrmMeasure() {
 
   // contact picker (optional)
   const [contacts, setContacts] = useState([])
-  const [contactId, setContactId] = useState('')
+  const [contactId, setContactId] = useState(lockedContactId || '')
   const [contactSearch, setContactSearch] = useState('')
   const [contactMenuOpen, setContactMenuOpen] = useState(false)
   const contactBoxRef = useRef(null)
+  useEffect(() => { if (locked && lockedContactId) setContactId(lockedContactId) }, [locked, lockedContactId])
 
   // saved measurements
   const [saved, setSaved] = useState([])
@@ -286,15 +291,17 @@ export default function CrmMeasure() {
   // ---------- load saved ----------
   async function loadSaved() {
     if (!client) return
-    const { data, error } = await client
+    let q = client
       .from('ops_measurements')
-      .select('id, title, address, status, summary, measurements, created_at, template_type, contact_id, project_id')
+      .select('id, title, address, status, summary, measurements, created_at, template_type, contact_id, project_id, pipeline_id')
       .eq('template_type', 'aerial_roof')
+    if (embedded && pipelineId) q = q.eq('pipeline_id', pipelineId)
+    const { data, error } = await q
       .order('created_at', { ascending: false })
       .limit(50)
     if (!error) setSaved(data || [])
   }
-  useEffect(() => { loadSaved() }, [client]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadSaved() }, [client, pipelineId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- map source sync ----------
   function syncMap() {
@@ -664,14 +671,16 @@ export default function CrmMeasure() {
       }
       const userRes = await client.auth.getUser()
       const uid = userRes?.data?.user?.id || null
-      const projectId = contactId ? await resolveProjectId(contactId) : null
+      const effContactId = locked ? lockedContactId : (contactId || null)
+      const projectId = effContactId ? await resolveProjectId(effContactId) : null
       const { error } = await client.from('ops_measurements').insert({
         title: (title.trim() || addr.trim() || 'Aerial roof measurement'),
         template_type: 'aerial_roof',
         status: 'measured',
         address: addr.trim() || null,
-        contact_id: contactId || null,
+        contact_id: effContactId,
         project_id: projectId,
+        pipeline_id: embedded ? (pipelineId || null) : null,
         measurements: { facets: facetObjs, lines: lineObjs },
         summary,
         photos: [],
@@ -765,6 +774,7 @@ export default function CrmMeasure() {
         gross_margin: margin,
         measurements: meas,
       }
+      if (embedded && pipelineId) payload.pipeline_id = pipelineId
       const { data, error } = await client.from('customer_estimates').insert(payload).select().single()
       if (error) throw error
       navigate('/crm/' + platformId + '/estimates/' + data.id)
@@ -779,16 +789,17 @@ export default function CrmMeasure() {
   async function createEstimateFromCurrent() {
     const facetObjs = facetObjects()
     if (!facetObjs.length) { setSaveMsg('Trace at least one roof section first.'); return }
-    if (!contactId) { setSaveMsg('Select a contact first to create an estimate.'); return }
+    const cid = locked ? lockedContactId : contactId
+    if (!cid) { setSaveMsg('Select a contact first to create an estimate.'); return }
     const turf = window.turf
     const m = computeMetrics(turf, facetObjs, lineObjects(), { waste_pct: waste })
-    const projectId = await resolveProjectId(contactId)
-    await createEstimateFrom({ cid: contactId, projectId, metricsObj: m, facetObjs, label: 'current' })
+    const projectId = await resolveProjectId(cid)
+    await createEstimateFrom({ cid, projectId, metricsObj: m, facetObjs, label: 'current' })
   }
 
   async function createEstimateFromRow(row, e) {
     if (e) e.stopPropagation()
-    const cid = row.contact_id || contactId
+    const cid = row.contact_id || (locked ? lockedContactId : contactId)
     if (!cid) { setSaveMsg('This measurement has no contact. Reopen it, pick a contact, and re-save first.'); return }
     const projectId = row.project_id || (await resolveProjectId(cid))
     const turf = window.turf
@@ -885,11 +896,7 @@ export default function CrmMeasure() {
   const dmAreas = dm ? dm.areas : {}
   const canSave = realFacets.length > 0 || (solarUsed && !!solarMetrics)
 
-  return (
-    <HubPage
-      title="Roof Measure"
-      subtitle="Trace each roof plane, tag ridge/hip/valley/eave lines, and build a full takeoff report."
-      actions={
+  const actionBar = (
         <div className="flex items-center gap-2">
           <button
             onClick={downloadPdf}
@@ -901,8 +908,8 @@ export default function CrmMeasure() {
           </button>
           <button
             onClick={createEstimateFromCurrent}
-            disabled={!!creatingId || !realFacets.length || !contactId}
-            title={!contactId ? 'Pick a contact above to enable' : 'Create a pre-priced estimate draft'}
+            disabled={!!creatingId || !realFacets.length || (!locked && !contactId)}
+            title={(!locked && !contactId) ? 'Pick a contact above to enable' : 'Create a pre-priced estimate draft'}
             className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-600/90 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg"
           >
             <FileText size={16} /> {creatingId === 'current' ? 'Creating...' : 'Create estimate'}
@@ -915,8 +922,10 @@ export default function CrmMeasure() {
             <Save size={16} /> {saving ? 'Saving...' : 'Save measurement'}
           </button>
         </div>
-      }
-    >
+  )
+
+  const body = (
+    <>
       {loadErr && (
         <div className="mb-4 bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-lg px-4 py-3">
           {loadErr}
@@ -967,6 +976,12 @@ export default function CrmMeasure() {
           className="w-full bg-navy-900/60 border border-navy-700/60 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
         />
 
+        {locked ? (
+          <div className="flex items-center justify-between w-full bg-navy-900/60 border border-navy-700/60 rounded-lg pl-3 pr-3 py-2">
+            <span className="text-sm text-white truncate">{lockedContactLabel || 'Linked customer'}</span>
+            <span className="text-[10px] uppercase tracking-wider text-gray-500 shrink-0 ml-2">Linked</span>
+          </div>
+        ) : (
         <div className="relative" ref={contactBoxRef}>
           {selectedContact ? (
             <div className="flex items-center justify-between w-full bg-navy-900/60 border border-navy-700/60 rounded-lg pl-3 pr-2 py-2">
@@ -1010,6 +1025,7 @@ export default function CrmMeasure() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1468,6 +1484,34 @@ export default function CrmMeasure() {
           </Section>
         </div>
       </div>
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+          <div className="min-w-0">
+            <h3 className="text-white font-semibold">Roof Measure</h3>
+            <p className="text-xs text-gray-400">
+              Trace each roof plane, tag ridge/hip/valley/eave lines, and build a full takeoff report.
+              {lockedContactLabel ? <span className="text-gray-300"> Linked to {lockedContactLabel}.</span> : null}
+            </p>
+          </div>
+          {actionBar}
+        </div>
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <HubPage
+      title="Roof Measure"
+      subtitle="Trace each roof plane, tag ridge/hip/valley/eave lines, and build a full takeoff report."
+      actions={actionBar}
+    >
+      {body}
     </HubPage>
   )
 }
