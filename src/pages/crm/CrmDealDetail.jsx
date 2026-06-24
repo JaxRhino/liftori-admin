@@ -10,6 +10,7 @@ import { ArrowLeft, Plus, Download, FileText, Upload, MessageSquare, CheckCircle
 import { toast } from 'sonner';
 import CrmMeasure from './operations/CrmMeasure';
 import CustomerPhotos from '../../components/crm/CustomerPhotos';
+import { supabase as mainClient } from '../../lib/supabase';
 
 // =====================================================================
 // CrmDealDetail - full-page Job/Deal detail for the RoofX roofing CRM.
@@ -84,6 +85,10 @@ export default function CrmDealDetail() {
   const [form, setForm] = useState(null);
   const [contactForm, setContactForm] = useState(null);
   const [stages, setStages] = useState([]);
+  const [measSub, setMeasSub] = useState('saved');
+  const [reportRequests, setReportRequests] = useState([]);
+  const [reqForm, setReqForm] = useState(null);
+  const [reqSubmitting, setReqSubmitting] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Lazy per-tab data. Each tab loads once on first activation, scoped by pipeline_id.
@@ -154,6 +159,9 @@ export default function CrmDealDetail() {
         first_name: (c && c.first_name) || '', last_name: (c && c.last_name) || '',
         email: (c && c.email) || '', phone: (c && c.phone) || '',
       });
+      const _addr = data.job_address || (c ? [c.property_address, c.property_city, c.property_state, c.property_zip].filter(Boolean).join(', ') : '');
+      setReqForm({ address: _addr, lat: null, lng: null, located: false, confirmed: false, title: data.title || '', waste: '10', manufacturer: data.material_manufacturer || '', color: data.material_color || '', want3d: true, structures: [] });
+      loadReportRequests();
       loadStages(data.pipeline_definition_id);
       client.from('org_team_members').select('user_id, first_name, last_name, role').not('user_id', 'is', null)
         .then(({ data: tm }) => setTeam(tm || [])).catch(() => {});
@@ -177,6 +185,42 @@ export default function CrmDealDetail() {
       const { data: sd } = await client.from('pipeline_stage_definitions').select('key, label, stage_order').eq('pipeline_id', pid).order('stage_order', { ascending: true });
       setStages(sd || []);
     } catch { setStages([]); }
+  }
+
+  async function loadReportRequests() {
+    try { const { data } = await mainClient.from('roof_report_requests').select('*').eq('pipeline_id', id).order('requested_at', { ascending: false }); setReportRequests(data || []); } catch { setReportRequests([]); }
+  }
+
+  async function geocodeReqAddress() {
+    if (!reqForm || !reqForm.address) { toast.error('Enter an address first'); return; }
+    try {
+      const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(reqForm.address));
+      const j = await r.json();
+      if (j && j[0]) { setReqForm(f => ({ ...f, lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon), located: true, confirmed: false, address: j[0].display_name || f.address })); toast.success('Location found - confirm it is correct'); }
+      else toast.error('Address not found');
+    } catch { toast.error('Location lookup failed'); }
+  }
+
+  async function submitReportRequest() {
+    if (!reqForm) return;
+    if (!reqForm.located || !reqForm.confirmed) { toast.error('Find and confirm the property location first'); return; }
+    try {
+      setReqSubmitting(true);
+      const structures = (reqForm.structures || []).filter(st => st && st.name && st.name.trim());
+      const { error } = await mainClient.from('roof_report_requests').insert({
+        platform_id: platformId, platform_name: (platform && platform.client_name) || null, tenant_ref: (platform && platform.supabase_project_id) || null,
+        pipeline_id: id, contact_id: deal.contact_id || null,
+        title: reqForm.title || deal.title || null, customer_name: contact ? contactLabel(contact) : null,
+        property_address: reqForm.address || null, lat: reqForm.lat, lng: reqForm.lng,
+        waste_factor: parseFloat(reqForm.waste) || null, secondary_structures: structures,
+        material_manufacturer: reqForm.manufacturer || null, desired_roof_color: reqForm.color || null, want_3d_render: !!reqForm.want3d,
+        status: 'pending', price_cents: 1500,
+      });
+      if (error) throw error;
+      toast.success('Report requested - pending (6-hour turnaround)');
+      await loadReportRequests();
+      setMeasSub('saved');
+    } catch (e) { console.error(e); toast.error('Could not submit request'); } finally { setReqSubmitting(false); }
   }
 
   // ---- lazy tab loaders (all scoped by pipeline_id = id) ----
@@ -858,12 +902,119 @@ export default function CrmDealDetail() {
           </div>
         )}
 
-        {/* MEASUREMENTS - embed Roof Measure pre-locked to this deal */}
+        {/* MEASUREMENTS - sub-tabs: Saved Reports / Roof Measure / Request Report / Integrations */}
         {tab === 'measurements' && (
-          <div className="space-y-6">
-            <Card className="bg-navy-900 border-navy-800 p-4">
-              <CrmMeasure embedded lockedContactId={deal.contact_id || null} lockedContactLabel={lockedLabel} pipelineId={id} />
-            </Card>
+          <div className="space-y-4">
+            <div className="flex items-center gap-1 border-b border-navy-800 overflow-x-auto">
+              {[['saved', 'Saved Reports'], ['measure', 'Roof Measure'], ['request', 'Request Report'], ['integrations', 'Integrations']].map(([k, label]) => (
+                <button key={k} onClick={() => setMeasSub(k)} className={'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ' + (measSub === k ? 'border-brand-blue text-brand-blue' : 'border-transparent text-gray-400 hover:text-white')}>{label}</button>
+              ))}
+            </div>
+
+            {measSub === 'measure' && (
+              <Card className="bg-navy-900 border-navy-800 p-4">
+                <CrmMeasure embedded lockedContactId={deal.contact_id || null} lockedContactLabel={lockedLabel} pipelineId={id} />
+              </Card>
+            )}
+
+            {measSub === 'saved' && (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold text-white mb-2">Liftori Reports</h3>
+                  <ListTable empty="No Liftori report requests for this job yet. Use Request Report to order one."
+                    cols={['Title', 'Color', 'Status', 'Requested', 'Due / Delivered', 'Report']}
+                    rows={reportRequests.map(r => [
+                      r.title || '-',
+                      [r.material_manufacturer, r.desired_roof_color].filter(Boolean).join(' / ') || '-',
+                      <Badge className={statusTone(r.status) + ' text-xs'}>{r.status}</Badge>,
+                      date(r.requested_at),
+                      r.delivered_at ? date(r.delivered_at) : date(r.due_at),
+                      r.report_url ? <a href={r.report_url} target="_blank" rel="noreferrer" className="text-brand-blue hover:text-brand-cyan">Open</a> : '-',
+                    ])} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white mb-2">Roof Measure Saves</h3>
+                  <ListTable empty="No saved roof measurements for this job yet."
+                    cols={['Title', 'Saved', 'Open']}
+                    rows={measurements.map(m => [
+                      (m.measurements && m.measurements.title) || m.template_type || 'Roof measurement',
+                      date(m.created_at),
+                      <button onClick={() => setMeasSub('measure')} className="text-brand-blue hover:text-brand-cyan">View</button>,
+                    ])} />
+                </div>
+              </div>
+            )}
+
+            {measSub === 'request' && reqForm && (
+              <Card className="bg-navy-900 border-navy-800 p-6 max-w-3xl space-y-5">
+                <div>
+                  <h3 className="text-lg font-bold text-white">Request Roof Report</h3>
+                  <p className="text-sm text-gray-400 mt-1">Liftori-generated roof report. $15 per report, 6-hour turnaround. Optional 3D render of the home in the selected roof color.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Property Address" full>
+                    <div className="flex gap-2">
+                      <Input value={reqForm.address} onChange={e => setReqForm(f => ({ ...f, address: e.target.value, located: false, confirmed: false }))} className="bg-navy-800 border-navy-700 text-white flex-1" />
+                      <Button onClick={geocodeReqAddress} className="bg-navy-700 hover:bg-navy-600 text-white whitespace-nowrap">Find</Button>
+                    </div>
+                    {reqForm.located && (
+                      <label className="flex items-center gap-2 mt-2 text-xs text-gray-300">
+                        <input type="checkbox" checked={!!reqForm.confirmed} onChange={e => setReqForm(f => ({ ...f, confirmed: e.target.checked }))} />
+                        Confirm this location is correct ({reqForm.lat != null ? reqForm.lat.toFixed(5) : '?'}, {reqForm.lng != null ? reqForm.lng.toFixed(5) : '?'})
+                      </label>
+                    )}
+                  </Field>
+                  <Field label="Measurement Title"><Input value={reqForm.title} onChange={e => setReqForm(f => ({ ...f, title: e.target.value }))} className="bg-navy-800 border-navy-700 text-white" /></Field>
+                  <Field label="Linked Customer"><Input value={contact ? contactLabel(contact) : ''} disabled className="bg-navy-800 border-navy-700 text-gray-400" /></Field>
+                  <Field label="Waste Factor (%)"><Input type="number" value={reqForm.waste} onChange={e => setReqForm(f => ({ ...f, waste: e.target.value }))} className="bg-navy-800 border-navy-700 text-white" /></Field>
+                  <Field label="Roof Color Manufacturer">
+                    <select value={reqForm.manufacturer} onChange={e => setReqForm(f => ({ ...f, manufacturer: e.target.value }))} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2">
+                      <option value="">-</option>
+                      {MANUFACTURERS.map(t => <option key={t} value={t}>{t}</option>)}
+                      {reqForm.manufacturer && !MANUFACTURERS.includes(reqForm.manufacturer) && <option value={reqForm.manufacturer}>{reqForm.manufacturer}</option>}
+                    </select>
+                  </Field>
+                  <Field label="Desired Roof Color (for 3D render)"><Input value={reqForm.color} onChange={e => setReqForm(f => ({ ...f, color: e.target.value }))} placeholder="e.g. Weathered Wood" className="bg-navy-800 border-navy-700 text-white" /></Field>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-300">
+                  <input type="checkbox" checked={!!reqForm.want3d} onChange={e => setReqForm(f => ({ ...f, want3d: e.target.checked }))} />
+                  Include 3D color render of the home
+                </label>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-gray-400">Secondary Structures (sheds, garages, buildings)</label>
+                    <Button onClick={() => setReqForm(f => ({ ...f, structures: [...(f.structures || []), { name: '' }] }))} className="bg-navy-700 hover:bg-navy-600 text-white text-xs flex items-center gap-1"><Plus size={13} /> Add structure</Button>
+                  </div>
+                  <div className="space-y-2">
+                    {(reqForm.structures || []).map((st, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Input value={st.name} onChange={e => setReqForm(f => { const arr = [...f.structures]; arr[i] = { ...arr[i], name: e.target.value }; return { ...f, structures: arr }; })} placeholder="Structure title (e.g. Detached garage)" className="bg-navy-800 border-navy-700 text-white flex-1" />
+                        <button onClick={() => setReqForm(f => ({ ...f, structures: f.structures.filter((_, j) => j !== i) }))} className="text-gray-500 hover:text-red-400"><Trash2 size={16} /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-navy-800">
+                  <span className="text-sm text-gray-400">$15.00 - 6-hour turnaround</span>
+                  <Button onClick={submitReportRequest} disabled={reqSubmitting || !reqForm.located || !reqForm.confirmed} className="bg-brand-blue hover:bg-brand-blue/90 text-white">{reqSubmitting ? 'Submitting...' : 'Request Report'}</Button>
+                </div>
+              </Card>
+            )}
+
+            {measSub === 'integrations' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
+                <Card className="bg-navy-900 border-navy-800 p-6">
+                  <h3 className="text-white font-semibold">Hover</h3>
+                  <p className="text-sm text-gray-400 mt-1">Connect a Hover account to pull 3D measurements directly into this job.</p>
+                  <Button disabled className="bg-navy-700 text-gray-400 mt-4 cursor-not-allowed">Connect (coming soon)</Button>
+                </Card>
+                <Card className="bg-navy-900 border-navy-800 p-6">
+                  <h3 className="text-white font-semibold">Roofr</h3>
+                  <p className="text-sm text-gray-400 mt-1">Connect Roofr to import roof reports and measurements for this job.</p>
+                  <Button disabled className="bg-navy-700 text-gray-400 mt-4 cursor-not-allowed">Connect (coming soon)</Button>
+                </Card>
+              </div>
+            )}
           </div>
         )}
 
