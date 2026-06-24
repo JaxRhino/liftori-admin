@@ -43,7 +43,6 @@ const HUB_CHILDREN = {
     { label: 'Lead Sources', path: 'lead-sources' },
     { label: 'Commissions',  path: 'commissions' },
     { label: 'Sequences',    path: 'sequences' },
-    { label: 'Roof Measure',  path: 'measure' },
   ],
   university: [
     { label: 'Sales', path: 'university/sales' },
