@@ -25,6 +25,7 @@ import CrmOperationsWorkOrders from './pages/crm/operations/OperationsWorkOrders
 import CrmOperationsProduction from './pages/crm/operations/OperationsProduction'
 import CrmOperationsSubcontractors from './pages/crm/operations/OperationsSubcontractors'
 import CrmOperationsPermits from './pages/crm/operations/OperationsPermits'
+import CrmOperationsStorms from './pages/crm/operations/OperationsStorms'
 import CrmOperationsMaterials from './pages/crm/operations/OperationsMaterials'
 import CrmInsurance from './pages/crm/operations/CrmInsurance'
 import CrmWarranties from './pages/crm/operations/CrmWarranties'
@@ -661,6 +662,7 @@ export default function App() {
               <Route path="production" element={<CrmOperationsProduction />} />
               <Route path="subcontractors" element={<CrmOperationsSubcontractors />} />
               <Route path="permits" element={<CrmOperationsPermits />} />
+              <Route path="storms" element={<CrmOperationsStorms />} />
               <Route path="materials" element={<CrmOperationsMaterials />} />
               <Route path="insurance-claims" element={<CrmInsurance />} />
               <Route path="warranties" element={<CrmWarranties />} />
