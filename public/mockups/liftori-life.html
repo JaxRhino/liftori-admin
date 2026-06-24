@@ -129,6 +129,8 @@
   .note{font-size:11.5px;color:var(--muted);margin-top:10px;text-align:center;font-weight:600}
   .vl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:3px;font-weight:700}
   .vi{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px;font:inherit;font-size:13px;background:var(--surface);color:var(--ink)}
+  .vmt{border:1px solid var(--line);background:var(--surface);color:var(--muted);font:inherit;font-weight:700;font-size:11.5px;padding:6px 11px;border-radius:20px;cursor:pointer}
+  .vmt.on{background:var(--pine);color:#fff;border-color:var(--pine)}
 </style>
 </head>
 <body>
@@ -330,7 +332,17 @@
             <button class="btn sm" onclick="openVitals()">+ Record vitals</button>
           </div>
           <div id="vitalsCards" class="tiles" style="margin-bottom:14px"></div>
-          <div class="card" style="margin-bottom:14px"><h3>Vitals log <span class="cta" onclick="openVitals()">+ Record</span></h3><div id="vitalsLog"></div></div>
+          <div class="card" style="margin-bottom:14px"><h3>Vitals log <span class="cta" onclick="openVitals()">+ Record</span></h3>
+            <p style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;margin-bottom:8px">History</p>
+            <div id="vitalsToggle" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+              <button class="vmt on" data-m="weight" onclick="setChartMetric('weight')">Weight</button>
+              <button class="vmt" data-m="glucose" onclick="setChartMetric('glucose')">Glucose</button>
+              <button class="vmt" data-m="sys" onclick="setChartMetric('sys')">Blood pressure</button>
+            </div>
+            <div id="vitalsChart"></div>
+            <p style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;margin:16px 0 4px">Entries</p>
+            <div id="vitalsLog"></div>
+          </div>
         </div>
         <div class="grid two">
           <div class="card">
@@ -548,6 +560,31 @@
       var parts=[v.weight?v.weight+' lb':'',v.glucose?v.glucose+' mg/dL':'',(v.sys&&v.dia)?v.sys+'/'+v.dia:'',v.pulse?v.pulse+' bpm':''].filter(Boolean).join('  -  ');
       return '<div class="row"><div class="g"><div class="t">'+fmtD(v.date)+'</div><div class="s">'+parts+(v.note?' - '+v.note:'')+'</div></div><span class="tag gray">'+(v.by||'')+'</span></div>';
     }).join('');
+    renderVitalsChart();
+  }
+  var chartMetric='weight';
+  function setChartMetric(m){chartMetric=m;var ts=document.querySelectorAll('#vitalsToggle .vmt');for(var k=0;k<ts.length;k++){ts[k].classList.toggle('on',ts[k].dataset.m===m);}renderVitalsChart();}
+  function renderVitalsChart(){
+    var el=document.getElementById('vitalsChart');if(!el)return;
+    var data=vitals.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+    var series;
+    if(chartMetric==='sys'){series=[{key:'sys',color:'#C25B6B',label:'Systolic'},{key:'dia',color:'#3E7CB1',label:'Diastolic'}];var unit='mmHg';}
+    else if(chartMetric==='glucose'){series=[{key:'glucose',color:'#D9805A',label:'Glucose'}];var unit='mg/dL';}
+    else {series=[{key:'weight',color:'#2F6B5E',label:'Weight'}];var unit='lb';}
+    var all=[];series.forEach(function(sr){sr.pts=data.map(function(d){var v=parseFloat(d[sr.key]);return isNaN(v)?null:{date:d.date,v:v};}).filter(Boolean);sr.pts.forEach(function(p){all.push(p.v);});});
+    if(!all.length){el.innerHTML='<p class="note">No data for this metric yet.</p>';return;}
+    var mn=Math.min.apply(null,all),mx=Math.max.apply(null,all);if(mn===mx){mn-=1;mx+=1;}var sp=mx-mn;mn-=sp*0.12;mx+=sp*0.12;sp=mx-mn;
+    var W=320,H=150,L=10,Rr=10,T=14,B=22,pw=W-L-Rr,ph=H-T-B,n=data.length;
+    function X(i){return n<=1?L+pw/2:L+pw*(i/(n-1));}
+    function Y(v){return T+ph*(1-(v-mn)/sp);}
+    function idxOf(dt){for(var k=0;k<data.length;k++){if(data[k].date===dt)return k;}return 0;}
+    var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">';
+    svg+='<line x1="'+L+'" y1="'+T+'" x2="'+L+'" y2="'+(T+ph)+'" stroke="#ECE4D8"/>';
+    svg+='<line x1="'+L+'" y1="'+(T+ph)+'" x2="'+(W-Rr)+'" y2="'+(T+ph)+'" stroke="#ECE4D8"/>';
+    series.forEach(function(sr){if(!sr.pts.length)return;var ps=sr.pts.map(function(p){return X(idxOf(p.date))+','+Y(p.v);}).join(' ');svg+='<polyline points="'+ps+'" fill="none" stroke="'+sr.color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';sr.pts.forEach(function(p){svg+='<circle cx="'+X(idxOf(p.date))+'" cy="'+Y(p.v)+'" r="3" fill="'+sr.color+'"/>';});});
+    svg+='</svg>';
+    var legend=series.map(function(sr){return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--ink)"><span style="width:10px;height:10px;border-radius:50%;background:'+sr.color+'"></span>'+sr.label+'</span>';}).join('  ');
+    el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="display:flex;gap:12px;flex-wrap:wrap">'+legend+'</div><span style="font-size:11px;color:var(--muted);font-weight:700">'+unit+'</span></div>'+svg+'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-weight:600;margin-top:3px"><span>'+fmtD(data[0].date)+'</span><span>'+fmtD(data[data.length-1].date)+'</span></div>';
   }
   function openVitals(){var d=document.getElementById('vDate');if(d&&!d.value)d.value=new Date().toISOString().slice(0,10);var by=document.getElementById('vBy');if(by&&!by.value)by.value=(members[activeUser]&&members[activeUser].name)?members[activeUser].name.split(/\s+/)[0]:'You';document.getElementById('vitalsModal').style.display='flex';}
   function closeVitals(){document.getElementById('vitalsModal').style.display='none';}
