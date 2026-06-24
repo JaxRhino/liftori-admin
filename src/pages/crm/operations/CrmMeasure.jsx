@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { HubPage, Section, EmptyState, useCrmClient } from '../_shared'
-import { MapPin, Save, RotateCcw, CheckCircle2, Trash2, Plus, Search, FileText, X, Spline, Download, Sun, RefreshCw } from 'lucide-react'
+import { MapPin, Save, RotateCcw, CheckCircle2, Trash2, Plus, Search, FileText, X, Spline, Download, Sparkles, RefreshCw } from 'lucide-react'
 import {
   LINE_TYPES, lineColor, lineTypeLabel,
   ensureTurf, ensurePdf,
@@ -592,20 +592,20 @@ export default function CrmMeasure() {
         setSolarMsg(null)
       } else if (j && j.found === false) {
         setSolar(null)
-        setSolarMsg('No Solar coverage at this location. Trace the roof manually.')
+        setSolarMsg("Auto-detect is not available at this location. Trace the roof manually.")
       } else if (j && j.needs_key) {
         setSolar(null)
-        setSolarMsg('Solar lookup is not configured yet (missing API key).')
+        setSolarMsg("Auto-detect is not configured yet (missing API key).")
       } else if (j && j.error) {
         setSolar(null)
-        setSolarMsg('Solar lookup failed: ' + String(j.error))
+        setSolarMsg('Auto-detect failed: ' + String(j.error))
       } else {
         setSolar(null)
-        setSolarMsg('Solar lookup failed. Try again or trace manually.')
+        setSolarMsg('Auto-detect failed. Try again or trace manually.')
       }
     } catch (e) {
       setSolar(null)
-      setSolarMsg(e.message || 'Solar lookup failed.')
+      setSolarMsg(e.message || 'Auto-detect failed.')
     } finally {
       setSolarBusy(false)
     }
@@ -643,7 +643,7 @@ export default function CrmMeasure() {
     //  (b) NO trace but the operator adopted Solar area -> Solar-only save.
     const solarOnly = !facetObjs.length && solarUsed && !!solarMetrics
     if (!facetObjs.length && !solarOnly) {
-      setSaveMsg('Trace at least one roof section, or run Solar auto-detect and Use Solar area.')
+      setSaveMsg('Trace at least one roof section, or run auto-detect and use the estimated area.')
       return
     }
     setSaving(true); setSaveMsg(null)
@@ -1047,11 +1047,11 @@ export default function CrmMeasure() {
             <button
               onClick={detectSolar}
               disabled={solarBusy || !hasPin}
-              title={hasPin ? 'Auto-detect roof metrics from Google Solar' : 'Find an address and drop the pin first'}
+              title={hasPin ? 'Auto-detect roof metrics from aerial imagery' : 'Find an address and drop the pin first'}
               className="inline-flex items-center gap-1.5 bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-40 text-white text-sm font-medium px-3.5 py-2 rounded-lg"
             >
-              {solarBusy ? <RefreshCw size={15} className="animate-spin" /> : <Sun size={15} />}
-              {solarBusy ? 'Detecting...' : 'Auto-detect roof (Solar)'}
+              {solarBusy ? <RefreshCw size={15} className="animate-spin" /> : <Sparkles size={15} />}
+              {solarBusy ? 'Detecting...' : 'Auto-detect roof'}
             </button>
           </div>
 
@@ -1102,7 +1102,7 @@ export default function CrmMeasure() {
             </div>
             {displaySolarEstimate && (
               <div className="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-brand-light bg-brand-blue/15 border border-brand-blue/30 rounded-full px-2.5 py-1">
-                <Sun size={12} /> Solar area estimate (verify by tracing)
+                <Sparkles size={12} /> Estimated area (verify by tracing)
               </div>
             )}
             <div className="flex items-baseline justify-between border-t border-navy-700/50 pt-3">
@@ -1135,22 +1135,22 @@ export default function CrmMeasure() {
           <div className="bg-navy-800 border border-navy-700/50 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="inline-flex items-center gap-2 text-xs text-gray-400 uppercase tracking-wider">
-                <Sun size={14} className="text-brand-light" /> Solar auto-detect
+                <Sparkles size={14} className="text-brand-light" /> Roof auto-detect
               </span>
               <button
                 onClick={detectSolar}
                 disabled={solarBusy || !hasPin}
-                title={hasPin ? 'Auto-detect roof metrics from Google Solar' : 'Find an address and drop the pin first'}
+                title={hasPin ? 'Auto-detect roof metrics from aerial imagery' : 'Find an address and drop the pin first'}
                 className="inline-flex items-center gap-1.5 bg-brand-blue hover:bg-brand-blue/90 disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
               >
-                {solarBusy ? <RefreshCw size={13} className="animate-spin" /> : <Sun size={13} />}
+                {solarBusy ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
                 {solarBusy ? 'Detecting...' : (solar ? 'Re-detect' : 'Auto-detect roof')}
               </button>
             </div>
 
             {!solar && !solarMsg && (
               <p className="text-xs text-gray-500">
-                Drop a pin, then auto-detect facet count, pitch, and pitched/flat split from Google Solar imagery. Area is an estimate - trace facets for an authoritative number.
+                Drop a pin, then auto-detect facet count, pitch, and pitched/flat split from aerial imagery. Area is an estimate - trace facets for an authoritative number.
               </p>
             )}
             {solarMsg && <p className="text-xs text-gray-300">{solarMsg}</p>}
@@ -1181,11 +1181,11 @@ export default function CrmMeasure() {
 
                 <div className="bg-brand-blue/10 border border-brand-blue/25 rounded-lg px-3 py-2.5">
                   <div className="text-sm text-brand-light font-semibold">
-                    Solar area estimate: {(Number(solar.area_ft2) || 0).toLocaleString()} sqft
+                    Estimated area: {(Number(solar.area_ft2) || 0).toLocaleString()} sqft
                     <span className="text-gray-300 font-normal"> (~{(Number(solar.squares) || 0).toFixed(1)} sq)</span>
                   </div>
                   <div className="text-[11px] text-gray-400 mt-0.5">
-                    Verify by tracing - Solar area runs ~14% high vs trade measurements.
+                    Verify by tracing - auto-detected area runs ~14% high vs trade measurements.
                   </div>
                 </div>
 
@@ -1219,14 +1219,14 @@ export default function CrmMeasure() {
                       onClick={() => setSolarUsed(false)}
                       className="w-full inline-flex items-center justify-center gap-1.5 bg-navy-900/60 border border-navy-700/60 hover:bg-navy-700/50 text-gray-200 text-xs font-medium px-3 py-2 rounded-lg"
                     >
-                      <X size={13} /> Solar area in use - revert
+                      <X size={13} /> Estimated area in use - revert
                     </button>
                   ) : (
                     <button
                       onClick={useSolarArea}
                       className="w-full inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-600/90 text-white text-xs font-semibold px-3 py-2 rounded-lg"
                     >
-                      <CheckCircle2 size={13} /> Use Solar area (fast estimate)
+                      <CheckCircle2 size={13} /> Use estimated area (fast)
                     </button>
                   )
                 ) : (
@@ -1238,7 +1238,7 @@ export default function CrmMeasure() {
                       if (!traced || !sol) return null
                       const delta = sol - traced
                       const pct = (delta / traced) * 100
-                      return <span className="text-gray-400"> Solar {delta >= 0 ? '+' : ''}{delta.toLocaleString()} ft2 ({pct >= 0 ? '+' : ''}{pct.toFixed(0)}%).</span>
+                      return <span className="text-gray-400"> Auto-detect {delta >= 0 ? '+' : ''}{delta.toLocaleString()} ft2 ({pct >= 0 ? '+' : ''}{pct.toFixed(0)}%).</span>
                     })()}
                   </div>
                 )}
