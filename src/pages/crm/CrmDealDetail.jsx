@@ -1022,11 +1022,16 @@ export default function CrmDealDetail() {
           </div>
         )}
 
-        {/* PHOTOS - CompanyCam-style gallery scoped to this deal */}
+        {/* PHOTOS - uploader + project-area documentation cards */}
         {tab === 'photos' && (
-          <Card className="bg-navy-900 border-navy-800 p-4">
-            <CustomerPhotos contactId={deal.contact_id || null} pipelineId={id} />
-          </Card>
+          <div className="space-y-4">
+            <Card className="bg-navy-900 border-navy-800 p-4">
+              <CustomerPhotos contactId={deal.contact_id || null} pipelineId={id} />
+            </Card>
+            <Card className="bg-navy-900 border-navy-800 p-4">
+              <AreaPhotoGrid client={client} contactId={deal.contact_id || null} pipelineId={id} />
+            </Card>
+          </div>
         )}
 
         {/* ESTIMATES */}
@@ -1386,6 +1391,150 @@ function RequestMap({ lat, lng, onMove }) {
     return () => { cancelled = true; if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
   }, []);
   return <div ref={ref} className="w-full h-80 rounded-lg overflow-hidden border border-navy-700" />;
+}
+
+const PHOTO_AREA_GROUPS = [
+  { group: 'Exterior', areas: ['Front', 'Left Side', 'Right Side', 'Rear', 'LF Corner', 'RF Corner', 'LR Corner', 'RR Corner'] },
+  { group: 'Roof Features', areas: ['Ridge Vents', 'Off-Ridge Vents', 'Pipe Boots', 'Chimney', 'Skylights', 'Valleys'] },
+  { group: 'Roof Areas', areas: Array.from({ length: 10 }, (_, i) => 'Roof Area ' + (i + 1)) },
+  { group: 'Damage', areas: Array.from({ length: 6 }, (_, i) => 'Damage Area ' + (i + 1)) },
+];
+
+function AreaPhotoModal({ client, area, photo, onClose, onSaved }) {
+  const [zoom, setZoom] = useState(1);
+  const [n, setN] = useState({ note_customer: photo.note_customer || '', note_ops: photo.note_ops || '', note_crew: photo.note_crew || '' });
+  async function saveNote(field) { try { await client.from('customer_photos').update({ [field]: n[field] }).eq('id', photo.id); } catch (e) { console.error(e); } }
+  async function del() {
+    if (!window.confirm('Delete this photo?')) return;
+    try { await client.from('customer_photos').delete().eq('id', photo.id); if (photo.storage_path) await client.storage.from('customer-photos').remove([photo.storage_path]); toast.success('Photo deleted'); onSaved && onSaved(); onClose(); }
+    catch (e) { console.error(e); toast.error('Delete failed'); }
+  }
+  return (
+    <Modal wide title={area} onClose={() => { onSaved && onSaved(); onClose(); }}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-2">
+          <div className="bg-navy-950 rounded-lg overflow-auto border border-navy-800" style={{ maxHeight: '60vh' }}>
+            {photo.signedUrl ? <img src={photo.signedUrl} alt={area} style={{ transform: 'scale(' + zoom + ')', transformOrigin: 'top left' }} className="w-full object-contain" /> : <div className="p-10 text-center text-gray-500">No image</div>}
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs text-gray-400">Zoom</span>
+            <input type="range" min="1" max="4" step="0.25" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="flex-1" />
+            <span className="text-xs text-gray-400 w-10 text-right">{zoom.toFixed(2)}x</span>
+            <button type="button" onClick={del} className="text-xs text-red-400 hover:text-red-300 ml-2">Delete</button>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">Customer Notes</label>
+            <Textarea value={n.note_customer} onChange={e => setN(p => ({ ...p, note_customer: e.target.value }))} onBlur={() => saveNote('note_customer')} className="bg-navy-800 border-navy-700 text-white min-h-20" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">Ops Notes</label>
+            <Textarea value={n.note_ops} onChange={e => setN(p => ({ ...p, note_ops: e.target.value }))} onBlur={() => saveNote('note_ops')} className="bg-navy-800 border-navy-700 text-white min-h-20" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">Crew Notes</label>
+            <Textarea value={n.note_crew} onChange={e => setN(p => ({ ...p, note_crew: e.target.value }))} onBlur={() => saveNote('note_crew')} className="bg-navy-800 border-navy-700 text-white min-h-20" />
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function AreaPhotoGrid({ client, contactId, pipelineId }) {
+  const [byArea, setByArea] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [busyArea, setBusyArea] = useState(null);
+  const [openArea, setOpenArea] = useState(null);
+  const [customAreas, setCustomAreas] = useState([]);
+  const fileRefs = useRef({});
+
+  async function load() {
+    if (!client || !pipelineId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const { data } = await client.from('customer_photos').select('*').eq('pipeline_id', pipelineId).not('area', 'is', null).order('created_at', { ascending: false });
+      const rows = data || [];
+      const map = {};
+      for (const r of rows) { if (!map[r.area]) map[r.area] = r; }
+      await Promise.all(Object.values(map).map(async (p) => {
+        if (p.storage_path) { const { data: sg } = await client.storage.from('customer-photos').createSignedUrl(p.storage_path, 3600); p.signedUrl = (sg && sg.signedUrl) || p.url || null; }
+        else { p.signedUrl = p.url || null; }
+      }));
+      setByArea(map);
+      const fixed = new Set(PHOTO_AREA_GROUPS.flatMap(g => g.areas));
+      setCustomAreas([...new Set(rows.map(r => r.area).filter(a => a && !fixed.has(a)))]);
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  }
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [client, pipelineId]);
+
+  async function onPick(area, e) {
+    const file = (e.target.files || [])[0]; if (!file) return;
+    setBusyArea(area);
+    try {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = (pipelineId || 'job') + '/area/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+      const { error: upErr } = await client.storage.from('customer-photos').upload(path, file, { upsert: false, contentType: file.type || 'image/jpeg' });
+      if (upErr) throw upErr;
+      const { error: insErr } = await client.from('customer_photos').insert({ contact_id: contactId || null, pipeline_id: pipelineId || null, storage_path: path, category: 'area', area });
+      if (insErr) throw insErr;
+      toast.success(area + ' photo added');
+      await load();
+    } catch (e) { console.error(e); toast.error('Upload failed'); } finally { setBusyArea(null); if (fileRefs.current[area]) fileRefs.current[area].value = ''; }
+  }
+
+  function addCustomArea() {
+    const name = (window.prompt('Name this area (e.g. Detached garage, Soffit)') || '').trim();
+    if (!name) return;
+    if (!customAreas.includes(name) && !PHOTO_AREA_GROUPS.flatMap(g => g.areas).includes(name)) setCustomAreas(a => [...a, name]);
+  }
+
+  function AreaCard({ area }) {
+    const p = byArea[area];
+    return (
+      <div className="bg-navy-900/40 border border-navy-700/50 rounded-lg overflow-hidden">
+        <button type="button" onClick={() => { if (p) setOpenArea(area); else if (fileRefs.current[area]) fileRefs.current[area].click(); }} className="block w-full aspect-square bg-navy-950 relative group">
+          {p && p.signedUrl
+            ? <img src={p.signedUrl} alt={area} className="w-full h-full object-cover" />
+            : <span className="absolute inset-0 flex items-center justify-center text-3xl text-gray-600 group-hover:text-brand-blue">{busyArea === area ? '...' : '+'}</span>}
+          {p && [p.note_customer, p.note_ops, p.note_crew].some(Boolean) && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-brand-cyan" title="Has notes" />}
+        </button>
+        <div className="px-2 py-1.5 text-[11px] text-gray-300 truncate" title={area}>{area}</div>
+        <input ref={el => { fileRefs.current[area] = el; }} type="file" accept="image/*" className="hidden" onChange={e => onPick(area, e)} />
+      </div>
+    );
+  }
+
+  const groups = [...PHOTO_AREA_GROUPS];
+  if (customAreas.length) groups.push({ group: 'Custom', areas: customAreas });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <h3 className="text-white font-semibold text-sm uppercase tracking-wider">Project Area Photos</h3>
+        <button type="button" onClick={addCustomArea} className="text-xs px-3 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-white">+ Add area</button>
+      </div>
+      {loading ? <p className="text-gray-500 text-sm">Loading...</p> : (
+        <div className="space-y-5">
+          {groups.map(g => (
+            <div key={g.group}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-brand-cyan">{g.group}</span>
+                <div className="flex-1 h-px bg-navy-700/50" />
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                {g.areas.map(area => <AreaCard key={area} area={area} />)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {openArea && byArea[openArea] && (
+        <AreaPhotoModal client={client} area={openArea} photo={byArea[openArea]} onClose={() => setOpenArea(null)} onSaved={load} />
+      )}
+    </div>
+  );
 }
 
 function Field({ label, full, children }) {
