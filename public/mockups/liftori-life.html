@@ -127,6 +127,8 @@
     .hello{font-size:26px}
   }
   .note{font-size:11.5px;color:var(--muted);margin-top:10px;text-align:center;font-weight:600}
+  .vl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:3px;font-weight:700}
+  .vi{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px;font:inherit;font-size:13px;background:var(--surface);color:var(--ink)}
 </style>
 </head>
 <body>
@@ -196,6 +198,7 @@
           </div>
           <div class="card">
             <h3>Quick actions</h3>
+            <div class="row" id="qaVitals"><div class="ic2" style="background:#E7EFEA;color:var(--pine);font-weight:800;font-size:14px">+</div><div class="g"><div class="t">Record vitals</div><div class="s">Weight, glucose, blood pressure</div></div><button class="btn ghost sm" onclick="openVitals()">Record</button></div>
             <div class="row"><div class="ic2" style="background:var(--terra-soft);color:var(--terra);font-weight:800;font-size:13px">⇆</div><div class="g"><div class="t">Request a ride</div><div class="s">Ask the family for a lift</div></div><button class="btn ghost sm">Ask</button></div>
             <div class="row"><div class="ic2" style="background:var(--pine-soft);color:var(--pine);font-weight:800;font-size:18px">+</div><div class="g"><div class="t">Add to store list</div><div class="s">12 items · Mom added 2</div></div><button class="btn ghost sm">Add</button></div>
             <div class="row"><div class="ic2" style="background:#FBEFD2;color:#8a6410;font-weight:800;font-size:13px">Rx</div><div class="g"><div class="t">Mom's meds</div><div class="s">1 refill due in 3 days</div></div><span class="tag terra">Refill</span></div>
@@ -321,6 +324,14 @@
           <div class="tile"><div class="k">Last check-in</div><div class="v">BP 128/80</div><div class="m up">this morning</div></div>
         </div>
 
+        <div style="margin-top:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <p style="font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700">Vitals</p>
+            <button class="btn sm" onclick="openVitals()">+ Record vitals</button>
+          </div>
+          <div id="vitalsCards" class="tiles" style="margin-bottom:14px"></div>
+          <div class="card" style="margin-bottom:14px"><h3>Vitals log <span class="cta" onclick="openVitals()">+ Record</span></h3><div id="vitalsLog"></div></div>
+        </div>
         <div class="grid two">
           <div class="card">
             <h3>Appointments <span class="cta">+ Add</span></h3>
@@ -394,6 +405,24 @@
       <button data-s="lists"><span class="ic">☰</span>Lists</button>
       <button data-s="chat"><span class="ic">✦</span>Chat</button>
     </nav>
+  </div>
+</div>
+
+<div id="vitalsModal" style="display:none;position:fixed;inset:0;background:rgba(43,38,34,.45);z-index:50;align-items:center;justify-content:center;padding:18px">
+  <div style="background:var(--surface);border-radius:18px;max-width:440px;width:100%;max-height:90%;overflow:auto;box-shadow:0 20px 50px rgba(43,38,34,.3);padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div style="font-size:17px;font-weight:800">Record vitals</div><button onclick="closeVitals()" style="border:0;background:transparent;font-size:20px;cursor:pointer;color:var(--muted);line-height:1">&times;</button></div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Log what you have — leave the rest blank.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="grid-column:1/-1"><label class="vl">Date</label><input id="vDate" type="date" class="vi"/></div>
+      <div><label class="vl">Weight (lb)</label><input id="vWeight" type="number" inputmode="decimal" class="vi" placeholder="162"/></div>
+      <div><label class="vl">Blood glucose (mg/dL)</label><input id="vGlucose" type="number" inputmode="decimal" class="vi" placeholder="118"/></div>
+      <div><label class="vl">BP systolic</label><input id="vSys" type="number" inputmode="decimal" class="vi" placeholder="128"/></div>
+      <div><label class="vl">BP diastolic</label><input id="vDia" type="number" inputmode="decimal" class="vi" placeholder="80"/></div>
+      <div><label class="vl">Pulse (bpm)</label><input id="vPulse" type="number" inputmode="decimal" class="vi" placeholder="72"/></div>
+      <div><label class="vl">Recorded by</label><input id="vBy" type="text" class="vi" placeholder="You"/></div>
+      <div style="grid-column:1/-1"><label class="vl">Note</label><input id="vNote" type="text" class="vi" placeholder="Fasting, before breakfast..."/></div>
+    </div>
+    <button onclick="saveVitals()" class="btn" style="width:100%;margin-top:14px">Save vitals</button>
   </div>
 </div>
 
@@ -479,6 +508,7 @@
     document.querySelectorAll('[data-s="care"]').forEach(function(x){x.style.display=canCare?'':'none';});
     document.querySelectorAll('[data-s="money"]').forEach(function(x){x.style.display=canMoney?'':'none';});
     var mb=document.getElementById('manageBtn');if(mb)mb.style.display=canManage?'':'none';
+    var qv=document.getElementById('qaVitals');if(qv)qv.style.display=canCare?'':'none';
     var tr=document.getElementById('tileRent');if(tr)tr.style.display=canMoney?'':'none';
     var tb=document.getElementById('tileBudget');if(tb)tb.style.display=canMoney?'':'none';
     var hn=document.getElementById('helloName');if(hn)hn.textContent=first;
@@ -493,6 +523,42 @@
   }
   function resetPw(i){var b=document.getElementById('pw'+i);if(!b)return;var e=members[i].email;if(!e){var o=b.textContent;b.textContent='Add an email first';setTimeout(function(){b.textContent='Send password reset';},1600);return;}b.textContent='Reset link sent to '+e;b.style.background='var(--pine-soft)';b.style.color='var(--pine)';b.style.borderColor='var(--pine)';setTimeout(function(){b.textContent='Send password reset';b.style.background='var(--bg)';b.style.color='var(--ink)';b.style.borderColor='var(--line)';},2200);}
   renderFamily();
+
+  // ---- Vitals tracking (Care Hub) ----
+  var vitals=[
+    {date:'2026-06-24',weight:'162',glucose:'118',sys:'128',dia:'80',pulse:'72',note:'Fasting, took meds',by:'Vanessa'},
+    {date:'2026-06-22',weight:'163',glucose:'132',sys:'134',dia:'82',pulse:'74',note:'After lunch',by:'Vanessa'},
+    {date:'2026-06-19',weight:'163',glucose:'124',sys:'130',dia:'79',pulse:'71',note:'Fasting',by:'Ryan'},
+    {date:'2026-06-15',weight:'164',glucose:'140',sys:'136',dia:'84',pulse:'76',note:'Felt dizzy',by:'Vanessa'}
+  ];
+  var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtD(s){if(!s)return '';var p=String(s).split('-');return (MON[(+p[1]||1)-1]||'')+' '+(+p[2]||'');}
+  function vtile(k,v,m){return '<div class="tile"><div class="k">'+k+'</div><div class="v">'+v+'</div>'+(m||'')+'</div>';}
+  function vdelta(cur,prev,unit){if(prev==null||prev===''||cur==null||cur==='')return '';var diff=Math.round((Number(cur)-Number(prev))*10)/10;if(!diff)return '<div class="m">no change</div>';var cls=diff<0?'up':'warn';return '<div class="m '+cls+'">'+(diff>0?'+':'')+diff+(unit?' '+unit:'')+' vs last</div>';}
+  function renderVitals(){
+    var cards=document.getElementById('vitalsCards');var log=document.getElementById('vitalsLog');
+    if(!vitals.length){if(cards)cards.innerHTML='';if(log)log.innerHTML='<p class="note">No vitals recorded yet.</p>';return;}
+    var L=vitals[0],P=vitals[1]||{};
+    if(cards)cards.innerHTML=
+      vtile('Weight',(L.weight||'-')+'<span style="font-size:12px"> lb</span>',vdelta(L.weight,P.weight,'lb'))
+      +vtile('Blood glucose',(L.glucose||'-')+'<span style="font-size:12px"> mg/dL</span>',vdelta(L.glucose,P.glucose,''))
+      +vtile('Blood pressure',(L.sys&&L.dia?L.sys+'/'+L.dia:'-'),vdelta(L.sys,P.sys,'sys'))
+      +vtile('Pulse',(L.pulse||'-')+'<span style="font-size:12px"> bpm</span>','<div class="m">'+fmtD(L.date)+'</div>');
+    if(log)log.innerHTML=vitals.map(function(v){
+      var parts=[v.weight?v.weight+' lb':'',v.glucose?v.glucose+' mg/dL':'',(v.sys&&v.dia)?v.sys+'/'+v.dia:'',v.pulse?v.pulse+' bpm':''].filter(Boolean).join('  -  ');
+      return '<div class="row"><div class="g"><div class="t">'+fmtD(v.date)+'</div><div class="s">'+parts+(v.note?' - '+v.note:'')+'</div></div><span class="tag gray">'+(v.by||'')+'</span></div>';
+    }).join('');
+  }
+  function openVitals(){var d=document.getElementById('vDate');if(d&&!d.value)d.value=new Date().toISOString().slice(0,10);var by=document.getElementById('vBy');if(by&&!by.value)by.value=(members[activeUser]&&members[activeUser].name)?members[activeUser].name.split(/\s+/)[0]:'You';document.getElementById('vitalsModal').style.display='flex';}
+  function closeVitals(){document.getElementById('vitalsModal').style.display='none';}
+  function saveVitals(){var g=function(id){var e=document.getElementById(id);return e?e.value.trim():'';};
+    var e={date:g('vDate')||new Date().toISOString().slice(0,10),weight:g('vWeight'),glucose:g('vGlucose'),sys:g('vSys'),dia:g('vDia'),pulse:g('vPulse'),note:g('vNote'),by:g('vBy')||'You'};
+    if(!(e.weight||e.glucose||e.sys||e.pulse)){closeVitals();return;}
+    vitals.unshift(e);vitals.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+    ['vWeight','vGlucose','vSys','vDia','vPulse','vNote'].forEach(function(id){var x=document.getElementById(id);if(x)x.value='';});
+    closeVitals();renderVitals();
+  }
+  renderVitals();
 
 </script>
 </body>
