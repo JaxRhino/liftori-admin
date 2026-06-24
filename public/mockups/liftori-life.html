@@ -1174,7 +1174,7 @@
     var rel=document.getElementById('arRel').value,anchorId=document.getElementById('arAnchor').value,nm=document.getElementById('arName').value.trim();
     var X=P(anchorId);if(!X){closeAddRel();return;}var newId=null;
     if(rel==='child'){
-      var withEl=document.getElementById('arWith');var withId=withEl?withEl.value:'';var f;if(withId&&withId!=='__none')f=ensureFam(anchorId,withId);else f=spouseFams(anchorId).filter(function(x){return !x.b;})[0]||spouseFams(anchorId)[0]||ensureFam(anchorId,null);
+      var withEl=document.getElementById('arWith');var withId=withEl?withEl.value:'';var f;if(withId&&withId!=='__none')f=ensureFam(anchorId,withId);else f=spouseFams(anchorId).filter(function(x){return !x.b;})[0]||ensureFam(anchorId,null);
       var c=addPerson({name:nm||'New child'});f.kids=f.kids||[];f.kids.push(c);newId=c;
     }else if(rel==='partner'){
       var pp=addPerson({name:nm||'Partner',marital:'Partner / co-parent'});ensureFam(anchorId,pp);newId=pp;
