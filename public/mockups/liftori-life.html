@@ -1628,14 +1628,14 @@
 
       var LL_URL='https://qlerfkdyslndjbaltkwo.supabase.co';
   var LL_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsZXJma2R5c2xuZGpiYWx0a3dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTc0MTAsImV4cCI6MjA4ODczMzQxMH0.NM-bFnfWqrnelLnpYO8NNMVpwkoq4LSfCIVq6gs23qk';
-  var LL_SB=null;try{if(window.supabase)LL_SB=window.supabase.createClient(LL_URL,LL_KEY);}catch(e){}
+  var LL_SB=(typeof window!=='undefined'&&window.supabase)?true:false;function cmSBnew(){try{if(window.supabase)return window.supabase.createClient(LL_URL,LL_KEY);}catch(e){}return null;}
 
     var cmMP=null;
   function cmCode(){var a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<4;i++)s+=a.charAt(Math.floor(Math.random()*a.length));return s;}
   function cmUid(){return Math.random().toString(36).slice(2,9);}
   function cmMyName(){try{if(typeof members!=='undefined'&&members[activeUser]&&members[activeUser].name)return members[activeUser].name.split(' ')[0];}catch(e){}return 'Player';}
   function cmMPback(){return '<button class="btn ghost" style="width:100%;margin-top:10px" onclick="cmMPleave()">Leave room</button>';}
-  function cmMPleave(){try{if(cmMP&&cmMP.ch&&LL_SB)LL_SB.removeChannel(cmMP.ch);}catch(e){}cmMP=null;cmCloseGame();}
+  function cmMPleave(){try{if(cmMP&&cmMP.ch&&cmMP.sb)cmMP.sb.removeChannel(cmMP.ch);}catch(e){}cmMP=null;cmCloseGame();}
   function cmMPLobby(){var modal=document.getElementById('cmGameModal'),title=document.getElementById('cmGameTitle'),body=document.getElementById('cmGameBody');title.textContent='Play online';
     if(!LL_SB){body.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:18px 6px">Online play is still connecting. Give it a moment and reopen.</div><button class="btn ghost" style="width:100%" onclick="cmCloseGame()">Back</button>';modal.style.display='flex';return;}
     body.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Create a room and share the code, or join a family member.</div>'
@@ -1647,8 +1647,8 @@
   function cmMPcreate(){var n=(document.getElementById('cmMPname').value||'Player').slice(0,16);cmMPstart(cmCode(),true,n);}
   function cmMPjoinInput(){var c=(document.getElementById('cmMPcode').value||'').toUpperCase().slice(0,4);var n=(document.getElementById('cmMPname').value||'Player').slice(0,16);if(c.length<4)return;cmMPstart(c,false,n);}
   function cmMPstart(code,host,name){
-    cmMP={code:code,host:host,me:cmUid(),name:name,players:{},game:null};
-    var ch=LL_SB.channel('ll-room-'+code,{config:{presence:{key:cmMP.me},broadcast:{self:false}}});
+    cmMP={code:code,host:host,me:cmUid(),name:name,players:{},game:null,sb:cmSBnew()};if(!cmMP.sb){cmMP=null;return;}
+    var ch=cmMP.sb.channel('ll-room-'+code,{config:{presence:{key:cmMP.me},broadcast:{self:false}}});
     cmMP.ch=ch;
     ch.on('presence',{event:'sync'},function(){var st=ch.presenceState();cmMP.players={};Object.keys(st).forEach(function(k){var m=st[k][0]||{};cmMP.players[k]={name:m.name,host:m.host};});if(!cmMP.game)cmMProom();});
     ch.on('broadcast',{event:'start'},function(p){cmMP.game=p.payload.game;cmMPbegin(p.payload);});
