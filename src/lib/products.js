@@ -316,6 +316,26 @@ export const PRODUCTS = [
       'Founder concept (Ryan, Jun 2026). Born from real pain: work-life balance and running a household with kids paying rent and a mother who moved in needing care coordination. Planned consumer SaaS, multi-user family accounts. See the Mockup tab for the interactive concept.',
     app: null,
   },
+  {
+    slug: 'liftori-med',
+    name: 'Liftori-Med',
+    tagline: 'AI-native OS for the independent practice — and a patient app worth coming back to',
+    category: 'Web + App',
+    status: 'planned',
+    stage: 'planned',
+    systemLabel: null,
+    systemUrl: null,
+    liveSite: null,
+    stack: ['React + Vite (web)', 'Expo / React Native (iOS + Android)', 'Supabase — HIPAA tier, multi-tenant auth + RLS', 'Stripe', 'Vercel'],
+    description:
+      'Liftori-Med is an AI-native operating system for the independent and small medical practice — paired with a genuinely good patient app. The provider side runs the practice (AI front desk, scheduling, no-show recovery, telehealth, intake, records, referrals, prior-auth and billing automation, medications); the patient side books across every Liftori-Med provider, messages the care team, does video visits, and manages records and meds. Beachhead: independent behavioral / mental-health practices. Venture-scale.',
+    whatsBuilt: [],
+    scope:
+      'Two-sided platform. Provider OS: AI Front Desk (the wedge), smart scheduling + no-show engine, telehealth / hybrid visits, unified records + smart intake, closed-loop referrals, prior-auth + RCM / denials automation, medication hub. Patient app: book-all-providers, care-team messaging, records + meds, video + payments, AI patient navigator. Compliance-first (HIPAA, RLS on all PHI, SOC 2) from Phase 0.',
+    notes:
+      'Founder concept (Ryan, Jun 2026). Beachhead = behavioral / mental health; wedge = AI Front Desk; heavy/regulated pieces built in-house; brand Liftori-Med across provider + patient; venture-scale spin-out. Pilot candidate: a FL cannabis-card / natural clinic as private design partner. HIPAA from day one — do NOT repeat the tenant anon-key pattern. See the Mockup tab for the Phase 1 concept.',
+    app: null,
+  },
 ]
 
 export const STAGES = [
