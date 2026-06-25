@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liftori-Med</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF3F1; --panel:#FFFFFF; --panel-2:#F7FAF9;
+    --ink:#0E2A29; --muted:#5C726F; --faint:#8A9C99;
+    --line:#E2EBE9; --line-2:#D5E2DF;
+    --deep:#0B3D3A; --deep-2:#0A312E;
+    --teal:#11756E; --teal-600:#0E5F59; --teal-bright:#16A89B;
+    --mint:#E6F3F0; --mint-2:#DCEEEA;
+    --gold:#BE9E54;
+    --ok:#2E9E6B; --ok-bg:#E5F4EC;
+    --warn:#C98A2E; --warn-bg:#F8EFDD;
+    --alert:#C75B41; --alert-bg:#F8E9E4;
+    --r:14px; --r-sm:10px; --r-lg:20px;
+    --sans:'Inter',-apple-system,system-ui,sans-serif;
+    --serif:'Newsreader',Georgia,serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5}
+  button{font-family:inherit;cursor:pointer}
+  svg.ic{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  svg.ic-sm{width:15px;height:15px}
+  .hidden{display:none !important}
+
+  /* ===== top chrome ===== */
+  .chrome{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+  .brand{display:flex;align-items:center;gap:11px}
+  .brand .mark{width:32px;height:32px;border-radius:9px;background:var(--deep);display:flex;align-items:center;justify-content:center}
+  .brand .mark svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .wordmark{font-size:19px;letter-spacing:-.02em;font-weight:600}
+  .wordmark b{color:var(--teal)} .wordmark .d{color:var(--gold)}
+  .switch{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .switch button{border:none;background:transparent;color:var(--muted);font-size:13px;font-weight:500;padding:7px 16px;border-radius:999px}
+  .switch button.on{background:var(--deep);color:#fff}
+  .env{font-size:11.5px;color:var(--faint);border:1px solid var(--line-2);border-radius:999px;padding:5px 12px}
+
+  /* ===== provider workspace ===== */
+  .work{display:grid;grid-template-columns:226px 1fr;min-height:calc(100vh - 61px)}
+  .side{background:var(--deep);color:#CFE3DF;padding:18px 14px;display:flex;flex-direction:column}
+  .clinic{display:flex;align-items:center;gap:10px;padding:6px 8px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:14px}
+  .clinic .logo{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#fff}
+  .clinic .nm{font-size:13.5px;color:#fff;font-weight:500;line-height:1.2}
+  .clinic .sub{font-size:11px;color:#7FA39D}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav button{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;color:#A7C6C1;font-size:13.5px;border:none;background:transparent;text-align:left;width:100%}
+  .nav button svg{color:#7FA39D}
+  .nav button.on{background:var(--teal);color:#fff} .nav button.on svg{color:#fff}
+  .side .foot{margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+  .av{width:30px;height:30px;border-radius:50%;background:var(--teal-bright);color:#04332f;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none}
+  .foot .nm{font-size:12.5px;color:#fff} .foot .sub{font-size:11px;color:#7FA39D}
+
+  .main{padding:24px 28px;overflow:auto}
+  .ph{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;gap:16px;flex-wrap:wrap}
+  .ph h1{font-family:var(--serif);font-weight:500;font-size:26px;letter-spacing:-.01em}
+  .ph .sub{font-size:13px;color:var(--muted);margin-top:3px}
+  .live{font-size:11.5px;font-weight:500;color:var(--ok);background:var(--ok-bg);padding:5px 11px;border-radius:999px;display:inline-flex;align-items:center;gap:7px;margin-left:12px;vertical-align:middle}
+  .live .b{width:7px;height:7px;border-radius:50%;background:var(--ok);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .btn{font-size:13px;font-weight:500;color:#fff;background:var(--teal);border:none;border-radius:10px;padding:9px 15px;display:inline-flex;align-items:center;gap:8px}
+  .btn.ghost{background:#fff;color:var(--teal-600);border:1px solid var(--line-2)}
+  .btn:active{transform:scale(.98)}
+
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:20px}
+  .metric{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+  .metric .l{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px}
+  .metric .n{font-family:var(--serif);font-size:26px;font-weight:500;margin-top:9px}
+  .metric .dlt{font-size:11.5px;margin-top:3px;color:var(--ok)} .metric .dlt.flat{color:var(--faint)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:16px 17px}
+  .card .ct{font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+  .card .ct .sm{font-size:11.5px;font-weight:400;color:var(--faint)}
+
+  .feed .it{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .feed .it:last-child{border-bottom:none}
+  .feed .ico{width:30px;height:30px;border-radius:8px;background:var(--mint);color:var(--teal-600);display:flex;align-items:center;justify-content:center;flex:none}
+  .feed .ico.g{background:var(--ok-bg);color:var(--ok)} .feed .ico.a{background:var(--warn-bg);color:var(--warn)}
+  .feed .tx{font-size:13px;line-height:1.45} .feed .tx b{font-weight:600}
+  .feed .meta{font-size:11.5px;color:var(--faint);margin-top:2px}
+
+  .sch .row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .sch .row:last-child{border-bottom:none}
+  .sch .tm{font-size:12px;color:var(--muted);width:64px;flex:none;font-variant-numeric:tabular-nums}
+  .sch .who{flex:1;min-width:0}.sch .who .n{font-size:13px;font-weight:500}.sch .who .v{font-size:11.5px;color:var(--faint)}
+  .chip{font-size:11px;font-weight:500;padding:4px 9px;border-radius:999px;white-space:nowrap}
+  .chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.tel{background:var(--mint);color:var(--teal-600)}
+  .chip.in{background:#EAEFEE;color:var(--muted)} .chip.rec{background:var(--warn-bg);color:var(--warn)}
+  .chip.new{background:var(--mint-2);color:var(--teal-600)}
+  .row.flash{animation:flash 1.6s ease}
+  @keyframes flash{0%{background:var(--mint)}100%{background:transparent}}
+
+  .call{background:var(--deep);border-radius:var(--r);padding:17px 18px;color:#DCEBE8;margin-top:16px}
+  .call .top{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .call .top .pc{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#7FD7CC}
+  .call .top .t{font-size:13px;color:#fff;font-weight:500}.call .top .s{font-size:11.5px;color:#7FA39D}
+  .bub{max-width:78%;font-size:12.5px;line-height:1.45;padding:9px 12px;border-radius:12px;margin-bottom:9px}
+  .bub .who{font-size:10.5px;opacity:.7;margin-bottom:2px;display:block}
+  .bub.ai{background:var(--teal);color:#fff;border-bottom-left-radius:4px}
+  .bub.pt{background:rgba(255,255,255,.08);color:#CFE3DF;margin-left:auto;border-bottom-right-radius:4px}
+
+  /* tables / lists */
+  .list{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .list .lrow{display:flex;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .list .lrow:last-child{border-bottom:none}
+  .list .lrow .nm{font-size:13.5px;font-weight:500} .list .lrow .mt{font-size:11.5px;color:var(--faint)}
+  .seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:16px}
+  .seg button{border:none;background:transparent;color:var(--muted);font-size:12.5px;font-weight:500;padding:6px 13px;border-radius:7px}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+  .stub{background:#fff;border:1px dashed var(--line-2);border-radius:var(--r);padding:34px;text-align:center;color:var(--muted)}
+  .stub .si{width:46px;height:46px;border-radius:12px;background:var(--mint);color:var(--teal-600);display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+  .stub h3{font-family:var(--serif);font-weight:500;font-size:18px;color:var(--ink);margin-bottom:5px}
+  .stub p{font-size:13px;max-width:380px;margin:0 auto}
+  .twocol{display:grid;grid-template-columns:1fr 320px;gap:16px}
+  .msgthread{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:10px;min-height:300px}
+  .msg{max-width:75%;font-size:13px;padding:9px 12px;border-radius:12px;line-height:1.45}
+  .msg.them{background:var(--panel-2);border:1px solid var(--line)} .msg.me{background:var(--teal);color:#fff;align-self:flex-end}
+
+  /* ===== patient app ===== */
+  .patientwrap{display:flex;justify-content:center;padding:30px 16px 50px}
+  .device{width:392px;max-width:100%;background:#0B3D3A;border-radius:38px;padding:12px}
+  .pscreen{background:var(--bg);border-radius:28px;overflow:hidden;height:760px;display:flex;flex-direction:column;position:relative}
+  .pnotch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:120px;height:26px;background:#0B3D3A;border-radius:999px;z-index:6}
+  .pstat{display:flex;justify-content:space-between;align-items:center;padding:14px 22px 6px;font-size:11px;font-weight:500}
+  .pbody{flex:1;overflow:auto;padding:6px 18px 14px}
+  .ptabs{display:flex;border-top:1px solid var(--line);background:var(--panel)}
+  .ptabs button{flex:1;border:none;background:transparent;padding:11px 4px 14px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--faint);font-size:10px;font-weight:500}
+  .ptabs button.on{color:var(--teal)}
+  .pgreet{font-size:12px;color:var(--muted);margin-top:8px}
+  .pname{font-family:var(--serif);font-size:23px;font-weight:500;margin-top:1px}
+  .pcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:14px}
+  .pcard.next{background:var(--deep);border:none;color:#fff}
+  .pcard.next .lab{font-size:11px;color:#7FD7CC;letter-spacing:.06em;text-transform:uppercase}
+  .pcard.next .ti{font-size:15px;font-weight:600;margin-top:7px}
+  .pcard.next .sb{font-size:12px;color:#A9C8C3;margin-top:3px;display:flex;align-items:center;gap:7px}
+  .pbtn{background:var(--teal-bright);color:#04332f;font-weight:600;font-size:13px;border:none;border-radius:11px;padding:12px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:13px}
+  .pbtn.alt{background:var(--teal);color:#fff}
+  .pbtn.ghost{background:#fff;color:var(--teal-600);border:1px solid var(--line-2)}
+  .quick{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:14px}
+  .qa{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px 4px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:10.5px;color:var(--muted)}
+  .qa .qi{width:32px;height:32px;border-radius:9px;background:var(--mint);color:var(--teal-600);display:flex;align-items:center;justify-content:center}
+  .plab{font-size:12px;font-weight:600;color:var(--muted);margin:18px 0 0;display:flex;justify-content:space-between;align-items:center}
+  .team{display:flex;gap:9px;margin-top:11px}
+  .tmem{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 8px;text-align:center}
+  .tmem .av2{width:38px;height:38px;border-radius:50%;background:var(--mint-2);color:var(--teal-600);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;margin:0 auto 7px}
+  .tmem .tn{font-size:11px;font-weight:500} .tmem .tr{font-size:10px;color:var(--faint);margin-top:2px}
+  .stitle{font-family:var(--serif);font-size:21px;font-weight:500;margin-top:10px}
+  .navi{background:var(--deep);border-radius:var(--r);padding:13px;margin-top:14px;color:#fff}
+  .navi .nh{font-size:11px;color:#7FD7CC;display:flex;align-items:center;gap:7px;margin-bottom:9px}
+  .navi .nq{font-size:13px} .navi .ans{font-size:12px;color:#A9C8C3;background:rgba(255,255,255,.07);border-radius:10px;padding:9px 11px;margin-top:10px;line-height:1.45}
+  .provrow{display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:11px;margin-top:14px}
+  .provrow .av2{width:42px;height:42px;border-radius:50%;background:var(--mint-2);color:var(--teal-600);display:flex;align-items:center;justify-content:center;font-weight:600;flex:none}
+  .provrow .pn{font-size:13px;font-weight:600}.provrow .pr{font-size:11.5px;color:var(--faint)}
+  .provrow .match{margin-left:auto;font-size:10.5px;font-weight:500;color:var(--ok);background:var(--ok-bg);padding:4px 9px;border-radius:999px}
+  .slotlab{font-size:12px;font-weight:600;color:var(--muted);margin-top:16px}
+  .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .slot{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 4px;text-align:center;font-size:12px;font-weight:500;color:var(--ink)}
+  .slot .d{font-size:10px;color:var(--faint);font-weight:400;margin-top:2px}
+  .slot.sel{background:var(--teal);color:#fff;border-color:var(--teal)} .slot.sel .d{color:#BFE8E2}
+  .success{text-align:center;padding:26px 8px}
+  .success .ring{width:74px;height:74px;border-radius:50%;background:var(--ok-bg);color:var(--ok);display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+  .success h3{font-family:var(--serif);font-weight:500;font-size:21px;margin-bottom:6px}
+  .success p{font-size:13px;color:var(--muted);max-width:260px;margin:0 auto}
+  .vid{flex:1;background:var(--deep-2);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff}
+  .vid .bigav{width:96px;height:96px;border-radius:50%;background:#16433f;display:flex;align-items:center;justify-content:center;font-size:30px;color:#7FD7CC;font-weight:600}
+  .vid .vn{font-size:15px;font-weight:500;margin-top:16px} .vid .vs{font-size:12px;color:#8FB5AF;margin-top:4px}
+  .vid .ptile{position:absolute;bottom:96px;right:14px;width:74px;height:96px;border-radius:12px;background:#16433f;border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;color:#7FD7CC;font-size:11px}
+  .vctrl{position:absolute;bottom:22px;display:flex;gap:14px}
+  .vbtn{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;color:#fff;border:none}
+  .vbtn.end{background:var(--alert)}
+  .medrow{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}
+  .medrow .mi{width:34px;height:34px;border-radius:9px;background:var(--mint);color:var(--teal-600);display:flex;align-items:center;justify-content:center;flex:none}
+  .medrow .mn{font-size:13px;font-weight:500} .medrow .md{font-size:11.5px;color:var(--faint)}
+  .medrow .price{margin-left:auto;text-align:right} .medrow .price b{font-size:13px;color:var(--teal-600)} .medrow .price span{display:block;font-size:10.5px;color:var(--faint)}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;padding:11px 18px;border-radius:999px;z-index:60;opacity:0;transition:opacity .25s, transform .25s}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+
+  @media(max-width:820px){ .work{grid-template-columns:1fr} .side{display:none} .metrics{grid-template-columns:repeat(2,1fr)} .cols,.twocol{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<div class="chrome">
+  <div class="brand">
+    <span class="mark"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/><path d="M8.5 12h2l1-2 1.5 4 1-2h1.5"/></svg></span>
+    <span class="wordmark">Liftori<span class="d">·</span><b>Med</b></span>
+  </div>
+  <div class="switch">
+    <button id="sw-provider" class="on" onclick="setSurface('provider')">Provider workspace</button>
+    <button id="sw-patient" onclick="setSurface('patient')">Patient app</button>
+  </div>
+  <div class="env">Wave 1 preview</div>
+</div>
+
+<!-- PROVIDER -->
+<div id="provider" class="work">
+  <aside class="side">
+    <div class="clinic">
+      <span class="logo"><svg class="ic" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/></svg></span>
+      <div><div class="nm">Coastal Behavioral</div><div class="sub">Jacksonville, FL</div></div>
+    </div>
+    <nav class="nav" id="pnav"></nav>
+    <div class="foot"><span class="av">RP</span><div><div class="nm">Dr. Renee Patel</div><div class="sub">Clinical director</div></div></div>
+  </aside>
+  <main class="main" id="pmain"></main>
+</div>
+
+<!-- PATIENT -->
+<div id="patient" class="patientwrap hidden">
+  <div class="device"><div class="pscreen">
+    <div class="pnotch"></div>
+    <div class="pstat"><span>9:41</span><span id="pstat-title">Liftori·Med</span><span>5G</span></div>
+    <div class="pbody" id="pbody"></div>
+    <div class="ptabs" id="ptabs"></div>
+  </div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- shared state ---------------- */
+const ICON = {
+  dash:'<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>',
+  phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/>',
+  cal:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  users:'<circle cx="9" cy="8" r="4"/><path d="M2 21v-1a6 6 0 0 1 12 0v1"/><path d="M17 4a4 4 0 0 1 0 8"/>',
+  chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  video:'<path d="M15 10l4.5-4.5a2.1 2.1 0 0 0-3-3L12 7"/><rect x="2" y="6" width="13" height="12" rx="2"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 2.3 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H7a1.7 1.7 0 0 0 1-1.5V1a2 2 0 0 1 4 0v.1A1.7 1.7 0 0 0 17 2.3a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V7a1.7 1.7 0 0 0 1.5 1H23a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  check:'<path d="M20 6L9 17l-5-5"/>', refresh:'<path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', alert:'<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  doc:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/>',
+  pill:'<path d="M10.5 20.5 3.5 13.5a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7z"/><path d="M8.5 8.5l7 7"/>',
+  spark:'<path d="M12 2a5 5 0 0 1 5 5c0 2-1 3-1 4H8c0-1-1-2-1-4a5 5 0 0 1 5-5z"/><path d="M9 18h6M10 21h4"/>',
+  mic:'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/>',
+  home:'<path d="M3 11l9-8 9 8M5 9v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/>'
+};
+function svg(p,cls){return '<svg class="'+(cls||'ic')+'" viewBox="0 0 24 24">'+p+'</svg>';}
+
+const provider = {
+  metrics:{calls:47, booked:12, filled:5},
+  feed:[
+    {ic:'check',cls:'g',tx:'<b>Booked new patient</b> — Maria G. for intake Thu 3:00. Insurance &amp; history captured.',meta:'2 min ago · via phone'},
+    {ic:'refresh',cls:'',tx:'<b>Filled a cancellation</b> — pulled James P. from the waitlist into the 2:30 slot.',meta:'14 min ago · automatic'},
+    {ic:'cal',cls:'',tx:'<b>Rescheduled</b> — moved Dana R. to Fri 11:00 and sent confirmation.',meta:'28 min ago · via text'},
+    {ic:'alert',cls:'a',tx:'<b>Routed to a human</b> — flagged a distress call to Dr. Patel immediately.',meta:'41 min ago · escalation'}
+  ],
+  schedule:[
+    {time:'9:00',patient:'Aaron K.',v:'Therapy · Dr. Liu',chip:'ok',chipL:'Checked in'},
+    {time:'10:00',patient:'Priya S.',v:'Med mgmt · Dr. Patel',chip:'tel',chipL:'Telehealth'},
+    {time:'11:00',patient:'James P.',v:'Therapy · Dr. Liu',chip:'rec',chipL:'Recovered slot'},
+    {time:'1:30',patient:'Maria G.',v:'New patient intake',chip:'ok',chipL:'Confirmed'},
+    {time:'3:00',patient:'Dana R.',v:'Therapy · Dr. Patel',chip:'tel',chipL:'Telehealth'},
+    {time:'4:00',patient:'Open',v:'Held for same-day',chip:'in',chipL:'Available'}
+  ],
+  patients:[
+    {initials:'MG',name:'Maria Gomez',mt:'New patient · anxiety, sleep',status:'Active'},
+    {initials:'AK',name:'Aaron Klein',mt:'Therapy · biweekly',status:'Active'},
+    {initials:'PS',name:'Priya Shah',mt:'Med management',status:'Active'},
+    {initials:'JP',name:'James Park',mt:'Therapy · weekly',status:'Active'},
+    {initials:'DR',name:'Dana Reyes',mt:'Therapy · telehealth',status:'Active'}
+  ]
+};
+const patient = {
+  next:{title:'Video visit · Dr. Patel', when:'Today, 3:00 PM', has:true},
+  team:[{i:'RP',n:'Dr. Patel',r:'Psychiatry'},{i:'JL',n:'Dr. Liu',r:'Therapy'}],
+  meds:[
+    {n:'Sertraline 50mg',d:'1 tablet daily · 12 left',price:'$4',sub:'lowest nearby'},
+    {n:'Hydroxyzine 25mg',d:'as needed · 20 left',price:'$7',sub:'lowest nearby'}
+  ],
+  booking:{provider:null, slot:null}
+};
+const PNAV=[['dash','Dashboard'],['phone','Front Desk'],['cal','Schedule'],['users','Patients'],['chat','Messages'],['video','Telehealth'],['gear','Settings']];
+let pSection='phone';
+const PTABS=[['home','Home'],['spark','Find care'],['chat','Messages'],['doc','Records']];
+let pTab='home', findStep='start';
+
+/* ---------------- surface switch ---------------- */
+function setSurface(s){
+  document.getElementById('provider').classList.toggle('hidden', s!=='provider');
+  document.getElementById('patient').classList.toggle('hidden', s!=='patient');
+  document.getElementById('sw-provider').classList.toggle('on', s==='provider');
+  document.getElementById('sw-patient').classList.toggle('on', s==='patient');
+  if(s==='patient') renderPatient();
+}
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2200);}
+
+/* ---------------- provider render ---------------- */
+function renderNav(){
+  document.getElementById('pnav').innerHTML = PNAV.map(([ic,label])=>
+    '<button class="'+(pSection===ic?'on':'')+'" onclick="goSection(\''+ic+'\')">'+svg(ICON[ic])+label+'</button>').join('');
+}
+function goSection(s){pSection=s;renderNav();renderMain();}
+function renderMain(){
+  const m=document.getElementById('pmain');
+  if(pSection==='phone') m.innerHTML=viewFrontDesk();
+  else if(pSection==='dash') m.innerHTML=viewDash();
+  else if(pSection==='cal') m.innerHTML=viewSchedule();
+  else if(pSection==='users') m.innerHTML=viewPatients();
+  else if(pSection==='chat') m.innerHTML=viewMessages();
+  else if(pSection==='video') m.innerHTML=viewTelehealth();
+  else m.innerHTML=viewSettings();
+}
+function metric(l,ic,n,d,flat){return '<div class="metric"><div class="l">'+svg(ICON[ic],'ic ic-sm')+l+'</div><div class="n">'+n+'</div><div class="dlt'+(flat?' flat':'')+'">'+d+'</div></div>';}
+function feedHtml(){return provider.feed.map(f=>'<div class="it"><span class="ico '+f.cls+'">'+svg(ICON[f.ic],'ic ic-sm')+'</span><div><div class="tx">'+f.tx+'</div><div class="meta">'+f.meta+'</div></div></div>').join('');}
+function schHtml(){return provider.schedule.map(r=>'<div class="row'+(r.flash?' flash':'')+'"><span class="tm">'+r.time+'</span><div class="who"><div class="n">'+r.patient+'</div><div class="v">'+r.v+'</div></div><span class="chip '+r.chip+'">'+r.chipL+'</span></div>').join('');}
+
+function viewFrontDesk(){
+  return '<div class="ph"><div><h1>AI Front Desk <span class="live"><span class="b"></span>Live · handling calls</span></h1><div class="sub">Answers every call and message, books, reschedules, and backfills no-shows.</div></div>'
+    +'<button class="btn" onclick="simulateCall()">'+svg(ICON.phone,'ic ic-sm')+'Simulate incoming call</button></div>'
+    +'<div class="metrics">'+metric('Calls handled','phone',provider.metrics.calls,'100% answered today')+metric('Booked by AI','cal',provider.metrics.booked,'+'+ (provider.metrics.booked-8) +' new patients')+metric('No-shows filled','refresh',provider.metrics.filled,'from waitlist')+metric('Avg pickup','clock','Instant','0 sec on hold',true)+'</div>'
+    +'<div class="cols"><div class="card feed"><div class="ct">Live activity <span class="sm">auto-updating</span></div><div id="feed">'+feedHtml()+'</div></div>'
+    +'<div class="card sch"><div class="ct">Today’s schedule <span class="sm">Wed, Jun 24</span></div><div id="sched">'+schHtml()+'</div></div></div>'
+    +'<div class="call"><div class="top"><span class="pc">'+svg(ICON.phone)+'</span><div><div class="t">Incoming call · (904) 555-0148</div><div class="s">New caller · not yet a patient</div></div></div>'
+    +'<div class="bub pt"><span class="who">Caller</span>Hi, I’m trying to find a therapist who takes my insurance and has something this week.</div>'
+    +'<div class="bub ai"><span class="who">Liftori-Med AI</span>I can help with that. We have Thursday at 3:00 or Friday at 11:00 with Dr. Liu, who’s in-network with your plan. Which works better?</div>'
+    +'<div class="bub pt"><span class="who">Caller</span>Thursday at 3 is perfect.</div>'
+    +'<div class="bub ai"><span class="who">Liftori-Med AI</span>Booked. I’ll text you the intake forms and a reminder. You’re all set, Maria.</div></div>';
+}
+function simulateCall(){
+  const names=['Sofia R.','Marcus T.','Elena V.','Devon W.','Nina P.'];
+  const nm=names[Math.floor(Math.random()*names.length)];
+  provider.metrics.calls++; provider.metrics.booked++;
+  provider.feed.unshift({ic:'check',cls:'g',tx:'<b>Booked new patient</b> — '+nm+' for intake. Insurance &amp; history captured.',meta:'just now · via phone'});
+  provider.feed=provider.feed.slice(0,5);
+  const open=provider.schedule.find(r=>r.patient==='Open');
+  if(open){open.patient=nm;open.v='New patient intake';open.chip='new';open.chipL='Booked by AI';open.flash=true;}
+  renderMain();
+  toast('AI answered and booked '+nm);
+  setTimeout(()=>{const o=provider.schedule.find(r=>r.flash);if(o)o.flash=false;},1700);
+}
+function viewDash(){
+  return '<div class="ph"><div><h1>Dashboard</h1><div class="sub">Coastal Behavioral · today at a glance</div></div></div>'
+    +'<div class="metrics">'+metric('Today’s visits','cal','14','3 telehealth')+metric('Calls handled','phone','47','100% answered')+metric('No-show rate','refresh','9%','down from 26%')+metric('Open balance','doc','$1,240','2 claims pending',true)+'</div>'
+    +'<div class="cols"><div class="card feed"><div class="ct">Front desk activity</div>'+feedHtml()+'</div>'
+    +'<div class="card sch"><div class="ct">Next up</div>'+schHtml()+'</div></div>';
+}
+function viewSchedule(){
+  return '<div class="ph"><div><h1>Schedule</h1><div class="sub">Wednesday, June 24 · 2 providers</div></div><button class="btn ghost" onclick="goSection(\'phone\')">'+svg(ICON.phone,'ic ic-sm')+'Front desk</button></div>'
+    +'<div class="card sch">'+schHtml()+'</div>';
+}
+function viewPatients(){
+  return '<div class="ph"><div><h1>Patients</h1><div class="sub">'+provider.patients.length+' active</div></div></div>'
+    +'<div class="list">'+provider.patients.map(p=>'<div class="lrow"><span class="av">'+p.initials+'</span><div style="flex:1"><div class="nm">'+p.name+'</div><div class="mt">'+p.mt+'</div></div><span class="chip ok">'+p.status+'</span></div>').join('')+'</div>';
+}
+function viewMessages(){
+  return '<div class="ph"><div><h1>Messages</h1><div class="sub">Care-team inbox · AI triages the routine first</div></div></div>'
+    +'<div class="twocol"><div class="msgthread">'
+    +'<div class="msg them">Hi, I think I need to move my Thursday appointment.</div>'
+    +'<div class="msg me">No problem — I can do Friday 11:00 or Monday 9:00. Which works?</div>'
+    +'<div class="msg them">Friday works, thank you!</div>'
+    +'<div class="msg me">Done — confirmation sent. See you Friday at 11.</div></div>'
+    +'<div class="card"><div class="ct">AI handled today</div><div class="feed">'
+    +'<div class="it"><span class="ico g">'+svg(ICON.check,'ic ic-sm')+'</span><div><div class="tx">8 refill requests routed</div><div class="meta">no clinician time</div></div></div>'
+    +'<div class="it"><span class="ico">'+svg(ICON.cal,'ic ic-sm')+'</span><div><div class="tx">5 reschedules</div><div class="meta">auto-confirmed</div></div></div>'
+    +'<div class="it"><span class="ico a">'+svg(ICON.alert,'ic ic-sm')+'</span><div><div class="tx">1 escalation to Dr. Patel</div><div class="meta">flagged urgent</div></div></div></div></div></div>';
+}
+function viewTelehealth(){
+  return '<div class="ph"><div><h1>Telehealth</h1><div class="sub">Today’s virtual visits</div></div></div>'
+    +'<div class="list">'
+    +'<div class="lrow"><span class="av">PS</span><div style="flex:1"><div class="nm">Priya Shah · 10:00</div><div class="mt">Med management · Dr. Patel</div></div><button class="btn">'+svg(ICON.video,'ic ic-sm')+'Start visit</button></div>'
+    +'<div class="lrow"><span class="av">DR</span><div style="flex:1"><div class="nm">Dana Reyes · 3:00</div><div class="mt">Therapy · Dr. Patel</div></div><span class="chip in">Upcoming</span></div></div>';
+}
+function viewSettings(){
+  return '<div class="ph"><div><h1>Settings</h1><div class="sub">Clinic profile, hours, front-desk rules</div></div></div>'
+    +'<div class="stub"><span class="si">'+svg(ICON.gear)+'</span><h3>Clinic configuration</h3><p>Hours, providers, visit types, insurance, and the AI front-desk playbook (greeting, booking rules, escalation triggers) will live here.</p></div>';
+}
+
+/* ---------------- patient render ---------------- */
+function renderPatient(){renderPtabs();renderPbody();}
+function renderPtabs(){
+  document.getElementById('ptabs').innerHTML = PTABS.map(([ic,label],i)=>{
+    const key=['home','find','messages','records'][i];
+    return '<button class="'+(pTab===key?'on':'')+'" onclick="goTab(\''+key+'\')">'+svg(ICON[ic],'ic ic-sm')+label+'</button>';
+  }).join('');
+}
+function goTab(t){pTab=t;if(t==='find')findStep='start';renderPatient();document.getElementById('pbody').scrollTop=0;}
+function renderPbody(){
+  const b=document.getElementById('pbody');
+  const titles={home:'Liftori·Med',find:'Find care',messages:'Messages',records:'Records'};
+  document.getElementById('pstat-title').textContent=titles[pTab]||'Liftori·Med';
+  if(pTab==='home') b.innerHTML=scrHome();
+  else if(pTab==='find') b.innerHTML=scrFind();
+  else if(pTab==='messages') b.innerHTML=scrMessages();
+  else if(pTab==='records') b.innerHTML=scrRecords();
+  else if(pTab==='video') b.innerHTML=scrVideo();
+}
+function scrHome(){
+  const n=patient.next;
+  const nextCard = n.has
+    ? '<div class="pcard next"><div class="lab">Next appointment</div><div class="ti">'+n.title+'</div><div class="sb">'+svg(ICON.clock,'ic ic-sm')+n.when+'</div><button class="pbtn" onclick="goVideo()">'+svg(ICON.video,'ic ic-sm')+'Join visit</button></div>'
+    : '<div class="pcard"><div style="font-size:13px;color:var(--muted)">No upcoming visits.</div><button class="pbtn alt" onclick="goTab(\'find\')">'+svg(ICON.spark,'ic ic-sm')+'Find care</button></div>';
+  return '<div class="pgreet">Good morning,</div><div class="pname">Maria</div>'+nextCard
+    +'<div class="quick">'
+    +'<div class="qa" onclick="goTab(\'find\')"><span class="qi">'+svg(ICON.cal,'ic ic-sm')+'</span>Book</div>'
+    +'<div class="qa" onclick="goTab(\'messages\')"><span class="qi">'+svg(ICON.chat,'ic ic-sm')+'</span>Message</div>'
+    +'<div class="qa" onclick="goTab(\'records\')"><span class="qi">'+svg(ICON.pill,'ic ic-sm')+'</span>Meds</div>'
+    +'<div class="qa" onclick="goTab(\'records\')"><span class="qi">'+svg(ICON.doc,'ic ic-sm')+'</span>Records</div></div>'
+    +'<div class="plab">Your care team</div><div class="team">'
+    +patient.team.map(t=>'<div class="tmem"><div class="av2">'+t.i+'</div><div class="tn">'+t.n+'</div><div class="tr">'+t.r+'</div></div>').join('')
+    +'<div class="tmem"><div class="av2">+</div><div class="tn">Add</div><div class="tr">provider</div></div></div>';
+}
+function scrFind(){
+  if(findStep==='start'){
+    return '<div class="stitle">Find care</div>'
+      +'<div class="navi"><div class="nh">'+svg(ICON.spark,'ic ic-sm')+'Liftori-Med navigator</div><div class="nq">What do you need help with?</div>'
+      +'<div class="ans">You mentioned trouble sleeping and stress. Dr. Liu specializes in anxiety and sleep, has openings this week, and takes your insurance.</div></div>'
+      +'<div class="provrow"><span class="av2">JL</span><div><div class="pn">Dr. Jordan Liu</div><div class="pr">Therapy · anxiety, sleep</div></div><span class="match">98% match</span></div>'
+      +'<button class="pbtn alt" onclick="pickProvider()" style="margin-top:16px">See times with Dr. Liu</button>';
+  }
+  if(findStep==='slots'){
+    const slots=[['Thu','3:00 PM'],['Fri','11:00 AM'],['Fri','2:30 PM'],['Mon','9:00 AM'],['Mon','1:00 PM'],['Tue','4:00 PM']];
+    return '<div class="stitle">Dr. Jordan Liu</div><div class="pr" style="font-size:12px;color:var(--faint);margin-top:2px">Therapy · in-network · video or in-person</div>'
+      +'<div class="slotlab">Available this week</div><div class="slots">'
+      +slots.map((s,i)=>'<div class="slot'+(patient.booking.slot===i?' sel':'')+'" onclick="pickSlot('+i+',\''+s[0]+'\',\''+s[1]+'\')">'+s[0]+'<div class="d">'+s[1]+'</div></div>').join('')
+      +'</div>'+(patient.booking.slot!=null?'<button class="pbtn alt" onclick="confirmBooking()" style="margin-top:16px">Confirm '+patient.booking.label+'</button>':'<button class="pbtn ghost" style="margin-top:16px">Pick a time</button>');
+  }
+  if(findStep==='done'){
+    return '<div class="success"><div class="ring">'+svg(ICON.check)+'</div><h3>You’re booked</h3><p>'+patient.booking.label+' with Dr. Liu. We texted your intake forms and a reminder — and it’s already on the clinic’s schedule.</p>'
+      +'<button class="pbtn alt" onclick="goTab(\'home\')" style="margin-top:18px">Back to home</button></div>';
+  }
+}
+function pickProvider(){patient.booking.provider='Dr. Liu';findStep='slots';renderPbody();}
+function pickSlot(i,d,t){patient.booking.slot=i;patient.booking.label=d+', '+t;renderPbody();}
+function confirmBooking(){
+  findStep='done';
+  patient.next={title:'Therapy · Dr. Liu', when:patient.booking.label, has:true};
+  // reflect on provider schedule (two-sided)
+  const open=provider.schedule.find(r=>r.patient==='Open');
+  if(open){open.patient='Maria G.';open.v='Therapy · Dr. Liu';open.chip='new';open.chipL='Booked in app';}
+  provider.feed.unshift({ic:'check',cls:'g',tx:'<b>Patient self-booked</b> — Maria G. booked '+patient.booking.label+' with Dr. Liu in the app.',meta:'just now · patient app'});
+  provider.feed=provider.feed.slice(0,5);
+  provider.metrics.booked++;
+  renderMain();
+  renderPbody();
+  toast('Booked — and synced to the clinic');
+}
+function goVideo(){pTab='video';renderPtabs();renderPbody();}
+function scrVideo(){
+  return '<div class="vid" style="margin:-6px -18px 0;border-radius:0">'
+    +'<div class="bigav">RP</div><div class="vn">Dr. Renee Patel</div><div class="vs">Connected · secure</div>'
+    +'<div class="ptile">You</div>'
+    +'<div class="vctrl"><button class="vbtn">'+svg(ICON.mic)+'</button><button class="vbtn">'+svg(ICON.video)+'</button><button class="vbtn end" onclick="goTab(\'home\')">'+svg(ICON.phone)+'</button></div></div>';
+}
+function scrMessages(){
+  return '<div class="stitle">Messages</div>'
+    +'<div class="pcard" style="margin-top:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span class="av2" style="width:34px;height:34px;font-size:12px">RP</span><div><div style="font-size:13px;font-weight:600">Dr. Patel’s office</div><div style="font-size:11px;color:var(--faint)">usually replies within an hour</div></div></div>'
+    +'<div class="msgthread" style="border:none;padding:0;min-height:auto;gap:8px">'
+    +'<div class="msg them">Hi Maria — your refill is ready at your pharmacy.</div>'
+    +'<div class="msg me">Thank you! Anything I need to do before Thursday?</div>'
+    +'<div class="msg them">Just the intake form in your app. Takes 2 minutes.</div></div>'
+    +'<button class="pbtn ghost" style="margin-top:14px">Write a message</button></div>';
+}
+function scrRecords(){
+  return '<div class="stitle">Records &amp; meds</div>'
+    +'<div class="plab" style="margin-top:14px">Medications</div>'
+    +patient.meds.map(m=>'<div class="medrow"><span class="mi">'+svg(ICON.pill,'ic ic-sm')+'</span><div><div class="mn">'+m.n+'</div><div class="md">'+m.d+'</div></div><div class="price"><b>'+m.price+'</b><span>'+m.sub+'</span></div></div>').join('')
+    +'<div class="plab" style="margin-top:18px">Recent visit</div>'
+    +'<div class="pcard"><div style="font-size:13px;font-weight:600">Med management · Dr. Patel</div><div style="font-size:11.5px;color:var(--faint);margin-top:2px">Jun 3, 2026 · telehealth</div>'
+    +'<div style="font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.5">Summary, plan, and any new prescriptions appear here automatically after each visit — in plain language.</div></div>';
+}
+
+/* ---------------- init ---------------- */
+renderNav();renderMain();renderPtabs();
+</script>
+</body>
+</html>
