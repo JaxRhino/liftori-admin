@@ -1356,7 +1356,7 @@
     {k:'poker',n:'Video Poker',d:'Jacks or Better - hold and draw',modes:'Solo',play:1},
     {k:'blackjack',n:'Blackjack',d:'Beat the dealer to 21',modes:'Solo - Family',play:1},
     {k:'word',n:'Daily Word',d:'Guess the word in six tries',modes:'Solo - Family',play:1},
-    {k:'spades',n:'Spades & Hearts',d:'Team card games',modes:'Teams'},
+    {k:'spades',n:'Hearts',d:'Trick-taking - dodge the hearts and Q of spades',modes:'Solo vs 3',play:1},
     {k:'bingo',n:'Bingo',d:'Family game night, big groups',modes:'Family - Teams',play:1},
     {k:'connect',n:'Connect Four',d:'Quick head-to-head',modes:'Solo - Family',play:1}
   ];
@@ -1575,6 +1575,55 @@
     for(var r=0;r<5;r++){var row=true;for(var c=0;c<5;c++)if(!m[c][r])row=false;if(row)return true;}
     for(var c2=0;c2<5;c2++){var col=true;for(var r2=0;r2<5;r2++)if(!m[c2][r2])col=false;if(col)return true;}
     var d1=true,d2=true;for(var k=0;k<5;k++){if(!m[k][k])d1=false;if(!m[k][4-k])d2=false;}return d1||d2;}
+
+    var cmHE=null;var cmHEsuit=['\u2663','\u2666','\u2660','\u2665'];var cmHEnames=['You','Vanessa','Mom','Mike'];
+  function cmHEsort(a,b){if(a.s!==b.s)return a.s-b.s;return a.r-b.r;}
+  function cmHElab(c){return (c.r===14?'A':c.r===13?'K':c.r===12?'Q':c.r===11?'J':c.r)+cmHEsuit[c.s];}
+  function cmg_spades(){var deck=[];for(var s=0;s<4;s++)for(var r=2;r<=14;r++)deck.push({r:r,s:s});
+    for(var i=deck.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=deck[i];deck[i]=deck[j];deck[j]=t;}
+    var hands=[[],[],[],[]];for(var k=0;k<52;k++)hands[k%4].push(deck[k]);hands.forEach(function(h){h.sort(cmHEsort);});
+    var lead=0;for(var p=0;p<4;p++)for(var c=0;c<hands[p].length;c++)if(hands[p][c].r===2&&hands[p][c].s===0)lead=p;
+    cmHE={hands:hands,trick:[],leader:lead,turn:lead,scores:[0,0,0,0],tricks:0,broken:false,over:false,msg:''};cmHEstep();}
+  function cmHElegal(p){var h=cmHE.hands[p];var leading=cmHE.trick.length===0;
+    if(cmHE.tricks===0&&leading){var twoC=h.filter(function(c){return c.r===2&&c.s===0;});if(twoC.length)return twoC;}
+    if(leading){if(!cmHE.broken){var nonH=h.filter(function(c){return c.s!==3;});if(nonH.length)return nonH;}return h.slice();}
+    var led=cmHE.trick[0].card.s;var follow=h.filter(function(c){return c.s===led;});if(follow.length)return follow;
+    if(cmHE.tricks===0){var safe=h.filter(function(c){return c.s!==3&&!(c.r===12&&c.s===2);});if(safe.length)return safe;}
+    return h.slice();}
+  function cmHEplay(p,card){var h=cmHE.hands[p];for(var i=0;i<h.length;i++)if(h[i].r===card.r&&h[i].s===card.s){h.splice(i,1);break;}
+    if(card.s===3)cmHE.broken=true;cmHE.trick.push({p:p,card:card});cmHE.turn=(p+1)%4;}
+  function cmHEai(p){var legal=cmHElegal(p).slice();legal.sort(function(a,b){return a.r-b.r;});var leading=cmHE.trick.length===0;
+    if(leading)return legal[0];
+    var led=cmHE.trick[0].card.s;
+    if(legal[0].s===led){var hi=cmHE.trick.filter(function(t){return t.card.s===led;}).reduce(function(m,t){return t.card.r>m?t.card.r:m;},0);
+      var under=legal.filter(function(c){return c.r<hi;});if(under.length)return under[under.length-1];return legal[0];}
+    var qs=legal.filter(function(c){return c.r===12&&c.s===2;});if(qs.length)return qs[0];
+    var hearts=legal.filter(function(c){return c.s===3;});if(hearts.length)return hearts[hearts.length-1];
+    return legal[legal.length-1];}
+  function cmHEstep(){while(!cmHE.over&&cmHE.turn!==0&&cmHE.trick.length<4){cmHEplay(cmHE.turn,cmHEai(cmHE.turn));}
+    if(cmHE.trick.length===4){cmHErender();setTimeout(cmHEresolve,750);}else cmHErender();}
+  function cmHEhuman(idx){if(cmHE.over||cmHE.turn!==0)return;var legal=cmHElegal(0);var card=cmHE.hands[0][idx];
+    if(!card||!legal.some(function(c){return c.r===card.r&&c.s===card.s;}))return;cmHEplay(0,card);
+    if(cmHE.trick.length===4){cmHErender();setTimeout(cmHEresolve,750);}else{cmHErender();setTimeout(cmHEstep,450);}}
+  function cmHEresolve(){var led=cmHE.trick[0].card.s;var win=cmHE.trick[0];
+    for(var i=1;i<4;i++){var t=cmHE.trick[i];if(t.card.s===led&&t.card.r>win.card.r)win=t;}
+    var pts=0;cmHE.trick.forEach(function(t){if(t.card.s===3)pts++;if(t.card.r===12&&t.card.s===2)pts+=13;});cmHE.scores[win.p]+=pts;
+    cmHE.trick=[];cmHE.leader=win.p;cmHE.turn=win.p;cmHE.tricks++;
+    if(cmHE.tricks>=13){cmHEfinish();return;}cmHErender();setTimeout(cmHEstep,450);}
+  function cmHEfinish(){cmHE.over=true;var min=Math.min.apply(null,cmHE.scores);var you=(cmHE.scores[0]===min);
+    if(you)cmAddChips(80);cmHE.msg=you?'Fewest points - you win! +80 chips':cmHEnames[cmHE.scores.indexOf(min)]+' wins this round';cmHErender();}
+  function cmHErender(){var bd=document.getElementById('cmGameBody');if(!bd||!cmHE)return;
+    var trick=cmHE.trick.map(function(t){return '<div style="text-align:center;font-size:10.5px;color:var(--muted)">'+cmHEnames[t.p]+'<div style="font-size:17px;font-weight:800;color:'+((t.card.s===1||t.card.s===3)?'#C0392B':'#222')+'">'+cmHElab(t.card)+'</div></div>';}).join('');
+    var sc='<div style="display:flex;justify-content:space-around;font-size:11px;margin-bottom:8px">'+cmHEnames.map(function(n,i){return '<span><b>'+n+'</b> '+cmHE.scores[i]+'</span>';}).join('')+'</div>';
+    var legal=cmHE.over?[]:cmHElegal(0);
+    var hand=cmHE.hands[0].map(function(c,i){var ok=legal.some(function(l){return l.r===c.r&&l.s===c.s;});return '<span onclick="'+(ok?'cmHEhuman('+i+')':'')+'" style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:32px;height:46px;border-radius:6px;background:#fff;border:1px solid '+(ok?'var(--pine)':'var(--line)')+';margin:2px;font-weight:800;font-size:13px;color:'+((c.s===1||c.s===3)?'#C0392B':'#222')+';cursor:'+(ok?'pointer':'default')+';opacity:'+(ok?1:0.4)+'">'+(c.r===14?'A':c.r===13?'K':c.r===12?'Q':c.r===11?'J':c.r)+'<span style="font-size:12px">'+cmHEsuit[c.s]+'</span></span>';}).join('');
+    var status=cmHE.over?cmHE.msg:(cmHE.turn===0?'Your turn - dodge hearts and the Q'+cmHEsuit[2]:cmHEnames[cmHE.turn]+' is playing...');
+    bd.innerHTML=sc
+      +'<div style="background:var(--bg);border:1px solid var(--line);border-radius:12px;min-height:68px;display:flex;gap:12px;align-items:center;justify-content:center;padding:8px;margin-bottom:10px">'+(trick||'<span style="color:var(--muted);font-size:12px">Trick '+(cmHE.tricks+1)+' of 13</span>')+'</div>'
+      +'<div style="font-weight:800;text-align:center;min-height:20px;margin-bottom:8px;color:'+(cmHE.over?(cmHE.scores[0]===Math.min.apply(null,cmHE.scores)?'var(--pine)':'#B0472A'):'var(--muted)')+'">'+status+'</div>'
+      +'<div style="text-align:center;line-height:1">'+hand+'</div>'
+      +(cmHE.over?'<button class="btn" style="width:100%;margin-top:10px" onclick="cmg_spades()">Play again</button>':'')
+      +'<button class="btn ghost" style="width:100%;margin-top:8px" onclick="cmCloseGame()">Back to Game Hub</button>';}
 
   function isBlocked(m,name){return !!m&&(m.blocked||[]).indexOf(name)>=0;}
   function toggleBlock(name){var m=members[activeUser];if(!m.blocked)m.blocked=[];var i=m.blocked.indexOf(name);if(i>=0)m.blocked.splice(i,1);else m.blocked.push(name);renderSettings();if(typeof renderTree==='function')renderTree();}
