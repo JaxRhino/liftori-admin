@@ -443,7 +443,7 @@
   <div id="cmGames" style="display:none">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
       <div style="font-size:13px;color:var(--muted)">Play solo, challenge another family, or build teams. Friendly play-chips &mdash; no real money.</div>
-      <button onclick="cmGame('challenge')" class="btn">Challenge a family</button>
+      <button onclick="cmGame('challenge')" class="btn">Play online</button>
     </div>
     <div id="cmGameGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:18px"></div>
     <div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px">
@@ -1393,7 +1393,7 @@
     var modal=document.getElementById('cmGameModal'),title=document.getElementById('cmGameTitle'),body=document.getElementById('cmGameBody');
     var gm=cmGamesList.filter(function(x){return x.k===key;})[0]||{n:'Game',d:''};
     if(key==='trivia'){title.textContent='Family Trivia';cmTrivia();}
-    else if(key==='challenge'){title.textContent='Challenge a family';body.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Pick a family to challenge to any game. They will get an invite in their Community chat.</div>'+['The Riveras','Grandpa Lou crew','The Andersons'].map(function(f){return '<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px"><span style="font-weight:700">'+f+'</span><button class="btn" style="padding:6px 14px" onclick="cmCloseGame()">Invite</button></div>';}).join('');}
+    else if(key==='challenge'){cmMPLobby();return;}
     else if(typeof window['cmg_'+key]==='function'){title.textContent=gm.n;window['cmg_'+key]();}
     else{title.textContent=gm.n;body.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:14px">'+esc(gm.d)+'. Choose how you want to play:</div>'+['Play solo','Challenge a family','Create teams'].map(function(m){return '<button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="cmCloseGame()">'+m+'</button>';}).join('')+'<div style="background:var(--bg);border:1px dashed var(--line);border-radius:12px;padding:12px;text-align:center;color:var(--muted);font-size:12.5px;margin-top:6px">Live table coming soon.</div>';}
     modal.style.display='flex';
@@ -1510,7 +1510,7 @@
   function cmGameMsg(m){var b=document.getElementById('cmGameBody');if(b)b.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:18px 6px">'+esc(m)+'</div><button class="btn ghost" style="width:100%" onclick="cmCloseGame()">Back to Game Hub</button>';}
 
     var cmC4=null;
-  function cmg_connect(){cmC4={b:[],turn:1,over:false,msg:'Drop a disc - you are terracotta',color:'var(--ink)'};for(var c=0;c<7;c++)cmC4.b.push([]);cmC4render();}
+  function cmC4solo(){cmC4={b:[],turn:1,over:false,msg:'Drop a disc - you are terracotta',color:'var(--ink)'};for(var c=0;c<7;c++)cmC4.b.push([]);cmC4render();}
   function cmC4render(){var bd=document.getElementById('cmGameBody');
     var grid='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;background:var(--pine);padding:8px;border-radius:12px;max-width:300px;margin:0 auto">';
     for(var r=5;r>=0;r--){for(var c=0;c<7;c++){var v=cmC4.b[c][r];var col=v===1?'#D9805A':v===2?'#E8B04B':'#fff';grid+='<div onclick="cmC4drop('+c+')" style="aspect-ratio:1;border-radius:50%;background:'+col+';cursor:'+(cmC4.over?'default':'pointer')+'"></div>';}}
@@ -1626,13 +1626,74 @@
       +(cmHE.over?'<button class="btn" style="width:100%;margin-top:10px" onclick="cmg_spades()">Play again</button>':'')
       +'<button class="btn ghost" style="width:100%;margin-top:8px" onclick="cmCloseGame()">Back to Game Hub</button>';}
 
-    (function(){try{
-    if(!window.supabase){document.documentElement.setAttribute('data-llrt','NO_LIB');return;}
-    var _c=window.supabase.createClient('https://qlerfkdyslndjbaltkwo.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsZXJma2R5c2xuZGpiYWx0a3dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTc0MTAsImV4cCI6MjA4ODczMzQxMH0.NM-bFnfWqrnelLnpYO8NNMVpwkoq4LSfCIVq6gs23qk');
-    var _ch=_c.channel('ll-probe',{config:{broadcast:{self:true}}});
-    _ch.on('broadcast',{event:'p'},function(){document.documentElement.setAttribute('data-llrt','RECEIVED');});
-    _ch.subscribe(function(st){document.documentElement.setAttribute('data-llrt',st);if(st==='SUBSCRIBED')_ch.send({type:'broadcast',event:'p',payload:{}});});
-  }catch(e){document.documentElement.setAttribute('data-llrt','ERR:'+String(e).slice(0,60));}})();
+      var LL_URL='https://qlerfkdyslndjbaltkwo.supabase.co';
+  var LL_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsZXJma2R5c2xuZGpiYWx0a3dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTc0MTAsImV4cCI6MjA4ODczMzQxMH0.NM-bFnfWqrnelLnpYO8NNMVpwkoq4LSfCIVq6gs23qk';
+  var LL_SB=null;try{if(window.supabase)LL_SB=window.supabase.createClient(LL_URL,LL_KEY);}catch(e){}
+
+    var cmMP=null;
+  function cmCode(){var a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<4;i++)s+=a.charAt(Math.floor(Math.random()*a.length));return s;}
+  function cmUid(){return Math.random().toString(36).slice(2,9);}
+  function cmMyName(){try{if(typeof members!=='undefined'&&members[activeUser]&&members[activeUser].name)return members[activeUser].name.split(' ')[0];}catch(e){}return 'Player';}
+  function cmMPback(){return '<button class="btn ghost" style="width:100%;margin-top:10px" onclick="cmMPleave()">Leave room</button>';}
+  function cmMPleave(){try{if(cmMP&&cmMP.ch&&LL_SB)LL_SB.removeChannel(cmMP.ch);}catch(e){}cmMP=null;cmCloseGame();}
+  function cmMPLobby(){var modal=document.getElementById('cmGameModal'),title=document.getElementById('cmGameTitle'),body=document.getElementById('cmGameBody');title.textContent='Play online';
+    if(!LL_SB){body.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:18px 6px">Online play is still connecting. Give it a moment and reopen.</div><button class="btn ghost" style="width:100%" onclick="cmCloseGame()">Back</button>';modal.style.display='flex';return;}
+    body.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Create a room and share the code, or join a family member.</div>'
+      +'<label style="font-size:11px;font-weight:800;color:var(--muted)">Your name</label><input id="cmMPname" class="vi" value="'+esc(cmMyName())+'" style="margin:4px 0 14px"/>'
+      +'<button class="btn" style="width:100%;margin-bottom:10px" onclick="cmMPcreate()">Create a room</button>'
+      +'<div style="display:flex;gap:8px"><input id="cmMPcode" class="vi" placeholder="CODE" maxlength="4" style="text-transform:uppercase;letter-spacing:3px;text-align:center"/><button class="btn ghost" style="padding:0 16px" onclick="cmMPjoinInput()">Join</button></div>'
+      +'<button class="btn ghost" style="width:100%;margin-top:14px" onclick="cmCloseGame()">Back</button>';
+    modal.style.display='flex';}
+  function cmMPcreate(){var n=(document.getElementById('cmMPname').value||'Player').slice(0,16);cmMPstart(cmCode(),true,n);}
+  function cmMPjoinInput(){var c=(document.getElementById('cmMPcode').value||'').toUpperCase().slice(0,4);var n=(document.getElementById('cmMPname').value||'Player').slice(0,16);if(c.length<4)return;cmMPstart(c,false,n);}
+  function cmMPstart(code,host,name){
+    cmMP={code:code,host:host,me:cmUid(),name:name,players:{},game:null};
+    var ch=LL_SB.channel('ll-room-'+code,{config:{presence:{key:cmMP.me},broadcast:{self:false}}});
+    cmMP.ch=ch;
+    ch.on('presence',{event:'sync'},function(){var st=ch.presenceState();cmMP.players={};Object.keys(st).forEach(function(k){var m=st[k][0]||{};cmMP.players[k]={name:m.name,host:m.host};});if(!cmMP.game)cmMProom();});
+    ch.on('broadcast',{event:'start'},function(p){cmMP.game=p.payload.game;cmMPbegin(p.payload);});
+    ch.on('broadcast',{event:'move'},function(p){if(cmMP.game==='connect')cmC4mpRecv(p.payload);});
+    ch.on('broadcast',{event:'rematch'},function(p){if(cmMP.game==='connect')cmC4mpStart();});
+    ch.subscribe(function(st){if(st==='SUBSCRIBED'){ch.track({name:cmMP.name,host:cmMP.host});cmMProom();}else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'){var b=document.getElementById('cmGameBody');if(b)b.innerHTML='<div style="text-align:center;color:#B0472A;padding:18px">Could not connect. Try again.</div><button class="btn ghost" style="width:100%" onclick="cmCloseGame()">Back</button>';}});
+  }
+  function cmMPidList(){var ids=Object.keys(cmMP.players);var hostId=ids.filter(function(i){return cmMP.players[i].host;})[0];var others=ids.filter(function(i){return !cmMP.players[i].host;}).sort();return hostId?[hostId].concat(others):ids.sort();}
+  function cmMPseat(){return cmMPidList().indexOf(cmMP.me);}
+  function cmMProom(){var body=document.getElementById('cmGameBody');if(!body||!cmMP)return;document.getElementById('cmGameTitle').textContent='Room '+cmMP.code;
+    var ids=cmMPidList();
+    var list=ids.map(function(i){var p=cmMP.players[i]||{};return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0"><span style="width:8px;height:8px;border-radius:50%;background:var(--pine)"></span><span style="font-weight:700">'+esc(p.name||'Player')+(i===cmMP.me?' (you)':'')+'</span>'+(p.host?'<span style="font-size:10px;color:var(--muted)">host</span>':'')+'</div>';}).join('');
+    var ready=ids.length>=2;
+    body.innerHTML='<div style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:var(--muted)">Share this code</div><div style="font-size:30px;font-weight:800;letter-spacing:6px;color:var(--pine)">'+cmMP.code+'</div></div>'
+      +'<div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Players ('+ids.length+')</div>'+list
+      +(cmMP.host?'<div style="margin-top:12px"><button class="btn'+(ready?'':' ghost')+'" style="width:100%" '+(ready?'':'disabled style="opacity:.5;width:100%"')+' onclick="cmMPlaunch(\'connect\')">Start Connect Four'+(ready?'':' (need 2 players)')+'</button></div>':'<div style="text-align:center;color:var(--muted);font-size:12.5px;margin-top:14px">Waiting for the host to start...</div>')
+      +cmMPback();}
+  function cmMPlaunch(game){if(game==='connect'&&cmMPidList().length<2)return;cmMP.game=game;cmMP.ch.send({type:'broadcast',event:'start',payload:{game:game}});cmMPbegin({game:game});}
+  function cmMPbegin(p){if(p.game==='connect')cmC4mpStart();}
+
+  function cmC4winSeat(b,p){function at(c,r){return (b[c]&&b[c][r]!=null)?b[c][r]:-1;}for(var c=0;c<7;c++)for(var r=0;r<6;r++){if(at(c,r)!==p)continue;if(at(c,r+1)===p&&at(c,r+2)===p&&at(c,r+3)===p)return true;if(at(c+1,r)===p&&at(c+2,r)===p&&at(c+3,r)===p)return true;if(at(c+1,r+1)===p&&at(c+2,r+2)===p&&at(c+3,r+3)===p)return true;if(at(c+1,r-1)===p&&at(c+2,r-2)===p&&at(c+3,r-3)===p)return true;}return false;}
+  function cmC4grid(onclickName,clickable){var grid='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;background:var(--pine);padding:8px;border-radius:12px;max-width:300px;margin:0 auto">';for(var r=5;r>=0;r--){for(var c=0;c<7;c++){var v=cmC4.b[c][r];var col=v===0?'#D9805A':v===1?'#E8B04B':'#fff';grid+='<div onclick="'+onclickName+'('+c+')" style="aspect-ratio:1;border-radius:50%;background:'+col+';cursor:'+(clickable?'pointer':'default')+'"></div>';}}return grid+'</div>';}
+
+  function cmC4mpStart(){cmC4={b:[],turn:0,over:false,mp:true,seat:cmMPseat(),msg:'',color:'var(--ink)'};for(var c=0;c<7;c++)cmC4.b.push([]);document.getElementById('cmGameTitle').textContent='Connect Four';cmC4mpRender();}
+  function cmC4mpRender(){var bd=document.getElementById('cmGameBody');var myTurn=(cmC4.turn===cmC4.seat)&&!cmC4.over;var youColor=cmC4.seat===0?'terracotta':'gold';
+    var status=cmC4.over?cmC4.msg:(myTurn?'Your turn ('+youColor+')':'Waiting for opponent...');
+    bd.innerHTML='<div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:4px">Room '+cmMP.code+' - you are '+youColor+'</div>'
+      +'<div style="text-align:center;font-weight:800;min-height:22px;margin-bottom:8px;color:'+(cmC4.color||'var(--ink)')+'">'+status+'</div>'+cmC4grid('cmC4mpDrop',myTurn)
+      +(cmC4.over&&cmC4.seat===0?'<button class="btn" style="width:100%;margin-top:10px" onclick="cmC4mpRematchHost()">Rematch</button>':'')+cmMPback();}
+  function cmC4mpDrop(c){if(cmC4.over||cmC4.turn!==cmC4.seat||cmC4.b[c].length>=6)return;cmC4.b[c].push(cmC4.seat);cmMP.ch.send({type:'broadcast',event:'move',payload:{col:c,seat:cmC4.seat}});cmC4mpAfter(cmC4.seat);}
+  function cmC4mpRecv(p){if(!cmC4||!cmC4.mp||cmC4.over)return;if(p.seat===cmC4.seat)return;cmC4.b[p.col].push(p.seat);cmC4mpAfter(p.seat);}
+  function cmC4mpAfter(who){if(cmC4winSeat(cmC4.b,who)){cmC4.over=true;cmC4.msg=(who===cmC4.seat)?'You win! +75 chips':'Opponent wins';cmC4.color=(who===cmC4.seat)?'var(--pine)':'#B0472A';if(who===cmC4.seat)cmAddChips(75);cmC4mpRender();return;}var full=cmC4.b.every(function(col){return col.length>=6;});if(full){cmC4.over=true;cmC4.msg='Draw!';cmC4.color='var(--muted)';cmC4mpRender();return;}cmC4.turn=who===0?1:0;cmC4mpRender();}
+  function cmC4mpRematchHost(){cmMP.ch.send({type:'broadcast',event:'rematch',payload:{}});cmC4mpStart();}
+
+  function cmC4pp(){cmC4={b:[],turn:0,over:false,pp:true,msg:'',color:'var(--ink)'};for(var c=0;c<7;c++)cmC4.b.push([]);document.getElementById('cmGameTitle').textContent='Connect Four - 2 players';cmC4ppRender();}
+  function cmC4ppRender(){var bd=document.getElementById('cmGameBody');var status=cmC4.over?cmC4.msg:((cmC4.turn===0?'Terracotta':'Gold')+' to move');
+    bd.innerHTML='<div style="text-align:center;font-weight:800;min-height:22px;margin-bottom:8px;color:'+(cmC4.color||'var(--ink)')+'">'+status+'</div>'+cmC4grid('cmC4ppDrop',!cmC4.over)+(cmC4.over?'<button class="btn" style="width:100%;margin-top:10px" onclick="cmC4pp()">Play again</button>':'')+'<button class="btn ghost" style="width:100%;margin-top:8px" onclick="cmCloseGame()">Back to Game Hub</button>';}
+  function cmC4ppDrop(c){if(cmC4.over||cmC4.b[c].length>=6)return;cmC4.b[c].push(cmC4.turn);if(cmC4winSeat(cmC4.b,cmC4.turn)){cmC4.over=true;cmC4.msg=(cmC4.turn===0?'Terracotta':'Gold')+' wins!';cmC4.color='var(--pine)';cmC4ppRender();return;}var full=cmC4.b.every(function(col){return col.length>=6;});if(full){cmC4.over=true;cmC4.msg='Draw!';cmC4.color='var(--muted)';cmC4ppRender();return;}cmC4.turn=cmC4.turn===0?1:0;cmC4ppRender();}
+
+  function cmg_connect(){var bd=document.getElementById('cmGameBody');document.getElementById('cmGameTitle').textContent='Connect Four';
+    bd.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:14px">How do you want to play?</div>'
+      +'<button class="btn" style="width:100%;margin-bottom:8px" onclick="cmC4solo()">Solo vs computer</button>'
+      +'<button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="cmC4pp()">2 players (pass and play)</button>'
+      +'<button class="btn ghost" style="width:100%" onclick="cmMPLobby()">Play online with family</button>'
+      +'<button class="btn ghost" style="width:100%;margin-top:10px" onclick="cmCloseGame()">Back to Game Hub</button>';}
 
   function isBlocked(m,name){return !!m&&(m.blocked||[]).indexOf(name)>=0;}
   function toggleBlock(name){var m=members[activeUser];if(!m.blocked)m.blocked=[];var i=m.blocked.indexOf(name);if(i>=0)m.blocked.splice(i,1);else m.blocked.push(name);renderSettings();if(typeof renderTree==='function')renderTree();}
