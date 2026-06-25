@@ -1635,7 +1635,7 @@
   function cmUid(){return Math.random().toString(36).slice(2,9);}
   function cmMyName(){try{if(typeof members!=='undefined'&&members[activeUser]&&members[activeUser].name)return members[activeUser].name.split(' ')[0];}catch(e){}return 'Player';}
   function cmMPback(){return '<button class="btn ghost" style="width:100%;margin-top:10px" onclick="cmMPleave()">Leave room</button>';}
-  function cmMPleave(){try{if(cmMP&&cmMP.ch&&cmMP.sb)cmMP.sb.removeChannel(cmMP.ch);}catch(e){}cmMP=null;cmCloseGame();}
+  function cmMPleave(){try{if(cmMP&&cmMP.hb)clearInterval(cmMP.hb);}catch(e){}try{if(cmMP&&cmMP.ch&&cmMP.sb)cmMP.sb.removeChannel(cmMP.ch);}catch(e){}cmMP=null;cmCloseGame();}
   function cmMPLobby(){var modal=document.getElementById('cmGameModal'),title=document.getElementById('cmGameTitle'),body=document.getElementById('cmGameBody');title.textContent='Play online';
     if(!LL_SB){body.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:18px 6px">Online play is still connecting. Give it a moment and reopen.</div><button class="btn ghost" style="width:100%" onclick="cmCloseGame()">Back</button>';modal.style.display='flex';return;}
     body.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Create a room and share the code, or join a family member.</div>'
@@ -1657,7 +1657,7 @@
     ch.on('broadcast',{event:'start'},function(p){cmMP.game=p.payload.game;cmMPbegin(p.payload);});
     ch.on('broadcast',{event:'move'},function(p){if(cmMP.game==='connect')cmC4mpRecv(p.payload);});
     ch.on('broadcast',{event:'rematch'},function(p){if(cmMP.game==='connect')cmC4mpStart();});
-    ch.subscribe(function(st){if(st==='SUBSCRIBED'){ch.send({type:'broadcast',event:'join',payload:{id:cmMP.me,name:cmMP.name,host:cmMP.host}});cmMProom();}else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'){var b=document.getElementById('cmGameBody');if(b)b.innerHTML='<div style="text-align:center;color:#B0472A;padding:18px">Could not connect. Try again.</div><button class="btn ghost" style="width:100%" onclick="cmCloseGame()">Back</button>';}});
+    ch.subscribe(function(st){if(st==='SUBSCRIBED'){ch.send({type:'broadcast',event:'join',payload:{id:cmMP.me,name:cmMP.name,host:cmMP.host}});cmMP.hb=setInterval(function(){try{if(cmMP&&cmMP.ch)cmMP.ch.send({type:'broadcast',event:'hb',payload:{}});}catch(e){}},3000);cmMProom();}else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'){var b=document.getElementById('cmGameBody');if(b)b.innerHTML='<div style="text-align:center;color:#B0472A;padding:18px">Could not connect. Try again.</div><button class="btn ghost" style="width:100%" onclick="cmCloseGame()">Back</button>';}});
   }
   function cmMPidList(){var ids=Object.keys(cmMP.players);var hostId=ids.filter(function(i){return cmMP.players[i].host;})[0];var others=ids.filter(function(i){return !cmMP.players[i].host;}).sort();return hostId?[hostId].concat(others):ids.sort();}
   function cmMPseat(){return cmMP.host?0:1;}
