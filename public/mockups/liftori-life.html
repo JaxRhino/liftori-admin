@@ -1355,10 +1355,10 @@
     {k:'roulette',n:'Roulette',d:'Spin and bet your chips',modes:'Solo - Family',play:1},
     {k:'poker',n:'Video Poker',d:'Jacks or Better - hold and draw',modes:'Solo',play:1},
     {k:'blackjack',n:'Blackjack',d:'Beat the dealer to 21',modes:'Solo - Family',play:1},
-    {k:'word',n:'Daily Word',d:'Guess the word in six tries',modes:'Solo - Family'},
+    {k:'word',n:'Daily Word',d:'Guess the word in six tries',modes:'Solo - Family',play:1},
     {k:'spades',n:'Spades & Hearts',d:'Team card games',modes:'Teams'},
-    {k:'bingo',n:'Bingo',d:'Family game night, big groups',modes:'Family - Teams'},
-    {k:'connect',n:'Connect Four',d:'Quick head-to-head',modes:'Solo - Family'}
+    {k:'bingo',n:'Bingo',d:'Family game night, big groups',modes:'Family - Teams',play:1},
+    {k:'connect',n:'Connect Four',d:'Quick head-to-head',modes:'Solo - Family',play:1}
   ];
   var cmMsgData={
     community:[['Liftori Team','Welcome to the Community! Say hi and find families to play.'],['The Riveras','Anyone up for a Bingo night Friday?'],['Grandpa Lou','New here - 4 generations on my tree now!']],
@@ -1507,6 +1507,74 @@
     if(counts[0]===2){for(var r2 in rc)if(rc[r2]===2&&(r2==='1'||Number(r2)>=11))return 'Jacks or Better';}return null;}
 
   function cmGameMsg(m){var b=document.getElementById('cmGameBody');if(b)b.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:18px 6px">'+esc(m)+'</div><button class="btn ghost" style="width:100%" onclick="cmCloseGame()">Back to Game Hub</button>';}
+
+    var cmC4=null;
+  function cmg_connect(){cmC4={b:[],turn:1,over:false,msg:'Drop a disc - you are terracotta',color:'var(--ink)'};for(var c=0;c<7;c++)cmC4.b.push([]);cmC4render();}
+  function cmC4render(){var bd=document.getElementById('cmGameBody');
+    var grid='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;background:var(--pine);padding:8px;border-radius:12px;max-width:300px;margin:0 auto">';
+    for(var r=5;r>=0;r--){for(var c=0;c<7;c++){var v=cmC4.b[c][r];var col=v===1?'#D9805A':v===2?'#E8B04B':'#fff';grid+='<div onclick="cmC4drop('+c+')" style="aspect-ratio:1;border-radius:50%;background:'+col+';cursor:'+(cmC4.over?'default':'pointer')+'"></div>';}}
+    grid+='</div>';
+    bd.innerHTML='<div style="text-align:center;font-weight:800;min-height:22px;margin-bottom:8px;color:'+(cmC4.color||'var(--ink)')+'">'+cmC4.msg+'</div>'+grid+(cmC4.over?'<button class="btn" style="width:100%;margin-top:10px" onclick="cmg_connect()">Play again</button>':'')+'<button class="btn ghost" style="width:100%;margin-top:8px" onclick="cmCloseGame()">Back to Game Hub</button>';}
+  function cmC4drop(c){if(cmC4.over||cmC4.turn!==1||cmC4.b[c].length>=6)return;cmC4.b[c].push(1);if(cmC4chk(1))return;cmC4.turn=2;cmC4render();setTimeout(cmC4ai,350);}
+  function cmC4ai(){if(cmC4.over)return;var c=cmC4pick();if(c==null){cmC4chk(0);return;}cmC4.b[c].push(2);if(cmC4chk(2))return;cmC4.turn=1;cmC4render();}
+  function cmC4chk(p){if(p&&cmC4win(cmC4.b,p)){cmC4.over=true;cmC4.msg=p===1?'You win! +60 chips':'House wins this round';cmC4.color=p===1?'var(--pine)':'#B0472A';if(p===1)cmAddChips(60);cmC4render();return true;}
+    var full=cmC4.b.every(function(col){return col.length>=6;});if(full){cmC4.over=true;cmC4.msg='Draw!';cmC4.color='var(--muted)';cmC4render();return true;}return false;}
+  function cmC4valid(){var v=[];for(var c=0;c<7;c++)if(cmC4.b[c].length<6)v.push(c);return v;}
+  function cmC4sim(b,c,p){var nb=b.map(function(x){return x.slice();});nb[c].push(p);return nb;}
+  function cmC4pick(){var valid=cmC4valid();if(!valid.length)return null;
+    for(var i=0;i<valid.length;i++)if(cmC4win(cmC4sim(cmC4.b,valid[i],2),2))return valid[i];
+    for(var j=0;j<valid.length;j++)if(cmC4win(cmC4sim(cmC4.b,valid[j],1),1))return valid[j];
+    var pref=[3,2,4,1,5,0,6].filter(function(c){return valid.indexOf(c)>=0;});return pref[0];}
+  function cmC4win(b,p){function at(c,r){return (b[c]&&b[c][r])||0;}
+    for(var c=0;c<7;c++)for(var r=0;r<6;r++){if(at(c,r)!==p)continue;
+      if(at(c,r+1)===p&&at(c,r+2)===p&&at(c,r+3)===p)return true;
+      if(at(c+1,r)===p&&at(c+2,r)===p&&at(c+3,r)===p)return true;
+      if(at(c+1,r+1)===p&&at(c+2,r+2)===p&&at(c+3,r+3)===p)return true;
+      if(at(c+1,r-1)===p&&at(c+2,r-2)===p&&at(c+3,r-3)===p)return true;}
+    return false;}
+
+  var cmWD=null;var cmWords=['APPLE','BRAVE','CRANE','DREAM','EAGLE','FAITH','GRACE','HEART','IVORY','LEMON','MAPLE','NOBLE','OCEAN','PEARL','QUILT','RIVER','STORM','TIGER','UNITY','VOWEL','WAGON','YACHT','ZEBRA','HOUSE','PLANT','SMILE','TRAIN','CLOUD','FROST','BERRY'];
+  function cmg_word(){cmWD={ans:cmWords[Math.floor(Math.random()*cmWords.length)],guesses:[],over:false,msg:'Guess the 5-letter word',color:'var(--muted)'};cmWDrender();}
+  function cmWDrender(){var bd=document.getElementById('cmGameBody');var rows='';
+    for(var i=0;i<6;i++){var g=cmWD.guesses[i];rows+='<div style="display:flex;gap:5px;justify-content:center;margin-bottom:5px">';
+      for(var j=0;j<5;j++){var ch=g?g.w[j]:'';var col=g?cmWDcol(g,j):'';var bg=col==='g'?'#2F6B5E':col==='y'?'#E8B04B':col==='x'?'#9a9387':'var(--surface)';var fg=col?'#fff':'var(--ink)';rows+='<div style="width:42px;height:42px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;background:'+bg+';color:'+fg+'">'+ch+'</div>';}
+      rows+='</div>';}
+    bd.innerHTML='<div style="text-align:center;font-weight:800;min-height:22px;margin-bottom:10px;color:'+(cmWD.color||'var(--muted)')+'">'+cmWD.msg+'</div>'+rows
+      +(cmWD.over?'<button class="btn" style="width:100%;margin-top:8px" onclick="cmg_word()">Play again</button>':'<div style="display:flex;gap:8px;margin-top:8px"><input id="cmWDin" maxlength="5" class="vi" style="text-transform:uppercase;letter-spacing:3px;text-align:center" onkeydown="if(event.key===\'Enter\')cmWDguess()"/><button class="btn" onclick="cmWDguess()">Enter</button></div>')
+      +'<button class="btn ghost" style="width:100%;margin-top:8px" onclick="cmCloseGame()">Back to Game Hub</button>';
+    var inp=document.getElementById('cmWDin');if(inp)inp.focus();}
+  function cmWDcol(g,j){var a=cmWD.ans;if(g.w[j]===a.charAt(j))return 'g';if(a.indexOf(g.w[j])>=0)return 'y';return 'x';}
+  function cmWDguess(){var inp=document.getElementById('cmWDin');if(!inp)return;var w=(inp.value||'').toUpperCase();if(!/^[A-Z]{5}$/.test(w)){cmWD.msg='Enter a 5-letter word';cmWD.color='#B0472A';cmWDrender();return;}
+    cmWD.guesses.push({w:w});
+    if(w===cmWD.ans){cmWD.over=true;var reward=Math.max(20,(7-cmWD.guesses.length)*20);cmAddChips(reward);cmWD.msg='Got it! +'+reward+' chips';cmWD.color='var(--pine)';}
+    else if(cmWD.guesses.length>=6){cmWD.over=true;cmWD.msg='Out of tries - it was '+cmWD.ans;cmWD.color='#B0472A';}
+    else{cmWD.msg=(6-cmWD.guesses.length)+' guesses left';cmWD.color='var(--muted)';}
+    cmWDrender();}
+
+  var cmBG=null;
+  function cmg_bingo(){var card=[],used={};for(var c=0;c<5;c++){var colArr=[];var lo=c*15+1;while(colArr.length<5){var n=lo+Math.floor(Math.random()*15);if(!used[n]){used[n]=1;colArr.push(n);}}card.push(colArr);}
+    cmBG={card:card,marks:[],drawn:[],pool:[],over:false,msg:'Draw numbers to mark your card',color:'var(--ink)'};
+    for(var i=0;i<5;i++)cmBG.marks.push([false,false,false,false,false]);cmBG.marks[2][2]=true;
+    for(var n2=1;n2<=75;n2++)cmBG.pool.push(n2);cmBGrender();}
+  function cmBGrender(){var bd=document.getElementById('cmGameBody');var hdr=['B','I','N','G','O'];
+    var grid='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:240px;margin:0 auto">';
+    grid+=hdr.map(function(h){return '<div style="text-align:center;font-weight:800;color:var(--pine)">'+h+'</div>';}).join('');
+    for(var r=0;r<5;r++)for(var c=0;c<5;c++){var free=(c===2&&r===2);var val=free?'FREE':cmBG.card[c][r];var m=cmBG.marks[c][r];grid+='<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:6px;font-weight:700;font-size:'+(free?'9px':'14px')+';background:'+(m?'#2F6B5E':'var(--surface)')+';color:'+(m?'#fff':'var(--ink)')+';border:1px solid var(--line)">'+val+'</div>';}
+    grid+='</div>';
+    var last=cmBG.drawn.length?cmBG.drawn[cmBG.drawn.length-1]:null;
+    bd.innerHTML='<div style="text-align:center;font-weight:800;min-height:22px;margin-bottom:6px;color:'+(cmBG.color||'var(--ink)')+'">'+cmBG.msg+'</div>'
+      +'<div style="text-align:center;font-size:28px;font-weight:800;color:var(--terra);min-height:38px;margin-bottom:8px">'+(last?cmBGlabel(last):'-')+'</div>'+grid
+      +(cmBG.over?'<button class="btn" style="width:100%;margin-top:10px" onclick="cmg_bingo()">Play again</button>':'<button class="btn" style="width:100%;margin-top:10px" onclick="cmBGdraw()">Draw number</button>')
+      +'<button class="btn ghost" style="width:100%;margin-top:8px" onclick="cmCloseGame()">Back to Game Hub</button>';}
+  function cmBGlabel(n){var c=Math.floor((n-1)/15);return 'BINGO'.charAt(c)+'-'+n;}
+  function cmBGdraw(){if(cmBG.over||!cmBG.pool.length)return;var i=Math.floor(Math.random()*cmBG.pool.length);var n=cmBG.pool.splice(i,1)[0];cmBG.drawn.push(n);
+    for(var c=0;c<5;c++)for(var r=0;r<5;r++)if(cmBG.card[c][r]===n)cmBG.marks[c][r]=true;
+    if(cmBGwin()){cmBG.over=true;cmBG.msg='BINGO! +100 chips';cmBG.color='var(--pine)';cmAddChips(100);}
+    else{cmBG.msg=cmBG.drawn.length+' drawn - keep going';cmBG.color='var(--muted)';}cmBGrender();}
+  function cmBGwin(){var m=cmBG.marks;
+    for(var r=0;r<5;r++){var row=true;for(var c=0;c<5;c++)if(!m[c][r])row=false;if(row)return true;}
+    for(var c2=0;c2<5;c2++){var col=true;for(var r2=0;r2<5;r2++)if(!m[c2][r2])col=false;if(col)return true;}
+    var d1=true,d2=true;for(var k=0;k<5;k++){if(!m[k][k])d1=false;if(!m[k][4-k])d2=false;}return d1||d2;}
 
   function isBlocked(m,name){return !!m&&(m.blocked||[]).indexOf(name)>=0;}
   function toggleBlock(name){var m=members[activeUser];if(!m.blocked)m.blocked=[];var i=m.blocked.indexOf(name);if(i>=0)m.blocked.splice(i,1);else m.blocked.push(name);renderSettings();if(typeof renderTree==='function')renderTree();}
