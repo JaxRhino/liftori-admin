@@ -284,6 +284,7 @@ export default function Team() {
   const [testerEnrollLoading, setTesterEnrollLoading] = useState(false);
   const [showEnrollTesterFor, setShowEnrollTesterFor] = useState(null); // member object
   const [testerInvites, setTesterInvites] = useState([]);
+  const [teamInvites, setTeamInvites] = useState([]);
   const [showInviteTesterModal, setShowInviteTesterModal] = useState(false);
 
   // ─── Data Fetching ───────────────────────────────────────────────────────
@@ -294,7 +295,7 @@ export default function Team() {
   async function fetchAll() {
     setLoading(true);
     try {
-      await Promise.all([fetchMembers(), fetchRoles(), fetchActivity(), fetchOnboarding(), fetchTeams(), reloadTesterEnrollments()]);
+      await Promise.all([fetchMembers(), fetchRoles(), fetchActivity(), fetchOnboarding(), fetchTeams(), reloadTesterEnrollments(), fetchTeamInvites()]);
     } finally {
       setLoading(false);
     }
@@ -314,6 +315,38 @@ export default function Team() {
     } finally {
       setTesterEnrollLoading(false);
     }
+  }
+
+  async function fetchTeamInvites() {
+    try {
+      const { data, error } = await supabase
+        .from('team_invites')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setTeamInvites(data || []);
+    } catch (err) {
+      console.error('Team invites fetch failed', err);
+    }
+  }
+
+  async function handleResendTeamInvite(id) {
+    try {
+      await supabase.from('team_invites').update({ email_send_error: null }).eq('id', id);
+      const { data, error } = await supabase.functions.invoke('team-invite', { body: { invite_id: id } });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'send failed');
+      showToast('Invite email resent', 'success');
+      fetchTeamInvites();
+    } catch (err) {
+      showToast('Resend failed: ' + (err?.message || 'unknown'), 'error');
+    }
+  }
+
+  async function handleCopyInviteLink(invite) {
+    const url = `${window.location.origin}/accept-invite/${invite.token}`;
+    try { await navigator.clipboard.writeText(url); showToast('Accept link copied', 'success'); }
+    catch { showToast(url, 'info'); }
   }
 
   async function handleResendInvite(id) {
@@ -717,21 +750,34 @@ export default function Team() {
       }
 
       // Create invite record
-      const { error } = await supabase.from('team_invites').insert({
+      const { data: inv, error } = await supabase.from('team_invites').insert({
         email: inviteForm.email,
         full_name: inviteForm.full_name,
         role: inviteForm.role,
         invited_by: user?.id,
         status: 'pending',
-      });
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      }).select().single();
 
       if (error) throw error;
 
+      // Send the invite email (edge function stamps email_sent_at / email_send_error)
+      let emailed = false, emailErr = null;
+      try {
+        const { data: sendRes, error: sendErr } = await supabase.functions.invoke('team-invite', { body: { invite_id: inv.id } });
+        if (sendErr || sendRes?.error) emailErr = sendRes?.error || sendErr?.message || 'send failed';
+        else emailed = true;
+      } catch (e) { emailErr = e?.message || 'send failed'; }
+
       await logActivity('invited', inviteForm.email, { role: inviteForm.role });
-      showToast(`Invite sent to ${inviteForm.email}`, 'success');
+      showToast(
+        emailed ? `Invite emailed to ${inviteForm.email}` : `Invite saved, but the email did not send${emailErr ? ': ' + emailErr : ''}. Use Resend.`,
+        emailed ? 'success' : 'error'
+      );
       setShowInviteModal(false);
-      setInviteForm({ email: '', full_name: '', role: 'Sales' });
+      setInviteForm({ email: '', full_name: '', role: 'Sales Rep' });
       fetchActivity();
+      fetchTeamInvites();
     } catch (err) {
       console.error('Error inviting user:', err);
       showToast('Failed to send invite', 'error');
@@ -973,6 +1019,36 @@ export default function Team() {
               className="w-full bg-navy-800 border border-navy-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-sky-500"
             />
           </div>
+
+          {/* Pending team invites */}
+          {teamInvites.filter(i => i.status === 'pending').length > 0 && (
+            <div className="mb-5 rounded-lg border border-navy-700 bg-navy-800/40 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-navy-700/70 text-sm font-semibold text-white">
+                Pending invites ({teamInvites.filter(i => i.status === 'pending').length})
+              </div>
+              <div className="divide-y divide-navy-700/50">
+                {teamInvites.filter(i => i.status === 'pending').map(inv => (
+                  <div key={inv.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <div className="text-sm text-white truncate">{inv.full_name || inv.email}</div>
+                      <div className="text-xs text-gray-500 truncate">{inv.email} &middot; {inv.role}</div>
+                      <div className="text-[11px] mt-0.5">
+                        {inv.email_send_error
+                          ? <span className="text-rose-400">Send error: {String(inv.email_send_error).slice(0, 60)}</span>
+                          : inv.email_sent_at
+                            ? <span className="text-emerald-400">Emailed {new Date(inv.email_sent_at).toLocaleDateString()}</span>
+                            : <span className="text-amber-400">Not emailed yet</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button onClick={() => handleCopyInviteLink(inv)} className="text-xs text-gray-400 hover:text-white">Copy link</button>
+                      <button onClick={() => handleResendTeamInvite(inv.id)} className="text-xs text-sky-400 hover:text-sky-300">Resend</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Members Table */}
           <div className="bg-navy-800/50 border border-navy-700/50 rounded-lg overflow-hidden">
