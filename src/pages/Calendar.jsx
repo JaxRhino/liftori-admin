@@ -56,6 +56,7 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
   const [team, setTeam] = useState([])
   const [extName, setExtName] = useState('')
   const [extEmail, setExtEmail] = useState('')
+  const [sendingInvites, setSendingInvites] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -86,6 +87,16 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
   }
   function removeAttendee(idx) {
     setAttendees(prev => prev.filter((_, i) => i !== idx))
+  }
+  async function sendInvites() {
+    if (!event?.id) { alert('Save the event first, then send invites.'); return }
+    setSendingInvites(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('event-invite', { body: { event_id: event.id, origin: window.location.origin } })
+      if (error) throw error
+      alert(`Invites sent to ${data?.sent ?? 0} attendee(s).`)
+    } catch (err) { console.error('[Calendar] sendInvites', err); alert('Could not send invites. Try again.') }
+    finally { setSendingInvites(false) }
   }
 
   async function addVideoCall() {
@@ -264,6 +275,8 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {attendees.map((a, i) => (
                   <span key={i} className="inline-flex items-center gap-1 bg-white/5 border border-white/10 rounded-full pl-2 pr-1 py-0.5 text-xs text-slate-200">
+                    {a.rsvp_status === 'accepted' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="Accepted" />}
+                    {a.rsvp_status === 'declined' && <span className="w-1.5 h-1.5 rounded-full bg-red-400" title="Declined" />}
                     {a.name || a.email}
                     <button type="button" onClick={() => removeAttendee(i)} className="text-slate-500 hover:text-red-300">&times;</button>
                   </span>
@@ -282,6 +295,12 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
               <button type="button" onClick={addExternal} disabled={!extEmail.trim()}
                 className="px-3 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white text-sm shrink-0">Add</button>
             </div>
+            {event?.id && attendees.some(a => a.email) && (
+              <button type="button" onClick={sendInvites} disabled={sendingInvites}
+                className="mt-2 text-xs text-sky-400 hover:text-sky-300 disabled:opacity-50">
+                {sendingInvites ? 'Sending invites...' : 'Send email invites'}
+              </button>
+            )}
           </div>
         </div>
         <div className="flex items-center justify-between px-5 pb-5">
