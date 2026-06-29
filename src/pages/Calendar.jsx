@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 const EVENT_COLORS = [
-  { value: 'blue',    label: 'Blue',    dot: 'bg-blue-500',    pill: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-  { value: 'green',   label: 'Green',   dot: 'bg-emerald-500', pill: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
-  { value: 'amber',   label: 'Amber',   dot: 'bg-amber-500',   pill: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-  { value: 'red',     label: 'Red',     dot: 'bg-red-500',     pill: 'bg-red-500/20 text-red-300 border-red-500/30' },
-  { value: 'violet',  label: 'Violet',  dot: 'bg-violet-500',  pill: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
-  { value: 'slate',   label: 'Gray',    dot: 'bg-gray-400',   pill: 'bg-gray-500/20 text-gray-300 border-gray-500/30' },
+  { value: 'blue',   label: 'Blue',   color: '#3b82f6' },
+  { value: 'green',  label: 'Green',  color: '#10b981' },
+  { value: 'amber',  label: 'Amber',  color: '#f59e0b' },
+  { value: 'red',    label: 'Red',    color: '#ef4444' },
+  { value: 'violet', label: 'Violet', color: '#8b5cf6' },
+  { value: 'slate',  label: 'Gray',   color: '#94a3b8' },
 ]
+const dotStyle = (color) => ({ backgroundColor: color || '#3b82f6' })
+const pillStyle = (color) => { const c = color || '#3b82f6'; return { backgroundColor: `${c}22`, color: c, borderColor: `${c}55` } }
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -34,7 +36,7 @@ function formatTime(t) {
   return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
-function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
+function EventModal({ event, selectedDate, categories = EVENT_COLORS, onClose, onSave, onDelete }) {
   const [form, setForm] = useState({
     title: event?.title || '',
     description: event?.description || '',
@@ -214,12 +216,13 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
             </div>
           )}
           <div>
-            <label className="text-gray-400 text-xs mb-2 block">Color</label>
-            <div className="flex gap-2">
-              {EVENT_COLORS.map(c => (
-                <button key={c.value} onClick={() => setForm(f => ({ ...f, color: c.value }))}
+            <label className="text-gray-400 text-xs mb-2 block">Category</label>
+            <div className="flex gap-2 flex-wrap">
+              {(categories || []).map(c => (
+                <button key={c.value} type="button" onClick={() => setForm(f => ({ ...f, color: c.value }))}
                   title={c.label}
-                  className={`w-6 h-6 rounded-full ${c.dot} transition-transform hover:scale-110 ${form.color === c.value ? 'ring-2 ring-white/50 scale-110' : ''}`} />
+                  style={dotStyle(c.color)}
+                  className={`w-6 h-6 rounded-full transition-transform hover:scale-110 ${form.color === c.value ? 'ring-2 ring-white/50 scale-110' : ''}`} />
               ))}
             </div>
           </div>
@@ -323,6 +326,61 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
   )
 }
 
+function CategoryEditor({ categories, onClose, onSaved }) {
+  const [rows, setRows] = useState(() => categories.map(c => ({ id: c.id, key: c.value, name: c.label, color: c.color })))
+  const [saving, setSaving] = useState(false)
+
+  function update(i, field, val) { setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r)) }
+  function addRow() { setRows(prev => [...prev, { key: (crypto.randomUUID ? crypto.randomUUID() : 'cat_' + Date.now()), name: 'New category', color: '#38bdf8' }]) }
+  function removeRow(i) { setRows(prev => prev.map((r, idx) => idx === i ? { ...r, _delete: true } : r)) }
+
+  async function save() {
+    setSaving(true)
+    try {
+      for (let idx = 0; idx < rows.length; idx++) {
+        const r = rows[idx]
+        if (r._delete) { if (r.id) await supabase.from('calendar_categories').delete().eq('id', r.id); continue }
+        if (!r.name || !r.name.trim()) continue
+        if (r.id) {
+          await supabase.from('calendar_categories').update({ name: r.name.trim(), color: r.color, sort_order: idx }).eq('id', r.id)
+        } else {
+          await supabase.from('calendar_categories').insert({ key: r.key, name: r.name.trim(), color: r.color, sort_order: idx })
+        }
+      }
+      await onSaved()
+      onClose()
+    } catch (err) { console.error('[Calendar] save categories', err); alert('Could not save categories. Try again.') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-navy-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
+          <h2 className="text-white font-semibold">Event Categories</h2>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="px-5 pb-2 flex-1 overflow-y-auto min-h-0 space-y-2">
+          {rows.map((r, i) => r._delete ? null : (
+            <div key={i} className="flex items-center gap-2">
+              <input type="color" value={r.color} onChange={e => update(i, 'color', e.target.value)} className="w-9 h-9 rounded cursor-pointer bg-transparent border border-white/10 shrink-0" />
+              <input value={r.name} onChange={e => update(i, 'name', e.target.value)} placeholder="Category name" className={INPUT} />
+              <button type="button" onClick={() => removeRow(i)} className="text-slate-500 hover:text-red-300 text-xs px-1 shrink-0">Remove</button>
+            </div>
+          ))}
+          <button type="button" onClick={addRow} className="text-xs text-blue-400 hover:text-blue-300 mt-1">+ Add category</button>
+        </div>
+        <div className="flex items-center justify-end gap-3 px-5 py-4 shrink-0 border-t border-white/10">
+          <button onClick={onClose} className="text-slate-400 hover:text-white px-4 py-2 text-sm transition-colors">Cancel</button>
+          <button onClick={save} disabled={saving} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">{saving ? 'Saving...' : 'Save'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Calendar() {
   const today = new Date()
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
@@ -333,8 +391,18 @@ export default function Calendar() {
   const [editing, setEditing] = useState(null)
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedDayEvents, setSelectedDayEvents] = useState([])
+  const [categories, setCategories] = useState(EVENT_COLORS)
+  const [showCats, setShowCats] = useState(false)
 
   useEffect(() => { fetchEvents() }, [currentYear, currentMonth])
+  useEffect(() => { fetchCategories() }, [])
+
+  async function fetchCategories() {
+    try {
+      const { data } = await supabase.from('calendar_categories').select('*').eq('is_active', true).order('sort_order', { ascending: true })
+      if (data && data.length) setCategories(data.map(c => ({ value: c.key, label: c.name, color: c.color, id: c.id })))
+    } catch (err) { console.error(err) }
+  }
 
   async function fetchEvents() {
     setLoading(true)
@@ -562,11 +630,12 @@ export default function Calendar() {
                       </div>
                       <div className="space-y-0.5">
                         {dayEvents.slice(0, 3).map(ev => {
-                          const col = EVENT_COLORS.find(c => c.value === ev.color) || EVENT_COLORS[0]
+                          const col = categories.find(c => c.value === ev.color) || categories[0]
                           return (
                             <div key={ev.id}
                               onClick={e => { e.stopPropagation(); openEdit(ev) }}
-                              className={`text-xs px-1.5 py-0.5 rounded truncate cursor-pointer border ${col.pill} hover:opacity-80 transition-opacity`}>
+                              style={pillStyle(col?.color)}
+                              className="text-xs px-1.5 py-0.5 rounded truncate cursor-pointer border hover:opacity-80 transition-opacity">
                               {!ev.all_day && ev.start_time && (
                                 <span className="mr-1 opacity-70">{formatTime(ev.start_time)}</span>
                               )}
@@ -597,12 +666,13 @@ export default function Calendar() {
               </div>
               <div className="space-y-2">
                 {selectedDayEvents.map(ev => {
-                  const col = EVENT_COLORS.find(c => c.value === ev.color) || EVENT_COLORS[0]
+                  const col = categories.find(c => c.value === ev.color) || categories[0]
                   return (
                     <div key={ev.id}
                       onClick={() => openEdit(ev)}
-                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-white/5 ${col.pill}`}>
-                      <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${col.dot}`} />
+                      style={pillStyle(col?.color)}
+                      className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-white/5">
+                      <div className="w-2 h-2 rounded-full mt-1 flex-shrink-0" style={dotStyle(col?.color)} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white">{ev.title}</p>
                         {ev.meeting_url && (
@@ -611,8 +681,8 @@ export default function Calendar() {
                         )}
                         {ev.description && <p className="text-xs text-gray-400 mt-0.5">{ev.description}</p>}
                         <p className="text-xs text-gray-500 mt-1">
-                          {ev.all_day ? 'All day' : `${formatTime(ev.start_time)}${ev.end_time ? ` â ${formatTime(ev.end_time)}` : ''}`}
-                          {ev.end_date && ev.end_date !== ev.start_date && ` Â· until ${new Date(ev.end_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                          {ev.all_day ? 'All day' : `${formatTime(ev.start_time)}${ev.end_time ? ` - ${formatTime(ev.end_time)}` : ''}`}
+                          {ev.end_date && ev.end_date !== ev.start_date && ` until ${new Date(ev.end_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                         </p>
                       </div>
                     </div>
@@ -634,11 +704,14 @@ export default function Calendar() {
 
           {/* Color legend */}
           <div className="bg-navy-900 border border-white/10 rounded-xl p-4">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Event Colors</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Categories</p>
+              <button onClick={() => setShowCats(true)} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Edit colors</button>
+            </div>
             <div className="space-y-2">
-              {EVENT_COLORS.map(c => (
+              {categories.map(c => (
                 <div key={c.value} className="flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-full ${c.dot}`} />
+                  <div className="w-2.5 h-2.5 rounded-full" style={dotStyle(c.color)} />
                   <span className="text-xs text-gray-400">{c.label}</span>
                   <span className="text-xs text-navy-600 ml-auto">
                     {events.filter(e => e.color === c.value).length}
@@ -656,17 +729,17 @@ export default function Calendar() {
             ) : (
               <div className="space-y-3">
                 {upcomingEvents.map(ev => {
-                  const col = EVENT_COLORS.find(c => c.value === ev.color) || EVENT_COLORS[0]
+                  const col = categories.find(c => c.value === ev.color) || categories[0]
                   const evDate = new Date(ev.start_date + 'T12:00:00')
                   return (
                     <div key={ev.id} onClick={() => openEdit(ev)}
                       className="flex items-start gap-2.5 cursor-pointer group">
-                      <div className={`w-1 h-full min-h-[36px] rounded-full ${col.dot} flex-shrink-0 mt-0.5`} />
+                      <div className="w-1 h-full min-h-[36px] rounded-full flex-shrink-0 mt-0.5" style={dotStyle(col?.color)} />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-white group-hover:text-blue-300 transition-colors truncate">{ev.title}</p>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {evDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          {!ev.all_day && ev.start_time && ` Â· ${formatTime(ev.start_time)}`}
+                          {!ev.all_day && ev.start_time && ` ${formatTime(ev.start_time)}`}
                         </p>
                       </div>
                     </div>
@@ -683,10 +756,14 @@ export default function Calendar() {
         <EventModal
           event={editing}
           selectedDate={selectedDate}
+          categories={categories}
           onClose={() => { setShowModal(false); setEditing(null) }}
           onSave={saveEvent}
           onDelete={deleteEvent}
         />
+      )}
+      {showCats && (
+        <CategoryEditor categories={categories} onClose={() => setShowCats(false)} onSaved={fetchCategories} />
       )}
     </div>
   )
