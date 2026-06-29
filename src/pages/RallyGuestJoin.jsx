@@ -3,12 +3,17 @@
  * URL: /rally/join/:code  (no auth required)
  *
  * Powered by a managed Daily.co room behind Liftori/Rally branding. The rally-room
- * edge function validates the invite code and returns a shared room URL, so the host
- * and every guest who opens the same link land in the same room. Daily's own prejoin
- * handles camera/mic permission with a real user gesture — reliable on mobile.
+ * edge function validates the invite code and returns a shared room URL (host + every
+ * guest who open the same link land in the same room).
+ *
+ * We navigate the browser DIRECTLY into the Daily room (top-level) rather than embedding
+ * it in an iframe. On mobile — especially iOS — an iframed call often can't surface the
+ * camera/mic permission prompt, and in-app browsers block it entirely. Running Daily as
+ * the top-level page lets it request permissions natively and, in a locked-down in-app
+ * browser, prompt the user to open in Safari/Chrome.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { RallyIcon } from '../components/chat/RallyVideoCall';
@@ -17,15 +22,12 @@ import { Loader2, AlertCircle, Video, ShieldCheck } from 'lucide-react';
 export default function RallyGuestJoin() {
   const { code } = useParams();
 
-  // Phases: loading, invalid, ready, in_room
-  const [phase, setPhase] = useState('loading');
+  const [phase, setPhase] = useState('loading'); // loading | invalid | ready
   const [roomUrl, setRoomUrl] = useState('');
   const [label, setLabel] = useState('Rally Meeting');
   const [errorMsg, setErrorMsg] = useState('');
-  const [joining, setJoining] = useState(false);
-  const iframeRef = useRef(null);
+  const [entering, setEntering] = useState(false);
 
-  // Resolve the invite code -> managed room URL via the edge function.
   useEffect(() => {
     let cancelled = false;
     async function resolveRoom() {
@@ -54,11 +56,11 @@ export default function RallyGuestJoin() {
   }, [code]);
 
   function enterRoom() {
-    setJoining(true);
-    setPhase('in_room');
+    if (!roomUrl) return;
+    setEntering(true);
+    window.location.href = roomUrl;
   }
 
-  // ─── Loading ───
   if (phase === 'loading') {
     return (
       <Shell>
@@ -70,7 +72,6 @@ export default function RallyGuestJoin() {
     );
   }
 
-  // ─── Invalid ───
   if (phase === 'invalid') {
     return (
       <Shell>
@@ -86,32 +87,6 @@ export default function RallyGuestJoin() {
     );
   }
 
-  // ─── In room (Daily embed) ───
-  if (phase === 'in_room') {
-    return (
-      <div className="min-h-screen h-screen bg-slate-950 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center">
-              <RallyIcon className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-white font-semibold text-sm">{label}</span>
-          </div>
-          <span className="text-slate-500 text-xs">Liftori Rally</span>
-        </div>
-        <iframe
-          ref={iframeRef}
-          title="Rally Video"
-          src={roomUrl}
-          className="flex-1 w-full border-0"
-          allow="camera; microphone; fullscreen; speaker; display-capture; autoplay; clipboard-write"
-          allowFullScreen
-        />
-      </div>
-    );
-  }
-
-  // ─── Ready (branded landing -> tap to enter Daily prejoin) ───
   return (
     <Shell>
       <div className="w-full max-w-md text-center px-6">
@@ -123,16 +98,16 @@ export default function RallyGuestJoin() {
 
         <button
           onClick={enterRoom}
-          disabled={joining}
+          disabled={entering}
           className="w-full bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 text-white h-12 rounded-xl text-base font-semibold flex items-center justify-center gap-2 transition disabled:opacity-60"
         >
-          <Video className="h-5 w-5" />
-          Join the meeting
+          {entering ? <Loader2 className="h-5 w-5 animate-spin" /> : <Video className="h-5 w-5" />}
+          {entering ? 'Opening…' : 'Join the meeting'}
         </button>
 
         <div className="mt-5 flex items-center justify-center gap-1.5 text-slate-500 text-xs">
           <ShieldCheck className="h-3.5 w-3.5" />
-          No download or sign-up — works right in your browser
+          No download or sign-up — allow camera &amp; mic when asked
         </div>
         <p className="mt-8 text-slate-600 text-xs">Powered by Liftori Rally</p>
       </div>
