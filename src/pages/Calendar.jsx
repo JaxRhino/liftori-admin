@@ -154,8 +154,8 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-navy-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 pt-5 pb-0">
+      <div className="bg-navy-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-0 shrink-0">
           <h2 className="text-white font-semibold">{event ? 'Edit Event' : 'New Event'}</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -163,7 +163,7 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
             </svg>
           </button>
         </div>
-        <div className="p-5 space-y-3">
+        <div className="p-5 space-y-3 flex-1 overflow-y-auto min-h-0">
           {event?.meeting_url && (
             <a
               href={event.meeting_url}
@@ -303,7 +303,7 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
             )}
           </div>
         </div>
-        <div className="flex items-center justify-between px-5 pb-5">
+        <div className="flex items-center justify-between px-5 py-4 shrink-0 border-t border-white/10">
           <div className="flex gap-3">
             <button onClick={handleSave} disabled={!form.title.trim() || saving}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
