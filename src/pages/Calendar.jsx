@@ -45,6 +45,8 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
     all_day: event?.all_day !== undefined ? event.all_day : true,
     color: event?.color || 'blue',
     meeting_url: event?.meeting_url || '',
+    recurrence: event?.recurrence || 'none',
+    recurrence_until: event?.recurrence_until || '',
   })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -91,6 +93,8 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
       all_day: form.all_day,
       color: form.color,
       meeting_url: form.meeting_url || null,
+      recurrence: form.recurrence,
+      recurrence_until: form.recurrence === 'none' ? null : (form.recurrence_until || null),
     })
     setSaving(false)
   }
@@ -174,6 +178,24 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-slate-400 text-xs mb-1 block">Repeat</label>
+              <select value={form.recurrence} onChange={e => setForm(f => ({ ...f, recurrence: e.target.value }))} className={INPUT}>
+                <option value="none">Does not repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            {form.recurrence !== 'none' && (
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">Until</label>
+                <input type="date" value={form.recurrence_until} onChange={e => setForm(f => ({ ...f, recurrence_until: e.target.value }))} className={INPUT} />
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="text-slate-400 text-xs mb-2 block">Video call</label>
             {form.meeting_url ? (
@@ -239,15 +261,25 @@ export default function Calendar() {
     const startOfMonth = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`
     const endOfMonth = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${getDaysInMonth(currentYear, currentMonth)}`
     try {
-      const { data, error } = await supabase
+      const monthQ = supabase
         .from('admin_calendar_events')
         .select('*')
         .or(`start_date.gte.${startOfMonth},end_date.gte.${startOfMonth}`)
         .lte('start_date', endOfMonth)
-        .order('start_date', { ascending: true })
-        .order('start_time', { ascending: true })
-      if (error) throw error
-      setEvents(data || [])
+      const recurQ = supabase
+        .from('admin_calendar_events')
+        .select('*')
+        .neq('recurrence', 'none')
+        .lte('start_date', endOfMonth)
+        .or(`recurrence_until.is.null,recurrence_until.gte.${startOfMonth}`)
+      const [monthRes, recurRes] = await Promise.all([monthQ, recurQ])
+      if (monthRes.error) throw monthRes.error
+      if (recurRes.error) throw recurRes.error
+      const byId = {}
+      ;[...(monthRes.data || []), ...(recurRes.data || [])].forEach(e => { byId[e.id] = e })
+      const merged = Object.values(byId).sort((a, b) =>
+        a.start_date < b.start_date ? -1 : a.start_date > b.start_date ? 1 : (a.start_time || '').localeCompare(b.start_time || ''))
+      setEvents(merged)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
@@ -290,11 +322,25 @@ export default function Calendar() {
     setCurrentMonth(today.getMonth())
   }
 
-  function getEventsForDate(dateStr) {
-    return events.filter(e => {
+  function occursOnDate(e, dateStr) {
+    if (!e.recurrence || e.recurrence === 'none') {
       if (!e.end_date || e.end_date === e.start_date) return e.start_date === dateStr
       return dateStr >= e.start_date && dateStr <= e.end_date
-    })
+    }
+    if (dateStr < e.start_date) return false
+    if (e.recurrence_until && dateStr > e.recurrence_until) return false
+    const start = new Date(e.start_date + 'T00:00:00')
+    const d = new Date(dateStr + 'T00:00:00')
+    const diffDays = Math.round((d - start) / 86400000)
+    if (diffDays < 0) return false
+    if (e.recurrence === 'daily') return true
+    if (e.recurrence === 'weekly') return diffDays % 7 === 0
+    if (e.recurrence === 'monthly') return d.getDate() === start.getDate()
+    return false
+  }
+
+  function getEventsForDate(dateStr) {
+    return events.filter(e => occursOnDate(e, dateStr))
   }
 
   function handleDayClick(dateStr) {
