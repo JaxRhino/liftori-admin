@@ -25,7 +25,7 @@ function rallyJoinBase() {
 
 export default function InviteToCallModal({ open, onClose, callId, channelId }) {
   const { user } = useAuth();
-  const { participants, activeCall } = useVideoCallContext();
+  const { participants, activeCall, leaveCall } = useVideoCallContext();
   const [mode, setMode] = useState('link'); // 'team' | 'link' | 'email'
   const [team, setTeam] = useState([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
@@ -102,7 +102,11 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
 
   function joinRoom() {
     if (!rallyLink) return;
+    // Open the managed Daily room (new tab) ...
     window.open(rallyLink, '_blank', 'noopener');
+    // ... then leave the in-app custom Rally call so it releases the camera/mic for Daily.
+    try { leaveCall && leaveCall(); } catch (e) { /* no-op */ }
+    if (onClose) onClose();
   }
 
   async function inviteTeamMember(memberId) {
