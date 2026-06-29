@@ -52,6 +52,41 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
   const [deleting, setDeleting] = useState(false)
   const [meetingLoading, setMeetingLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [attendees, setAttendees] = useState([])
+  const [team, setTeam] = useState([])
+  const [extName, setExtName] = useState('')
+  const [extEmail, setExtEmail] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadAttendeeData() {
+      const { data: profs } = await supabase
+        .from('profiles').select('id, full_name, email').in('role', ['admin', 'dev']).order('full_name', { ascending: true })
+      if (!cancelled) setTeam(profs || [])
+      if (event?.id) {
+        const { data: rows } = await supabase
+          .from('event_attendees').select('id, profile_id, name, email, rsvp_status').eq('event_id', event.id)
+        if (!cancelled) setAttendees(rows || [])
+      }
+    }
+    loadAttendeeData()
+    return () => { cancelled = true }
+  }, [event?.id])
+
+  function addTeamMember(profileId) {
+    const p = team.find(t => t.id === profileId)
+    if (!p) return
+    if (attendees.some(a => a.profile_id === p.id)) return
+    setAttendees(prev => [...prev, { profile_id: p.id, name: p.full_name || p.email, email: p.email }])
+  }
+  function addExternal() {
+    if (!extEmail.trim()) return
+    setAttendees(prev => [...prev, { name: extName.trim() || null, email: extEmail.trim() }])
+    setExtName(''); setExtEmail('')
+  }
+  function removeAttendee(idx) {
+    setAttendees(prev => prev.filter((_, i) => i !== idx))
+  }
 
   async function addVideoCall() {
     setMeetingLoading(true)
@@ -95,7 +130,7 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
       meeting_url: form.meeting_url || null,
       recurrence: form.recurrence,
       recurrence_until: form.recurrence === 'none' ? null : (form.recurrence_until || null),
-    })
+    }, attendees)
     setSaving(false)
   }
 
@@ -222,6 +257,32 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
               </button>
             )}
           </div>
+
+          <div>
+            <label className="text-slate-400 text-xs mb-2 block">Attendees</label>
+            {attendees.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {attendees.map((a, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 bg-white/5 border border-white/10 rounded-full pl-2 pr-1 py-0.5 text-xs text-slate-200">
+                    {a.name || a.email}
+                    <button type="button" onClick={() => removeAttendee(i)} className="text-slate-500 hover:text-red-300">&times;</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <select value="" onChange={e => { addTeamMember(e.target.value); e.target.value = '' }} className={`${INPUT} mb-2`}>
+              <option value="">+ Add team member...</option>
+              {team.filter(t => !attendees.some(a => a.profile_id === t.id)).map(t => (
+                <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <input value={extName} onChange={e => setExtName(e.target.value)} placeholder="Guest name" className={INPUT} />
+              <input value={extEmail} onChange={e => setExtEmail(e.target.value)} placeholder="guest@email.com" className={INPUT} />
+              <button type="button" onClick={addExternal} disabled={!extEmail.trim()}
+                className="px-3 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white text-sm shrink-0">Add</button>
+            </div>
+          </div>
         </div>
         <div className="flex items-center justify-between px-5 pb-5">
           <div className="flex gap-3">
@@ -284,15 +345,32 @@ export default function Calendar() {
     finally { setLoading(false) }
   }
 
-  async function saveEvent(payload) {
+  async function syncAttendees(eventId, attendees) {
     try {
+      const { data: existing } = await supabase.from('event_attendees').select('id').eq('event_id', eventId)
+      const keepIds = new Set((attendees || []).filter(a => a.id).map(a => a.id))
+      const toDelete = (existing || []).map(a => a.id).filter(id => !keepIds.has(id))
+      if (toDelete.length) await supabase.from('event_attendees').delete().in('id', toDelete)
+      const toInsert = (attendees || []).filter(a => !a.id).map(a => ({
+        event_id: eventId, profile_id: a.profile_id || null, name: a.name || null, email: a.email || null,
+      }))
+      if (toInsert.length) await supabase.from('event_attendees').insert(toInsert)
+    } catch (err) { console.error('[Calendar] syncAttendees', err) }
+  }
+
+  async function saveEvent(payload, attendees = []) {
+    try {
+      let eventId
       if (editing) {
         const { error } = await supabase.from('admin_calendar_events').update(payload).eq('id', editing.id)
         if (error) throw error
+        eventId = editing.id
       } else {
-        const { error } = await supabase.from('admin_calendar_events').insert([payload])
+        const { data, error } = await supabase.from('admin_calendar_events').insert([payload]).select('id').single()
         if (error) throw error
+        eventId = data.id
       }
+      await syncAttendees(eventId, attendees)
       await fetchEvents()
       setShowModal(false)
       setEditing(null)
