@@ -8,6 +8,16 @@ import { supabase } from './supabase';
 const SUPABASE_URL = 'https://qlerfkdyslndjbaltkwo.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
+// Base URL where the public Rally guest-join route (/rally/join/:code) is served.
+// The join page lives in THIS admin SPA, so links must point at its own origin
+// (e.g. https://admin.liftori.ai) — NOT the marketing site, which has no such route.
+function rallyJoinBase() {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return 'https://admin.liftori.ai';
+}
+
 // ─── Send email via Edge Function ─────────────────────────────
 async function sendEmail({ to, subject, html, from }) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
@@ -42,7 +52,7 @@ export async function createOutboundRallyLink(userId, label = 'Outbound Call') {
 
   return {
     ...data,
-    joinUrl: `https://liftori.ai/rally/join/${data.code}`,
+    joinUrl: `${rallyJoinBase()}/rally/join/${data.code}`,
   };
 }
 
