@@ -123,6 +123,7 @@ import CustomBuildDetail from './pages/CustomBuildDetail'
 import ProductDetail from './pages/ProductDetail'
 import LiftoriBuild from './pages/LiftoriBuild'
 import LiftoriSettings from './pages/LiftoriSettings'
+import AcceptInvite from './pages/AcceptInvite'
 import SalesPipeline from './pages/SalesPipeline'
 import Investors from './pages/Investors'
 import OpsDashboard from './pages/OpsDashboard'
@@ -418,6 +419,7 @@ export default function App() {
           <Route path="/schedule-interview/:token" element={<ScheduleInterview />} />
           {/* Public tester onboarding wizard â€” no auth required */}
           <Route path="/onboard-tester/:token" element={<TesterOnboarding />} />
+          <Route path="/accept-invite/:token" element={<AcceptInvite />} />
           {/* Public affiliate/creator onboarding wizard â€” no auth required */}
           <Route path="/onboard-affiliate/:token" element={<AffiliateOnboarding />} />
           {/* Public homeowner proposal (Good/Better/Best + e-sign) — no auth required */}
