@@ -44,9 +44,39 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
     end_time: event?.end_time || '',
     all_day: event?.all_day !== undefined ? event.all_day : true,
     color: event?.color || 'blue',
+    meeting_url: event?.meeting_url || '',
   })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [meetingLoading, setMeetingLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  async function addVideoCall() {
+    setMeetingLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in')
+      const { data: link, error } = await supabase
+        .from('rally_links')
+        .insert({ created_by: user.id, label: form.title?.trim() || 'Rally Meeting', link_type: 'recurring', max_guests: 20 })
+        .select()
+        .single()
+      if (error) throw error
+      setForm(f => ({ ...f, meeting_url: `${window.location.origin}/rally/join/${link.code}` }))
+    } catch (err) {
+      console.error('[Calendar] addVideoCall', err)
+      alert('Could not set up the video call. Please try again.')
+    } finally {
+      setMeetingLoading(false)
+    }
+  }
+
+  function copyMeetingLink() {
+    if (!form.meeting_url) return
+    navigator.clipboard?.writeText(form.meeting_url)
+      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) })
+      .catch(() => {})
+  }
 
   async function handleSave() {
     if (!form.title.trim()) return
@@ -60,6 +90,7 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
       end_time: form.all_day ? null : (form.end_time || null),
       all_day: form.all_day,
       color: form.color,
+      meeting_url: form.meeting_url || null,
     })
     setSaving(false)
   }
@@ -141,6 +172,33 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
                   className={`w-6 h-6 rounded-full ${c.dot} transition-transform hover:scale-110 ${form.color === c.value ? 'ring-2 ring-white/50 scale-110' : ''}`} />
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="text-slate-400 text-xs mb-2 block">Video call</label>
+            {form.meeting_url ? (
+              <div className="space-y-2">
+                <div className="flex items-stretch gap-2">
+                  <input readOnly value={form.meeting_url} onClick={e => e.target.select()}
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono" />
+                  <button type="button" onClick={copyMeetingLink}
+                    className="px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors">
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <a href={form.meeting_url} target="_blank" rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 text-sm">Join video call</a>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, meeting_url: '' }))}
+                    className="text-slate-500 hover:text-slate-300 text-xs ml-auto">Remove</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={addVideoCall} disabled={meetingLoading}
+                className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-sm text-white transition-colors disabled:opacity-50">
+                {meetingLoading ? 'Setting up video call...' : 'Add Rally video call'}
+              </button>
+            )}
           </div>
         </div>
         <div className="flex items-center justify-between px-5 pb-5">
@@ -403,6 +461,10 @@ export default function Calendar() {
                       <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${col.dot}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white">{ev.title}</p>
+                        {ev.meeting_url && (
+                          <a href={ev.meeting_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 mt-1 text-xs text-blue-400 hover:text-blue-300">Join video call</a>
+                        )}
                         {ev.description && <p className="text-xs text-gray-400 mt-0.5">{ev.description}</p>}
                         <p className="text-xs text-gray-500 mt-1">
                           {ev.all_day ? 'All day' : `${formatTime(ev.start_time)}${ev.end_time ? ` â ${formatTime(ev.end_time)}` : ''}`}
