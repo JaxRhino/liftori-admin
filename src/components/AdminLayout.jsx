@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { NAV_PERMISSION_MAP, ALL_PERMISSION_KEYS, BYPASS_ROLES, permKeyForPath, FOUNDER_ONLY_ROUTE_PREFIXES } from '../lib/permissions'
 import { useOrg } from '../lib/OrgContext'
 import React, { useState, useEffect, useRef } from 'react'
 import IncomingCallModal from './IncomingCallModal'
@@ -645,7 +646,7 @@ const CALL_AGENT_HIDDEN = ['Super Admin', 'Dashboard', 'Marketing', 'Communicati
 const SALES_DIRECTOR_HIDDEN = []
 
 export default function AdminLayout() {
-  const { user, profile, signOut, isDevTeamMember } = useAuth()
+  const { user, profile, signOut, isDevTeamMember, can, canAny, perms } = useAuth()
   const { hasFeature, isImpersonating, currentOrg, resetOrg } = useOrg()
   const navigate = useNavigate()
   const location = useLocation()
@@ -663,6 +664,13 @@ export default function AdminLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const sidebarOpen = sidebarPinned || sidebarHovered || mobileMenuOpen
   const userRole = profile?.role || 'customer'
+  // Permission helpers. Bypass roles (super_admin/admin/dev/tester) always see everything;
+  // everyone else is gated by their saved permission map (Team > Permissions).
+  const fullAccess = BYPASS_ROLES.includes(userRole)
+  const allow = (key) => fullAccess || can(key)
+  const allowAny = (keys) => fullAccess || canAny(keys)
+  const allowPrefix = (pre) => fullAccess || ALL_PERMISSION_KEYS.some(k => k.startsWith(pre) && can(k))
+  const navAllowed = (item) => { if (fullAccess) return true; const k = NAV_PERMISSION_MAP[item.label]; return !k || can(k) }
 
   // Map nav labels to feature keys for tenant gating
   const NAV_FEATURE_MAP = {
@@ -686,10 +694,10 @@ export default function AdminLayout() {
     if (FOUNDER_ONLY_ITEMS.includes(item.label) && !founder) return false
     // Hide admin-only items when viewing a customer org
     if (isImpersonating && ADMIN_ONLY_ITEMS.includes(item.label)) return false
-    // Role-based filtering
-    if (!FULL_ACCESS_ROLES.includes(userRole)) {
-      if (userRole === 'sales_director' && SALES_DIRECTOR_HIDDEN.includes(item.label)) return false
-      if (userRole === 'call_agent' && CALL_AGENT_HIDDEN.includes(item.label)) return false
+    // Permission-based filtering (driven by Team > Permissions per role)
+    if (!fullAccess) {
+      const navKey = NAV_PERMISSION_MAP[item.label]
+      if (navKey && !can(navKey)) return false
     }
     // Feature gating (when impersonating a customer org)
     const featureKey = NAV_FEATURE_MAP[item.label]
@@ -703,16 +711,16 @@ export default function AdminLayout() {
     return item
   })
 
-  // Gate hub sections by features
-  const showSalesHub = hasFeature('sales_hub')
+  // Gate hub sections by features + permissions
+  const showSalesHub = hasFeature('sales_hub') && allowPrefix('sales.')
   const showOpsHub = hasFeature('operations_hub')
 
-  // Whether to show Operations, Freight, Builds, Tools sections
-  const showOps = MANAGEMENT_ROLES.includes(userRole)
-  const showDevLab = ['super_admin','admin','dev','tester'].includes(userRole)
-  const showFreight = FULL_ACCESS_ROLES.includes(userRole)
-  const showBuilds = FULL_ACCESS_ROLES.includes(userRole)
-  const showTools = MANAGEMENT_ROLES.includes(userRole)
+  // Whether to show Operations, Freight, Builds, Tools sections (permission-driven)
+  const showOps = allowPrefix('ops.')
+  const showDevLab = allowPrefix('devlab.') || allow('builds.feature_library')
+  const showFreight = allow('freight.access')
+  const showBuilds = allowPrefix('builds.')
+  const showTools = allowPrefix('tools.')
 
   // Scroll to top on route change
   useEffect(() => {
@@ -723,7 +731,7 @@ export default function AdminLayout() {
   const [callCenterOpen, setCallCenterOpen] = useState(isCallCenterRoute)
   const isSalesHubRoute = ['/admin/customers', '/admin/projects', '/admin/pipeline', '/admin/investors', '/admin/platforms', '/admin/lead-hunter', '/admin/estimates', '/admin/agreements', '/admin/commissions', '/admin/waitlist', '/admin/consulting', '/admin/sales-call', '/admin/crm'].some(p => location.pathname.startsWith(p))
   // Pick which Sales Hub items to show based on admin vs customer view
-  const activeSalesHubItems = isImpersonating ? customerSalesHubItems : salesHubItems
+  const activeSalesHubItems = (isImpersonating ? customerSalesHubItems : salesHubItems).filter(navAllowed)
   const [salesHubOpen, setSalesHubOpen] = useState(isSalesHubRoute)
   const isLeadHunterRoute = location.pathname.startsWith('/admin/lead-hunter')
   const isConsultingRoute = location.pathname.startsWith('/admin/consulting') || location.pathname === '/admin/team-availability'
@@ -732,7 +740,8 @@ export default function AdminLayout() {
     isLeadHunterRoute ? 'Lead Hunter' : isConsultingRoute ? 'Consulting' : isEOSRoute ? 'EOS' : null
   )
   const isOpsRoute = ['/admin/ops-dashboard', '/admin/ops/', '/admin/wizard', '/admin/affiliates', '/admin/discount-codes', '/admin/plans', '/admin/team', '/admin/work-queue', '/admin/testing', '/admin/support-tickets', '/admin/leadership-qc', '/admin/cost-tracker', '/admin/dev-team', '/admin/csc'].some(p => location.pathname.startsWith(p))
-  const activeOpsItems = (isImpersonating ? customerOpsItems : opsItems).filter(i => !i.devTeamOnly || isDevTeamMember)
+  const activeOpsItems = (isImpersonating ? customerOpsItems : opsItems).filter(i => (!i.devTeamOnly || isDevTeamMember) && navAllowed(i))
+  const activeToolItems = toolItems.filter(navAllowed)
   const [opsOpen, setOpsOpen] = useState(isOpsRoute)
   const [liftoriPlatformOpen, setLiftoriPlatformOpen] = useState(false)
   const [liftoriProductsOpen, setLiftoriProductsOpen] = useState(true)
@@ -1196,7 +1205,7 @@ export default function AdminLayout() {
                       </button>
                       {devLabOpen && (
                         <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5">
-                          {devLabItems.filter(i => !i.devTeamOnly || isDevTeamMember).map(sub => (
+                          {devLabItems.filter(i => (!i.devTeamOnly || isDevTeamMember) && navAllowed(i)).map(sub => (
                             <NavLink key={sub.path} to={sub.path} className={({ isActive }) => `flex items-center gap-2.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors ${isActive ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400 hover:text-white hover:bg-navy-700/50'}`}>
                               {sub.icon}<span>{sub.label}</span>
                             </NavLink>
@@ -1244,7 +1253,7 @@ export default function AdminLayout() {
                           {sub.icon}
                         </NavLink>
                       ))}
-                      {showDevLab && devLabItems.filter(i => !i.devTeamOnly || isDevTeamMember).map(sub => (
+                      {showDevLab && devLabItems.filter(i => (!i.devTeamOnly || isDevTeamMember) && navAllowed(i)).map(sub => (
                         <NavLink key={sub.path} to={sub.path}
                           className={({ isActive }) =>
                             `flex items-center justify-center px-3 py-2 rounded-lg text-xs transition-colors ${isActive
@@ -1303,7 +1312,7 @@ export default function AdminLayout() {
             </button>
             {sidebarOpen && toolsOpen && (
               <div className="ml-3 pl-3 border-l border-white/10 mt-1 space-y-0.5">
-                {toolItems.map(item => (
+                {activeToolItems.map(item => (
                   <React.Fragment key={item.path}>
                     {item.subItems ? (
                       <>
@@ -1354,7 +1363,7 @@ export default function AdminLayout() {
             )}
             {!sidebarOpen && (
               <div className="space-y-0.5 mt-0.5">
-                {toolItems.map(item => (
+                {activeToolItems.map(item => (
                   <NavLink key={item.path} to={item.path}
                     className={({ isActive }) =>
                       `flex items-center justify-center px-3 py-2 rounded-lg text-xs transition-colors ${isActive
@@ -1391,7 +1400,21 @@ export default function AdminLayout() {
         <GlobalHeader />
         <main ref={mainRef} className="flex-1 overflow-auto bg-navy-950">
           <div className="p-0">
-            <Outlet context={{ sidebarOpen }} />
+            {(() => {
+              const routePermKey = permKeyForPath(location.pathname)
+              const blocked = (!fullAccess && perms && routePermKey && !can(routePermKey)) ||
+                              (!founder && FOUNDER_ONLY_ROUTE_PREFIXES.some(pre => location.pathname.startsWith(pre)))
+              if (blocked) {
+                return (
+                  <div className="max-w-md mx-auto mt-24 text-center px-6">
+                    <h2 className="text-xl font-semibold text-slate-100">Access restricted</h2>
+                    <p className="mt-2 text-sm text-slate-400">You don't have permission to view this page. Ask an admin to enable it for your role.</p>
+                    <button onClick={() => navigate('/admin')} className="mt-5 btn-primary inline-block">Back to dashboard</button>
+                  </div>
+                )
+              }
+              return <Outlet context={{ sidebarOpen }} />
+            })()}
           </div>
         </main>
       </div>
