@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from './supabase'
 import { isFounder } from './testerProgramService'
+import { can as canCheck, canAny as canAnyCheck, BYPASS_ROLES, ROLE_NAME_BY_CODE } from './permissions'
 
 const AuthContext = createContext(null)
 
@@ -14,6 +15,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null)
   const [isDevTeamMember, setIsDevTeamMember] = useState(false)
   const [myPlatformId, setMyPlatformId] = useState(null)  // platform this non-admin user owns (for customer CRM login)
+  const [perms, setPerms] = useState(null)  // current user's permission map ({'*':true} = full bypass)
 
   // View-as-user (impersonation) state. When set, the UI renders as if the
   // impersonated user were logged in, but the underlying Supabase session
@@ -203,7 +205,7 @@ export function AuthProvider({ children }) {
     : realUser
   const effectiveProfile = isImpersonating ? impersonatedProfile : realProfile
 
-  const isAdmin = ['admin', 'dev', 'super_admin', 'sales_director', 'call_agent', 'tester'].includes(effectiveProfile?.role)
+  const isAdmin = ['admin', 'dev', 'super_admin', 'sales_director', 'sales_rep', 'call_agent', 'tester'].includes(effectiveProfile?.role)
   const isAffiliate = effectiveProfile?.role === 'affiliate'
 
   // Resolve the platform a non-admin owns, so customers land in their own CRM.
@@ -220,6 +222,32 @@ export function AuthProvider({ children }) {
     return () => { active = false }
   }, [effectiveUser?.email, isAdmin, isAffiliate])
 
+  // Load the effective user's permission map (RBAC). Bypass roles get {'*':true};
+  // everyone else is served fail-closed via the get_my_permissions() RPC (or, when
+  // a founder is impersonating, the impersonated role's saved map).
+  useEffect(() => {
+    let active = true
+    const role = effectiveProfile?.role
+    if (!effectiveUser || !role) { setPerms(null); return }
+    if (BYPASS_ROLES.includes(role)) { setPerms({ '*': true }); return }
+    ;(async () => {
+      try {
+        if (isImpersonating) {
+          const name = ROLE_NAME_BY_CODE[role] || role
+          const { data } = await supabase.from('team_roles').select('permissions').eq('name', name).maybeSingle()
+          if (active) setPerms(data?.permissions || {})
+        } else {
+          const { data, error } = await supabase.rpc('get_my_permissions')
+          if (active) setPerms(error ? {} : (data || {}))
+        }
+      } catch { if (active) setPerms({}) }
+    })()
+    return () => { active = false }
+  }, [effectiveUser?.id, effectiveProfile?.role, isImpersonating])
+
+  const can = useCallback((key) => canCheck(perms, key), [perms])
+  const canAny = useCallback((keys) => canAnyCheck(perms, keys), [perms])
+
   return (
     <AuthContext.Provider value={{
       user: effectiveUser,
@@ -231,6 +259,9 @@ export function AuthProvider({ children }) {
       isAffiliate,
       isDevTeamMember,
       myPlatformId,
+      perms,
+      can,
+      canAny,
       token,
       isImpersonating,
       canImpersonate,
