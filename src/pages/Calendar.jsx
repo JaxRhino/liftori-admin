@@ -92,7 +92,7 @@ function EventModal({ event, selectedDate, onClose, onSave, onDelete }) {
     if (!event?.id) { alert('Save the event first, then send invites.'); return }
     setSendingInvites(true)
     try {
-      const { data, error } = await supabase.functions.invoke('event-invite', { body: { event_id: event.id, origin: window.location.origin } })
+      const { data, error } = await supabase.functions.invoke('event-invite', { body: { event_id: event.id, origin: window.location.origin, force: true } })
       if (error) throw error
       alert(`Invites sent to ${data?.sent ?? 0} attendee(s).`)
     } catch (err) { console.error('[Calendar] sendInvites', err); alert('Could not send invites. Try again.') }
@@ -390,6 +390,7 @@ export default function Calendar() {
         eventId = data.id
       }
       await syncAttendees(eventId, attendees)
+      supabase.functions.invoke('event-invite', { body: { event_id: eventId, origin: window.location.origin } }).catch(() => {})
       await fetchEvents()
       setShowModal(false)
       setEditing(null)
