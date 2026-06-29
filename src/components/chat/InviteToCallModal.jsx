@@ -1,14 +1,9 @@
 /**
- * InviteToCallModal — invite people to an in-progress or scheduled call.
+ * InviteToCallModal — invite people to a Rally meeting.
  *
- * Three invite paths:
- *   1. Team members (admin/dev profiles) — pick from list, sends in-app notif + joins via Rally link
- *   2. External guest via Rally link — generate, copy to clipboard, optional email
- *   3. Future: schedule for later — opens ScheduleCallModal (not yet wired)
- *
- * The Rally link is a reusable guest link tied to the host's CURRENT call, so an
- * outside guest who opens it lands in the same call the host is already in. The
- * host's participant subscription then auto-offers WebRTC — no notification needed.
+ * External video runs in a managed Daily.co room (see RallyGuestJoin + rally-room fn),
+ * keyed by the rally link code: the host and every guest who open /rally/join/<code>
+ * land in the SAME room. Reliable on mobile, no login/download for guests.
  */
 
 import { useState, useEffect } from 'react';
@@ -17,12 +12,10 @@ import { useAuth } from '../../lib/AuthContext';
 import { useVideoCallContext } from '../../contexts/VideoCallContext';
 import { sendCallReminderEmail } from '../../lib/videoCallHelpers';
 import {
-  X, Copy, Mail, Users, Link2, Check, Loader2, UserPlus,
+  X, Copy, Mail, Users, Link2, Check, Loader2, UserPlus, Video,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Base URL where the public Rally guest-join route (/rally/join/:code) is served —
-// this admin SPA's own origin (e.g. https://admin.liftori.ai).
 function rallyJoinBase() {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;
@@ -48,7 +41,6 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
   useEffect(() => {
     if (!open) return;
     loadTeam();
-    // Pre-generate a Rally link so the "Link" tab is instant
     generateRallyLink();
   }, [open]);
 
@@ -61,7 +53,6 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
         .in('role', ['admin', 'dev'])
         .order('full_name', { ascending: true });
       if (error) throw error;
-      // Hide current user + anyone already on the call
       const filtered = (data || []).filter(
         p => p.id !== user?.id && !activeIds.has(p.id)
       );
@@ -78,7 +69,6 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
     if (!user) return;
     setLinkLoading(true);
     try {
-      // 1. Create a reusable ("recurring") guest link so multiple people can join.
       const { data: link, error: linkErr } = await supabase
         .from('rally_links')
         .insert({
@@ -91,9 +81,6 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
         .single();
       if (linkErr) throw linkErr;
 
-      // 2. Attach the link to the host's LIVE call so guests join the same call.
-      //    (is_rally_call(call_id) becomes true → guest INSERT into participants is
-      //     allowed by RLS, and the host's subscription auto-offers WebRTC.)
       const liveCallId = activeCall?.id || callId;
       if (liveCallId && link?.id) {
         const { error: callErr } = await supabase
@@ -103,7 +90,6 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
         if (callErr) console.error('[InviteToCallModal] attach link to call', callErr);
       }
 
-      // 3. Build the shareable URL string (NOT the link object).
       setRallyLink(`${rallyJoinBase()}/rally/join/${link.code}`);
     } catch (err) {
       console.error('[InviteToCallModal] rally link', err);
@@ -114,18 +100,21 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
     }
   }
 
+  function joinRoom() {
+    if (!rallyLink) return;
+    window.open(rallyLink, '_blank', 'noopener');
+  }
+
   async function inviteTeamMember(memberId) {
     try {
-      // Record invite — also surfaces as a notification for the invitee
       const { error } = await supabase.from('video_call_invites').insert({
         call_id: callId || activeCall?.id || null,
         inviter_id: user.id,
         invitee_id: memberId,
         channel_id: channelId || null,
       });
-      if (error && error.code !== '42P01') throw error; // tolerate missing table
+      if (error && error.code !== '42P01') throw error;
       toast.success('Invite sent');
-      // Optimistically remove from list
       setTeam(prev => prev.filter(p => p.id !== memberId));
     } catch (err) {
       console.error('[InviteToCallModal] inviteTeamMember', err);
@@ -178,7 +167,6 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
         className="bg-[#0b1220] border border-sky-900/60 rounded-xl w-full max-w-md shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
           <div className="flex items-center gap-2 text-white">
             <UserPlus size={18} className="text-sky-400" />
@@ -193,20 +181,18 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-slate-800">
-          <TabBtn active={mode === 'team'} onClick={() => setMode('team')} icon={<Users size={14} />}>
-            Team
-          </TabBtn>
           <TabBtn active={mode === 'link'} onClick={() => setMode('link')} icon={<Link2 size={14} />}>
             Link
           </TabBtn>
           <TabBtn active={mode === 'email'} onClick={() => setMode('email')} icon={<Mail size={14} />}>
             Email
           </TabBtn>
+          <TabBtn active={mode === 'team'} onClick={() => setMode('team')} icon={<Users size={14} />}>
+            Team
+          </TabBtn>
         </div>
 
-        {/* Body */}
         <div className="p-4 max-h-[60vh] overflow-y-auto">
           {mode === 'team' && (
             <div>
@@ -256,8 +242,8 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
           {mode === 'link' && (
             <div className="space-y-3">
               <p className="text-sm text-slate-400">
-                Share this link with anyone — it opens a browser video call, no login or
-                download required, and drops them straight into this call.
+                Share this link with anyone — it opens a browser video call (no login or
+                download) and drops them into this meeting. Then tap Join the meeting below to enter it yourself.
               </p>
               <div className="flex items-stretch gap-2">
                 <input
@@ -269,12 +255,20 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
                 <button
                   onClick={copyLink}
                   disabled={!rallyLink}
-                  className="px-3 rounded-lg bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-white text-sm font-medium transition flex items-center gap-1.5"
+                  className="px-3 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-sm font-medium transition flex items-center gap-1.5"
                 >
                   {copied ? <Check size={14} /> : <Copy size={14} />}
                   {copied ? 'Copied' : 'Copy'}
                 </button>
               </div>
+              <button
+                onClick={joinRoom}
+                disabled={!rallyLink}
+                className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 disabled:opacity-50 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+              >
+                <Video size={16} />
+                Join the meeting
+              </button>
               <button
                 onClick={generateRallyLink}
                 className="text-xs text-slate-400 hover:text-sky-400 transition"
