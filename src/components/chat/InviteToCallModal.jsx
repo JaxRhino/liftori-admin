@@ -6,23 +6,34 @@
  *   2. External guest via Rally link — generate, copy to clipboard, optional email
  *   3. Future: schedule for later — opens ScheduleCallModal (not yet wired)
  *
- * Uses videoCallHelpers for Rally link + email reminder.
+ * The Rally link is a reusable guest link tied to the host's CURRENT call, so an
+ * outside guest who opens it lands in the same call the host is already in. The
+ * host's participant subscription then auto-offers WebRTC — no notification needed.
  */
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthContext';
 import { useVideoCallContext } from '../../contexts/VideoCallContext';
-import { createOutboundRallyLink, sendCallReminderEmail } from '../../lib/videoCallHelpers';
+import { sendCallReminderEmail } from '../../lib/videoCallHelpers';
 import {
   X, Copy, Mail, Users, Link2, Check, Loader2, UserPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Base URL where the public Rally guest-join route (/rally/join/:code) is served —
+// this admin SPA's own origin (e.g. https://admin.liftori.ai).
+function rallyJoinBase() {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return 'https://admin.liftori.ai';
+}
+
 export default function InviteToCallModal({ open, onClose, callId, channelId }) {
   const { user } = useAuth();
-  const { participants } = useVideoCallContext();
-  const [mode, setMode] = useState('team'); // 'team' | 'link' | 'email'
+  const { participants, activeCall } = useVideoCallContext();
+  const [mode, setMode] = useState('link'); // 'team' | 'link' | 'email'
   const [team, setTeam] = useState([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
   const [rallyLink, setRallyLink] = useState('');
@@ -67,10 +78,37 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
     if (!user) return;
     setLinkLoading(true);
     try {
-      const url = await createOutboundRallyLink(user.id, `Join ${user.email}'s call`);
-      setRallyLink(url);
+      // 1. Create a reusable ("recurring") guest link so multiple people can join.
+      const { data: link, error: linkErr } = await supabase
+        .from('rally_links')
+        .insert({
+          created_by: user.id,
+          label: `Join ${user.email}'s call`,
+          link_type: 'recurring',
+          max_guests: 20,
+        })
+        .select()
+        .single();
+      if (linkErr) throw linkErr;
+
+      // 2. Attach the link to the host's LIVE call so guests join the same call.
+      //    (is_rally_call(call_id) becomes true → guest INSERT into participants is
+      //     allowed by RLS, and the host's subscription auto-offers WebRTC.)
+      const liveCallId = activeCall?.id || callId;
+      if (liveCallId && link?.id) {
+        const { error: callErr } = await supabase
+          .from('video_calls')
+          .update({ rally_link_id: link.id })
+          .eq('id', liveCallId);
+        if (callErr) console.error('[InviteToCallModal] attach link to call', callErr);
+      }
+
+      // 3. Build the shareable URL string (NOT the link object).
+      setRallyLink(`${rallyJoinBase()}/rally/join/${link.code}`);
     } catch (err) {
       console.error('[InviteToCallModal] rally link', err);
+      toast.error('Could not generate invite link');
+      setRallyLink('');
     } finally {
       setLinkLoading(false);
     }
@@ -80,7 +118,7 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
     try {
       // Record invite — also surfaces as a notification for the invitee
       const { error } = await supabase.from('video_call_invites').insert({
-        call_id: callId,
+        call_id: callId || activeCall?.id || null,
         inviter_id: user.id,
         invitee_id: memberId,
         channel_id: channelId || null,
@@ -218,8 +256,8 @@ export default function InviteToCallModal({ open, onClose, callId, channelId }) 
           {mode === 'link' && (
             <div className="space-y-3">
               <p className="text-sm text-slate-400">
-                Share this link with anyone — they'll land in a waiting room and you'll see a
-                "knock" notification to let them in.
+                Share this link with anyone — it opens a browser video call, no login or
+                download required, and drops them straight into this call.
               </p>
               <div className="flex items-stretch gap-2">
                 <input
