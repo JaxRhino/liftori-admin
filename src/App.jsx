@@ -206,6 +206,7 @@ import OnboardingWizard from './pages/OnboardingWizard'
 import SupportTickets from './pages/SupportTickets'
 import PortalSupport from './pages/portal/PortalSupport'
 import RallyGuestJoin from './pages/RallyGuestJoin'
+import EventRsvp from './pages/EventRsvp'
 import SalesCall from './pages/SalesCall'
 import ConsultingAppointments from './pages/ConsultingAppointments'
 import ConsultingClients from './pages/ConsultingClients'
@@ -408,6 +409,8 @@ export default function App() {
           <Route path="/onboard" element={<OnboardingWizard />} />
           {/* Public Rally guest join â€” no auth required */}
           <Route path="/rally/join/:code" element={<RallyGuestJoin />} />
+          {/* Public event RSVP - no auth required */}
+          <Route path="/rsvp/:token" element={<EventRsvp />} />
           {/* Public job application â€” no auth required */}
           <Route path="/apply" element={<Apply />} />
           {/* Public interview scheduler â€” no auth required */}
