@@ -92,7 +92,7 @@ function injectAssets() {
     @media (prefers-reduced-motion:reduce){.lo-fadeup{animation:none;opacity:1;transform:none}.lo-orb{animation:none!important}}
     .lo-prod{position:relative;overflow:hidden;border-radius:1rem;border:1px solid rgba(125,211,252,.14);background:linear-gradient(160deg,rgba(14,165,233,.06),rgba(255,255,255,.02));transition:transform .4s cubic-bezier(.2,.7,.2,1),border-color .4s,box-shadow .4s;outline:none;}
     .lo-prod:hover{transform:translateY(-8px);border-color:rgba(14,165,233,.55);box-shadow:0 30px 70px -30px rgba(14,165,233,.6);}
-    .lo-prod-reveal{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:2rem;background:linear-gradient(to top,rgba(5,10,22,.97) 42%,rgba(14,165,233,.18));opacity:0;transform:translateY(16px);transition:opacity .4s,transform .4s;pointer-events:none;}
+    .lo-prod-reveal{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:2rem;background:linear-gradient(160deg,rgba(8,15,30,.985),rgba(5,10,22,.99));box-shadow:inset 0 2px 0 rgba(14,165,233,.55);opacity:0;transform:translateY(16px);transition:opacity .4s,transform .4s;pointer-events:none;}
     .lo-prod:hover .lo-prod-reveal,.lo-prod:focus-within .lo-prod-reveal{opacity:1;transform:none;pointer-events:auto;}
     @media (hover:none){.lo-prod-reveal{position:static;opacity:1;transform:none;background:none;padding:0 2rem 2rem;}.lo-prod-hint{display:none;}}
   `
