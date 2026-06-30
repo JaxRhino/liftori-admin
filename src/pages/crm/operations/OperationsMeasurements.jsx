@@ -185,9 +185,14 @@ export default function OperationsMeasurements() {
     if (!client) return
     setLoading(true); setErr(null)
     try {
+      const { data: pdefs } = await client.from('pipeline_definitions').select('id,name,is_default,is_active').eq('is_active', true).order('display_order')
+      const pdl = pdefs || []
+      const jpipe = pdl.find(d => /job|operation|production|install/i.test(d.name || '')) || pdl.find(d => !d.is_default) || pdl[0] || null
+      let wq = client.from('customer_pipeline').select('id, title').order('title')
+      if (jpipe) wq = wq.eq('pipeline_definition_id', jpipe.id)
       const [mRes, wRes, cRes] = await Promise.all([
         client.from('ops_measurements').select('*').order('created_at', { ascending: false }),
-        client.from('ops_work_orders').select('id, work_order_number, title').order('scheduled_start', { ascending: false }).limit(200),
+        wq,
         client.from('customer_contacts').select('id, name').order('name').limit(500),
       ])
       if (mRes.error) throw mRes.error
@@ -385,7 +390,7 @@ function NewMeasurementModal({ open, onClose, onSaved, client, workOrders, conta
         template_type: template,
         status: 'draft',
         address: address.trim() || null,
-        work_order_id: woId || null,
+        pipeline_id: woId || null,
         contact_id: contactId || null,
         notes: notes.trim() || null,
         conditions: conditions.trim() || null,
@@ -425,7 +430,7 @@ function NewMeasurementModal({ open, onClose, onSaved, client, workOrders, conta
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
         <Select label="Template" value={template} onChange={setTemplate} allowBlank={false} options={TEMPLATES.map(t => ({ value: t.key, label: t.label }))} />
         <Input label="Address" value={address} onChange={setAddress} placeholder="123 Main St" />
-        <Select label="Linked Work Order" value={woId} onChange={setWoId} options={workOrders.map(w => ({ value: w.id, label: (w.work_order_number || '') + ' ' + (w.title || '') }))} />
+        <Select label="Linked Job" value={woId} onChange={setWoId} options={workOrders.map(w => ({ value: w.id, label: w.title || 'Job' }))} />
         <Select label="Contact" value={contactId} onChange={setContactId} options={contacts.map(c => ({ value: c.id, label: c.name }))} />
       </div>
       <Input label="Notes" value={notes} onChange={setNotes} rows={2} />
