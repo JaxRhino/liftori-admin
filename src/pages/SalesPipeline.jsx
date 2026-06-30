@@ -76,6 +76,7 @@ export default function SalesPipeline() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [showLost, setShowLost] = useState(false)
   const [busyId, setBusyId] = useState(null)
+  const [selected, setSelected] = useState(null)
 
   useEffect(() => { fetchAll() }, [])
 
@@ -261,15 +262,15 @@ export default function SalesPipeline() {
                         const path = pathOf(l)
                         const opsStatus = l.project?.status
                         return (
-                          <div key={l.id} className="bg-navy-800 border border-navy-700/50 rounded-xl p-3">
+                          <div key={l.id} onClick={() => setSelected(l)} className="cursor-pointer bg-navy-800 border border-navy-700/50 rounded-xl p-3 hover:border-brand-blue/40">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TYPE_COLOR[l.product_type] || 'bg-gray-500/20 text-gray-400'}`}>{l.product_type}</span>
-                              <button onClick={() => setPath(l, path === 'build' ? 'demo' : 'build')} disabled={busyId === l.id} title="Toggle fulfillment path" className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${path === 'build' ? 'bg-blue-500/20 text-blue-300' : 'bg-teal-500/20 text-teal-300'}`}>
+                              <button onClick={(e) => { e.stopPropagation(); setPath(l, path === 'build' ? 'demo' : 'build') }} disabled={busyId === l.id} title="Toggle fulfillment path" className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${path === 'build' ? 'bg-blue-500/20 text-blue-300' : 'bg-teal-500/20 text-teal-300'}`}>
                                 {path === 'build' ? 'Needs Build' : 'Product Demo'}
                               </button>
                               {lineTcv(l) > 0 && <span className="text-[11px] text-emerald-400 font-semibold">{money(lineTcv(l))}</span>}
                             </div>
-                            <Link to={`/admin/customers/${l.customer?.id || l.profile_id}`} className="block text-sm font-semibold text-white hover:text-brand-blue mt-1 truncate">
+                            <Link onClick={e => e.stopPropagation()} to={`/admin/customers/${l.customer?.id || l.profile_id}`} className="block text-sm font-semibold text-white hover:text-brand-blue mt-1 truncate">
                               {l.customer?.company_name || l.customer?.full_name || 'Customer'}
                             </Link>
                             {l.customer?.company_name && l.customer?.full_name && <p className="text-[11px] text-gray-500 truncate">{l.customer.full_name}</p>}
@@ -278,11 +279,12 @@ export default function SalesPipeline() {
                             <div className="flex items-center justify-between mt-2 gap-2">
                               <span className="text-[11px] text-gray-500 truncate">{l.owner?.full_name || (l.owner_id ? 'Assigned' : 'Unassigned')}</span>
                               {!l.owner_id && myId && (
-                                <button onClick={() => assignToMe(l)} disabled={busyId === l.id} className="text-[11px] text-brand-blue hover:underline disabled:opacity-50 flex-shrink-0">Assign to me</button>
+                                <button onClick={(e) => { e.stopPropagation(); assignToMe(l) }} disabled={busyId === l.id} className="text-[11px] text-brand-blue hover:underline disabled:opacity-50 flex-shrink-0">Assign to me</button>
                               )}
                             </div>
                             <select
                               value={stage}
+                              onClick={e => e.stopPropagation()}
                               onChange={e => moveLine(l, e.target.value)}
                               disabled={busyId === l.id}
                               className="mt-2 w-full bg-navy-900 border border-navy-700/50 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 disabled:opacity-50"
@@ -302,6 +304,88 @@ export default function SalesPipeline() {
       ) : (
         <ConsultingBoard engagements={engagements} />
       )}
+      {selected && <DealDrawer line={selected} onClose={() => setSelected(null)} />}
+    </div>
+  )
+}
+
+function DealDrawer({ line, onClose }) {
+  const [est, setEst] = useState(null)
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const moneyd = n => '$' + Math.round(Number(n) || 0).toLocaleString()
+  const PUBLIC_BASE = 'https://admin.liftori.ai'
+  useEffect(() => {
+    (async () => {
+      if (line.estimate_id) {
+        const [e1, e2] = await Promise.all([
+          supabase.from('sales_estimates').select('*').eq('id', line.estimate_id).maybeSingle(),
+          supabase.from('sales_estimate_items').select('*').eq('estimate_id', line.estimate_id).order('sort_order'),
+        ])
+        setEst(e1.data || null); setItems(e2.data || [])
+      }
+      setLoading(false)
+    })()
+  }, [line.estimate_id])
+  const cust = line.customer?.company_name || line.customer?.full_name || 'Customer'
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="h-full w-full max-w-xl overflow-auto border-l border-navy-700 bg-navy-900 p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-white">{cust}</h2>
+            <p className="text-xs text-gray-400">{line.product_type} &middot; {normalizeSalesStage(line.stage)}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">Close</button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <Stat label="Deal value" value={moneyd(line.estimated_value)} accent="text-brand-blue" />
+          <Stat label="Recurring" value={line.mrr ? moneyd(line.mrr) + '/mo' : '-'} accent="text-emerald-400" />
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-gray-500 py-6 text-center">Loading...</p>
+        ) : !line.estimate_id ? (
+          <div className="rounded-xl border border-navy-700/50 bg-navy-800/50 p-4 text-sm text-gray-400">
+            No estimate is linked to this deal yet. Build one from Sales Hub &gt; Estimates and send it; the products will show here.
+          </div>
+        ) : !est ? (
+          <p className="text-sm text-gray-500">Linked estimate not found.</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs text-gray-400">{est.estimate_number}{est.title ? ' - ' + est.title : ''}</span>
+              <span className="rounded-md border px-2 py-0.5 text-[11px] font-semibold text-gray-300 border-navy-600 capitalize">{(est.status || '').replace('_', ' ')}</span>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-navy-700/50">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-navy-800 text-[11px] uppercase tracking-wider text-gray-400">
+                  <tr><th className="px-3 py-2">Product</th><th className="px-3 py-2 text-right">Qty</th><th className="px-3 py-2 text-right">Amount</th></tr>
+                </thead>
+                <tbody className="divide-y divide-navy-700/50">
+                  {items.map(i => (
+                    <tr key={i.id} className="bg-navy-900/40">
+                      <td className="px-3 py-2 text-white">{i.name}{i.billing === 'monthly' && <span className="ml-1 text-[11px] text-gray-500">monthly</span>}</td>
+                      <td className="px-3 py-2 text-right text-gray-300">{i.qty}</td>
+                      <td className="px-3 py-2 text-right font-mono text-brand-blue">{moneyd(i.line_total)}{i.billing === 'monthly' ? '/mo' : ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="rounded-xl border border-navy-700/50 bg-navy-800/50 p-3 text-sm space-y-1">
+              <div className="flex justify-between text-gray-400"><span>50% deposit</span><span className="font-mono text-brand-blue">{moneyd(est.deposit_amount)}</span></div>
+              <div className="flex justify-between text-gray-400"><span>Signature</span><span className={est.signed_at ? 'text-emerald-400' : 'text-gray-500'}>{est.signed_at ? 'Signed by ' + est.signer_name : 'Not signed'}</span></div>
+              <div className="flex justify-between text-gray-400"><span>Deposit</span><span className={est.deposit_paid_at ? 'text-emerald-400' : 'text-gray-500'}>{est.deposit_paid_at ? 'Paid' : 'Not paid'}</span></div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Customer signature link</p>
+              <input readOnly value={`${PUBLIC_BASE}/estimate/${est.public_token}`} onFocus={e => e.target.select()} className="w-full rounded-lg bg-navy-900 border border-navy-700/50 px-2 py-1.5 text-xs text-gray-300" />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
