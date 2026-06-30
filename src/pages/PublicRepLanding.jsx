@@ -190,12 +190,10 @@ export default function PublicRepLanding() {
 
         {/* Liftori products — flagship, hover to reveal */}
         <section id="products" className="mx-auto max-w-6xl px-6 pt-8 pb-4">
-          <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="lo-mono text-xs uppercase tracking-[0.32em]" style={{ color: '#38BDF8' }}>Liftori products</p>
-              <h2 className="lo-display mt-3 text-5xl md:text-6xl">SIGNATURE SOLUTIONS</h2>
-            </div>
-            <p className="max-w-sm text-sm text-slate-400">The three ways businesses grow with Liftori. Hover any card to see what’s inside.</p>
+          <div className="mb-10">
+            <p className="lo-mono text-xs uppercase tracking-[0.32em]" style={{ color: '#38BDF8' }}>Liftori products</p>
+            <h2 className="lo-display mt-3 text-5xl md:text-6xl">SIGNATURE SOLUTIONS</h2>
+            <p className="mt-4 max-w-xl text-sm text-slate-400">The three ways businesses grow with Liftori. Hover any card to see what’s inside.</p>
           </div>
           <div className="grid gap-5 md:grid-cols-3">
             {LIFTORI_PRODUCTS.map((p) => (
