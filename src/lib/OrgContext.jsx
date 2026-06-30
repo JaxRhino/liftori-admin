@@ -133,9 +133,11 @@ export function OrgProvider({ children }) {
   const hasFeature = useCallback((key) => {
     // Super admins viewing their own org see everything
     if (isAdmin && !isImpersonating) return true;
-    // Testers (NDA'd 1099 contractors) need to exercise every hub — treat them
-    // like admins for nav visibility when not impersonating. RLS still gates data.
-    if (profile?.role === 'tester' && !isImpersonating) return true;
+    // Internal Liftori staff (any admin-area role) see all hubs when not impersonating;
+    // their nav is gated by the RBAC permission system (Team > Permissions), not tenant
+    // feature flags. Tenant feature flags only apply to impersonated/customer orgs.
+    const INTERNAL_ROLES = ['super_admin','admin','dev','tester','sales_director','sales_rep','call_agent','consultant'];
+    if (!isImpersonating && INTERNAL_ROLES.includes(profile?.role)) return true;
     return features.has(key);
   }, [features, isAdmin, isImpersonating, profile?.role]);
 
