@@ -229,7 +229,30 @@ function PlanTab({ rules, loading }) {
   )
 }
 
-/* ----------------------------- Calculator ------------------------------ */
+/* ----------------------------- Calculator ----------------------------- */
+// Hoisted to module scope so inputs keep focus across re-renders (defining them
+// inside CalculatorTab remounts the input on every keystroke).
+function CalcField({ label, value, set, hint }) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+        <input type="number" min="0" className="input pl-7" value={value} onChange={e => set(e.target.value)} />
+      </div>
+      {hint && <p className="mt-1 text-[11px] text-slate-500">{hint}</p>}
+    </div>
+  )
+}
+function CalcLine({ label, sub, amount, accent }) {
+  return (
+    <div className="flex items-center justify-between border-b border-navy-700/60 py-2.5 last:border-0">
+      <div><p className="text-sm text-slate-200">{label}</p>{sub && <p className="text-[11px] text-slate-500">{sub}</p>}</div>
+      <p className={`font-mono text-sm font-semibold ${accent ? 'text-brand-cyan' : 'text-slate-300'}`}>{usd(amount)}</p>
+    </div>
+  )
+}
+
 function CalculatorTab({ rules }) {
   const rateFor = (cat, fallback) => {
     const r = rules.find(x => x.category === cat && x.rate != null)
@@ -257,22 +280,6 @@ function CalculatorTab({ rules }) {
   const oneTimeTotal = crmSetup + webComm + customComm
   const recurringMonthly = crmMonthly
 
-  const Field = ({ label, value, set, hint }) => (
-    <div>
-      <label className="label">{label}</label>
-      <div className="relative">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-        <input type="number" min="0" className="input pl-7" value={value} onChange={e => set(e.target.value)} />
-      </div>
-      {hint && <p className="mt-1 text-[11px] text-slate-500">{hint}</p>}
-    </div>
-  )
-  const Line = ({ label, sub, amount, accent }) => (
-    <div className="flex items-center justify-between border-b border-navy-700/60 py-2.5 last:border-0">
-      <div><p className="text-sm text-slate-200">{label}</p>{sub && <p className="text-[11px] text-slate-500">{sub}</p>}</div>
-      <p className={`font-mono text-sm font-semibold ${accent ? 'text-brand-cyan' : 'text-slate-300'}`}>{usd(amount)}</p>
-    </div>
-  )
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -281,29 +288,29 @@ function CalculatorTab({ rules }) {
         <h3 className="text-base font-semibold text-white">CRM / platform sale</h3>
         <p className="mt-1 text-[13px] text-slate-400">{crmRate}% of the first month + onboarding up front, then {crmRate}% of the monthly plan every month you service them.</p>
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <Field label="Monthly plan" value={monthly} set={setMonthly} />
-          <Field label="Onboarding fee" value={onboarding} set={setOnboarding} />
+          <CalcField label="Monthly plan" value={monthly} set={setMonthly} />
+          <CalcField label="Onboarding fee" value={onboarding} set={setOnboarding} />
         </div>
         <div className="mt-4">
-          <Line label="Setup commission" sub={`${crmRate}% of (first month + onboarding)`} amount={crmSetup} accent />
-          <Line label="Recurring / month" sub={`${crmRate}% of the monthly plan, while servicing`} amount={crmMonthly} accent />
-          <Line label="First 12 months of recurring" sub="If you keep the customer a year" amount={crmMonthly * 12} />
+          <CalcLine label="Setup commission" sub={`${crmRate}% of (first month + onboarding)`} amount={crmSetup} accent />
+          <CalcLine label="Recurring / month" sub={`${crmRate}% of the monthly plan, while servicing`} amount={crmMonthly} accent />
+          <CalcLine label="First 12 months of recurring" sub="If you keep the customer a year" amount={crmMonthly * 12} />
         </div>
       </div>
 
       {/* Website */}
       <div className="rounded-xl border border-navy-700 bg-navy-800/50 p-6">
         <h3 className="text-base font-semibold text-white">Website build</h3>
-        <p className="mt-1 text-[13px] text-slate-400">$500–999 pays 10%. $1,000+ pays 25%. Custom build add-ons pay {customRate}%, totaled separately.</p>
+        <p className="mt-1 text-[13px] text-slate-400">$500–$999 pays 10%. $1,000+ pays 25%. Custom build add-ons pay {customRate}%, totaled separately.</p>
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <Field label="Website price" value={sitePrice} set={setSitePrice}
+          <CalcField label="Website price" value={sitePrice} set={setSitePrice}
             hint={sp > 0 && sp < 500 ? 'Under $500 — not commissionable' : `Applied tier: ${tier}%`} />
-          <Field label="Custom build charge" value={customCharge} set={setCustomCharge} />
+          <CalcField label="Custom build charge" value={customCharge} set={setCustomCharge} />
         </div>
         <div className="mt-4">
-          <Line label="Website commission" sub={`${tier}% of ${usd(sp)}`} amount={webComm} accent />
-          <Line label="Custom build commission" sub={`${customRate}% of ${usd(cc)}`} amount={customComm} accent />
-          <Line label="Website deal total" amount={webComm + customComm} />
+          <CalcLine label="Website commission" sub={`${tier}% of ${usd(sp)}`} amount={webComm} accent />
+          <CalcLine label="Custom build commission" sub={`${customRate}% of ${usd(cc)}`} amount={customComm} accent />
+          <CalcLine label="Website deal total" amount={webComm + customComm} />
         </div>
       </div>
 
