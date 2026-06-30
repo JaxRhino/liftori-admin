@@ -126,6 +126,7 @@ import LiftoriSettings from './pages/LiftoriSettings'
 import AcceptInvite from './pages/AcceptInvite'
 import SalesProducts from './pages/SalesProducts'
 import SalesPipeline from './pages/SalesPipeline'
+import PublicRepLanding from './pages/PublicRepLanding'
 import Investors from './pages/Investors'
 import OpsDashboard from './pages/OpsDashboard'
 import MeasurementRequests, { MeasurementLab } from './pages/crm/MeasurementRequests'
@@ -429,6 +430,8 @@ export default function App() {
           <Route path="/accept-invite/:token" element={<AcceptInvite />} />
           {/* Public affiliate/creator onboarding wizard â€” no auth required */}
           <Route path="/onboard-affiliate/:token" element={<AffiliateOnboarding />} />
+          {/* Public sales-rep landing page - no auth required */}
+          <Route path="/r/:slug" element={<PublicRepLanding />} />
           {/* Public homeowner proposal (Good/Better/Best + e-sign) — no auth required */}
           <Route path="/proposal/:platformId/:groupId" element={<CrmProposal />} />
           {/* Public homeowner portal — no auth required */}
