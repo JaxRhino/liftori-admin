@@ -11,6 +11,7 @@ import {
 } from '../lib/timeTrackingService';
 import { listTesterInvites, cancelTesterInvite, resendTesterInvite } from '../lib/testerProgramService';
 import InviteTesterModal from '../components/testing/InviteTesterModal';
+import { PERMISSION_GROUPS } from '../lib/permissions';
 
 // ─── Default Roles & Permissions ─────────────────────────────────────────────
 const DEFAULT_ROLES = [
@@ -22,96 +23,6 @@ const DEFAULT_ROLES = [
   { name: 'Platform Tester', description: 'QA and testing — access client platforms for testing, bug reporting, no admin settings', color: 'bg-pink-500', is_system: true },
 ];
 
-const PERMISSION_GROUPS = [
-  {
-    group: 'Dashboard & Call Center',
-    permissions: [
-      { key: 'dashboard.view', label: 'Dashboard', description: 'View main admin dashboard and metrics' },
-      { key: 'call_center.access', label: 'Call Center', description: 'Access call center and phone system' },
-    ]
-  },
-  {
-    group: 'Sales Hub',
-    permissions: [
-      { key: 'sales.lead_hunter', label: 'Lead Hunter', description: 'Search, enrich, and manage leads' },
-      { key: 'sales.customers', label: 'Customers', description: 'View and manage customer accounts' },
-      { key: 'sales.pipeline', label: 'Pipeline', description: 'View and manage deal pipeline' },
-      { key: 'sales.estimates', label: 'Estimates', description: 'Create and send estimates' },
-      { key: 'sales.agreements', label: 'Agreements', description: 'Manage client agreements' },
-      { key: 'sales.commissions', label: 'Commissions', description: 'View commission reports' },
-      { key: 'sales.waitlist', label: 'Waitlist', description: 'Manage the waitlist signups' },
-    ]
-  },
-  {
-    group: 'Projects & Platforms',
-    permissions: [
-      { key: 'projects.view', label: 'View Projects', description: 'See project list and details' },
-      { key: 'projects.manage', label: 'Manage Projects', description: 'Create, edit, and update projects' },
-      { key: 'platforms.manage', label: 'Manage Platforms', description: 'Deploy and manage client sites' },
-    ]
-  },
-  {
-    group: 'Marketing',
-    permissions: [
-      { key: 'marketing.dashboard', label: 'Marketing Dashboard', description: 'View marketing analytics' },
-      { key: 'marketing.campaigns', label: 'Campaigns', description: 'Create and manage campaigns' },
-      { key: 'marketing.content', label: 'Content Creator', description: 'Create marketing content' },
-    ]
-  },
-  {
-    group: 'Communications',
-    permissions: [
-      { key: 'comms.hub', label: 'Comms Hub', description: 'Access the communications hub' },
-      { key: 'comms.chat', label: 'Chat', description: 'Send and receive messages' },
-      { key: 'comms.rally', label: 'Rally Video', description: 'Join and host video calls' },
-      { key: 'comms.support', label: 'Support Tickets', description: 'Manage support tickets' },
-    ]
-  },
-  {
-    group: 'EOS',
-    permissions: [
-      { key: 'eos.dashboard', label: 'EOS Dashboard', description: 'View EOS overview and leadership' },
-      { key: 'eos.scorecard', label: 'Scorecard', description: 'View and update EOS scorecard' },
-      { key: 'eos.rocks', label: 'Rocks', description: 'Manage quarterly rocks and goals' },
-      { key: 'eos.meetings', label: 'L10 Meetings', description: 'Join and manage L10 meetings' },
-      { key: 'eos.issues', label: 'Issues & Todos', description: 'Track issues, todos, and headlines' },
-    ]
-  },
-  {
-    group: 'Finance',
-    permissions: [
-      { key: 'finance.dashboard', label: 'Finance Dashboard', description: 'View financial overview' },
-      { key: 'finance.invoices', label: 'Invoices', description: 'Create and manage invoices' },
-      { key: 'finance.reports', label: 'Reports', description: 'View financial reports' },
-    ]
-  },
-  {
-    group: 'Tools',
-    permissions: [
-      { key: 'tools.tasks', label: 'Tasks', description: 'Personal and team task management' },
-      { key: 'tools.notes', label: 'Notes', description: 'Create and manage notes' },
-      { key: 'tools.calendar', label: 'Calendar', description: 'View and manage calendar' },
-    ]
-  },
-  {
-    group: 'Operations',
-    permissions: [
-      { key: 'ops.dashboard', label: 'Ops Dashboard', description: 'View operations overview' },
-      { key: 'ops.team', label: 'Team Management', description: 'Invite users, assign roles' },
-      { key: 'ops.wizard', label: 'Wizard Builder', description: 'Create onboarding wizards' },
-      { key: 'ops.plans', label: 'Plans', description: 'Manage subscription plans' },
-      { key: 'ops.discount_codes', label: 'Discount Codes', description: 'Create and manage discounts' },
-    ]
-  },
-  {
-    group: 'System',
-    permissions: [
-      { key: 'system.settings', label: 'Profile & Settings', description: 'Edit profile, upload picture, notifications' },
-      { key: 'system.billing', label: 'Billing', description: 'Manage billing and subscriptions' },
-      { key: 'system.integrations', label: 'Integrations', description: 'Manage third-party integrations' },
-    ]
-  },
-];
 
 // Default permission maps for preset roles
 const ALL_PERMISSIONS = Object.fromEntries(PERMISSION_GROUPS.flatMap(g => g.permissions.map(p => [p.key, true])));
