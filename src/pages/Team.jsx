@@ -146,6 +146,13 @@ export default function Team() {
       icon: Layers,
       action: () => { window.open('/onboard-affiliate/preview', '_blank'); setPreviewMenuOpen(false); },
     },
+    {
+      key: 'team-invite',
+      label: 'Team Invite',
+      description: 'Email invite + set-password accept flow',
+      icon: Mail,
+      action: () => { window.open('/accept-invite/preview', '_blank'); setPreviewMenuOpen(false); },
+    },
   ];
   const [onboardingRecords, setOnboardingRecords] = useState([]);
   const [showOnboardModal, setShowOnboardModal] = useState(false);

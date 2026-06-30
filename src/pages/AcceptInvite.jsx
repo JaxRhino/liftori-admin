@@ -26,6 +26,10 @@ export default function AcceptInvite() {
     async function load() {
       setLoading(true)
       setLoadError('')
+      if (token === 'preview') {
+        setInvite({ full_name: 'Jordan Sample', email: 'new.hire@example.com', role: 'Sales Rep', status: 'pending', expires_at: new Date(Date.now() + 7 * 864e5).toISOString() })
+        setFullName('Jordan Sample'); setLoading(false); return
+      }
       try {
         const { data, error } = await supabase.rpc('get_team_invite', { p_token: token })
         if (!active) return
@@ -50,6 +54,7 @@ export default function AcceptInvite() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    if (token === 'preview') { setError('Preview mode — submitting is disabled.'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
     if (password !== confirm) { setError('Passwords do not match.'); return }
     setSubmitting(true)
