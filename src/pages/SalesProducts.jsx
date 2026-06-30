@@ -11,7 +11,7 @@ const ROLE_CHOICES = [
   { code: 'sales_director', label: 'Director of Sales' },
   { code: 'call_agent', label: 'Call Agent' },
 ]
-const BLANK = { slug: '', name: '', tagline: '', description: '', demo_url: '', pricing_summary: '', category: 'CRM', status: 'active', visible_to_roles: ['sales_rep', 'sales_director'], sort_order: 0 }
+const BLANK = { slug: '', name: '', tagline: '', description: '', demo_url: '', pricing_summary: '', category: 'CRM', status: 'active', visible_to_roles: ['sales_rep', 'sales_director'], sort_order: 0, dev_notice: '', release_date: '' }
 
 export default function SalesProducts() {
   const { profile, perms } = useAuth()
@@ -51,6 +51,7 @@ export default function SalesProducts() {
         description: editing.description || null, demo_url: editing.demo_url || null,
         pricing_summary: editing.pricing_summary || null, category: editing.category || null,
         status: editing.status, visible_to_roles: editing.visible_to_roles || [],
+        dev_notice: editing.dev_notice || null, release_date: editing.release_date || null,
         sort_order: Number(editing.sort_order) || 0, updated_at: new Date().toISOString(),
       }
       const res = editing.id
@@ -98,6 +99,13 @@ export default function SalesProducts() {
                 </div>
                 <h2 className="mt-2 text-lg font-semibold text-white">{p.name}</h2>
                 {p.tagline && <p className="mt-1 text-sm text-slate-300">{p.tagline}</p>}
+                {p.dev_notice && (
+                  <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-400">Still in Dev Lab</div>
+                    <p className="mt-0.5 text-[12px] leading-snug text-amber-200/90">{p.dev_notice}</p>
+                    {p.release_date && <p className="mt-1 text-[11px] text-amber-300/80">Release planned {new Date(p.release_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>}
+                  </div>
+                )}
                 {p.description && <p className="mt-3 text-[13px] leading-relaxed text-slate-400 line-clamp-5">{p.description}</p>}
                 {p.pricing_summary && <p className="mt-3 text-xs text-slate-500">{p.pricing_summary}</p>}
                 {isManager && (
@@ -135,6 +143,8 @@ export default function SalesProducts() {
               <div><label className="label">Category</label><input className="input" value={editing.category || ''} onChange={e => setEditing({ ...editing, category: e.target.value })} /></div>
             </div>
             <div><label className="label">Pricing summary</label><input className="input" value={editing.pricing_summary || ''} onChange={e => setEditing({ ...editing, pricing_summary: e.target.value })} /></div>
+            <div><label className="label">Dev notice (yellow banner)</label><textarea className="input min-h-[60px]" value={editing.dev_notice || ''} onChange={e => setEditing({ ...editing, dev_notice: e.target.value })} placeholder="Still in Dev Lab — some features may not fully work yet. If you find a bug, report it." /></div>
+            <div><label className="label">Planned release date</label><input type="date" className="input" value={editing.release_date || ''} onChange={e => setEditing({ ...editing, release_date: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Status</label>
