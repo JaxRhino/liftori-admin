@@ -1,30 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
-import { HubPage, StatCard, Section, EmptyState, useCrmClient } from '../_shared'
+import { useNavigate, useParams } from 'react-router-dom'
+import { HubPage, StatCard, EmptyState, useCrmClient } from '../_shared'
 import { toast } from 'sonner'
 
-// Roofing Production board. Reads the tenant's OWN Supabase via useCrmClient().
-// Tracks each job through the physical roofing lifecycle on
-// ops_work_orders.production_stage -- separate from the generic job status /
-// Ops Pipeline. Stages: scheduled -> material delivered -> tear-off -> dry-in
-// -> complete -> inspected.
+// Roofing Production board. Reads the tenant's JOB pipeline deals
+// (customer_pipeline) and tracks each through the physical roofing lifecycle
+// on customer_pipeline.production_stage. Cards open the full job window
+// (CrmDealDetail at /crm/:platformId/deals/:id) - same record sales/jobs use.
 
 const STAGES = [
-  { key: 'scheduled',          label: 'Scheduled',         tone: 'bg-gray-500/20 text-gray-300 border-gray-500/40' },
+  { key: 'scheduled',          label: 'Scheduled',          tone: 'bg-gray-500/20 text-gray-300 border-gray-500/40' },
   { key: 'material_delivered', label: 'Material Delivered', tone: 'bg-sky-500/20 text-sky-300 border-sky-500/40' },
-  { key: 'tear_off',           label: 'Tear-Off',          tone: 'bg-amber-500/20 text-amber-300 border-amber-500/40' },
-  { key: 'dry_in',             label: 'Dry-In',            tone: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' },
-  { key: 'complete',           label: 'Complete',          tone: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
-  { key: 'inspected',          label: 'Inspected',         tone: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+  { key: 'tear_off',           label: 'Tear-Off',           tone: 'bg-amber-500/20 text-amber-300 border-amber-500/40' },
+  { key: 'dry_in',             label: 'Dry-In',             tone: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' },
+  { key: 'complete',           label: 'Complete',           tone: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
+  { key: 'inspected',          label: 'Inspected',          tone: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
 ]
 const STAGE_KEYS = STAGES.map((s) => s.key)
-const PRIORITY_TONES = { low: 'bg-navy-700/60 text-gray-300', normal: 'bg-sky-500/20 text-sky-300', medium: 'bg-sky-500/20 text-sky-300', high: 'bg-amber-500/20 text-amber-300', urgent: 'bg-red-500/20 text-red-300' }
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
 
 export default function OperationsProduction() {
   const { client } = useCrmClient()
+  const navigate = useNavigate()
+  const { platformId } = useParams()
+  const openJob = (id) => navigate('/crm/' + platformId + '/deals/' + id)
+
   const [jobs, setJobs] = useState([])
   const [contacts, setContacts] = useState([])
-  const [crews, setCrews] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { if (client) load(); /* eslint-disable-next-line */ }, [client])
@@ -32,14 +34,18 @@ export default function OperationsProduction() {
   async function load() {
     try {
       setLoading(true)
-      const [woRes, conRes, crewRes] = await Promise.all([
-        client.from('ops_work_orders').select('*').order('scheduled_start', { ascending: true }).limit(500),
-        client.from('customer_contacts').select('id, first_name, last_name').limit(500),
-        client.from('ops_crews').select('id, name, color').limit(100),
+      const { data: defs } = await client.from('pipeline_definitions').select('*').eq('is_active', true).order('display_order')
+      const list = defs || []
+      const jobPipe = list.find(d => /job|operation|production|install/i.test(d.name || '')) ||
+                      list.find(d => !d.is_default) || list[0] || null
+      let dealQ = client.from('customer_pipeline').select('*').order('install_date', { ascending: true, nullsFirst: false }).limit(500)
+      if (jobPipe) dealQ = dealQ.eq('pipeline_definition_id', jobPipe.id)
+      const [dealRes, conRes] = await Promise.all([
+        dealQ,
+        client.from('customer_contacts').select('id, first_name, last_name').limit(1000),
       ])
-      setJobs(woRes?.data || [])
+      setJobs(dealRes?.data || [])
       setContacts(conRes?.data || [])
-      setCrews(crewRes?.data || [])
     } catch (e) {
       console.error('production load failed', e)
       toast.error('Failed to load production board')
@@ -49,7 +55,6 @@ export default function OperationsProduction() {
   }
 
   const conById = useMemo(() => Object.fromEntries(contacts.map((c) => [c.id, ((c.first_name || '') + ' ' + (c.last_name || '')).trim()])), [contacts])
-  const crewById = useMemo(() => Object.fromEntries(crews.map((c) => [c.id, c])), [crews])
 
   const stageOf = (j) => STAGE_KEYS.includes(j.production_stage) ? j.production_stage : 'scheduled'
   const byStage = useMemo(() => {
@@ -70,7 +75,7 @@ export default function OperationsProduction() {
     const prev = job.production_stage
     setJobs((arr) => arr.map((j) => (j.id === job.id ? { ...j, production_stage: stage } : j)))
     try {
-      const { error } = await client.from('ops_work_orders').update({ production_stage: stage, updated_at: new Date().toISOString() }).eq('id', job.id)
+      const { error } = await client.from('customer_pipeline').update({ production_stage: stage, updated_at: new Date().toISOString() }).eq('id', job.id)
       if (error) throw error
     } catch (e) {
       console.error(e); toast.error('Could not move job')
@@ -79,7 +84,7 @@ export default function OperationsProduction() {
   }
 
   return (
-    <HubPage title="Production Board" subtitle="Every roofing job from scheduled through final inspection.">
+    <HubPage title="Production Board" subtitle="Every roofing job from scheduled through final inspection. Click a job to open it.">
       {loading ? (
         <div className="flex items-center justify-center py-24"><div className="w-7 h-7 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" /></div>
       ) : (
@@ -92,7 +97,7 @@ export default function OperationsProduction() {
           </div>
 
           {jobs.length === 0 ? (
-            <EmptyState title="No jobs in production" description="Jobs appear here once they're scheduled. Create a job from the Jobs tab." />
+            <EmptyState title="No jobs in production" description="Jobs appear here once they're on the job board. Create one from the Jobs tab or win a deal in Sales." />
           ) : (
             <div className="overflow-x-auto pb-2">
               <div className="flex gap-4 min-w-max">
@@ -107,28 +112,24 @@ export default function OperationsProduction() {
                       <div className="bg-navy-800/40 border-x border-b border-navy-700/50 rounded-b-lg p-2 space-y-2 min-h-[120px]">
                         {list.length === 0 && <div className="text-center text-gray-600 text-xs py-6">No jobs</div>}
                         {list.map((job) => {
-                          const crew = crewById[job.assigned_crew_id]
-                          const sched = fmtDate(job.scheduled_start)
+                          const sched = fmtDate(job.install_date)
                           return (
-                            <div key={job.id} className="bg-navy-800 border border-navy-700/50 rounded-lg p-3">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <div className="text-[10px] text-gray-500 font-mono">{job.work_order_number}</div>
-                                  <div className="text-white text-sm font-medium leading-tight">{job.title}</div>
-                                </div>
-                                {job.priority && job.priority !== 'normal' && (
-                                  <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${PRIORITY_TONES[job.priority] || PRIORITY_TONES.normal}`}>{job.priority}</span>
-                                )}
-                              </div>
+                            <div
+                              key={job.id}
+                              onClick={() => openJob(job.id)}
+                              className="bg-navy-800 border border-navy-700/50 hover:border-brand-cyan/50 rounded-lg p-3 cursor-pointer transition-colors"
+                            >
+                              <div className="text-white text-sm font-medium leading-tight">{job.title || '(untitled job)'}</div>
                               {conById[job.contact_id] && <div className="text-xs text-gray-400 mt-1">{conById[job.contact_id]}</div>}
-                              {job.address && <div className="text-[11px] text-gray-500 truncate">{job.address}{job.city ? ', ' + job.city : ''}</div>}
+                              {job.job_address && <div className="text-[11px] text-gray-500 truncate">{job.job_address}</div>}
                               <div className="flex items-center gap-2 mt-1.5">
-                                {sched && <span className="text-[11px] text-sky-300">{sched}</span>}
-                                {crew && <span className="text-[11px] text-gray-400 inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: crew.color || '#64748b' }} />{crew.name}</span>}
+                                {sched && <span className="text-[11px] text-sky-300">Install {sched}</span>}
+                                {job.crew_name && <span className="text-[11px] text-gray-400">{job.crew_name}</span>}
                               </div>
                               <select
                                 value={stageOf(job)}
-                                onChange={(e) => moveJob(job, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => { e.stopPropagation(); moveJob(job, e.target.value) }}
                                 className="mt-2 w-full bg-navy-900 border border-navy-700 text-gray-200 rounded px-2 py-1 text-xs"
                               >
                                 {STAGES.map((s) => <option key={s.key} value={s.key}>Move to: {s.label}</option>)}
