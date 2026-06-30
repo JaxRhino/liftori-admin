@@ -110,7 +110,7 @@ function LabosShell() {
     return (
       <div className="min-h-screen bg-navy-900 flex items-center justify-center p-6">
         <div className="max-w-md bg-navy-800 border border-red-500/30 rounded-xl p-6 text-center">
-          <h2 className="text-red-400 font-semibold mb-2">LABOS unavailable</h2>
+          <h2 className="text-red-400 font-semibold mb-2">Liftori CRM unavailable</h2>
           <p className="text-sm text-gray-400 mb-4">{error.message}</p>
           <button onClick={() => navigate('/admin/products')} className="px-4 py-2 bg-brand-blue text-white rounded-lg text-sm">
             Back to Products
