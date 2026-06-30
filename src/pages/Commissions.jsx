@@ -1,240 +1,578 @@
+import { useState, useEffect, useMemo } from 'react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
+
+// Sales Hub > Commissions
+// Plain-language commission plan for 1099 sales reps + an earnings calculator +
+// a live per-rep ledger. Admins/managers manage every rep's entries.
+// Rates are driven by commission_plan_rules so the plan + calculator stay in sync.
+
+const MANAGER_ROLES = ['super_admin', 'admin', 'dev', 'sales_director']
+const REP_ROLE_CHOICES = ['sales_rep', 'sales_director', 'call_agent', 'consultant']
+
+const ENTRY_TYPES = [
+  { value: 'crm_setup', label: 'CRM setup (first month + onboarding)', category: 'crm', rate: 10 },
+  { value: 'crm_recurring', label: 'CRM monthly recurring', category: 'crm', rate: 10 },
+  { value: 'web_dev', label: 'Website build', category: 'web_dev', rate: null },
+  { value: 'custom_build', label: 'Custom build add-on', category: 'custom_build', rate: 10 },
+  { value: 'consulting_referral', label: 'Consulting referral bonus', category: 'consulting', rate: null },
+]
+
+const STATUS_STYLE = {
+  pending:   'bg-amber-500/15 text-amber-300 border-amber-500/30',
+  approved:  'bg-sky-500/15 text-sky-300 border-sky-500/30',
+  scheduled: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+  paid:      'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  held:      'bg-rose-500/15 text-rose-300 border-rose-500/30',
+}
+const STATUSES = ['pending', 'approved', 'scheduled', 'paid', 'held']
+
+const usd = (n) => (Number(n) || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+
+// Website tier from price: $500–999 = 10%, $1,000+ = 25%, under $500 not commissionable.
+function webTierRate(price) {
+  const p = Number(price) || 0
+  if (p >= 1000) return 25
+  if (p >= 500) return 10
+  return 0
+}
+
 export default function Commissions() {
-  const capabilities = [
-    {
-      title: 'Personal Commission Dashboard',
-      description: 'Every sales rep and affiliate sees their own real-time earnings — closed deals, pending payouts, commission rate, bonus tiers, and year-to-date totals. One glance tells you exactly where you stand.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Affiliate Commission Portal',
-      description: 'White-labeled commission view for affiliates on their own portals. Track referral conversions, see per-client earnings, download payout history, and share referral links — all branded to Liftori.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Tiered Commission Rates',
-      description: 'Configure commission structures per role: flat percentage, tiered brackets, bonus accelerators, and override commissions for team leads. Rates auto-apply based on deal size and rep level.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Sales Leaderboard',
-      description: 'Real-time leaderboard ranked by closed revenue, deal count, or commission earned. Weekly, monthly, quarterly, and all-time views. Drives healthy competition and surfaces top performers.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.982.143 1.954.317 2.916.52A6.003 6.003 0 0016.27 9.728M18.75 4.236V4.5c0 2.108-.966 3.99-2.48 5.228m0 0a6.023 6.023 0 01-7.54 0" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Deal-Level Commission Tracking',
-      description: 'Every project in the pipeline shows its commission value. See who sold it, what rate applies, split commissions for co-sells, and track from estimate approval through final payout.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Automated Payout Scheduling',
-      description: 'Set payout cadence per rep or affiliate — weekly, biweekly, monthly, or on milestone. Auto-calculates net commission after adjustments, holds, and chargebacks. Syncs directly to Finance Hub.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Commission Splits & Overrides',
-      description: 'Support complex comp structures: split commissions between co-sellers, manager overrides on team deals, referral bonuses for affiliates, and recurring revenue commissions on managed service contracts.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Earnings Forecasting',
-      description: 'Project future commissions based on pipeline deals and close probability. See best-case, expected, and worst-case earnings for the month and quarter. Helps reps plan and managers forecast payroll.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" />
-        </svg>
-      ),
-    },
-  ];
+  const { profile, user } = useAuth()
+  const role = profile?.role || 'customer'
+  const isManager = MANAGER_ROLES.includes(role)
+  const myId = user?.id
 
-  const commissionStatuses = [
-    { label: 'Earned', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', description: 'Deal closed, commission calculated' },
-    { label: 'Pending', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', description: 'Awaiting approval or payment milestone' },
-    { label: 'Approved', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', description: 'Reviewed and cleared for payout' },
-    { label: 'Scheduled', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', description: 'Queued for next payout cycle' },
-    { label: 'Paid', color: 'bg-green-500/20 text-green-400 border-green-500/30', description: 'Funds transferred to rep/affiliate' },
-    { label: 'Held', color: 'bg-red-500/20 text-red-400 border-red-500/30', description: 'On hold — dispute, chargeback, or adjustment' },
-  ];
+  const [tab, setTab] = useState('plan')
+  const [rules, setRules] = useState([])
+  const [entries, setEntries] = useState([])
+  const [reps, setReps] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState(null)
+  function flash(m) { setToast(m); setTimeout(() => setToast(null), 3200) }
 
-  const roleTypes = [
-    { role: 'Sales Rep', rate: '10–15%', scope: 'Direct-sold deals', payout: 'Biweekly' },
-    { role: 'Team Lead', rate: '3–5% override', scope: 'Team member deals', payout: 'Monthly' },
-    { role: 'Affiliate', rate: '8–12%', scope: 'Referral conversions', payout: 'Monthly' },
-    { role: 'Partner', rate: 'Custom', scope: 'White-label / co-sell', payout: 'Per agreement' },
-  ];
+  async function loadAll() {
+    setLoading(true)
+    const [r1, r2] = await Promise.all([
+      supabase.from('commission_plan_rules').select('*').eq('active', true).order('sort_order'),
+      supabase.from('sales_commission_entries').select('*').order('created_at', { ascending: false }),
+    ])
+    setRules(r1.data || [])
+    setEntries(r2.data || [])
+    if (isManager) {
+      const { data } = await supabase.from('profiles').select('id, full_name, email, role')
+        .in('role', REP_ROLE_CHOICES).order('full_name')
+      setReps(data || [])
+    }
+    setLoading(false)
+  }
+  useEffect(() => { loadAll() /* eslint-disable-next-line */ }, [isManager])
 
-  const flowSteps = [
-    { step: '1', label: 'Deal Closes', detail: 'Agreement signed, project moves to "Under Contract"' },
-    { step: '2', label: 'Commission Calculated', detail: 'Rate applied based on rep role, deal size, and tier' },
-    { step: '3', label: 'Manager Review', detail: 'Team lead reviews splits, overrides, and adjustments' },
-    { step: '4', label: 'Approved for Payout', detail: 'Syncs to Finance Hub commission batch' },
-    { step: '5', label: 'Payout Processed', detail: 'Funds scheduled and transferred on cadence' },
-  ];
+  // My entries = the signed-in rep's own; managers still get a personal view here.
+  const myEntries = useMemo(() => entries.filter(e => e.rep_id === myId), [entries, myId])
+
+  const tabs = [
+    { id: 'plan', label: 'The Plan' },
+    { id: 'calculator', label: 'Calculator' },
+    { id: 'earnings', label: 'My Earnings' },
+    ...(isManager ? [{ id: 'manage', label: 'Manage' }] : []),
+  ]
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600/20 via-navy-800/60 to-green-600/20 border border-emerald-500/20 p-8">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent" />
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-              <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Commissions</h1>
-              <p className="text-emerald-300/70 text-sm">Sales rep & affiliate earnings center</p>
-            </div>
-          </div>
-          <p className="text-gray-400 max-w-2xl text-sm leading-relaxed">
-            Track, manage, and pay commissions for every deal in your pipeline. Sales reps see their personal dashboards,
-            affiliates track referral earnings on their portals, and everything syncs to the Finance Hub for batch payouts.
+    <div className="min-h-screen bg-navy-950 px-4 py-6">
+      <div className="mx-auto max-w-6xl">
+        {/* Header */}
+        <div className="rounded-2xl border border-navy-700 bg-gradient-to-br from-navy-800 to-navy-900 p-7">
+          <h1 className="text-2xl font-semibold text-white">Commissions</h1>
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-400">
+            How you get paid as a Liftori sales rep. Everything below is your real commission
+            structure — what you earn, when it pays out, and what you have to do to keep the
+            recurring money coming. Use the calculator to see what a deal is worth before you close it.
           </p>
-          <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="text-emerald-300 text-xs font-medium">Coming Soon — Linked to Finance Hub</span>
-          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="mt-6 flex flex-wrap gap-1 border-b border-navy-700">
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`px-4 py-2.5 text-sm font-medium -mb-px border-b-2 transition ${
+                tab === t.id ? 'border-brand-cyan text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-6">
+          {tab === 'plan' && <PlanTab rules={rules} loading={loading} />}
+          {tab === 'calculator' && <CalculatorTab rules={rules} />}
+          {tab === 'earnings' && <EarningsTab entries={myEntries} loading={loading} />}
+          {tab === 'manage' && isManager && (
+            <ManageTab entries={entries} reps={reps} loading={loading}
+              onNew={() => setEditing(blankEntry(reps[0]))}
+              onEdit={(e) => setEditing({ ...e })}
+              onDeleted={loadAll} flash={flash} />
+          )}
         </div>
       </div>
 
-      {/* Capabilities Grid */}
-      <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Commission Capabilities</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {capabilities.map((cap, i) => (
-            <div key={i} className="group relative rounded-xl bg-navy-800/50 border border-navy-700/50 p-5 hover:border-emerald-500/30 transition-all duration-300">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
-                  {cap.icon}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-white mb-1">{cap.title}</h3>
-                  <p className="text-xs text-gray-400 leading-relaxed">{cap.description}</p>
-                </div>
-              </div>
+      {editing && (
+        <EntryModal editing={editing} setEditing={setEditing} reps={reps} saving={saving}
+          onSave={async (row) => {
+            setSaving(true)
+            try {
+              const payload = { ...row, updated_at: new Date().toISOString() }
+              const res = row.id
+                ? await supabase.from('sales_commission_entries').update(payload).eq('id', row.id)
+                : await supabase.from('sales_commission_entries').insert({ ...payload, created_by: myId })
+              if (res.error) throw res.error
+              flash(row.id ? 'Entry updated' : 'Entry added')
+              setEditing(null); loadAll()
+            } catch (err) { flash('Save failed: ' + (err?.message || 'error')) }
+            finally { setSaving(false) }
+          }} />
+      )}
+
+      {toast && <div className="fixed bottom-6 right-6 z-50 rounded-lg bg-sky-600 px-4 py-3 text-sm text-white shadow-lg">{toast}</div>}
+    </div>
+  )
+}
+
+function blankEntry(firstRep) {
+  return {
+    rep_id: firstRep?.id || '', rep_name: firstRep?.full_name || '', rep_email: firstRep?.email || '',
+    customer_name: '', category: 'crm', entry_type: 'crm_setup', description: '',
+    base_amount: '', commission_rate: 10, commission_amount: '', period_month: '',
+    servicing_status: 'active', status: 'pending', notes: '',
+  }
+}
+
+/* ----------------------------- The Plan ----------------------------- */
+function PlanTab({ rules, loading }) {
+  const byCat = (c) => rules.filter(r => r.category === c)
+  const Section = ({ title, sub, children }) => (
+    <div className="rounded-xl border border-navy-700 bg-navy-800/50 p-6">
+      <h3 className="text-base font-semibold text-white">{title}</h3>
+      {sub && <p className="mt-1 text-sm text-slate-400">{sub}</p>}
+      <div className="mt-4 space-y-3">{children}</div>
+    </div>
+  )
+  const RuleRow = ({ r }) => (
+    <div className="rounded-lg border border-navy-700 bg-navy-900/60 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-white">{r.label}</p>
+          {r.basis && <p className="mt-0.5 text-[13px] text-slate-400">Paid on: {r.basis}</p>}
+        </div>
+        <span className="shrink-0 rounded-md bg-brand-cyan/15 border border-brand-cyan/30 px-2.5 py-1 text-sm font-semibold text-brand-cyan">{r.rate_display}</span>
+      </div>
+      {r.conditions && <p className="mt-2 text-[13px] leading-relaxed text-slate-400">{r.conditions}</p>}
+    </div>
+  )
+
+  if (loading) return <div className="py-16 text-center text-sm text-slate-500">Loading plan…</div>
+
+  return (
+    <div className="space-y-5">
+      {/* Servicing rule — the most important thing for reps to understand */}
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
+        <p className="text-sm font-semibold text-amber-300">The one rule that matters most</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-amber-100/90">
+          Your CRM recurring commission keeps paying every month — but only while you keep
+          servicing that customer. You are their account manager and point of contact: check in
+          regularly, help them use the platform, keep them happy. Stop servicing them and the
+          recurring commission stops. Build a book of customers you take care of and it compounds.
+        </p>
+      </div>
+
+      <Section title="CRM software sales" sub="Selling a Liftori CRM/platform subscription. You earn twice: once up front, then every month it renews.">
+        {byCat('crm').map(r => <RuleRow key={r.id} r={r} />)}
+      </Section>
+
+      <Section title="Website development" sub="Selling a website build. The rate depends on the project price. Each piece of the deal is commissioned separately and totaled up.">
+        {byCat('web_dev').map(r => <RuleRow key={r.id} r={r} />)}
+        {byCat('custom_build').map(r => <RuleRow key={r.id} r={r} />)}
+        <p className="text-[12px] text-slate-500">
+          Example: a $1,800 site (25% = $450) with a $600 custom build add-on (10% = $60) pays you
+          $510 total — each line is calculated on its own, then added together.
+        </p>
+      </Section>
+
+      <Section title="Business consulting referrals" sub="Send a client our way for business consulting. They're handed to the Liftori Business Consulting team — you collect a referral bonus.">
+        {byCat('consulting').map(r => <RuleRow key={r.id} r={r} />)}
+      </Section>
+
+      {/* Payout lifecycle */}
+      <div className="rounded-xl border border-navy-700 bg-navy-800/50 p-6">
+        <h3 className="text-base font-semibold text-white">How a commission gets paid</h3>
+        <div className="mt-4 grid gap-3 sm:grid-cols-5">
+          {[
+            ['Pending', 'Deal closes and the commission is logged'],
+            ['Approved', 'A manager reviews and clears it'],
+            ['Scheduled', 'Queued for the next payout run'],
+            ['Paid', 'Money sent to you'],
+            ['Held', 'Paused — refund, chargeback, or review'],
+          ].map(([s, d], i) => (
+            <div key={i} className="rounded-lg border border-navy-700 bg-navy-900/60 p-3">
+              <span className={`inline-block rounded-md border px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[s.toLowerCase()]}`}>{s}</span>
+              <p className="mt-2 text-[12px] leading-snug text-slate-400">{d}</p>
             </div>
           ))}
         </div>
+        <p className="mt-4 text-[12px] text-slate-500">
+          You're a 1099 independent contractor — commissions are paid gross with no taxes withheld.
+          Set aside your own taxes. Payout cadence and any holdbacks are confirmed in your rep agreement.
+        </p>
       </div>
+    </div>
+  )
+}
 
-      {/* Commission Lifecycle */}
-      <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Commission Lifecycle</h2>
-        <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-6">
-          <div className="flex flex-wrap gap-3 mb-6">
-            {commissionStatuses.map((s, i) => (
-              <div key={i} className={`px-3 py-2 rounded-lg border ${s.color} text-xs`}>
-                <span className="font-semibold">{s.label}</span>
-                <span className="hidden sm:inline ml-2 opacity-70">— {s.description}</span>
-              </div>
-            ))}
-          </div>
-          <div className="relative">
-            <div className="absolute left-[19px] top-3 bottom-3 w-px bg-emerald-500/20" />
-            <div className="space-y-4">
-              {flowSteps.map((s, i) => (
-                <div key={i} className="flex gap-4 items-start">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-sm font-bold relative z-10">
-                    {s.step}
-                  </div>
-                  <div className="pt-1.5">
-                    <p className="text-sm font-medium text-white">{s.label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{s.detail}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+/* ----------------------------- Calculator ------------------------------ */
+function CalculatorTab({ rules }) {
+  const rateFor = (cat, fallback) => {
+    const r = rules.find(x => x.category === cat && x.rate != null)
+    return r ? Number(r.rate) : fallback
+  }
+  const crmRate = rateFor('crm', 10)
+  const customRate = rateFor('custom_build', 10)
+
+  const [monthly, setMonthly] = useState('249')
+  const [onboarding, setOnboarding] = useState('300')
+  const [sitePrice, setSitePrice] = useState('1800')
+  const [customCharge, setCustomCharge] = useState('600')
+
+  const m = Number(monthly) || 0
+  const ob = Number(onboarding) || 0
+  const sp = Number(sitePrice) || 0
+  const cc = Number(customCharge) || 0
+
+  const crmSetup = (m + ob) * crmRate / 100
+  const crmMonthly = m * crmRate / 100
+  const tier = webTierRate(sp)
+  const webComm = sp * tier / 100
+  const customComm = cc * customRate / 100
+
+  const oneTimeTotal = crmSetup + webComm + customComm
+  const recurringMonthly = crmMonthly
+
+  const Field = ({ label, value, set, hint }) => (
+    <div>
+      <label className="label">{label}</label>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+        <input type="number" min="0" className="input pl-7" value={value} onChange={e => set(e.target.value)} />
+      </div>
+      {hint && <p className="mt-1 text-[11px] text-slate-500">{hint}</p>}
+    </div>
+  )
+  const Line = ({ label, sub, amount, accent }) => (
+    <div className="flex items-center justify-between border-b border-navy-700/60 py-2.5 last:border-0">
+      <div><p className="text-sm text-slate-200">{label}</p>{sub && <p className="text-[11px] text-slate-500">{sub}</p>}</div>
+      <p className={`font-mono text-sm font-semibold ${accent ? 'text-brand-cyan' : 'text-slate-300'}`}>{usd(amount)}</p>
+    </div>
+  )
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      {/* CRM */}
+      <div className="rounded-xl border border-navy-700 bg-navy-800/50 p-6">
+        <h3 className="text-base font-semibold text-white">CRM / platform sale</h3>
+        <p className="mt-1 text-[13px] text-slate-400">{crmRate}% of the first month + onboarding up front, then {crmRate}% of the monthly plan every month you service them.</p>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <Field label="Monthly plan" value={monthly} set={setMonthly} />
+          <Field label="Onboarding fee" value={onboarding} set={setOnboarding} />
+        </div>
+        <div className="mt-4">
+          <Line label="Setup commission" sub={`${crmRate}% of (first month + onboarding)`} amount={crmSetup} accent />
+          <Line label="Recurring / month" sub={`${crmRate}% of the monthly plan, while servicing`} amount={crmMonthly} accent />
+          <Line label="First 12 months of recurring" sub="If you keep the customer a year" amount={crmMonthly * 12} />
         </div>
       </div>
 
-      {/* Role-Based Commission Structure */}
-      <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Commission Structure by Role</h2>
-        <div className="rounded-xl bg-navy-800/50 border border-navy-700/50 overflow-hidden">
-          <div className="grid grid-cols-4 gap-px bg-navy-700/30">
-            <div className="bg-navy-800 px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Role</div>
-            <div className="bg-navy-800 px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Rate</div>
-            <div className="bg-navy-800 px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Scope</div>
-            <div className="bg-navy-800 px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Payout</div>
-          </div>
-          {roleTypes.map((r, i) => (
-            <div key={i} className="grid grid-cols-4 gap-px bg-navy-700/30">
-              <div className="bg-navy-800/80 px-4 py-3 text-sm font-medium text-white">{r.role}</div>
-              <div className="bg-navy-800/80 px-4 py-3 text-sm text-emerald-400 font-mono">{r.rate}</div>
-              <div className="bg-navy-800/80 px-4 py-3 text-xs text-gray-400">{r.scope}</div>
-              <div className="bg-navy-800/80 px-4 py-3 text-xs text-gray-400">{r.payout}</div>
-            </div>
-          ))}
+      {/* Website */}
+      <div className="rounded-xl border border-navy-700 bg-navy-800/50 p-6">
+        <h3 className="text-base font-semibold text-white">Website build</h3>
+        <p className="mt-1 text-[13px] text-slate-400">$500–999 pays 10%. $1,000+ pays 25%. Custom build add-ons pay {customRate}%, totaled separately.</p>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <Field label="Website price" value={sitePrice} set={setSitePrice}
+            hint={sp > 0 && sp < 500 ? 'Under $500 — not commissionable' : `Applied tier: ${tier}%`} />
+          <Field label="Custom build charge" value={customCharge} set={setCustomCharge} />
+        </div>
+        <div className="mt-4">
+          <Line label="Website commission" sub={`${tier}% of ${usd(sp)}`} amount={webComm} accent />
+          <Line label="Custom build commission" sub={`${customRate}% of ${usd(cc)}`} amount={customComm} accent />
+          <Line label="Website deal total" amount={webComm + customComm} />
         </div>
       </div>
 
-      {/* Finance Hub Link */}
-      <div className="rounded-xl bg-gradient-to-r from-emerald-500/10 via-navy-800/50 to-blue-500/10 border border-emerald-500/20 p-6">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-1.135a4.5 4.5 0 00-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757" />
-            </svg>
+      {/* Totals */}
+      <div className="rounded-xl border border-brand-cyan/30 bg-brand-cyan/5 p-6 lg:col-span-2">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-400">Paid up front (this deal)</p>
+            <p className="mt-1 font-mono text-3xl font-bold text-white">{usd(oneTimeTotal)}</p>
+            <p className="mt-1 text-[12px] text-slate-500">CRM setup + website + custom build</p>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white mb-1">Linked to Finance Hub</h3>
-            <p className="text-xs text-gray-400 leading-relaxed">
-              Approved commissions automatically flow to the Finance Hub's Commission Batches for batch processing,
-              payout execution, and financial reporting. Sales-side tracking here, finance-side processing there —
-              one unified system.
-            </p>
+            <p className="text-xs uppercase tracking-wide text-slate-400">Then every month (recurring)</p>
+            <p className="mt-1 font-mono text-3xl font-bold text-brand-cyan">{usd(recurringMonthly)}<span className="text-base text-slate-500">/mo</span></p>
+            <p className="mt-1 text-[12px] text-slate-500">As long as you service the customer · {usd(oneTimeTotal + recurringMonthly * 12)} in year one</p>
           </div>
         </div>
+        <p className="mt-4 text-[11px] text-slate-500">Estimate only. Consulting referral bonuses are confirmed per deal and aren't included here.</p>
       </div>
+    </div>
+  )
+}
 
-      {/* Aspirational Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+/* ----------------------------- My Earnings ----------------------------- */
+function EarningsTab({ entries, loading }) {
+  const stats = useMemo(() => {
+    const paid = entries.filter(e => e.status === 'paid').reduce((s, e) => s + Number(e.commission_amount || 0), 0)
+    const pending = entries.filter(e => ['pending', 'approved', 'scheduled'].includes(e.status)).reduce((s, e) => s + Number(e.commission_amount || 0), 0)
+    const thisMonth = entries.filter(e => {
+      const d = new Date(e.created_at); const n = new Date()
+      return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear()
+    }).reduce((s, e) => s + Number(e.commission_amount || 0), 0)
+    const activeRecurring = new Set(entries.filter(e => e.entry_type === 'crm_recurring' && e.servicing_status === 'active').map(e => e.customer_name)).size
+    return { paid, pending, thisMonth, activeRecurring }
+  }, [entries])
+
+  if (loading) return <div className="py-16 text-center text-sm text-slate-500">Loading your earnings…</div>
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          { label: 'Active Reps', value: '—', sub: 'Sales team' },
-          { label: 'This Month', value: '$0', sub: 'Commissions earned' },
-          { label: 'Pending Payout', value: '$0', sub: 'Awaiting approval' },
-          { label: 'Affiliate Partners', value: '—', sub: 'Referral network' },
-        ].map((s, i) => (
-          <div key={i} className="rounded-xl bg-navy-800/50 border border-navy-700/50 p-4 text-center">
-            <p className="text-2xl font-bold text-white">{s.value}</p>
-            <p className="text-xs text-emerald-400 font-medium mt-1">{s.label}</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">{s.sub}</p>
+          ['Paid to date', usd(stats.paid), 'Cleared commissions'],
+          ['In the pipeline', usd(stats.pending), 'Pending / approved / scheduled'],
+          ['Logged this month', usd(stats.thisMonth), 'New commissions'],
+          ['Recurring customers', String(stats.activeRecurring), 'Actively serviced'],
+        ].map(([label, val, sub], i) => (
+          <div key={i} className="rounded-xl border border-navy-700 bg-navy-800/50 p-4">
+            <p className="font-mono text-2xl font-bold text-white">{val}</p>
+            <p className="mt-1 text-xs font-medium text-brand-cyan">{label}</p>
+            <p className="text-[10px] text-slate-500">{sub}</p>
           </div>
         ))}
       </div>
+
+      {entries.length === 0 ? (
+        <div className="rounded-xl border border-navy-700 bg-navy-800/50 py-16 text-center text-sm text-slate-500">
+          No commissions logged yet. Close your first deal and it'll show up here.
+        </div>
+      ) : (
+        <EntryTable entries={entries} />
+      )}
     </div>
-  );
+  )
+}
+
+/* ----------------------------- Manage (admin) ----------------------------- */
+function ManageTab({ entries, reps, loading, onNew, onEdit, onDeleted, flash }) {
+  const [repFilter, setRepFilter] = useState('all')
+  const filtered = repFilter === 'all' ? entries : entries.filter(e => e.rep_id === repFilter)
+  const total = filtered.reduce((s, e) => s + Number(e.commission_amount || 0), 0)
+
+  async function del(id) {
+    const { error } = await supabase.from('sales_commission_entries').delete().eq('id', id)
+    if (error) { flash('Delete failed: ' + error.message); return }
+    flash('Entry deleted'); onDeleted()
+  }
+
+  if (loading) return <div className="py-16 text-center text-sm text-slate-500">Loading…</div>
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <select className="input w-auto" value={repFilter} onChange={e => setRepFilter(e.target.value)}>
+            <option value="all">All reps</option>
+            {reps.map(r => <option key={r.id} value={r.id}>{r.full_name || r.email}</option>)}
+          </select>
+          <span className="text-sm text-slate-400">{filtered.length} entries · <span className="font-mono text-brand-cyan">{usd(total)}</span></span>
+        </div>
+        <button onClick={onNew} className="btn-primary">Add commission</button>
+      </div>
+      {filtered.length === 0 ? (
+        <div className="rounded-xl border border-navy-700 bg-navy-800/50 py-16 text-center text-sm text-slate-500">No entries.</div>
+      ) : (
+        <EntryTable entries={filtered} showRep onEdit={onEdit} onDelete={del} />
+      )}
+    </div>
+  )
+}
+
+/* ----------------------------- Shared table ----------------------------- */
+function EntryTable({ entries, showRep, onEdit, onDelete }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-navy-700">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-navy-800 text-[11px] uppercase tracking-wider text-slate-400">
+          <tr>
+            {showRep && <th className="px-4 py-3 font-semibold">Rep</th>}
+            <th className="px-4 py-3 font-semibold">Customer</th>
+            <th className="px-4 py-3 font-semibold">Type</th>
+            <th className="px-4 py-3 font-semibold text-right">Base</th>
+            <th className="px-4 py-3 font-semibold text-right">Rate</th>
+            <th className="px-4 py-3 font-semibold text-right">Commission</th>
+            <th className="px-4 py-3 font-semibold">Status</th>
+            {(onEdit || onDelete) && <th className="px-4 py-3"></th>}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-navy-700/60">
+          {entries.map(e => (
+            <tr key={e.id} className="bg-navy-900/40 hover:bg-navy-800/60">
+              {showRep && <td className="px-4 py-3 text-slate-300">{e.rep_name || '—'}</td>}
+              <td className="px-4 py-3 text-white">
+                {e.customer_name || '—'}
+                {e.period_month && <span className="ml-1 text-[11px] text-slate-500">· {new Date(e.period_month + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>}
+              </td>
+              <td className="px-4 py-3">
+                <span className="text-slate-300">{(ENTRY_TYPES.find(t => t.value === e.entry_type) || {}).label || e.entry_type}</span>
+                {e.entry_type === 'crm_recurring' && (
+                  <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] ${e.servicing_status === 'active' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                    {e.servicing_status === 'active' ? 'servicing' : 'lapsed'}
+                  </span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-right font-mono text-slate-400">{Number(e.base_amount) ? usd(e.base_amount) : '—'}</td>
+              <td className="px-4 py-3 text-right font-mono text-slate-400">{e.commission_rate != null ? `${e.commission_rate}%` : 'flat'}</td>
+              <td className="px-4 py-3 text-right font-mono font-semibold text-brand-cyan">{usd(e.commission_amount)}</td>
+              <td className="px-4 py-3">
+                <span className={`inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold capitalize ${STATUS_STYLE[e.status] || 'text-slate-400'}`}>{e.status}</span>
+              </td>
+              {(onEdit || onDelete) && (
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  {onEdit && <button onClick={() => onEdit(e)} className="text-xs text-slate-400 hover:text-white">Edit</button>}
+                  {onDelete && <button onClick={() => onDelete(e.id)} className="ml-3 text-xs text-rose-400/80 hover:text-rose-300">Delete</button>}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/* ----------------------------- Add/Edit modal ----------------------------- */
+function EntryModal({ editing, setEditing, reps, saving, onSave }) {
+  const set = (patch) => setEditing(prev => ({ ...prev, ...patch }))
+  const et = ENTRY_TYPES.find(t => t.value === editing.entry_type) || ENTRY_TYPES[0]
+
+  function onTypeChange(value) {
+    const next = ENTRY_TYPES.find(t => t.value === value) || ENTRY_TYPES[0]
+    set({ entry_type: value, category: next.category, commission_rate: next.rate })
+    recompute({ entry_type: value, commission_rate: next.rate })
+  }
+  function recompute(over = {}) {
+    const cur = { ...editing, ...over }
+    const base = Number(cur.base_amount) || 0
+    let rate = cur.commission_rate
+    if (cur.entry_type === 'web_dev') rate = webTierRate(base)
+    if (rate != null && cur.entry_type !== 'consulting_referral') {
+      set({ commission_rate: rate, commission_amount: +(base * rate / 100).toFixed(2) })
+    }
+  }
+  function onRepChange(id) {
+    const r = reps.find(x => x.id === id)
+    set({ rep_id: id, rep_name: r?.full_name || '', rep_email: r?.email || '' })
+  }
+
+  function submit(e) {
+    e.preventDefault()
+    const row = {
+      rep_id: editing.rep_id, rep_name: editing.rep_name, rep_email: editing.rep_email,
+      customer_name: editing.customer_name || null, category: editing.category,
+      entry_type: editing.entry_type, description: editing.description || null,
+      base_amount: Number(editing.base_amount) || 0,
+      commission_rate: editing.entry_type === 'consulting_referral' ? null : (Number(editing.commission_rate) || 0),
+      commission_amount: Number(editing.commission_amount) || 0,
+      period_month: editing.entry_type === 'crm_recurring' && editing.period_month ? editing.period_month : null,
+      servicing_status: editing.servicing_status || 'active',
+      status: editing.status || 'pending', notes: editing.notes || null,
+    }
+    if (editing.id) row.id = editing.id
+    if (!row.rep_id) return
+    onSave(row)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setEditing(null)}>
+      <form onClick={e => e.stopPropagation()} onSubmit={submit}
+        className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-auto rounded-xl border border-navy-700 bg-navy-900 p-6">
+        <h2 className="text-lg font-semibold text-white">{editing.id ? 'Edit commission' : 'Add commission'}</h2>
+
+        <div><label className="label">Rep</label>
+          <select className="input" value={editing.rep_id} onChange={e => onRepChange(e.target.value)} required>
+            <option value="" disabled>Select rep…</option>
+            {reps.map(r => <option key={r.id} value={r.id}>{r.full_name || r.email}</option>)}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="label">Type</label>
+            <select className="input" value={editing.entry_type} onChange={e => onTypeChange(e.target.value)}>
+              {ENTRY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+          <div><label className="label">Customer</label>
+            <input className="input" value={editing.customer_name || ''} onChange={e => set({ customer_name: e.target.value })} />
+          </div>
+        </div>
+
+        <div><label className="label">Description</label>
+          <input className="input" value={editing.description || ''} onChange={e => set({ description: e.target.value })}
+            placeholder={et.label} />
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div><label className="label">{editing.entry_type === 'consulting_referral' ? 'Deal value' : 'Base amount'}</label>
+            <input type="number" className="input" value={editing.base_amount}
+              onChange={e => { set({ base_amount: e.target.value }); }}
+              onBlur={() => recompute()} />
+          </div>
+          <div><label className="label">Rate %</label>
+            <input type="number" className="input" value={editing.commission_rate ?? ''}
+              disabled={editing.entry_type === 'consulting_referral' || editing.entry_type === 'web_dev'}
+              onChange={e => set({ commission_rate: e.target.value })} onBlur={() => recompute()} />
+          </div>
+          <div><label className="label">Commission $</label>
+            <input type="number" className="input" value={editing.commission_amount}
+              onChange={e => set({ commission_amount: e.target.value })} />
+          </div>
+        </div>
+        {editing.entry_type === 'web_dev' && <p className="-mt-2 text-[11px] text-slate-500">Rate auto-set by price: $500–999 = 10%, $1,000+ = 25%.</p>}
+        {editing.entry_type === 'consulting_referral' && <p className="-mt-2 text-[11px] text-slate-500">Referral bonus — enter the agreed commission amount directly (TBD per deal).</p>}
+
+        {editing.entry_type === 'crm_recurring' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="label">Period month</label>
+              <input type="date" className="input" value={editing.period_month || ''} onChange={e => set({ period_month: e.target.value })} />
+            </div>
+            <div><label className="label">Servicing</label>
+              <select className="input" value={editing.servicing_status} onChange={e => set({ servicing_status: e.target.value })}>
+                <option value="active">Active (commission payable)</option>
+                <option value="lapsed">Lapsed (not servicing)</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        <div><label className="label">Status</label>
+          <select className="input" value={editing.status} onChange={e => set({ status: e.target.value })}>
+            {STATUSES.map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
+          </select>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button type="button" onClick={() => setEditing(null)} className="text-sm text-slate-400 hover:text-white">Cancel</button>
+          <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save'}</button>
+        </div>
+      </form>
+    </div>
+  )
 }
