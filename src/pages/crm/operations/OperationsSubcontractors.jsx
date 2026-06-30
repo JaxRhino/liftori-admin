@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { HubPage, StatCard, Section, EmptyState, useCrmClient } from '../_shared'
 import { toast } from 'sonner'
 
@@ -39,10 +40,12 @@ function insStatus(d) {
   return { label: 'Valid', color: 'bg-emerald-500/20 text-emerald-300', alert: false }
 }
 const blankSub = () => ({ company_name: '', contact_name: '', phone: '', email: '', trade: '', rate_type: 'per_job', default_rate: 0, insurance_expires: '', is_active: true })
-const blankAssign = () => ({ subcontractor_id: '', work_order_id: '', scope: '', amount: '', status: 'assigned' })
+const blankAssign = () => ({ subcontractor_id: '', deal_id: '', scope: '', amount: '', status: 'assigned' })
 
 export default function OperationsSubcontractors() {
   const { client } = useCrmClient()
+  const navigate = useNavigate()
+  const { platformId } = useParams()
   const [subs, setSubs] = useState([])
   const [assigns, setAssigns] = useState([])
   const [jobs, setJobs] = useState([])
@@ -56,10 +59,15 @@ export default function OperationsSubcontractors() {
   async function load() {
     try {
       setLoading(true)
+      const { data: defs } = await client.from('pipeline_definitions').select('id,name,is_default,is_active').eq('is_active', true).order('display_order')
+      const dl = defs || []
+      const jp = dl.find(d => /job|operation|production|install/i.test(d.name || '')) || dl.find(d => !d.is_default) || dl[0] || null
+      let jq = client.from('customer_pipeline').select('id, title, job_address').order('title')
+      if (jp) jq = jq.eq('pipeline_definition_id', jp.id)
       const [sRes, aRes, jRes] = await Promise.all([
         client.from('subcontractors').select('*').order('company_name'),
         client.from('sub_assignments').select('*').order('created_at', { ascending: false }),
-        client.from('ops_work_orders').select('id, work_order_number, title').order('work_order_number'),
+        jq,
       ])
       setSubs(sRes?.data || [])
       setAssigns(aRes?.data || [])
@@ -107,11 +115,11 @@ export default function OperationsSubcontractors() {
   // ---- assignment ----
   async function saveAssign() {
     if (!assigning.subcontractor_id) { toast.error('Pick a subcontractor'); return }
-    if (!assigning.work_order_id) { toast.error('Pick a job'); return }
+    if (!assigning.deal_id) { toast.error('Pick a job'); return }
     setBusy(true)
     try {
       const { error } = await client.from('sub_assignments').insert({
-        subcontractor_id: assigning.subcontractor_id, work_order_id: assigning.work_order_id,
+        subcontractor_id: assigning.subcontractor_id, deal_id: assigning.deal_id, work_order_id: null,
         scope: assigning.scope || null, amount_cents: Math.round((Number(assigning.amount) || 0) * 100),
         status: assigning.status, pay_status: 'unpaid',
       })
@@ -204,12 +212,12 @@ export default function OperationsSubcontractors() {
                 <tbody>
                   {assigns.length === 0 && <tr><td colSpan={7} className="px-5 py-10 text-center text-gray-500">No assignments yet. Assign a sub to a job.</td></tr>}
                   {assigns.map((a) => {
-                    const sub = subById[a.subcontractor_id]; const job = jobById[a.work_order_id]
+                    const sub = subById[a.subcontractor_id]; const job = jobById[a.deal_id]
                     const sm = statusMeta[a.status] || statusMeta.assigned; const pm = payMeta[a.pay_status] || payMeta.unpaid
                     return (
                       <tr key={a.id} className="border-b border-navy-700/30 hover:bg-navy-900/40">
                         <td className="px-5 py-3 text-white">{sub ? sub.company_name : '(removed)'}</td>
-                        <td className="px-4 py-3 text-gray-300">{job ? `${job.work_order_number} · ${job.title}` : '-'}</td>
+                        <td className="px-4 py-3 text-gray-300">{a.deal_id ? <button onClick={() => navigate('/crm/' + platformId + '/deals/' + a.deal_id)} className="text-brand-cyan hover:underline">{job ? (job.title || 'Job') : 'Job'}</button> : '-'}</td>
                         <td className="px-4 py-3 text-gray-400 max-w-xs truncate">{a.scope || '-'}</td>
                         <td className="px-4 py-3 text-right text-white font-medium">{money((a.amount_cents || 0) / 100)}</td>
                         <td className="px-4 py-3"><span className={`text-[10px] px-2 py-0.5 rounded-full ${sm.color}`}>{sm.label}</span></td>
@@ -269,7 +277,7 @@ export default function OperationsSubcontractors() {
             <h3 className="text-white font-semibold mb-4">Assign a sub to a job</h3>
             <div className="space-y-3">
               <div><label className="block text-xs text-gray-400 mb-1">Subcontractor</label><select value={assigning.subcontractor_id} onChange={(e) => setAssigning({ ...assigning, subcontractor_id: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">Select...</option>{subs.filter((s) => s.is_active).map((s) => <option key={s.id} value={s.id}>{s.company_name}</option>)}</select></div>
-              <div><label className="block text-xs text-gray-400 mb-1">Job</label><select value={assigning.work_order_id} onChange={(e) => setAssigning({ ...assigning, work_order_id: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">Select...</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.work_order_number} · {j.title}</option>)}</select></div>
+              <div><label className="block text-xs text-gray-400 mb-1">Job</label><select value={assigning.deal_id} onChange={(e) => setAssigning({ ...assigning, deal_id: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">Select...</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}</select></div>
               <div><label className="block text-xs text-gray-400 mb-1">Scope</label><input value={assigning.scope} onChange={(e) => setAssigning({ ...assigning, scope: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm" placeholder="Full tear-off, 30 sq" /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-xs text-gray-400 mb-1">Amount ($)</label><input type="number" min="0" value={assigning.amount} onChange={(e) => setAssigning({ ...assigning, amount: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm" /></div>
