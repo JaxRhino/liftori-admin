@@ -307,9 +307,9 @@ function CrmCustomersByIndustry() {
 }
 // CRM access: admins (impersonation/support) OR the customer who owns THIS platform.
 function CrmRoute({ children }) {
-  const { isAdmin, myPlatformId, loading } = useAuth()
+  const { isAdmin, myPlatformId, loading, profile, user } = useAuth()
   const { platformId } = useParams()
-  if (loading) return null
+  if (loading || (user && !profile)) return null
   if (isAdmin) return children
   if (myPlatformId && myPlatformId === platformId) return children
   return <Navigate to={myPlatformId ? `/crm/${myPlatformId}/dashboard` : '/portal'} replace />
@@ -331,8 +331,8 @@ function ProtectedRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { isAdmin, isAffiliate, loading } = useAuth()
-  if (loading) return null
+  const { isAdmin, isAffiliate, loading, profile, user } = useAuth()
+  if (loading || (user && !profile)) return null
   if (isAffiliate) return <Navigate to="/affiliate" replace />
   if (!isAdmin) return <Navigate to="/portal" replace />
   return children
@@ -346,8 +346,8 @@ function DevTeamRoute({ children }) {
 }
 
 function AffiliateRoute({ children }) {
-  const { isAffiliate, isAdmin, loading } = useAuth()
-  if (loading) return null
+  const { isAffiliate, isAdmin, loading, profile, user } = useAuth()
+  if (loading || (user && !profile)) return null
   // Allow affiliates + admins (so founders can impersonate / test)
   if (!isAffiliate && !isAdmin) return <Navigate to="/portal" replace />
   return children
@@ -360,8 +360,8 @@ function ClientRoute({ children }) {
 }
 
 function RootRedirect() {
-  const { isAdmin, isAffiliate, loading } = useAuth()
-  if (loading) return (
+  const { isAdmin, isAffiliate, loading, profile, user } = useAuth()
+  if (loading || (user && !profile)) return (
     <div className="min-h-screen bg-navy-950 flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
     </div>
