@@ -20,6 +20,13 @@ const ICONS = {
   consult: 'M16.5 10.5a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zm-9.75 9.75a6.75 6.75 0 0113.5 0',
 }
 
+// Brand-colored scene illustrations for the flagship product cards.
+const ART = {
+  crm: '<svg viewBox="0 0 400 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="lgcrm" cx="62%" cy="22%" r="72%"><stop offset="0%" stop-color="rgba(14,165,233,.38)"/><stop offset="100%" stop-color="rgba(14,165,233,0)"/></radialGradient></defs><rect width="400" height="180" fill="url(#lgcrm)"/><rect x="150" y="22" width="222" height="118" rx="11" fill="rgba(14,165,233,.08)" stroke="#38BDF8" stroke-opacity=".5" stroke-width="2"/><line x1="150" y1="46" x2="372" y2="46" stroke="#38BDF8" stroke-opacity=".3" stroke-width="2"/><circle cx="164" cy="34" r="3" fill="#7DD3FC"/><circle cx="176" cy="34" r="3" fill="#0EA5E9"/><g fill="#0EA5E9"><rect x="172" y="104" width="15" height="28" rx="3"/><rect x="196" y="90" width="15" height="42" rx="3"/><rect x="220" y="76" width="15" height="56" rx="3" fill="#38BDF8"/><rect x="244" y="96" width="15" height="36" rx="3"/><rect x="268" y="68" width="15" height="64" rx="3" fill="#7DD3FC"/></g><polyline points="300,118 318,98 334,106 352,80 368,88" fill="none" stroke="#E0F7FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="352" cy="80" r="3.5" fill="#E0F7FF"/><g><circle cx="44" cy="94" r="16" fill="#38BDF8"/><rect x="24" y="116" width="40" height="56" rx="20" fill="#38BDF8"/><circle cx="92" cy="106" r="13" fill="#0EA5E9"/><rect x="76" y="126" width="32" height="50" rx="16" fill="#0EA5E9"/><circle cx="126" cy="112" r="11" fill="#7DD3FC" opacity=".85"/><rect x="112" y="130" width="28" height="46" rx="14" fill="#7DD3FC" opacity=".85"/></g></svg>',
+  custom: '<svg viewBox="0 0 400 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="lgcus" cx="42%" cy="24%" r="76%"><stop offset="0%" stop-color="rgba(56,189,248,.34)"/><stop offset="100%" stop-color="rgba(56,189,248,0)"/></radialGradient></defs><rect width="400" height="180" fill="url(#lgcus)"/><rect x="36" y="28" width="190" height="112" rx="11" fill="rgba(14,165,233,.08)" stroke="#38BDF8" stroke-opacity=".5" stroke-width="2"/><line x1="36" y1="50" x2="226" y2="50" stroke="#38BDF8" stroke-opacity=".3" stroke-width="2"/><circle cx="50" cy="39" r="3" fill="#7DD3FC"/><circle cx="62" cy="39" r="3" fill="#0EA5E9"/><path d="M120 72 l-22 22 l22 22" fill="none" stroke="#7DD3FC" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M160 72 l22 22 l-22 22" fill="none" stroke="#7DD3FC" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="146" y1="66" x2="136" y2="122" stroke="#0EA5E9" stroke-width="4.5" stroke-linecap="round"/><g><rect x="252" y="92" width="36" height="36" rx="7" fill="#0EA5E9"/><rect x="296" y="92" width="36" height="36" rx="7" fill="#38BDF8"/><rect x="274" y="50" width="36" height="36" rx="7" fill="#7DD3FC"/></g><g transform="translate(350,116)" stroke="#E0F7FF" stroke-width="3" fill="none"><circle r="15"/><line x1="0" y1="-22" x2="0" y2="-15"/><line x1="0" y1="15" x2="0" y2="22"/><line x1="-22" y1="0" x2="-15" y2="0"/><line x1="15" y1="0" x2="22" y2="0"/></g><circle cx="350" cy="116" r="5" fill="#E0F7FF"/><g><circle cx="60" cy="150" r="14" fill="#0EA5E9"/><rect x="42" y="170" width="36" height="44" rx="18" fill="#0EA5E9"/></g></svg>',
+  consult: '<svg viewBox="0 0 400 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="lgcon" cx="60%" cy="22%" r="74%"><stop offset="0%" stop-color="rgba(125,211,252,.30)"/><stop offset="100%" stop-color="rgba(125,211,252,0)"/></radialGradient></defs><rect width="400" height="180" fill="url(#lgcon)"/><rect x="156" y="24" width="212" height="112" rx="11" fill="rgba(14,165,233,.08)" stroke="#38BDF8" stroke-opacity=".5" stroke-width="2"/><polyline points="176,116 214,92 244,100 290,64 338,50" fill="none" stroke="#7DD3FC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M320 48 l20 1 l-4 19" fill="none" stroke="#7DD3FC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="214" cy="92" r="4" fill="#0EA5E9"/><circle cx="290" cy="64" r="4" fill="#38BDF8"/><g transform="translate(74,54)"><circle r="13" fill="rgba(224,247,255,.12)" stroke="#E0F7FF" stroke-width="3"/><circle r="4" fill="#E0F7FF"/><line x1="-5" y1="17" x2="5" y2="17" stroke="#E0F7FF" stroke-width="3" stroke-linecap="round"/><line x1="-3" y1="22" x2="3" y2="22" stroke="#E0F7FF" stroke-width="3" stroke-linecap="round"/></g><g><circle cx="44" cy="100" r="16" fill="#38BDF8"/><rect x="24" y="122" width="40" height="54" rx="20" fill="#38BDF8"/><circle cx="92" cy="110" r="13" fill="#0EA5E9"/><rect x="76" y="130" width="32" height="46" rx="16" fill="#0EA5E9"/><circle cx="126" cy="116" r="11" fill="#7DD3FC" opacity=".85"/><rect x="112" y="134" width="28" height="42" rx="14" fill="#7DD3FC" opacity=".85"/></g></svg>',
+}
+
 // Curated, informational product showcase — NO prices. We learn the need, then quote.
 const PRODUCTS = [
   { key: 'web', icon: 'web', name: 'Marketing Websites', blurb: 'Fast, beautiful sites built to turn visitors into customers.', span: 'lg:col-span-2 lg:row-span-2', featured: true },
@@ -197,14 +204,17 @@ export default function PublicRepLanding() {
           </div>
           <div className="grid gap-5 md:grid-cols-3">
             {LIFTORI_PRODUCTS.map((p) => (
-              <div key={p.key} tabIndex={0} className="lo-prod group min-h-[340px] md:min-h-[380px]">
-                <div className="flex h-full flex-col p-8">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: 'rgba(14,165,233,.12)', border: '1px solid rgba(125,211,252,.22)' }}>
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.6} stroke="#7DD3FC"><path strokeLinecap="round" strokeLinejoin="round" d={ICONS[p.icon]} /></svg>
+              <div key={p.key} tabIndex={0} className="lo-prod group min-h-[380px] md:min-h-[420px]">
+                <div className="flex h-full flex-col">
+                  <div className="relative h-40 w-full overflow-hidden">
+                    <div className="absolute inset-0" dangerouslySetInnerHTML={{ __html: ART[p.key] }} />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16" style={{ background: 'linear-gradient(to top, rgba(8,13,28,.92), transparent)' }} />
                   </div>
-                  <h3 className="mt-6 text-2xl font-bold text-white">{p.name}</h3>
-                  <p className="mt-2 text-sm text-slate-400">{p.tag}</p>
-                  <span className="lo-prod-hint lo-mono mt-auto pt-6 text-[11px] uppercase tracking-[0.28em]" style={{ color: '#38BDF8' }}>Hover for details</span>
+                  <div className="flex flex-1 flex-col px-7 pb-7 pt-4">
+                    <h3 className="text-2xl font-bold text-white">{p.name}</h3>
+                    <p className="mt-2 text-sm text-slate-400">{p.tag}</p>
+                    <span className="lo-prod-hint lo-mono mt-auto pt-6 text-[11px] uppercase tracking-[0.28em]" style={{ color: '#38BDF8' }}>Hover for details</span>
+                  </div>
                 </div>
                 <div className="lo-prod-reveal">
                   <h3 className="text-xl font-bold text-white">{p.name}</h3>
