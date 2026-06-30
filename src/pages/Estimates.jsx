@@ -1,174 +1,556 @@
-export default function Estimates() {
-  const capabilities = [
-    {
-      title: 'AI-Powered Estimate Generator',
-      description: 'Describe what the client needs in plain English and AI generates a detailed line-item estimate with hours, costs, and timeline. Pulls from historical project data to improve accuracy over time.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Tier-Aware Pricing',
-      description: 'Estimates auto-validate against Liftori pricing tiers (Starter, Growth, Scale). Flags scope creep, suggests tier upgrades, and calculates margin impact. Built-in guardrails prevent under-quoting.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Line-Item Breakdown',
-      description: 'Every estimate itemized: design, development, integrations, testing, deployment, managed services. Drag to reorder, toggle optional items, add custom line items. Clients see exactly what they\'re paying for.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Client-Facing Estimate Portal',
-      description: 'Send a branded, interactive estimate link. Clients can view scope details, toggle optional add-ons, see price update in real-time, leave comments, and approve — all without logging in.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Estimate → Agreement Pipeline',
-      description: 'One click converts an approved estimate into a binding agreement pre-populated with scope, pricing, milestones, and terms. Flows directly into the e-signature workflow. Zero re-entry.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Version History & Comparisons',
-      description: 'Track every revision with full diff view. Compare v1 to v3 side-by-side. See who changed what, when, and why. Roll back to any previous version instantly.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Pending Estimates Dashboard',
-      description: 'At-a-glance view of all outstanding estimates: sent, viewed, expiring soon, approved, declined. Track conversion rate, average approval time, and revenue in pipeline.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Scope Creep Detection',
-      description: 'AI monitors project progress against the original estimate. Flags when actual work exceeds quoted scope, auto-generates change order estimates, and alerts before margin erosion happens.',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-        </svg>
-      ),
-    },
-  ]
+import { useState, useEffect, useMemo } from 'react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 
-  const statuses = [
-    { label: 'Draft', count: '—', color: 'bg-gray-500/20 text-gray-400' },
-    { label: 'Sent', count: '—', color: 'bg-sky-500/20 text-sky-400' },
-    { label: 'Viewed', count: '—', color: 'bg-violet-500/20 text-violet-400' },
-    { label: 'Approved', count: '—', color: 'bg-emerald-500/20 text-emerald-400' },
-    { label: 'Declined', count: '—', color: 'bg-red-500/20 text-red-400' },
-    { label: 'Expired', count: '—', color: 'bg-amber-500/20 text-amber-400' },
-  ]
+// Sales Hub > Estimates (Liftori admin side).
+// Reps build a line-item estimate from the Liftori product catalog (estimate_pricing),
+// send it to the customer for in-house e-signature + a 50% deposit (live Stripe),
+// and the products land in the Pipeline (customer_product_lines) so the deal is tracked.
+
+const PUBLIC_BASE = 'https://admin.liftori.ai'
+const MANAGER_ROLES = ['super_admin', 'admin', 'dev', 'sales_director']
+
+const STATUS_STYLE = {
+  draft:        'bg-slate-500/15 text-slate-300 border-slate-500/30',
+  sent:         'bg-sky-500/15 text-sky-300 border-sky-500/30',
+  viewed:       'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+  signed:       'bg-blue-500/15 text-blue-300 border-blue-500/30',
+  deposit_paid: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  declined:     'bg-rose-500/15 text-rose-300 border-rose-500/30',
+  expired:      'bg-amber-500/15 text-amber-300 border-amber-500/30',
+}
+const STATUS_LABEL = { draft: 'Draft', sent: 'Sent', viewed: 'Viewed', signed: 'Signed', deposit_paid: 'Deposit Paid', declined: 'Declined', expired: 'Expired' }
+const STATUS_ORDER = ['draft', 'sent', 'viewed', 'signed', 'deposit_paid', 'declined']
+
+const usd = (n) => (Number(n) || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+const SCOPE_LABEL = { crm: 'CRM & Software', website: 'Websites', custom_build: 'Custom Builds', consulting: 'Consulting', branding: 'Branding', bolo: 'BOLO Go' }
+
+export default function Estimates() {
+  const { profile, user } = useAuth()
+  const role = profile?.role || 'customer'
+  const isManager = MANAGER_ROLES.includes(role)
+  const myId = profile?.id || user?.id
+
+  const [tab, setTab] = useState('estimates')
+  const [estimates, setEstimates] = useState([])
+  const [catalog, setCatalog] = useState([])
+  const [customers, setCustomers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [building, setBuilding] = useState(false)
+  const [detail, setDetail] = useState(null)
+  const [toast, setToast] = useState(null)
+  function flash(m) { setToast(m); setTimeout(() => setToast(null), 3500) }
+
+  async function loadAll() {
+    setLoading(true)
+    const [er, cr, custR] = await Promise.all([
+      supabase.from('sales_estimates').select('*').order('created_at', { ascending: false }),
+      supabase.from('estimate_pricing').select('*').order('scope').order('sort'),
+      supabase.from('profiles').select('id, full_name, company_name, email').eq('role', 'customer').order('company_name').limit(500),
+    ])
+    setEstimates(er.data || [])
+    setCatalog(cr.data || [])
+    setCustomers(custR.data || [])
+    setLoading(false)
+  }
+  useEffect(() => { loadAll() }, [])
+
+  const counts = useMemo(() => {
+    const c = {}
+    for (const s of STATUS_ORDER) c[s] = 0
+    for (const e of estimates) c[e.status] = (c[e.status] || 0) + 1
+    return c
+  }, [estimates])
+
+  const visible = useMemo(
+    () => statusFilter === 'all' ? estimates : estimates.filter(e => e.status === statusFilter),
+    [estimates, statusFilter]
+  )
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-brand-blue/10 flex items-center justify-center">
-            <svg className="w-5 h-5 text-brand-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V13.5zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V18zm2.498-6.75h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V13.5zm0 2.25h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V18zm2.504-6.75h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V13.5zm0 2.25h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V18zm2.498-6.75h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V13.5zM8.25 6h7.5v2.25h-7.5V6zM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 002.25 2.25h10.5a2.25 2.25 0 002.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0012 2.25z" />
-            </svg>
-          </div>
+    <div className="min-h-screen bg-navy-950 px-4 py-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">Estimates</h1>
-            <p className="text-gray-400 text-sm">Quote Generation, Pricing & Pending Approvals</p>
+            <h1 className="text-2xl font-semibold text-slate-100">Estimates</h1>
+            <p className="mt-1 text-sm text-slate-400">Build a quote from Liftori products, send it for signature and a 50% deposit, and track it in the pipeline.</p>
           </div>
-          <span className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-            Coming Soon
-          </span>
+          {tab === 'estimates' && <button onClick={() => setBuilding(true)} className="btn-primary shrink-0">New estimate</button>}
         </div>
-        <p className="text-gray-500 text-sm max-w-2xl mt-4">
-          Generate accurate project estimates in seconds, not hours. AI breaks down scope into line items,
-          validates against your pricing tiers, and sends interactive estimates clients can approve with one click.
-          Approved estimates flow directly into agreements and project kickoff.
-        </p>
-      </div>
 
-      {/* Status Pipeline Preview */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-10">
-        {statuses.map((s, i) => (
-          <div key={i} className={`rounded-xl p-3 text-center ${s.color}`}>
-            <p className="text-xl font-bold">{s.count}</p>
-            <p className="text-[10px] font-medium mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Capabilities Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-        {capabilities.map((cap, i) => (
-          <div key={i} className="bg-navy-800/50 border border-navy-700/50 rounded-xl p-5 hover:border-navy-600/50 transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-lg bg-brand-blue/10 text-brand-blue flex items-center justify-center flex-shrink-0 mt-0.5">
-                {cap.icon}
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-white mb-1">{cap.title}</h3>
-                <p className="text-xs text-gray-400 leading-relaxed">{cap.description}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Estimate → Agreement Flow */}
-      <div className="bg-navy-800/30 border border-navy-700/30 rounded-xl p-6 mb-10">
-        <h2 className="text-lg font-semibold text-white mb-5">Estimate → Agreement → Project Flow</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          {[
-            { step: '01', title: 'Wizard Complete', desc: 'Client submits project idea', color: 'text-gray-400' },
-            { step: '02', title: 'Estimate Generated', desc: 'AI builds line-item quote', color: 'text-sky-400' },
-            { step: '03', title: 'Client Approves', desc: 'Interactive portal review', color: 'text-purple-400' },
-            { step: '04', title: 'Agreement Signed', desc: 'Auto-generated contract', color: 'text-brand-blue' },
-            { step: '05', title: 'Project Kicks Off', desc: 'Pipeline + milestone setup', color: 'text-emerald-400' },
-          ].map((item, i) => (
-            <div key={i} className="text-center">
-              <div className={`text-xl font-bold ${item.color} opacity-40 mb-1`}>{item.step}</div>
-              <h4 className="text-xs font-medium text-white mb-0.5">{item.title}</h4>
-              <p className="text-[10px] text-gray-500">{item.desc}</p>
-            </div>
+        <div className="mt-6 flex gap-1 border-b border-navy-700">
+          {[['estimates', 'Estimates'], ...(isManager ? [['catalog', 'Product Catalog']] : [])].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)}
+              className={`px-4 py-2.5 text-sm font-medium -mb-px border-b-2 transition ${tab === id ? 'border-brand-cyan text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+              {label}
+            </button>
           ))}
         </div>
+
+        {tab === 'estimates' ? (
+          <div className="mt-6">
+            <div className="flex flex-wrap gap-2">
+              <Chip on={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>All <span className="opacity-60">{estimates.length}</span></Chip>
+              {STATUS_ORDER.map(s => (
+                <Chip key={s} on={statusFilter === s} onClick={() => setStatusFilter(s)}>{STATUS_LABEL[s]} <span className="opacity-60">{counts[s] || 0}</span></Chip>
+              ))}
+            </div>
+
+            {loading ? (
+              <div className="py-16 text-center text-sm text-slate-500">Loading estimates...</div>
+            ) : visible.length === 0 ? (
+              <div className="mt-6 rounded-xl border border-navy-700 bg-navy-800/50 py-16 text-center text-sm text-slate-500">
+                No estimates here yet. Click "New estimate" to build one.
+              </div>
+            ) : (
+              <div className="mt-4 overflow-x-auto rounded-xl border border-navy-700">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-navy-800 text-[11px] uppercase tracking-wider text-slate-400">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Estimate</th>
+                      <th className="px-4 py-3 font-semibold">Customer</th>
+                      <th className="px-4 py-3 font-semibold text-right">One-time</th>
+                      <th className="px-4 py-3 font-semibold text-right">Monthly</th>
+                      <th className="px-4 py-3 font-semibold text-right">Deposit (50%)</th>
+                      <th className="px-4 py-3 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-navy-700/60">
+                    {visible.map(e => (
+                      <tr key={e.id} onClick={() => setDetail(e)} className="cursor-pointer bg-navy-900/40 hover:bg-navy-800/60">
+                        <td className="px-4 py-3 font-mono text-xs text-slate-300">{e.estimate_number || '-'}<div className="text-[11px] text-slate-500 font-sans">{e.title}</div></td>
+                        <td className="px-4 py-3 text-white">{e.customer_name || '-'}</td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-300">{usd(e.subtotal_onetime)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-300">{e.subtotal_monthly ? usd(e.subtotal_monthly) + '/mo' : '-'}</td>
+                        <td className="px-4 py-3 text-right font-mono font-semibold text-brand-cyan">{usd(e.deposit_amount)}</td>
+                        <td className="px-4 py-3"><span className={`inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[e.status] || ''}`}>{STATUS_LABEL[e.status] || e.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          <CatalogTab catalog={catalog} reload={loadAll} flash={flash} />
+        )}
       </div>
 
-      {/* Pricing Tier Guardrails */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { tier: 'Starter', range: 'From $1,500', features: 'Landing pages, simple web apps, single-feature builds', color: 'border-sky-500/30 bg-sky-500/5' },
-          { tier: 'Growth', range: 'From $5,000 + $1–2K/mo', features: 'Full platforms, dashboards, integrations, managed services', color: 'border-purple-500/30 bg-purple-500/5' },
-          { tier: 'Scale', range: 'From $15,000 + $2–5K/mo', features: 'Enterprise builds, multi-tenant, AI features, white-label', color: 'border-amber-500/30 bg-amber-500/5' },
-        ].map((tier, i) => (
-          <div key={i} className={`rounded-xl border p-5 ${tier.color}`}>
-            <h3 className="text-sm font-semibold text-white mb-1">{tier.tier}</h3>
-            <p className="text-lg font-bold text-white mb-2">{tier.range}</p>
-            <p className="text-xs text-gray-400">{tier.features}</p>
+      {building && (
+        <Builder catalog={catalog} customers={customers} myId={myId}
+          onClose={() => setBuilding(false)}
+          onSaved={(msg) => { setBuilding(false); flash(msg); loadAll() }} />
+      )}
+
+      {detail && (
+        <DetailDrawer est={detail} customers={customers} myId={myId}
+          onClose={() => setDetail(null)}
+          onChanged={(msg) => { flash(msg); loadAll(); setDetail(null) }} />
+      )}
+
+      {toast && <div className="fixed bottom-6 right-6 z-50 rounded-lg bg-sky-600 px-4 py-3 text-sm text-white shadow-lg">{toast}</div>}
+    </div>
+  )
+}
+
+function Chip({ on, onClick, children }) {
+  return (
+    <button onClick={onClick} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${on ? 'bg-brand-cyan/15 text-brand-cyan border border-brand-cyan/30' : 'bg-navy-800 text-slate-400 border border-navy-700 hover:text-white'}`}>{children}</button>
+  )
+}
+
+/* ----------------------------- Builder ----------------------------- */
+function Builder({ catalog, customers, myId, onClose, onSaved }) {
+  const [customerId, setCustomerId] = useState('')
+  const [custName, setCustName] = useState('')
+  const [custEmail, setCustEmail] = useState('')
+  const [title, setTitle] = useState('')
+  const [validUntil, setValidUntil] = useState('')
+  const [notes, setNotes] = useState('')
+  const [items, setItems] = useState([])
+  const [pickScope, setPickScope] = useState('crm')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState(null)
+
+  const scopes = useMemo(() => [...new Set(catalog.map(c => c.scope))], [catalog])
+  useEffect(() => { if (scopes.length && !scopes.includes(pickScope)) setPickScope(scopes[0]) }, [scopes]) // eslint-disable-line
+
+  function onCustomer(id) {
+    setCustomerId(id)
+    const c = customers.find(x => x.id === id)
+    if (c) { setCustName(c.company_name || c.full_name || ''); setCustEmail(c.email || '') }
+  }
+  function addItem(cat) {
+    setItems(prev => {
+      const existing = prev.find(i => i.catalog_item_key === cat.item_key)
+      if (existing) return prev.map(i => i.catalog_item_key === cat.item_key ? { ...i, qty: i.qty + 1 } : i)
+      return [...prev, { catalog_item_key: cat.item_key, name: cat.label, category: cat.scope, billing: cat.billing === 'monthly' ? 'monthly' : 'one_time', qty: 1, unit_price: Number(cat.price) || 0 }]
+    })
+  }
+  function setQty(key, qty) { setItems(prev => prev.map(i => i.catalog_item_key === key ? { ...i, qty: Math.max(1, Number(qty) || 1) } : i)) }
+  function setPrice(key, price) { setItems(prev => prev.map(i => i.catalog_item_key === key ? { ...i, unit_price: Number(price) || 0 } : i)) }
+  function removeItem(key) { setItems(prev => prev.filter(i => i.catalog_item_key !== key)) }
+
+  const totals = useMemo(() => {
+    let onetime = 0, monthly = 0
+    for (const i of items) { const lt = i.qty * i.unit_price; if (i.billing === 'monthly') monthly += lt; else onetime += lt }
+    const upfront = onetime + monthly
+    return { onetime, monthly, upfront, deposit: +(upfront * 0.5).toFixed(2) }
+  }, [items])
+
+  async function save(send) {
+    setErr(null)
+    if (!custName.trim()) { setErr('Add a customer name.'); return }
+    if (items.length === 0) { setErr('Add at least one product.'); return }
+    setSaving(true)
+    try {
+      const { data: est, error: e1 } = await supabase.from('sales_estimates').insert({
+        customer_id: customerId || null, customer_name: custName.trim(), customer_email: custEmail.trim() || null,
+        owner_id: myId, created_by: myId, title: title.trim() || (items[0]?.name || 'Estimate'),
+        status: 'draft', subtotal_onetime: totals.onetime, subtotal_monthly: totals.monthly,
+        deposit_pct: 50, deposit_amount: totals.deposit, valid_until: validUntil || null, notes: notes.trim() || null,
+      }).select().single()
+      if (e1) throw e1
+      const rows = items.map((i, idx) => ({
+        estimate_id: est.id, catalog_item_key: i.catalog_item_key, name: i.name, category: i.category,
+        billing: i.billing, qty: i.qty, unit_price: i.unit_price, line_total: +(i.qty * i.unit_price).toFixed(2), sort_order: idx,
+      }))
+      const { error: e2 } = await supabase.from('sales_estimate_items').insert(rows)
+      if (e2) throw e2
+      if (send) { await sendEstimate(est, custName, custEmail, customerId, myId, totals); onSaved('Estimate sent to ' + custName) }
+      else onSaved('Estimate saved as draft')
+    } catch (e) { setErr('Save failed: ' + (e.message || 'error')); setSaving(false) }
+  }
+
+  const scopeItems = catalog.filter(c => c.scope === pickScope)
+
+  return (
+    <Drawer title="New estimate" onClose={onClose} wide>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Left: customer + products */}
+        <div className="space-y-4">
+          <div>
+            <label className="label">Existing customer (optional)</label>
+            <select className="input" value={customerId} onChange={e => onCustomer(e.target.value)}>
+              <option value="">- New / not listed -</option>
+              {customers.map(c => <option key={c.id} value={c.id}>{c.company_name || c.full_name || c.email}</option>)}
+            </select>
           </div>
-        ))}
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="label">Customer name</label><input className="input" value={custName} onChange={e => setCustName(e.target.value)} /></div>
+            <div><label className="label">Customer email</label><input className="input" value={custEmail} onChange={e => setCustEmail(e.target.value)} placeholder="for the signature link" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="label">Title</label><input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. CRM Pro + Website" /></div>
+            <div><label className="label">Valid until</label><input type="date" className="input" value={validUntil} onChange={e => setValidUntil(e.target.value)} /></div>
+          </div>
+
+          <div>
+            <label className="label">Add products</label>
+            <div className="mb-2 flex flex-wrap gap-1">
+              {scopes.map(s => (
+                <button key={s} onClick={() => setPickScope(s)} className={`rounded-md px-2.5 py-1 text-xs font-medium ${pickScope === s ? 'bg-brand-cyan/15 text-brand-cyan' : 'bg-navy-800 text-slate-400 hover:text-white'}`}>{SCOPE_LABEL[s] || s}</button>
+              ))}
+            </div>
+            <div className="max-h-56 space-y-1 overflow-auto rounded-lg border border-navy-700 bg-navy-900/40 p-2">
+              {scopeItems.map(c => (
+                <button key={c.id} onClick={() => addItem(c)} className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-navy-800">
+                  <span className="truncate pr-2">{c.label}</span>
+                  <span className="shrink-0 font-mono text-xs text-slate-400">{usd(c.price)}{c.billing === 'monthly' ? '/mo' : ''}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: cart + totals */}
+        <div className="space-y-3">
+          <label className="label">Line items</label>
+          {items.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-navy-700 py-10 text-center text-sm text-slate-500">Pick products on the left.</div>
+          ) : (
+            <div className="space-y-2">
+              {items.map(i => (
+                <div key={i.catalog_item_key} className="rounded-lg border border-navy-700 bg-navy-900/40 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm text-white">{i.name}</span>
+                    <button onClick={() => removeItem(i.catalog_item_key)} className="text-xs text-rose-400/80 hover:text-rose-300">remove</button>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <input type="number" min="1" value={i.qty} onChange={e => setQty(i.catalog_item_key, e.target.value)} className="input h-8 w-16 py-1 text-sm" />
+                    <span className="text-slate-500">x</span>
+                    <input type="number" min="0" value={i.unit_price} onChange={e => setPrice(i.catalog_item_key, e.target.value)} className="input h-8 w-24 py-1 text-sm" />
+                    <span className="text-[11px] text-slate-500">{i.billing === 'monthly' ? '/mo' : 'one-time'}</span>
+                    <span className="ml-auto font-mono text-sm text-brand-cyan">{usd(i.qty * i.unit_price)}{i.billing === 'monthly' ? '/mo' : ''}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="rounded-lg border border-navy-700 bg-navy-800/50 p-3 text-sm">
+            <Row label="One-time subtotal" value={usd(totals.onetime)} />
+            <Row label="Monthly subtotal" value={totals.monthly ? usd(totals.monthly) + '/mo' : usd(0)} />
+            <Row label="Due upfront (one-time + first month)" value={usd(totals.upfront)} />
+            <div className="mt-1 border-t border-navy-700 pt-1">
+              <Row label="50% deposit to collect" value={usd(totals.deposit)} accent />
+            </div>
+          </div>
+
+          <div><label className="label">Notes (shown to customer)</label><textarea className="input min-h-[60px]" value={notes} onChange={e => setNotes(e.target.value)} /></div>
+          {err && <p className="text-xs text-rose-400">{err}</p>}
+          <div className="flex items-center justify-end gap-3 pt-1">
+            <button onClick={onClose} className="text-sm text-slate-400 hover:text-white">Cancel</button>
+            <button onClick={() => save(false)} disabled={saving} className="rounded-lg border border-navy-600 px-3 py-2 text-sm text-slate-200 hover:bg-navy-800 disabled:opacity-50">Save draft</button>
+            <button onClick={() => save(true)} disabled={saving} className="btn-primary">{saving ? 'Working...' : 'Save & send'}</button>
+          </div>
+        </div>
+      </div>
+    </Drawer>
+  )
+}
+
+function Row({ label, value, accent }) {
+  return <div className="flex items-center justify-between py-0.5"><span className="text-slate-400">{label}</span><span className={`font-mono ${accent ? 'font-semibold text-brand-cyan' : 'text-slate-200'}`}>{value}</span></div>
+}
+
+/* ----------------------------- Send helper ----------------------------- */
+async function sendEstimate(est, custName, custEmail, customerId, myId, totals) {
+  const link = `${PUBLIC_BASE}/estimate/${est.public_token}`
+  await supabase.from('sales_estimates').update({ status: 'sent', sent_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', est.id)
+
+  // Reflect products in the pipeline (one line per base product type), if linked to a customer.
+  if (customerId) {
+    try {
+      const { data: its } = await supabase.from('sales_estimate_items').select('*').eq('estimate_id', est.id)
+      const map = { crm: 'CRM', website: 'Website', custom_build: 'Custom Build' }
+      const groups = {}
+      for (const i of (its || [])) {
+        const pt = map[i.category]; if (!pt) continue
+        groups[pt] = groups[pt] || { onetime: 0, monthly: 0 }
+        if (i.billing === 'monthly') groups[pt].monthly += Number(i.line_total) || 0
+        else groups[pt].onetime += Number(i.line_total) || 0
+      }
+      await supabase.from('customer_product_lines').delete().eq('estimate_id', est.id)
+      const lines = Object.entries(groups).map(([pt, g]) => ({
+        profile_id: customerId, product_type: pt, stage: 'Estimate Sent',
+        estimated_value: g.onetime, mrr: g.monthly, owner_id: myId, estimate_id: est.id,
+        expected_close_date: est.valid_until || null,
+        fulfillment_path: pt === 'Custom Build' ? 'build' : 'demo',
+      }))
+      if (lines.length) await supabase.from('customer_product_lines').insert(lines)
+    } catch (e) { console.error('pipeline sync', e) }
+  }
+
+  // Email the public link (best-effort).
+  if (custEmail) {
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
+      <h2 style="color:#0EA5E9">Your Liftori estimate is ready</h2>
+      <p>Hi ${custName || 'there'}, your estimate ${est.estimate_number || ''} is ready to review.</p>
+      <p>One-time: <b>${usd(totals.onetime)}</b>${totals.monthly ? ` &middot; Monthly: <b>${usd(totals.monthly)}/mo</b>` : ''}<br/>
+      50% deposit to get started: <b>${usd(totals.deposit)}</b></p>
+      <p><a href="${link}" style="display:inline-block;background:#0EA5E9;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Review, sign &amp; pay deposit</a></p>
+      <p style="font-size:12px;color:#64748b">Or paste this link: ${link}</p>
+    </div>`
+    try { await supabase.functions.invoke('send-email', { body: { to: custEmail, subject: `Your Liftori estimate ${est.estimate_number || ''}`, html } }) }
+    catch (e) { console.error('send-email', e) }
+  }
+}
+
+/* ----------------------------- Detail drawer ----------------------------- */
+function DetailDrawer({ est, customers, myId, onClose, onChanged }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const link = `${PUBLIC_BASE}/estimate/${est.public_token}`
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('sales_estimate_items').select('*').eq('estimate_id', est.id).order('sort_order')
+      setItems(data || []); setLoading(false)
+    })()
+  }, [est.id])
+
+  const totals = useMemo(() => {
+    let onetime = 0, monthly = 0
+    for (const i of items) { if (i.billing === 'monthly') monthly += Number(i.line_total) || 0; else onetime += Number(i.line_total) || 0 }
+    return { onetime, monthly }
+  }, [items])
+
+  async function doSend() {
+    setBusy(true)
+    try {
+      await sendEstimate(est, est.customer_name, est.customer_email, est.customer_id, est.owner_id || myId,
+        { onetime: totals.onetime, monthly: totals.monthly, deposit: est.deposit_amount })
+      onChanged(est.status === 'draft' ? 'Estimate sent' : 'Estimate re-sent')
+    } catch (e) { alert('Send failed: ' + (e.message || '')); setBusy(false) }
+  }
+  async function setStatus(s) {
+    setBusy(true)
+    const patch = { status: s, updated_at: new Date().toISOString() }
+    if (s === 'declined') patch.declined_at = new Date().toISOString()
+    const { error } = await supabase.from('sales_estimates').update(patch).eq('id', est.id)
+    if (error) { alert(error.message); setBusy(false); return }
+    onChanged('Marked ' + (STATUS_LABEL[s] || s))
+  }
+  async function del() {
+    if (!confirm('Delete this estimate?')) return
+    setBusy(true)
+    await supabase.from('customer_product_lines').delete().eq('estimate_id', est.id)
+    const { error } = await supabase.from('sales_estimates').delete().eq('id', est.id)
+    if (error) { alert(error.message); setBusy(false); return }
+    onChanged('Estimate deleted')
+  }
+  function copyLink() { navigator.clipboard?.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500) }
+
+  return (
+    <Drawer title={(est.estimate_number || 'Estimate') + (est.title ? ' - ' + est.title : '')} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[est.status] || ''}`}>{STATUS_LABEL[est.status] || est.status}</span>
+          <span className="text-sm text-slate-300">{est.customer_name}</span>
+          {est.customer_email && <span className="text-xs text-slate-500">{est.customer_email}</span>}
+        </div>
+
+        {loading ? <div className="py-8 text-center text-sm text-slate-500">Loading...</div> : (
+          <div className="overflow-hidden rounded-xl border border-navy-700">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-navy-800 text-[11px] uppercase tracking-wider text-slate-400">
+                <tr><th className="px-3 py-2">Product</th><th className="px-3 py-2 text-right">Qty</th><th className="px-3 py-2 text-right">Price</th><th className="px-3 py-2 text-right">Total</th></tr>
+              </thead>
+              <tbody className="divide-y divide-navy-700/60">
+                {items.map(i => (
+                  <tr key={i.id} className="bg-navy-900/40">
+                    <td className="px-3 py-2 text-white">{i.name}<span className="ml-1 text-[11px] text-slate-500">{i.billing === 'monthly' ? '(monthly)' : ''}</span></td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-300">{i.qty}</td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-300">{usd(i.unit_price)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-brand-cyan">{usd(i.line_total)}{i.billing === 'monthly' ? '/mo' : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-navy-700 bg-navy-800/50 p-3 text-sm">
+          <Row label="One-time" value={usd(totals.onetime)} />
+          <Row label="Monthly" value={totals.monthly ? usd(totals.monthly) + '/mo' : usd(0)} />
+          <Row label="50% deposit" value={usd(est.deposit_amount)} accent />
+        </div>
+
+        <div className="rounded-lg border border-navy-700 bg-navy-900/40 p-3 text-sm space-y-1">
+          {est.signed_at ? <p className="text-emerald-300">Signed by {est.signer_name} on {new Date(est.signed_at).toLocaleString()}</p> : <p className="text-slate-500">Not signed yet</p>}
+          {est.deposit_paid_at ? <p className="text-emerald-300">Deposit paid {new Date(est.deposit_paid_at).toLocaleString()}</p> : <p className="text-slate-500">Deposit not paid</p>}
+        </div>
+
+        <div>
+          <label className="label">Customer signature link</label>
+          <div className="flex gap-2">
+            <input readOnly value={link} className="input flex-1 text-xs" onFocus={e => e.target.select()} />
+            <button onClick={copyLink} className="rounded-lg border border-navy-600 px-3 text-sm text-slate-200 hover:bg-navy-800">{copied ? 'Copied' : 'Copy'}</button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <button onClick={del} disabled={busy} className="text-xs text-rose-400/80 hover:text-rose-300">Delete</button>
+          <div className="flex gap-2">
+            {est.status !== 'declined' && est.status !== 'deposit_paid' && <button onClick={() => setStatus('declined')} disabled={busy} className="rounded-lg border border-navy-600 px-3 py-2 text-sm text-slate-300 hover:bg-navy-800">Mark declined</button>}
+            <button onClick={doSend} disabled={busy} className="btn-primary">{est.status === 'draft' ? 'Send to customer' : 'Resend'}</button>
+          </div>
+        </div>
+      </div>
+    </Drawer>
+  )
+}
+
+/* ----------------------------- Catalog tab ----------------------------- */
+function CatalogTab({ catalog, reload, flash }) {
+  const [editing, setEditing] = useState(null)
+  const grouped = useMemo(() => {
+    const g = {}
+    for (const c of catalog) { (g[c.scope] = g[c.scope] || []).push(c) }
+    return g
+  }, [catalog])
+
+  async function save(row) {
+    const payload = { label: row.label, price: Number(row.price) || 0, billing: row.billing, active: row.active, scope: row.scope, category: row.category || 'base', item_key: row.item_key, sort: Number(row.sort) || 0 }
+    const res = row.id ? await supabase.from('estimate_pricing').update(payload).eq('id', row.id) : await supabase.from('estimate_pricing').insert(payload)
+    if (res.error) { flash('Save failed: ' + res.error.message); return }
+    flash('Saved'); setEditing(null); reload()
+  }
+  async function toggle(c) {
+    const { error } = await supabase.from('estimate_pricing').update({ active: !c.active }).eq('id', c.id)
+    if (error) { flash('Failed: ' + error.message); return }
+    reload()
+  }
+
+  return (
+    <div className="mt-6 space-y-6">
+      <div className="flex justify-end">
+        <button onClick={() => setEditing({ scope: 'crm', category: 'base', item_key: '', label: '', price: 0, billing: 'monthly', active: true, sort: 0 })} className="btn-primary">Add product</button>
+      </div>
+      {Object.entries(grouped).map(([scope, items]) => (
+        <div key={scope}>
+          <h3 className="mb-2 text-sm font-semibold text-white">{SCOPE_LABEL[scope] || scope}</h3>
+          <div className="overflow-hidden rounded-xl border border-navy-700">
+            <table className="w-full text-left text-sm">
+              <tbody className="divide-y divide-navy-700/60">
+                {items.map(c => (
+                  <tr key={c.id} className={`bg-navy-900/40 ${!c.active ? 'opacity-50' : ''}`}>
+                    <td className="px-3 py-2 text-white">{c.label}</td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-300">{usd(c.price)}{c.billing === 'monthly' ? '/mo' : c.billing === 'one_time' ? '' : ' (quote)'}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <button onClick={() => toggle(c)} className="text-xs text-slate-400 hover:text-white">{c.active ? 'Disable' : 'Enable'}</button>
+                      <button onClick={() => setEditing(c)} className="ml-3 text-xs text-brand-cyan hover:underline">Edit</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+
+      {editing && (
+        <Drawer title={editing.id ? 'Edit product' : 'Add product'} onClose={() => setEditing(null)}>
+          <div className="space-y-3">
+            <div><label className="label">Label</label><input className="input" value={editing.label} onChange={e => setEditing({ ...editing, label: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="label">Scope</label><input className="input" value={editing.scope} onChange={e => setEditing({ ...editing, scope: e.target.value })} placeholder="crm / website / custom_build" /></div>
+              <div><label className="label">Item key</label><input className="input" value={editing.item_key} onChange={e => setEditing({ ...editing, item_key: e.target.value })} placeholder="unique_key" /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="label">Price</label><input type="number" className="input" value={editing.price} onChange={e => setEditing({ ...editing, price: e.target.value })} /></div>
+              <div><label className="label">Billing</label>
+                <select className="input" value={editing.billing} onChange={e => setEditing({ ...editing, billing: e.target.value })}>
+                  <option value="one_time">One-time</option><option value="monthly">Monthly</option><option value="quote">Quote</option>
+                </select>
+              </div>
+              <div><label className="label">Sort</label><input type="number" className="input" value={editing.sort} onChange={e => setEditing({ ...editing, sort: e.target.value })} /></div>
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button onClick={() => setEditing(null)} className="text-sm text-slate-400 hover:text-white">Cancel</button>
+              <button onClick={() => save(editing)} className="btn-primary">Save</button>
+            </div>
+          </div>
+        </Drawer>
+      )}
+    </div>
+  )
+}
+
+/* ----------------------------- Drawer shell ----------------------------- */
+function Drawer({ title, onClose, children, wide }) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className={`h-full ${wide ? 'w-full max-w-3xl' : 'w-full max-w-xl'} overflow-auto border-l border-navy-700 bg-navy-900 p-6`}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white">Close</button>
+        </div>
+        {children}
       </div>
     </div>
   )
