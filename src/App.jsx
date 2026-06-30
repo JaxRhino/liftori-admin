@@ -127,6 +127,7 @@ import AcceptInvite from './pages/AcceptInvite'
 import SalesProducts from './pages/SalesProducts'
 import SalesPipeline from './pages/SalesPipeline'
 import PublicRepLanding from './pages/PublicRepLanding'
+import RepLandingPage from './pages/RepLandingPage'
 import Investors from './pages/Investors'
 import OpsDashboard from './pages/OpsDashboard'
 import MeasurementRequests, { MeasurementLab } from './pages/crm/MeasurementRequests'
@@ -487,6 +488,7 @@ export default function App() {
             <Route path="estimates" element={<Estimates />} />
             <Route path="agreements" element={<Agreements />} />
             <Route path="commissions" element={<Commissions />} />
+            <Route path="landing-page" element={<RepLandingPage />} />
             <Route path="discount-codes" element={<DiscountCodes />} />
             <Route path="plans" element={<Plans />} />
             <Route path="chat" element={<RallyChat />} />
