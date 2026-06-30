@@ -172,7 +172,8 @@ export const NAV_PERMISSION_MAP = {
   'Finance': 'finance.dashboard',
   'Liftori Settings': 'liftori_settings.access',
   // Sales Hub items
-  'Products': 'sales.products',
+  'Products': 'builds.products',
+  'Product Demos': 'sales.products',
   'Lead Hunter': 'sales.lead_hunter',
   'Customers': 'sales.customers',
   'Pipeline': 'sales.pipeline',
