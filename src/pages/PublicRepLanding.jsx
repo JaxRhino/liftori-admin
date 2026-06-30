@@ -41,6 +41,28 @@ const STEPS = [
   { n: '04', t: 'Launch & support', d: 'We go live and keep it running and growing.' },
 ]
 
+// Flagship Liftori products — hover to reveal what's inside (NO pricing).
+const LIFTORI_PRODUCTS = [
+  {
+    key: 'crm', icon: 'crm', name: 'Liftori CRM',
+    tag: 'Your whole business in one platform.',
+    desc: 'A modern, AI-native platform that runs sales, operations, finance, and customers — tailored to how you actually work.',
+    points: ['Sales pipeline, estimates & e-sign', 'Operations, scheduling & jobs', 'Marketing, finance & client portals', 'AI assistants built right in'],
+  },
+  {
+    key: 'custom', icon: 'custom', name: 'Custom Builds',
+    tag: 'If you can picture it, we can build it.',
+    desc: 'Bespoke software, websites, apps, and integrations designed around your exact goals — no templates, no limits.',
+    points: ['Websites & online stores', 'Mobile & web apps', 'APIs & integrations', 'One-of-a-kind internal tools'],
+  },
+  {
+    key: 'consult', icon: 'consult', name: 'Business Consulting',
+    tag: 'Strategy & systems from operators who build.',
+    desc: 'Hands-on guidance to streamline operations, install the right systems, and scale — from people who run businesses, not just advise them.',
+    points: ['Operational audits & playbooks', 'Systems & automation strategy', 'Fractional ops leadership', 'EOS / process implementation'],
+  },
+]
+
 const STYLE_ID = 'lo-rep-landing-style'
 function injectAssets() {
   if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return
@@ -68,6 +90,11 @@ function injectAssets() {
     .lo-input:focus{border-color:#0EA5E9;box-shadow:0 0 0 3px rgba(14,165,233,.18);}
     .lo-label{display:block;font-size:.72rem;font-weight:600;letter-spacing:.02em;color:#9fb6cc;margin-bottom:.4rem;text-transform:uppercase;}
     @media (prefers-reduced-motion:reduce){.lo-fadeup{animation:none;opacity:1;transform:none}.lo-orb{animation:none!important}}
+    .lo-prod{position:relative;overflow:hidden;border-radius:1rem;border:1px solid rgba(125,211,252,.14);background:linear-gradient(160deg,rgba(14,165,233,.06),rgba(255,255,255,.02));transition:transform .4s cubic-bezier(.2,.7,.2,1),border-color .4s,box-shadow .4s;outline:none;}
+    .lo-prod:hover{transform:translateY(-8px);border-color:rgba(14,165,233,.55);box-shadow:0 30px 70px -30px rgba(14,165,233,.6);}
+    .lo-prod-reveal{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:2rem;background:linear-gradient(to top,rgba(5,10,22,.97) 42%,rgba(14,165,233,.18));opacity:0;transform:translateY(16px);transition:opacity .4s,transform .4s;pointer-events:none;}
+    .lo-prod:hover .lo-prod-reveal,.lo-prod:focus-within .lo-prod-reveal{opacity:1;transform:none;pointer-events:auto;}
+    @media (hover:none){.lo-prod-reveal{position:static;opacity:1;transform:none;background:none;padding:0 2rem 2rem;}.lo-prod-hint{display:none;}}
   `
   document.head.appendChild(style)
 }
@@ -158,6 +185,44 @@ export default function PublicRepLanding() {
                 See what we build
               </a>
             </div>
+          </div>
+        </section>
+
+        {/* Liftori products — flagship, hover to reveal */}
+        <section id="products" className="mx-auto max-w-6xl px-6 pt-8 pb-4">
+          <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="lo-mono text-xs uppercase tracking-[0.32em]" style={{ color: '#38BDF8' }}>Liftori products</p>
+              <h2 className="lo-display mt-3 text-5xl md:text-6xl">SIGNATURE SOLUTIONS</h2>
+            </div>
+            <p className="max-w-sm text-sm text-slate-400">The three ways businesses grow with Liftori. Hover any card to see what’s inside.</p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-3">
+            {LIFTORI_PRODUCTS.map((p) => (
+              <div key={p.key} tabIndex={0} className="lo-prod group min-h-[340px] md:min-h-[380px]">
+                <div className="flex h-full flex-col p-8">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: 'rgba(14,165,233,.12)', border: '1px solid rgba(125,211,252,.22)' }}>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.6} stroke="#7DD3FC"><path strokeLinecap="round" strokeLinejoin="round" d={ICONS[p.icon]} /></svg>
+                  </div>
+                  <h3 className="mt-6 text-2xl font-bold text-white">{p.name}</h3>
+                  <p className="mt-2 text-sm text-slate-400">{p.tag}</p>
+                  <span className="lo-prod-hint lo-mono mt-auto pt-6 text-[11px] uppercase tracking-[0.28em]" style={{ color: '#38BDF8' }}>Hover for details</span>
+                </div>
+                <div className="lo-prod-reveal">
+                  <h3 className="text-xl font-bold text-white">{p.name}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-300">{p.desc}</p>
+                  <ul className="mt-4 space-y-1.5">
+                    {p.points.map((pt) => (
+                      <li key={pt} className="flex items-start gap-2 text-[13px] text-slate-200">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: '#38BDF8' }} />
+                        {pt}
+                      </li>
+                    ))}
+                  </ul>
+                  <a href="#request" className="mt-5 inline-block text-sm font-semibold" style={{ color: '#7DD3FC' }}>Ask {firstName} about it</a>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
