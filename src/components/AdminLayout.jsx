@@ -1058,7 +1058,7 @@ export default function AdminLayout() {
               </>)}
 
               {/* Sales Hub dropdown â€” inserted right after Call Center (below Marketing + Call Center in the rail) */}
-              {item.label === 'Call Center' && showSalesHub && (<>
+              {((item.label === 'Call Center') || (item.label === 'Dashboard' && !visibleNavItems.some(i => i.label === 'Call Center'))) && showSalesHub && (<>
                 <div>
                   <button
                     onClick={() => { if (sidebarOpen) setSalesHubOpen(o => !o); else navigate('/admin/customers') }}
