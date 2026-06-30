@@ -129,6 +129,7 @@ export default function CrmDashboard() {
   const { client, platform } = useCrm()
   const { orgSettings } = useCrmClient()
   const platformId = platform?.id
+  const isConsulting = platform?.industry === 'consulting'
 
   // ---- state ----
   const [pipeline, setPipeline] = useState([])
@@ -391,10 +392,10 @@ export default function CrmDashboard() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {loading.schedule ? <StatSkeleton /> : (
-          <StatCard label="Jobs Today" value={stats.jobsToday} accent="text-brand-cyan" />
+          <StatCard label={isConsulting ? 'Sessions Today' : 'Jobs Today'} value={stats.jobsToday} accent="text-brand-cyan" />
         )}
         {loading.workOrders ? <StatSkeleton /> : (
-          <StatCard label="Open Jobs" value={stats.openWO} accent="text-brand-blue" />
+          <StatCard label={isConsulting ? 'Active Engagements' : 'Open Jobs'} value={stats.openWO} accent="text-brand-blue" />
         )}
         {loading.invoices ? <StatSkeleton /> : (
           <StatCard
@@ -425,7 +426,7 @@ export default function CrmDashboard() {
             ) : todayList.length === 0 ? (
               <EmptyState
                 title="No events scheduled today"
-                description="Lock in your first job, estimate visit, or inspection on the schedule."
+                description={isConsulting ? 'Schedule your first client session or planning meeting.' : 'Lock in your first job, estimate visit, or inspection on the schedule.'}
                 cta={
                   <Link
                     to={`${linkBase}/operations/schedule`}
@@ -551,7 +552,7 @@ export default function CrmDashboard() {
 
         {/* Open Jobs */}
         <Section
-          title="Open Jobs"
+          title={isConsulting ? 'Active Engagements' : 'Open Jobs'}
           right={
             <Link to={`${linkBase}/operations/work-orders`} className="text-xs text-brand-cyan hover:underline">
               View all
@@ -562,8 +563,8 @@ export default function CrmDashboard() {
             <div className="p-6 text-sm text-gray-500">Loading jobs...</div>
           ) : topWO.length === 0 ? (
             <EmptyState
-              title="No open jobs"
-              description="Open jobs show up here for quick triage."
+              title={isConsulting ? 'No active engagements' : 'No open jobs'}
+              description={isConsulting ? 'Active engagements show up here.' : 'Open jobs show up here for quick triage.'}
             />
           ) : (
             <ul className="divide-y divide-navy-700/50">
@@ -662,13 +663,13 @@ export default function CrmDashboard() {
       {/* ===== Jobs Activity — ops stage moves ===== */}
       <div className="mt-6">
         <Section
-          title="Jobs Activity"
-          right={<Link to={`${linkBase}/ops-pipeline`} className="text-xs text-brand-cyan hover:underline">Ops Pipeline</Link>}
+          title={isConsulting ? 'Engagement Activity' : 'Jobs Activity'}
+          right={<Link to={`${linkBase}/ops-pipeline`} className="text-xs text-brand-cyan hover:underline">{isConsulting ? 'Engagements' : 'Ops Pipeline'}</Link>}
         >
           {loading.jobActivity ? (
             <div className="p-6 text-sm text-gray-500">Loading activity...</div>
           ) : jobActivity.length === 0 ? (
-            <EmptyState title="No job activity yet" description="When operations moves a job to a new stage, it shows up here." />
+            <EmptyState title={isConsulting ? 'No engagement activity yet' : 'No job activity yet'} description={isConsulting ? 'When an engagement moves to a new stage, it shows up here.' : 'When operations moves a job to a new stage, it shows up here.'} />
           ) : (
             <ul className="divide-y divide-navy-700/50">
               {jobActivity.map((a) => (
