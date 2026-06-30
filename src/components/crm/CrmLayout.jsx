@@ -52,7 +52,6 @@ const HUB_CHILDREN = {
   ],
   operations: [
     { label: 'Dashboard',         path: 'operations/dashboard' },
-    { label: 'Ops Pipeline',      path: 'ops-pipeline' },
     { label: 'Jobs',       path: 'operations/work-orders' },
     { label: 'Production',        path: 'operations/production' },
     { label: 'Subcontractors',    path: 'operations/subcontractors' },
