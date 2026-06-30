@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { HubPage, StatCard, EmptyState, useCrmClient } from '../_shared'
 
 // ---------- formatters ----------
@@ -156,6 +157,9 @@ function toLocalInput(d) {
 // ===========================================================================
 export default function OperationsSchedule() {
   const { client } = useCrmClient()
+  const navigate = useNavigate()
+  const { platformId } = useParams()
+  const handleEventClick = (e) => { if (e && e.deal_id) navigate('/crm/' + platformId + '/deals/' + e.deal_id); else setOpenEvent(e) }
 
   const [events, setEvents] = useState([])
   const [workOrders, setWorkOrders] = useState([])
@@ -174,12 +178,22 @@ export default function OperationsSchedule() {
     if (!client) return
     setLoading(true)
     try {
-      const [evRes, woRes, crRes] = await Promise.all([
+      const { data: pdefs } = await client.from('pipeline_definitions').select('id,name,is_default,is_active').eq('is_active', true).order('display_order')
+      const pdl = pdefs || []
+      const jpipe = pdl.find(d => /job|operation|production|install/i.test(d.name || '')) || pdl.find(d => !d.is_default) || pdl[0] || null
+      let dq = client.from('customer_pipeline').select('id,title,job_address,install_date').limit(500)
+      if (jpipe) dq = dq.eq('pipeline_definition_id', jpipe.id)
+      const [evRes, woRes, crRes, dRes] = await Promise.all([
         client.from('ops_schedule').select('*').order('start_time', { ascending: true }).limit(500),
         client.from('ops_work_orders').select('id,work_order_number,title,address,scheduled_start,assigned_crew_id').limit(500),
         client.from('ops_crews').select('id,name,color').limit(100),
+        dq,
       ])
-      setEvents(evRes.data || [])
+      const jobEvents = (dRes.data || []).filter(d => d.install_date).map(d => ({
+        id: 'job-' + d.id, deal_id: d.id, title: d.title || 'Job', event_type: 'job', status: 'scheduled',
+        start_time: d.install_date + 'T09:00:00', end_time: d.install_date + 'T11:00:00', address: d.job_address || null, crew_id: null,
+      }))
+      setEvents([...(evRes.data || []), ...jobEvents])
       setWorkOrders(woRes.data || [])
       setCrews(crRes.data || [])
     } catch (e) {
@@ -273,13 +287,13 @@ export default function OperationsSchedule() {
       {loading ? (
         <div className="p-12 text-center text-gray-500 text-sm">Loading schedule...</div>
       ) : view === 'week' ? (
-        <WeekView anchor={anchor} events={filtered} crewById={crewById} onEventClick={setOpenEvent} onSlotClick={openNewAt} />
+        <WeekView anchor={anchor} events={filtered} crewById={crewById} onEventClick={handleEventClick} onSlotClick={openNewAt} />
       ) : view === 'day' ? (
-        <DayView anchor={anchor} events={filtered} crewById={crewById} onEventClick={setOpenEvent} onSlotClick={openNewAt} />
+        <DayView anchor={anchor} events={filtered} crewById={crewById} onEventClick={handleEventClick} onSlotClick={openNewAt} />
       ) : view === 'month' ? (
-        <MonthView anchor={anchor} events={filtered} onEventClick={setOpenEvent} onDayClick={(d) => openNewAt(d)} />
+        <MonthView anchor={anchor} events={filtered} onEventClick={handleEventClick} onDayClick={(d) => openNewAt(d)} />
       ) : (
-        <ListView events={filtered} crewById={crewById} onEventClick={setOpenEvent} />
+        <ListView events={filtered} crewById={crewById} onEventClick={handleEventClick} />
       )}
 
       <NewEventModal
