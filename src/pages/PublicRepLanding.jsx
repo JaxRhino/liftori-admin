@@ -25,9 +25,9 @@ const SECTIONS = [
   { key: 'custom_build', title: 'Custom Builds', blurb: 'Anything else you can imagine — built to scope.' },
 ]
 
-const Wordmark = ({ className = '' }) => (
+const Wordmark = ({ className = '', tone = 'light' }) => (
   <span className={`font-bold tracking-tight ${className}`}>
-    <span className="text-white">LIFT</span><span className="text-sky-500">ori</span>
+    <span className={tone === 'dark' ? 'text-slate-900' : 'text-white'}>LIFT</span><span className="text-sky-500">ori</span>
   </span>
 )
 
@@ -155,7 +155,7 @@ export default function PublicRepLanding() {
                 with a plan and pricing. No obligation.
               </p>
               <div className="mt-8 rounded-xl border border-slate-200 bg-white p-5">
-                <Wordmark className="text-xl" />
+                <Wordmark className="text-xl" tone="dark" />
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
                   Liftori turns your idea into a live, working product — websites, CRMs, apps, and AI tools —
                   built fast and supported for the long run.
