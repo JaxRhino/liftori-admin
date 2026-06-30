@@ -24,7 +24,7 @@ export default function RepLandingPage() {
 
   const [form, setForm] = useState({
     slug: '', display_name: '', title: '', email: '', phone: '',
-    headline: '', subheadline: '', booking_url: '', active: true,
+    headline: '', subheadline: '', booking_url: '', bio: '', active: true,
   })
 
   async function load() {
@@ -35,7 +35,7 @@ export default function RepLandingPage() {
       setForm({
         slug: lp.slug || '', display_name: lp.display_name || '', title: lp.title || '',
         email: lp.email || '', phone: lp.phone || '', headline: lp.headline || '',
-        subheadline: lp.subheadline || '', booking_url: lp.booking_url || '', active: lp.active !== false,
+        subheadline: lp.subheadline || '', booking_url: lp.booking_url || '', bio: lp.bio || '', active: lp.active !== false,
       })
     } else {
       const name = profile?.full_name || ''
@@ -75,7 +75,7 @@ export default function RepLandingPage() {
         display_name: form.display_name.trim(), title: form.title.trim() || null,
         email: form.email.trim() || null, phone: form.phone.trim() || null,
         headline: form.headline.trim() || null, subheadline: form.subheadline.trim() || null,
-        booking_url: form.booking_url.trim() || null, active: !!form.active,
+        booking_url: form.booking_url.trim() || null, bio: form.bio.trim() || null, active: !!form.active,
         updated_at: new Date().toISOString(),
       }
       const { error } = await supabase.from('rep_landing_pages').upsert(payload, { onConflict: 'rep_id' })
@@ -191,6 +191,12 @@ export default function RepLandingPage() {
                   <label className={lbl}>Sub-headline</label>
                   <textarea rows={2} className={fld} value={form.subheadline} onChange={set('subheadline')}
                     placeholder="From CRMs to websites to AI tools — built for you, launched fast." />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={lbl}>Your write-up (about you)</label>
+                  <textarea rows={4} className={fld} value={form.bio} onChange={set('bio')}
+                    placeholder="A short, personal intro for the “Meet your specialist” section — who you are, how you help, and why customers love working with you." />
+                  <p className="mt-1 text-[11px] text-slate-500">This is your personal pitch on the page. Keep it warm and confident.</p>
                 </div>
               </div>
 
