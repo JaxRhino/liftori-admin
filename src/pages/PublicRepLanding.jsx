@@ -36,16 +36,16 @@ const ART = {
 
 // Curated, informational product showcase — NO prices. We learn the need, then quote.
 const PRODUCTS = [
-  { key: 'web', icon: 'web', name: 'Marketing Websites', blurb: 'Fast, beautiful sites built to turn visitors into customers.', span: 'lg:col-span-2 lg:row-span-2', featured: true },
-  { key: 'crm', icon: 'crm', name: 'Business Platforms & CRM', blurb: 'Run sales, operations, and customers in one connected system.', span: 'lg:col-span-2', featured: true },
-  { key: 'store', icon: 'store', name: 'Online Stores', blurb: 'Sell anything with a storefront engineered to convert.' },
-  { key: 'mobile', icon: 'mobile', name: 'Mobile Apps', blurb: 'Native-feel apps and marketplaces your customers love.' },
-  { key: 'ai', icon: 'ai', name: 'AI Tools & Assistants', blurb: 'Chatbots and AI agents working for you around the clock.' },
-  { key: 'booking', icon: 'booking', name: 'Booking & Scheduling', blurb: 'Let customers book you 24/7, hands-free.' },
-  { key: 'growth', icon: 'growth', name: 'Marketing & Growth', blurb: 'Campaigns, content, and automation that scale.' },
-  { key: 'custom', icon: 'custom', name: 'Custom Builds', blurb: 'Anything you can picture — built to spec.' },
-  { key: 'brand', icon: 'brand', name: 'Branding & Identity', blurb: 'Logo, brand, and a launch-ready look.' },
-  { key: 'consult', icon: 'consult', name: 'Consulting & Operations', blurb: 'Strategy and systems from operators who build.' },
+  { key: 'web', icon: 'web', name: 'Marketing Websites', blurb: 'Fast, beautiful sites built to turn visitors into customers.', span: 'lg:col-span-2 lg:row-span-2', featured: true, points: ['Custom, on-brand design', 'Built to convert', 'SEO & mobile-perfect', 'Analytics built in'] },
+  { key: 'crm', icon: 'crm', name: 'Business Platforms & CRM', blurb: 'Run sales, operations, and customers in one connected system.', span: 'lg:col-span-2', featured: true, points: ['Pipelines & estimates', 'Scheduling & jobs', 'Invoicing & reports', 'Client portals'] },
+  { key: 'store', icon: 'store', name: 'Online Stores', blurb: 'Sell anything with a storefront engineered to convert.', points: ['Product catalog', 'Secure checkout', 'Orders & inventory', 'Discounts & email'] },
+  { key: 'mobile', icon: 'mobile', name: 'Mobile Apps', blurb: 'Native-feel apps and marketplaces your customers love.', points: ['iOS & Android', 'Push notifications', 'Offline-ready', 'App store launch'] },
+  { key: 'ai', icon: 'ai', name: 'AI Tools & Assistants', blurb: 'Chatbots and AI agents working for you around the clock.', points: ['Website chatbots', 'AI phone agents', 'Smart automations', 'Trained on your data'] },
+  { key: 'booking', icon: 'booking', name: 'Booking & Scheduling', blurb: 'Let customers book you 24/7, hands-free.', points: ['Online calendar', 'Auto reminders', 'Pay on booking', 'Team scheduling'] },
+  { key: 'growth', icon: 'growth', name: 'Marketing & Growth', blurb: 'Campaigns, content, and automation that scale.', points: ['Email & SMS', 'Social content', 'Ad campaigns', 'Performance tracking'] },
+  { key: 'custom', icon: 'custom', name: 'Custom Builds', blurb: 'Anything you can picture — built to spec.', points: ['Web & mobile apps', 'APIs & integrations', 'Internal tools', 'Automation'] },
+  { key: 'brand', icon: 'brand', name: 'Branding & Identity', blurb: 'Logo, brand, and a launch-ready look.', points: ['Logo & identity', 'Color & type', 'Brand guidelines', 'Marketing assets'] },
+  { key: 'consult', icon: 'consult', name: 'Consulting & Operations', blurb: 'Strategy and systems from operators who build.', points: ['Operational audits', 'Systems & automation', 'Fractional ops', 'EOS / process'] },
 ]
 
 const STEPS = [
@@ -97,7 +97,7 @@ function injectAssets() {
     @keyframes loDrift{0%,100%{transform:translate(0,0)}50%{transform:translate(30px,-18px)}}
     .lo-orb{position:absolute;border-radius:9999px;filter:blur(70px);pointer-events:none;}
     .lo-card{transition:transform .35s cubic-bezier(.2,.7,.2,1),border-color .35s,box-shadow .35s,background .35s;}
-    .lo-card:hover{transform:translateY(-6px);border-color:rgba(14,165,233,.5);box-shadow:0 24px 60px -28px rgba(14,165,233,.55);}
+    .lo-card:hover,.lo-card:focus-within{transform:translateY(-6px);border-color:rgba(14,165,233,.5);box-shadow:0 24px 60px -28px rgba(14,165,233,.55);z-index:20;}
     .lo-grid-bg{background-image:linear-gradient(rgba(125,211,252,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(125,211,252,.06) 1px,transparent 1px);background-size:64px 64px;}
     .lo-input{width:100%;border-radius:.75rem;border:1px solid rgba(125,211,252,.18);background:rgba(8,15,30,.6);padding:.7rem .9rem;font-size:.9rem;color:#E0F7FF;outline:none;transition:border-color .2s,box-shadow .2s;}
     .lo-input::placeholder{color:#5b7088;}
@@ -109,6 +109,9 @@ function injectAssets() {
     .lo-prod-reveal{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:2rem;background:linear-gradient(160deg,rgba(8,15,30,.985),rgba(5,10,22,.99));box-shadow:inset 0 2px 0 rgba(14,165,233,.55);opacity:0;transform:translateY(16px);transition:opacity .4s,transform .4s;pointer-events:none;}
     .lo-prod:hover .lo-prod-reveal,.lo-prod:focus-within .lo-prod-reveal{opacity:1;transform:none;pointer-events:auto;}
     @media (hover:none){.lo-prod-reveal{position:static;opacity:1;transform:none;background:none;padding:0 2rem 2rem;}.lo-prod-hint{display:none;}}
+    .lo-card-reveal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.94);width:calc(100% + 48px);min-height:calc(100% + 104px);display:flex;flex-direction:column;justify-content:center;padding:1.5rem 1.7rem;border-radius:1rem;border:1px solid rgba(56,189,248,.45);background:linear-gradient(160deg,rgba(10,18,34,.99),rgba(6,12,24,1));box-shadow:0 34px 80px -22px rgba(2,8,20,.92),inset 0 2px 0 rgba(14,165,233,.6);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;z-index:40;}
+    .lo-card:hover .lo-card-reveal,.lo-card:focus-within .lo-card-reveal{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto;}
+    @media (hover:none){.lo-card-reveal{display:none;}}
   `
   document.head.appendChild(style)
 }
@@ -251,15 +254,29 @@ export default function PublicRepLanding() {
 
           <div className="grid auto-rows-[180px] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PRODUCTS.map((p) => (
-              <div key={p.key}
-                className={`lo-card group relative flex flex-col justify-end overflow-hidden rounded-2xl border p-6 ${p.span || ''}`}
+              <div key={p.key} tabIndex={0}
+                className={`lo-card group relative flex flex-col justify-end rounded-2xl border p-6 outline-none ${p.span || ''}`}
                 style={{ borderColor: 'rgba(125,211,252,.14)' }}>
-                <div className="absolute inset-0" dangerouslySetInnerHTML={{ __html: ART[p.icon] }} />
-                <div className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(6,11,24,.95) 24%, rgba(6,11,24,.55) 64%, rgba(6,11,24,.32))' }} />
-                <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: 'rgba(14,165,233,.3)', filter: 'blur(40px)' }} />
+                <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                  <div className="absolute inset-0" dangerouslySetInnerHTML={{ __html: ART[p.icon] }} />
+                  <div className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(6,11,24,.95) 24%, rgba(6,11,24,.55) 64%, rgba(6,11,24,.32))' }} />
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: 'rgba(14,165,233,.3)', filter: 'blur(40px)' }} />
+                </div>
                 <div className="relative">
                   <h3 className={`font-semibold text-white ${p.featured ? 'text-2xl' : 'text-base'}`}>{p.name}</h3>
                   <p className={`mt-1.5 text-slate-300 ${p.featured ? 'text-sm max-w-xs' : 'text-[13px]'}`}>{p.blurb}</p>
+                </div>
+                <div className="lo-card-reveal">
+                  <p className={`font-semibold text-white ${p.featured ? 'text-xl' : 'text-base'}`}>{p.name}</p>
+                  <ul className="mt-2.5 space-y-1.5">
+                    {(p.points || []).slice(0, p.featured ? 4 : 3).map((pt) => (
+                      <li key={pt} className="flex items-start gap-2 text-[12px] leading-snug text-slate-200">
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: '#38BDF8' }} />
+                        {pt}
+                      </li>
+                    ))}
+                  </ul>
+                  <a href="#request" className="mt-3 inline-block text-[12px] font-semibold" style={{ color: '#7DD3FC' }}>Ask {firstName} about it</a>
                 </div>
               </div>
             ))}
