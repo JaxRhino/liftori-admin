@@ -28,17 +28,27 @@ export default function OperationsDashboard() {
     async function load() {
       setLoading(true)
       const since30 = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
-      const [t, p, o, w, c] = await Promise.all([
+      // Field-service "jobs" = deals on the tenant's JOB pipeline (customer_pipeline).
+      let jobDeals = []
+      if (!isThrift) {
+        const { data: defs } = await client.from('pipeline_definitions').select('id,name,is_default,is_active').eq('is_active', true).order('display_order')
+        const dl = defs || []
+        const jp = dl.find(d => /job|operation|production|install/i.test(d.name || '')) || dl.find(d => !d.is_default) || dl[0] || null
+        let q = client.from('customer_pipeline').select('id,title,stage,job_address,install_date,deal_value,crew_name,created_at').order('created_at', { ascending: false }).limit(200)
+        if (jp) q = q.eq('pipeline_definition_id', jp.id)
+        const { data } = await q
+        jobDeals = data || []
+      }
+      const [t, p, o, c] = await Promise.all([
         client.from('operations_tasks').select('*').order('created_at', { ascending: false }).limit(50),
         isThrift ? client.from('products').select('id,title,price,status,main_image_url,stock_quantity,created_at').order('created_at', { ascending: false }).limit(30) : Promise.resolve({ data: [] }),
         isThrift ? client.from('orders').select('*').gte('ordered_at', since30).order('ordered_at', { ascending: false }) : Promise.resolve({ data: [] }),
-        isThrift ? Promise.resolve({ data: [] }) : client.from('ops_work_orders').select('id,work_order_number,title,status,priority,address,city,state,scheduled_start,estimated_cost,assigned_crew_id,created_at').order('created_at', { ascending: false }).limit(200),
         isThrift ? Promise.resolve({ data: [] }) : client.from('ops_crews').select('id,name,color,status').limit(100),
       ])
       setTasks(t.data || [])
       setProducts(p.data || [])
       setOrders(o.data || [])
-      setWorkOrders(w.data || [])
+      setWorkOrders(jobDeals)
       setCrews(c.data || [])
       setLoading(false)
     }
@@ -61,13 +71,13 @@ export default function OperationsDashboard() {
     const now = new Date()
     const weekStart = new Date(now); weekStart.setHours(0, 0, 0, 0); weekStart.setDate(now.getDate() - now.getDay())
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7)
-    const open = workOrders.filter(w => OPEN_WO.includes(w.status))
+    const open = workOrders.filter(w => !['completed', 'cancelled'].includes(w.stage))
     const scheduledThisWeek = workOrders.filter(w => {
-      if (!w.scheduled_start) return false
-      const d = new Date(w.scheduled_start)
+      if (!w.install_date) return false
+      const d = new Date(w.install_date)
       return d >= weekStart && d < weekEnd
     }).length
-    const openValue = open.reduce((s, w) => s + Number(w.estimated_cost || 0), 0)
+    const openValue = open.reduce((s, w) => s + Number(w.deal_value || 0), 0)
     const activeCrews = crews.filter(c => (c.status || 'active') !== 'inactive').length
     return { openCount: open.length, scheduledThisWeek, openValue, activeCrews }
   }, [workOrders, crews])
@@ -169,21 +179,22 @@ export default function OperationsDashboard() {
             ) : (
               <ul className="divide-y divide-navy-700/50">
                 {recentWorkOrders.map(w => (
-                  <li key={w.id} className="px-5 py-3 hover:bg-navy-900/40 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-white font-medium">{w.work_order_number || w.title || '(untitled)'}</span>
-                          <StatusBadge status={w.status} />
+                  <li key={w.id}>
+                    <Link to={`/crm/${platform?.id}/deals/${w.id}`} className="block px-5 py-3 hover:bg-navy-900/40 cursor-pointer transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-white font-medium">{w.title || '(untitled job)'}</span>
+                            <StatusBadge status={w.stage} />
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5 truncate">
+                            {[w.job_address].filter(Boolean).join(', ') || (w.crew_name ? `Crew: ${w.crew_name}` : 'Unassigned')}
+                            {w.install_date ? ` · Install ${new Date(w.install_date).toLocaleDateString()}` : ''}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-500 mt-0.5 truncate">
-                          {w.title && w.work_order_number ? `${w.title} · ` : ''}
-                          {[w.address, w.city].filter(Boolean).join(', ') || (crewName(w.assigned_crew_id) ? `Crew: ${crewName(w.assigned_crew_id)}` : 'Unassigned')}
-                          {w.scheduled_start ? ` · ${new Date(w.scheduled_start).toLocaleDateString()}` : ''}
-                        </div>
+                        {w.deal_value ? <div className="text-sm text-brand-cyan font-medium">${Number(w.deal_value).toFixed(0)}</div> : null}
                       </div>
-                      {w.estimated_cost ? <div className="text-sm text-brand-cyan font-medium">${Number(w.estimated_cost).toFixed(0)}</div> : null}
-                    </div>
+                    </Link>
                   </li>
                 ))}
               </ul>
