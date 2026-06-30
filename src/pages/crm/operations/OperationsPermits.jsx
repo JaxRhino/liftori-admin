@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { HubPage, StatCard, Section, EmptyState, useCrmClient } from '../_shared'
 import { toast } from 'sonner'
 
@@ -24,11 +25,13 @@ const resultMeta = {
   pass: { label: 'Pass', color: 'bg-emerald-500/20 text-emerald-300' },
   fail: { label: 'Fail', color: 'bg-red-500/20 text-red-300' },
 }
-const blankPermit = () => ({ work_order_id: '', permit_number: '', permit_type: 'Roofing', authority: '', status: 'not_applied', fee: '', applied_date: '', issued_date: '', expires_date: '' })
-const blankInspection = () => ({ work_order_id: '', permit_id: '', inspection_type: '', scheduled_at: '', inspector: '' })
+const blankPermit = () => ({ deal_id: '', permit_number: '', permit_type: 'Roofing', authority: '', status: 'not_applied', fee: '', applied_date: '', issued_date: '', expires_date: '' })
+const blankInspection = () => ({ deal_id: '', permit_id: '', inspection_type: '', scheduled_at: '', inspector: '' })
 
 export default function OperationsPermits() {
   const { client } = useCrmClient()
+  const navigate = useNavigate()
+  const { platformId } = useParams()
   const [permits, setPermits] = useState([])
   const [inspections, setInspections] = useState([])
   const [jobs, setJobs] = useState([])
@@ -42,10 +45,15 @@ export default function OperationsPermits() {
   async function load() {
     try {
       setLoading(true)
+      const { data: defs } = await client.from('pipeline_definitions').select('id,name,is_default,is_active').eq('is_active', true).order('display_order')
+      const dl = defs || []
+      const jp = dl.find(d => /job|operation|production|install/i.test(d.name || '')) || dl.find(d => !d.is_default) || dl[0] || null
+      let jq = client.from('customer_pipeline').select('id, title, job_address').order('title')
+      if (jp) jq = jq.eq('pipeline_definition_id', jp.id)
       const [pRes, iRes, jRes] = await Promise.all([
         client.from('permits').select('*').order('created_at', { ascending: false }),
         client.from('inspections').select('*').order('scheduled_at', { ascending: true }),
-        client.from('ops_work_orders').select('id, work_order_number, title').order('work_order_number'),
+        jq,
       ])
       setPermits(pRes?.data || [])
       setInspections(iRes?.data || [])
@@ -54,8 +62,9 @@ export default function OperationsPermits() {
   }
 
   const jobById = useMemo(() => Object.fromEntries(jobs.map((j) => [j.id, j])), [jobs])
-  const permitsForJob = (wo) => permits.filter((p) => p.work_order_id === wo)
-  const jobLabel = (id) => { const j = jobById[id]; return j ? `${j.work_order_number} · ${j.title}` : '-' }
+  const permitsForJob = (wo) => permits.filter((p) => p.deal_id === wo)
+  const jobLabel = (id) => { const j = jobById[id]; return j ? (j.title || 'Job') : '-' }
+  const JobLink = ({ id }) => id ? <button onClick={() => navigate('/crm/' + platformId + '/deals/' + id)} className="text-brand-cyan hover:underline">{jobLabel(id)}</button> : <span>-</span>
   const stats = useMemo(() => ({
     open: permits.filter((p) => !['closed', 'rejected'].includes(p.status)).length,
     awaiting: inspections.filter((i) => i.result === 'pending').length,
@@ -65,11 +74,11 @@ export default function OperationsPermits() {
 
   // ---- permit CRUD ----
   async function savePermit() {
-    if (!editPermit.work_order_id) { toast.error('Pick a job'); return }
+    if (!editPermit.deal_id) { toast.error('Pick a job'); return }
     setBusy(true)
     try {
       const payload = {
-        work_order_id: editPermit.work_order_id, permit_number: editPermit.permit_number || null,
+        deal_id: editPermit.deal_id, work_order_id: null, permit_number: editPermit.permit_number || null,
         permit_type: editPermit.permit_type || null, authority: editPermit.authority || null, status: editPermit.status,
         fee_cents: Math.round((Number(editPermit.fee) || 0) * 100),
         applied_date: editPermit.applied_date || null, issued_date: editPermit.issued_date || null, expires_date: editPermit.expires_date || null,
@@ -87,12 +96,12 @@ export default function OperationsPermits() {
 
   // ---- inspection ----
   async function saveInspection() {
-    if (!editInsp.work_order_id) { toast.error('Pick a job'); return }
+    if (!editInsp.deal_id) { toast.error('Pick a job'); return }
     if (!editInsp.inspection_type.trim()) { toast.error('Inspection type required'); return }
     setBusy(true)
     try {
       const { error } = await client.from('inspections').insert({
-        work_order_id: editInsp.work_order_id, permit_id: editInsp.permit_id || null,
+        deal_id: editInsp.deal_id, work_order_id: null, permit_id: editInsp.permit_id || null,
         inspection_type: editInsp.inspection_type, scheduled_at: editInsp.scheduled_at || null,
         inspector: editInsp.inspector || null, result: 'pending',
       })
@@ -152,7 +161,7 @@ export default function OperationsPermits() {
                     const pm = permitMeta[p.status] || permitMeta.not_applied
                     return (
                       <tr key={p.id} className="border-b border-navy-700/30 hover:bg-navy-900/40">
-                        <td className="px-5 py-3 text-gray-300">{jobLabel(p.work_order_id)}</td>
+                        <td className="px-5 py-3 text-gray-300"><JobLink id={p.deal_id} /></td>
                         <td className="px-4 py-3 text-white font-mono text-xs">{p.permit_number || '-'}</td>
                         <td className="px-4 py-3 text-gray-300">{p.permit_type || '-'}</td>
                         <td className="px-4 py-3 text-gray-400">{p.authority || '-'}</td>
@@ -188,7 +197,7 @@ export default function OperationsPermits() {
                     const rm = resultMeta[i.result] || resultMeta.pending
                     return (
                       <tr key={i.id} className="border-b border-navy-700/30 hover:bg-navy-900/40">
-                        <td className="px-5 py-3 text-gray-300">{jobLabel(i.work_order_id)}</td>
+                        <td className="px-5 py-3 text-gray-300"><JobLink id={i.deal_id} /></td>
                         <td className="px-4 py-3 text-white">{i.inspection_type}</td>
                         <td className="px-4 py-3 text-gray-400">{fmtWhen(i.scheduled_at)}</td>
                         <td className="px-4 py-3 text-gray-400">{i.inspector || '-'}</td>
@@ -217,7 +226,7 @@ export default function OperationsPermits() {
           <div className="bg-navy-900 border border-navy-800 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-white font-semibold mb-4">{editPermit.id ? 'Edit permit' : 'New permit'}</h3>
             <div className="space-y-3">
-              <div><label className="block text-xs text-gray-400 mb-1">Job</label><select value={editPermit.work_order_id} onChange={(e) => setEditPermit({ ...editPermit, work_order_id: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">Select...</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.work_order_number} · {j.title}</option>)}</select></div>
+              <div><label className="block text-xs text-gray-400 mb-1">Job</label><select value={editPermit.deal_id} onChange={(e) => setEditPermit({ ...editPermit, deal_id: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">Select...</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}</select></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-xs text-gray-400 mb-1">Permit #</label><input value={editPermit.permit_number} onChange={(e) => setEditPermit({ ...editPermit, permit_number: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm" placeholder="BLD-2026-0455" /></div>
                 <div><label className="block text-xs text-gray-400 mb-1">Type</label><input value={editPermit.permit_type} onChange={(e) => setEditPermit({ ...editPermit, permit_type: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm" placeholder="Roofing" /></div>
@@ -249,9 +258,9 @@ export default function OperationsPermits() {
           <div className="bg-navy-900 border border-navy-800 rounded-xl w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-white font-semibold mb-4">Schedule inspection</h3>
             <div className="space-y-3">
-              <div><label className="block text-xs text-gray-400 mb-1">Job</label><select value={editInsp.work_order_id} onChange={(e) => setEditInsp({ ...editInsp, work_order_id: e.target.value, permit_id: '' })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">Select...</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.work_order_number} · {j.title}</option>)}</select></div>
-              {editInsp.work_order_id && permitsForJob(editInsp.work_order_id).length > 0 && (
-                <div><label className="block text-xs text-gray-400 mb-1">Permit (optional)</label><select value={editInsp.permit_id} onChange={(e) => setEditInsp({ ...editInsp, permit_id: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">None</option>{permitsForJob(editInsp.work_order_id).map((p) => <option key={p.id} value={p.id}>{p.permit_number || p.permit_type}</option>)}</select></div>
+              <div><label className="block text-xs text-gray-400 mb-1">Job</label><select value={editInsp.deal_id} onChange={(e) => setEditInsp({ ...editInsp, deal_id: e.target.value, permit_id: '' })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">Select...</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}</select></div>
+              {editInsp.deal_id && permitsForJob(editInsp.deal_id).length > 0 && (
+                <div><label className="block text-xs text-gray-400 mb-1">Permit (optional)</label><select value={editInsp.permit_id} onChange={(e) => setEditInsp({ ...editInsp, permit_id: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">None</option>{permitsForJob(editInsp.deal_id).map((p) => <option key={p.id} value={p.id}>{p.permit_number || p.permit_type}</option>)}</select></div>
               )}
               <div><label className="block text-xs text-gray-400 mb-1">Inspection type</label><input value={editInsp.inspection_type} onChange={(e) => setEditInsp({ ...editInsp, inspection_type: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm" placeholder="Dry-In / Final Roof" /></div>
               <div className="grid grid-cols-2 gap-3">
