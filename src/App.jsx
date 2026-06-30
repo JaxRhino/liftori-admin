@@ -210,6 +210,7 @@ import SupportTickets from './pages/SupportTickets'
 import PortalSupport from './pages/portal/PortalSupport'
 import RallyGuestJoin from './pages/RallyGuestJoin'
 import EventRsvp from './pages/EventRsvp'
+import PublicEstimate from './pages/PublicEstimate'
 import SalesCall from './pages/SalesCall'
 import ConsultingAppointments from './pages/ConsultingAppointments'
 import ConsultingClients from './pages/ConsultingClients'
@@ -414,6 +415,8 @@ export default function App() {
           <Route path="/rally/join/:code" element={<RallyGuestJoin />} />
           {/* Public event RSVP - no auth required */}
           <Route path="/rsvp/:token" element={<EventRsvp />} />
+          {/* Public sales estimate — sign + 50% deposit, no auth required */}
+          <Route path="/estimate/:token" element={<PublicEstimate />} />
           {/* Public job application â€” no auth required */}
           <Route path="/apply" element={<Apply />} />
           {/* Public interview scheduler â€” no auth required */}
