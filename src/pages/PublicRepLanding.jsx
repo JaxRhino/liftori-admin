@@ -22,6 +22,7 @@ const ICONS = {
 
 // Brand-colored scene illustrations for the flagship product cards.
 const ART = {
+  roofx: '<svg viewBox="0 0 400 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="lgroof" cx="40%" cy="18%" r="82%"><stop offset="0%" stop-color="rgba(14,165,233,.34)"/><stop offset="100%" stop-color="rgba(14,165,233,0)"/></radialGradient></defs><rect width="400" height="180" fill="url(#lgroof)"/><path d="M58 98 L130 46 L202 98 Z" fill="rgba(14,165,233,.16)" stroke="#38BDF8" stroke-width="2.5" stroke-linejoin="round"/><rect x="80" y="98" width="100" height="58" fill="rgba(14,165,233,.06)" stroke="#38BDF8" stroke-opacity=".5" stroke-width="2"/><rect x="118" y="122" width="24" height="34" fill="#0EA5E9" opacity=".5"/><g stroke="#E0F7FF" stroke-width="2" stroke-linecap="round"><line x1="46" y1="104" x2="118" y2="52"/><line x1="42" y1="100" x2="50" y2="108"/><line x1="114" y1="48" x2="122" y2="56"/></g><g stroke="#7DD3FC" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 5"><line x1="130" y1="38" x2="202" y2="38"/></g><rect x="248" y="32" width="112" height="122" rx="8" fill="rgba(8,15,30,.72)" stroke="#38BDF8" stroke-opacity=".5" stroke-width="2"/><rect x="264" y="48" width="58" height="10" rx="3" fill="#E0F7FF" opacity=".85"/><g stroke="#7DD3FC" stroke-opacity=".5" stroke-width="3" stroke-linecap="round"><line x1="264" y1="74" x2="344" y2="74"/><line x1="264" y1="88" x2="344" y2="88"/><line x1="264" y1="102" x2="320" y2="102"/></g><rect x="264" y="118" width="96" height="1.5" fill="#38BDF8" opacity=".45"/><rect x="264" y="130" width="40" height="13" rx="3" fill="#0EA5E9"/><rect x="318" y="130" width="42" height="13" rx="3" fill="#38BDF8"/></svg>',
   web: '<svg viewBox="0 0 400 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="lgweb" cx="50%" cy="20%" r="80%"><stop offset="0%" stop-color="rgba(14,165,233,.32)"/><stop offset="100%" stop-color="rgba(14,165,233,0)"/></radialGradient></defs><rect width="400" height="180" fill="url(#lgweb)"/><rect x="70" y="26" width="260" height="128" rx="12" fill="rgba(14,165,233,.07)" stroke="#38BDF8" stroke-opacity=".55" stroke-width="2"/><line x1="70" y1="50" x2="330" y2="50" stroke="#38BDF8" stroke-opacity=".35" stroke-width="2"/><circle cx="84" cy="38" r="3" fill="#7DD3FC"/><circle cx="96" cy="38" r="3" fill="#0EA5E9"/><circle cx="108" cy="38" r="3" fill="#38BDF8"/><rect x="86" y="66" width="120" height="14" rx="4" fill="#E0F7FF" opacity=".85"/><rect x="86" y="88" width="170" height="7" rx="3" fill="#7DD3FC" opacity=".5"/><rect x="86" y="100" width="150" height="7" rx="3" fill="#7DD3FC" opacity=".4"/><rect x="86" y="120" width="74" height="20" rx="6" fill="#0EA5E9"/><rect x="232" y="64" width="78" height="78" rx="8" fill="rgba(56,189,248,.18)" stroke="#38BDF8" stroke-opacity=".5" stroke-width="2"/><path d="M292 142 l18 7 l-7 4 l8 9 l-5 4 l-8 -9 l-6 6 z" fill="#E0F7FF"/></svg>',
   store: '<svg viewBox="0 0 400 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="lgsto" cx="45%" cy="22%" r="78%"><stop offset="0%" stop-color="rgba(56,189,248,.3)"/><stop offset="100%" stop-color="rgba(56,189,248,0)"/></radialGradient></defs><rect width="400" height="180" fill="url(#lgsto)"/><rect x="60" y="40" width="72" height="72" rx="10" fill="rgba(14,165,233,.1)" stroke="#38BDF8" stroke-opacity=".45" stroke-width="2"/><circle cx="96" cy="70" r="16" fill="#7DD3FC" opacity=".6"/><rect x="78" y="92" width="36" height="6" rx="3" fill="#0EA5E9"/><rect x="144" y="40" width="72" height="72" rx="10" fill="rgba(14,165,233,.06)" stroke="#38BDF8" stroke-opacity=".35" stroke-width="2"/><g stroke="#E0F7FF" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M250 56 h14 l10 56 h62 l12 -40 h-76"/></g><circle cx="284" cy="128" r="7" fill="#E0F7FF"/><circle cx="332" cy="128" r="7" fill="#E0F7FF"/><g transform="translate(300,40) rotate(12)"><rect x="0" y="0" width="44" height="24" rx="5" fill="#0EA5E9"/><circle cx="10" cy="12" r="3.5" fill="#06121f"/></g></svg>',
   mobile: '<svg viewBox="0 0 400 180" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="lgmob" cx="50%" cy="22%" r="78%"><stop offset="0%" stop-color="rgba(14,165,233,.32)"/><stop offset="100%" stop-color="rgba(14,165,233,0)"/></radialGradient></defs><rect width="400" height="180" fill="url(#lgmob)"/><rect x="150" y="22" width="100" height="152" rx="16" fill="rgba(14,165,233,.08)" stroke="#38BDF8" stroke-opacity=".55" stroke-width="2.5"/><rect x="186" y="30" width="28" height="5" rx="2.5" fill="#38BDF8" opacity=".5"/><rect x="164" y="48" width="72" height="34" rx="8" fill="#0EA5E9" opacity=".8"/><rect x="164" y="90" width="33" height="33" rx="7" fill="#7DD3FC"/><rect x="203" y="90" width="33" height="33" rx="7" fill="#38BDF8"/><rect x="164" y="129" width="33" height="20" rx="6" fill="#7DD3FC" opacity=".6"/><rect x="203" y="129" width="33" height="20" rx="6" fill="#7DD3FC" opacity=".6"/><rect x="84" y="64" width="42" height="42" rx="11" fill="rgba(56,189,248,.2)" stroke="#38BDF8" stroke-opacity=".5" stroke-width="2"/><rect x="282" y="94" width="38" height="38" rx="10" fill="rgba(125,211,252,.18)" stroke="#7DD3FC" stroke-opacity=".5" stroke-width="2"/></svg>',
@@ -242,6 +243,38 @@ export default function PublicRepLanding() {
               </div>
             ))}
           </div>
+
+          {/* Featured product — Liftori RoofX CRM */}
+          <div className="mt-8 overflow-hidden rounded-3xl border" style={{ borderColor: 'rgba(56,189,248,.28)', background: 'linear-gradient(150deg,rgba(14,165,233,.14),rgba(8,15,30,.55))' }}>
+            <div className="grid items-stretch md:grid-cols-2">
+              <div className="relative min-h-[260px] overflow-hidden">
+                <div className="absolute inset-0" dangerouslySetInnerHTML={{ __html: ART.roofx }} />
+                <div className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(120deg, transparent 45%, rgba(8,15,30,.6))' }} />
+                <span className="absolute left-6 top-6 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ background: '#0EA5E9', color: '#02101f' }}>Featured product</span>
+              </div>
+              <div className="flex flex-col justify-center p-8 md:p-10">
+                <p className="lo-mono text-xs uppercase tracking-[0.32em]" style={{ color: '#38BDF8' }}>Industry CRM · Roofing</p>
+                <h3 className="lo-display mt-3 text-4xl md:text-5xl">LIFTORI ROOFX CRM</h3>
+                <p className="mt-2 text-base font-medium" style={{ color: '#7DD3FC' }}>The all-in-one platform built for roofing contractors.</p>
+                <p className="mt-4 text-sm leading-relaxed text-slate-300">
+                  RoofX runs your entire roofing business in one place — from the first knock to the final invoice. Pull instant roof measurements, turn them into branded estimates and proposals in minutes, and move every job through a pipeline designed for roofing. Your office, your crews, and your customers stay perfectly in sync.
+                </p>
+                <ul className="mt-5 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                  {['Instant roof measurements & takeoffs', 'Branded estimates & proposals that close', 'Job pipeline, scheduling & production', 'Built-in call center & customer portal', 'Materials, permits & inspections', 'Solar & insurance-ready'].map((pt) => (
+                    <li key={pt} className="flex items-start gap-2 text-[13px] text-slate-200">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: '#38BDF8' }} />
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-7">
+                  <a href="#request" className="inline-block rounded-full px-6 py-3 text-sm font-semibold text-white transition" style={{ background: 'linear-gradient(100deg,#0EA5E9,#38BDF8)', boxShadow: '0 14px 40px -16px rgba(14,165,233,.6)' }}>
+                    Ask {firstName} about RoofX
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* What we build — bento grid, NO pricing */}
@@ -267,16 +300,18 @@ export default function PublicRepLanding() {
                   <p className={`mt-1.5 text-slate-300 ${p.featured ? 'text-sm max-w-xs' : 'text-[13px]'}`}>{p.blurb}</p>
                 </div>
                 <div className="lo-card-reveal">
-                  <p className={`font-semibold text-white ${p.featured ? 'text-xl' : 'text-base'}`}>{p.name}</p>
-                  <ul className="mt-2.5 space-y-1.5">
-                    {(p.points || []).slice(0, p.featured ? 4 : 3).map((pt) => (
+                  <p className="lo-mono text-[10px] uppercase tracking-[0.28em]" style={{ color: '#38BDF8' }}>Liftori build</p>
+                  <p className={`mt-1 font-bold text-white ${p.featured ? 'text-xl' : 'text-lg'}`}>{p.name}</p>
+                  <p className="mt-1.5 text-[12.5px] leading-snug text-slate-300">{p.blurb}</p>
+                  <ul className="mt-3 grid grid-cols-1 gap-x-5 gap-y-1.5 sm:grid-cols-2">
+                    {(p.points || []).map((pt) => (
                       <li key={pt} className="flex items-start gap-2 text-[12px] leading-snug text-slate-200">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: '#38BDF8' }} />
                         {pt}
                       </li>
                     ))}
                   </ul>
-                  <a href="#request" className="mt-3 inline-block text-[12px] font-semibold" style={{ color: '#7DD3FC' }}>Ask {firstName} about it</a>
+                  <a href="#request" className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold" style={{ color: '#7DD3FC' }}>Ask {firstName} about it →</a>
                 </div>
               </div>
             ))}
