@@ -180,6 +180,7 @@ export const NAV_PERMISSION_MAP = {
   'Estimates': 'sales.estimates',
   'Agreements': 'sales.agreements',
   'Commissions': 'sales.commissions',
+  'Landing Page': 'sales.commissions',
   'Investors': 'sales.investors',
   'Waitlist': 'sales.waitlist',
   // Tools
@@ -237,6 +238,7 @@ export const ROUTE_PERMISSION_MAP = {
   '/admin/estimates': 'sales.estimates',
   '/admin/agreements': 'sales.agreements',
   '/admin/commissions': 'sales.commissions',
+  '/admin/landing-page': 'sales.commissions',
   '/admin/waitlist': 'sales.waitlist',
   '/admin/investors': 'sales.investors',
   '/admin/projects': 'projects.view',
