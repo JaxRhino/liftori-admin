@@ -194,7 +194,7 @@ export default function OperationsSchedule() {
         start_time: d.install_date + 'T09:00:00', end_time: d.install_date + 'T11:00:00', address: d.job_address || null, crew_id: null,
       }))
       setEvents([...(evRes.data || []), ...jobEvents])
-      setWorkOrders(woRes.data || [])
+      setWorkOrders(dRes.data || [])
       setCrews(crRes.data || [])
     } catch (e) {
       console.error('[OperationsSchedule] load', e)
@@ -606,9 +606,8 @@ function NewEventModal({ open, onClose, prefill, client, workOrders, crews, onSa
     setForm(f => ({
       ...f,
       title: f.title || wo.title || '',
-      address: f.address || wo.address || '',
-      crew_id: f.crew_id || wo.assigned_crew_id || '',
-      start_time: f.start_time || (wo.scheduled_start ? toLocalInput(wo.scheduled_start) : ''),
+      address: f.address || wo.job_address || '',
+      start_time: f.start_time || (wo.install_date ? toLocalInput(wo.install_date + 'T09:00:00') : ''),
     }))
   }, [form.work_order_id, workOrders])
 
@@ -624,7 +623,8 @@ function NewEventModal({ open, onClose, prefill, client, workOrders, crews, onSa
       const payload = {
         title: form.title.trim(),
         event_type: form.event_type || 'job',
-        work_order_id: form.work_order_id || null,
+        deal_id: form.work_order_id || null,
+        work_order_id: null,
         crew_id: form.crew_id || null,
         assigned_to: assignedList.length ? assignedList : null,
         start_time: form.start_time,
@@ -662,7 +662,7 @@ function NewEventModal({ open, onClose, prefill, client, workOrders, crews, onSa
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
         <Input label="Title *" value={form.title} onChange={(v) => setForm(f => ({ ...f, title: v }))} />
         <Select label="Type" value={form.event_type} onChange={(v) => setForm(f => ({ ...f, event_type: v, color: EVENT_TYPE_COLOR[v] || f.color }))} options={EVENT_TYPES.map(t => ({ value: t.key, label: t.label }))} />
-        <Select label="Linked Work Order" value={form.work_order_id} onChange={(v) => setForm(f => ({ ...f, work_order_id: v }))} options={workOrders.map(w => ({ value: w.id, label: `${w.work_order_number || ''} ${w.title || ''}`.trim() }))} />
+        <Select label="Linked Job" value={form.work_order_id} onChange={(v) => setForm(f => ({ ...f, work_order_id: v }))} options={workOrders.map(w => ({ value: w.id, label: w.title || 'Job' }))} />
         <Select label="Crew" value={form.crew_id} onChange={(v) => setForm(f => ({ ...f, crew_id: v }))} options={crews.map(c => ({ value: c.id, label: c.name }))} />
         <Input label="Start *" type="datetime-local" value={form.start_time} onChange={(v) => setForm(f => ({ ...f, start_time: v }))} />
         <Input label="End" type="datetime-local" value={form.end_time} onChange={(v) => setForm(f => ({ ...f, end_time: v }))} />
@@ -704,7 +704,7 @@ function EventDrawer({ ev, client, workOrders, crews, woById, crewById, onClose,
 
   if (!ev || !draft) return null
 
-  const linkedWo = woById[ev.work_order_id]
+  const linkedWo = woById[ev.deal_id]
   const crew = crewById[ev.crew_id]
 
   async function save() {
@@ -713,7 +713,8 @@ function EventDrawer({ ev, client, workOrders, crews, woById, crewById, onClose,
       const payload = {
         title: draft.title,
         event_type: draft.event_type,
-        work_order_id: draft.work_order_id || null,
+        deal_id: draft.deal_id || null,
+        work_order_id: null,
         crew_id: draft.crew_id || null,
         start_time: draft.start_time || null,
         end_time: draft.end_time || null,
@@ -776,7 +777,7 @@ function EventDrawer({ ev, client, workOrders, crews, woById, crewById, onClose,
           <Row label="Crew" value={crew?.name || '-'} />
           <Row label="Address" value={ev.address || '-'} />
           {linkedWo && (
-            <Row label="Linked WO" value={`${linkedWo.work_order_number || ''} ${linkedWo.title || ''}`.trim()} />
+            <Row label="Linked Job" value={linkedWo.title || 'Job'} />
           )}
           {Array.isArray(ev.assigned_to) && ev.assigned_to.length > 0 && (
             <Row label="Assigned To" value={ev.assigned_to.join(', ')} />
@@ -806,7 +807,7 @@ function EventDrawer({ ev, client, workOrders, crews, woById, crewById, onClose,
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
             <Select label="Type" value={draft.event_type} onChange={(v) => setDraft(d => ({ ...d, event_type: v }))} options={EVENT_TYPES.map(t => ({ value: t.key, label: t.label }))} />
             <Select label="Status" value={draft.status} onChange={(v) => setDraft(d => ({ ...d, status: v }))} options={EVENT_STATUSES.map(s => ({ value: s.key, label: s.label }))} />
-            <Select label="Linked WO" value={draft.work_order_id} onChange={(v) => setDraft(d => ({ ...d, work_order_id: v }))} options={workOrders.map(w => ({ value: w.id, label: `${w.work_order_number || ''} ${w.title || ''}`.trim() }))} />
+            <Select label="Linked Job" value={draft.deal_id} onChange={(v) => setDraft(d => ({ ...d, deal_id: v }))} options={workOrders.map(w => ({ value: w.id, label: w.title || 'Job' }))} />
             <Select label="Crew" value={draft.crew_id} onChange={(v) => setDraft(d => ({ ...d, crew_id: v }))} options={crews.map(c => ({ value: c.id, label: c.name }))} />
             <Input label="Start" type="datetime-local" value={draft.start_time ? toLocalInput(draft.start_time) : ''} onChange={(v) => setDraft(d => ({ ...d, start_time: v }))} />
             <Input label="End" type="datetime-local" value={draft.end_time ? toLocalInput(draft.end_time) : ''} onChange={(v) => setDraft(d => ({ ...d, end_time: v }))} />
