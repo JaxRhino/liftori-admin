@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useCrmClient } from './_shared';
 import { Card } from '../../components/ui/card';
 import { MapPin, Briefcase, User } from 'lucide-react';
@@ -33,6 +34,8 @@ const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v)
 
 export default function CrmJobMap() {
   const { client } = useCrmClient();
+  const navigate = useNavigate();
+  const { platformId } = useParams();
   const [jobs, setJobs] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [show, setShow] = useState({ jobs: true, customers: true });
@@ -48,8 +51,13 @@ export default function CrmJobMap() {
     try {
       setLoading(true);
       const safe = (p) => p.then(r => r.data || []).catch(() => []);
+      const { data: pdefs } = await client.from('pipeline_definitions').select('id,name,is_default,is_active').eq('is_active', true).order('display_order');
+      const pdl = pdefs || [];
+      const jpipe = pdl.find(d => /job|operation|production|install/i.test(d.name || '')) || pdl.find(d => !d.is_default) || pdl[0] || null;
+      let jq = client.from('customer_pipeline').select('id,title,stage,contact_id,job_address');
+      if (jpipe) jq = jq.eq('pipeline_definition_id', jpipe.id);
       const [jb, ct] = await Promise.all([
-        safe(client.from('ops_work_orders').select('id,title,work_order_number,status,address,city,state,lat,lng,estimated_cost')),
+        safe(jq),
         safe(client.from('customer_contacts').select('id,first_name,last_name,property_address,property_city,property_state,lat,lng')),
       ]);
       setJobs(jb); setContacts(ct);
@@ -57,12 +65,13 @@ export default function CrmJobMap() {
     finally { setLoading(false); }
   }
 
+  const contactById = useMemo(() => { const m = {}; contacts.forEach(c => { m[c.id] = c }); return m; }, [contacts]);
   const pins = useMemo(() => {
     const out = [];
-    if (show.jobs) jobs.forEach(j => { const lat = num(j.lat), lng = num(j.lng); if (lat != null && lng != null) out.push({ kind: 'job', id: j.id, lat, lng, title: j.title || j.work_order_number || 'Job', sub: [j.address, j.city, j.state].filter(Boolean).join(', '), status: j.status }); });
+    if (show.jobs) jobs.forEach(j => { const c = contactById[j.contact_id]; const lat = num(c && c.lat), lng = num(c && c.lng); if (lat != null && lng != null) out.push({ kind: 'job', id: j.id, deal_id: j.id, lat, lng, title: j.title || 'Job', sub: j.job_address || '', status: j.stage }); });
     if (show.customers) contacts.forEach(c => { const lat = num(c.lat), lng = num(c.lng); if (lat != null && lng != null) out.push({ kind: 'customer', id: c.id, lat, lng, title: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Customer', sub: [c.property_address, c.property_city, c.property_state].filter(Boolean).join(', ') }); });
     return out;
-  }, [jobs, contacts, show]);
+  }, [jobs, contacts, contactById, show]);
 
   // init / refresh map
   useEffect(() => {
@@ -80,7 +89,8 @@ export default function CrmJobMap() {
       pins.forEach(p => {
         const color = p.kind === 'job' ? '#0ea5e9' : '#a855f7';
         const marker = L.circleMarker([p.lat, p.lng], { radius: 8, color, fillColor: color, fillOpacity: 0.85, weight: 2 });
-        marker.bindPopup(`<strong>${p.title}</strong><br/>${p.sub || ''}${p.status ? '<br/>Status: ' + p.status : ''}`);
+        if (p.kind === 'job' && p.deal_id) { marker.on('click', () => navigate('/crm/' + platformId + '/deals/' + p.deal_id)); marker.bindTooltip(p.title); }
+        else { marker.bindPopup(`<strong>${p.title}</strong><br/>${p.sub || ''}${p.status ? '<br/>Status: ' + p.status : ''}`); }
         marker.addTo(layerRef.current);
         bounds.push([p.lat, p.lng]);
       });
@@ -118,7 +128,7 @@ export default function CrmJobMap() {
           {pins.length === 0 ? (
             <p className="text-xs text-gray-500 px-1">No pinned locations yet. Add lat/lng to jobs or customers.</p>
           ) : pins.map(p => (
-            <div key={p.kind + p.id} className="px-2 py-2 rounded hover:bg-navy-800/60 cursor-pointer" onClick={() => { if (mapObj.current) mapObj.current.setView([p.lat, p.lng], 14); }}>
+            <div key={p.kind + p.id} className="px-2 py-2 rounded hover:bg-navy-800/60 cursor-pointer" onClick={() => { if (p.kind === 'job' && p.deal_id) navigate('/crm/' + platformId + '/deals/' + p.deal_id); else if (mapObj.current) mapObj.current.setView([p.lat, p.lng], 14); }}>
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: p.kind === 'job' ? '#0ea5e9' : '#a855f7' }} />
                 <span className="text-sm text-white truncate">{p.title}</span>
