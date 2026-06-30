@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { HubPage, StatCard, Section, EmptyState, useCrmClient } from '../_shared'
 import { toast } from 'sonner'
 
@@ -16,10 +17,12 @@ const statusMeta = {
   cancelled: { label: 'Cancelled', color: 'bg-red-500/20 text-red-300' },
 }
 const blankItem = () => ({ name: '', sku: '', quantity: 1, unit: 'each', unit_cost: '' })
-const blankOrder = () => ({ work_order_id: '', supplier: 'ABC Supply', po_number: '', expected_delivery: '', items: [blankItem()] })
+const blankOrder = () => ({ deal_id: '', supplier: 'ABC Supply', po_number: '', expected_delivery: '', items: [blankItem()] })
 
 export default function OperationsMaterials() {
   const { client } = useCrmClient()
+  const navigate = useNavigate()
+  const { platformId } = useParams()
   const [orders, setOrders] = useState([])
   const [items, setItems] = useState([])
   const [jobs, setJobs] = useState([])
@@ -32,10 +35,15 @@ export default function OperationsMaterials() {
   async function load() {
     try {
       setLoading(true)
+      const { data: defs } = await client.from('pipeline_definitions').select('id,name,is_default,is_active').eq('is_active', true).order('display_order')
+      const dl = defs || []
+      const jp = dl.find(d => /job|operation|production|install/i.test(d.name || '')) || dl.find(d => !d.is_default) || dl[0] || null
+      let jq = client.from('customer_pipeline').select('id, title, job_address').order('title')
+      if (jp) jq = jq.eq('pipeline_definition_id', jp.id)
       const [oRes, iRes, jRes] = await Promise.all([
         client.from('material_orders').select('*').order('created_at', { ascending: false }),
         client.from('material_order_items').select('*'),
-        client.from('ops_work_orders').select('id, work_order_number, title').order('work_order_number'),
+        jq,
       ])
       setOrders(oRes?.data || [])
       setItems(iRes?.data || [])
@@ -50,7 +58,7 @@ export default function OperationsMaterials() {
     return m
   }, [items])
   const orderTotal = (oid) => (itemsByOrder[oid] || []).reduce((t, it) => t + (Number(it.quantity) || 0) * (it.unit_cost_cents || 0) / 100, 0)
-  const jobLabel = (id) => { const j = jobById[id]; return j ? `${j.work_order_number} · ${j.title}` : 'Unassigned' }
+  const jobLabel = (id) => { const j = jobById[id]; return j ? (j.title || 'Job') : 'Unassigned' }
 
   const stats = useMemo(() => {
     let open = 0, onOrder = 0, delivered = 0
@@ -68,7 +76,7 @@ export default function OperationsMaterials() {
   function openNew() { setEditing(blankOrder()) }
   function openEdit(o) {
     setEditing({
-      id: o.id, work_order_id: o.work_order_id || '', supplier: o.supplier || 'ABC Supply', po_number: o.po_number || '',
+      id: o.id, deal_id: o.deal_id || '', supplier: o.supplier || 'ABC Supply', po_number: o.po_number || '',
       expected_delivery: o.expected_delivery || '',
       items: (itemsByOrder[o.id] || []).map((it) => ({ name: it.name, sku: it.sku || '', quantity: it.quantity, unit: it.unit || 'each', unit_cost: (it.unit_cost_cents || 0) / 100 })),
     })
@@ -77,13 +85,13 @@ export default function OperationsMaterials() {
   const draftTotal = useMemo(() => (editing?.items || []).reduce((t, it) => t + (Number(it.quantity) || 0) * (Number(it.unit_cost) || 0), 0), [editing])
 
   async function saveOrder() {
-    if (!editing.work_order_id) { toast.error('Pick a job'); return }
+    if (!editing.deal_id) { toast.error('Pick a job'); return }
     const rows = editing.items.filter((it) => it.name.trim())
     if (!rows.length) { toast.error('Add at least one material line'); return }
     setBusy(true)
     try {
       let orderId = editing.id
-      const payload = { work_order_id: editing.work_order_id, supplier: editing.supplier, po_number: editing.po_number || null, expected_delivery: editing.expected_delivery || null }
+      const payload = { deal_id: editing.deal_id, work_order_id: null, supplier: editing.supplier, po_number: editing.po_number || null, expected_delivery: editing.expected_delivery || null }
       if (orderId) {
         const { error } = await client.from('material_orders').update(payload).eq('id', orderId); if (error) throw error
         await client.from('material_order_items').delete().eq('order_id', orderId)
@@ -104,7 +112,7 @@ export default function OperationsMaterials() {
     catch (e) { console.error(e); toast.error('Update failed'); load() }
   }
   async function removeOrder(o) {
-    if (!window.confirm(`Delete material order ${o.po_number || ''} for ${jobLabel(o.work_order_id)}?`)) return
+    if (!window.confirm(`Delete material order ${o.po_number || ''} for ${jobLabel(o.deal_id)}?`)) return
     try { const { error } = await client.from('material_orders').delete().eq('id', o.id); if (error) throw error; toast.success('Order removed'); load() }
     catch (e) { console.error(e); toast.error(e.message || 'Delete failed') }
   }
@@ -139,7 +147,7 @@ export default function OperationsMaterials() {
                 </div>
               }>
                 <div className="px-5 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-navy-700/40">
-                  <div className="text-sm text-gray-300">{jobLabel(o.work_order_id)}{o.expected_delivery ? <span className="text-gray-500 ml-3 text-xs">ETA {fmtDate(o.expected_delivery)}</span> : null}</div>
+                  <div className="text-sm text-gray-300">{o.deal_id ? <button onClick={() => navigate('/crm/' + platformId + '/deals/' + o.deal_id)} className="text-brand-cyan hover:underline">{jobLabel(o.deal_id)}</button> : jobLabel(o.deal_id)}{o.expected_delivery ? <span className="text-gray-500 ml-3 text-xs">ETA {fmtDate(o.expected_delivery)}</span> : null}</div>
                   <div className="flex items-center gap-2">
                     {o.status === 'draft' && <button onClick={() => setStatus(o, 'ordered')} className="px-2 py-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 rounded text-xs transition">Mark ordered</button>}
                     {o.status === 'ordered' && <button onClick={() => setStatus(o, 'delivered')} className="px-2 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 rounded text-xs transition">Mark delivered</button>}
@@ -180,7 +188,7 @@ export default function OperationsMaterials() {
             <h3 className="text-white font-semibold mb-4">{editing.id ? 'Edit material order' : 'Build material order'}</h3>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-xs text-gray-400 mb-1">Job</label><select value={editing.work_order_id} onChange={(e) => setEditing({ ...editing, work_order_id: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">Select...</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.work_order_number} · {j.title}</option>)}</select></div>
+                <div><label className="block text-xs text-gray-400 mb-1">Job</label><select value={editing.deal_id} onChange={(e) => setEditing({ ...editing, deal_id: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm"><option value="">Select...</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}</select></div>
                 <div><label className="block text-xs text-gray-400 mb-1">Supplier</label><select value={editing.supplier} onChange={(e) => setEditing({ ...editing, supplier: e.target.value })} className="w-full bg-navy-800 border border-navy-700 text-white rounded px-3 py-2 text-sm">{SUPPLIERS.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
